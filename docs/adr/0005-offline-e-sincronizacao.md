@@ -29,12 +29,12 @@ No dia do evento a internet costuma falhar (igreja, retiro, sítio). Organizador
 
 **O que funciona offline:** leitura do evento preparado; concluir e reabrir tarefas e checklists; marcar presença; avançar o ao vivo ("só neste aparelho"); registrar intenção de inscrição ("pendente: vaga não garantida"); rascunhos locais de sugestão e perfil. Edição estrutural, convites, papéis e administração exigem conexão. Pedidos de oração **nunca** ficam offline. A tabela completa vai para `docs/matriz-offline.md` na F13.
 
-**Validade e revogação:** cada partição tem `valido_ate`, renovado a cada contato com o servidor: **14 dias** (P2), ajustável por comunidade entre 3 e 30. Vencida, é bloqueada e apagada ao abrir. Logout, troca de conta, saída da comunidade ou revogação detectada apagam a partição (operações pendentes são mostradas antes, com aviso).
+**Validade e revogação:** cada partição tem `valido_ate`, renovado a cada contato com o servidor: **7 dias** (P2, alterado pelo dono para 7 dias em 14/11/2026, D23), ajustável por comunidade entre 3 e 30. Vencida, é bloqueada e apagada ao abrir. Logout, troca de conta, saída da comunidade ou revogação detectada apagam a partição (operações pendentes são mostradas antes, com aviso).
 
 ## Consequências
 
 - **Limite real:** um aparelho desconectado não recebe a revogação nem pode ser apagado remotamente naquele instante. O dado já baixado continua legível nesse aparelho até a próxima conexão ou o vencimento. Por isso o pacote offline é mínimo (telefone mascarado, sem oração) e cifrado, e o servidor rejeita qualquer operação enviada depois da revogação.
-- 14 dias toleram uma semana sem rede no uso semanal real; prazo maior amplia a exposição em aparelho perdido.
+- 7 dias (escolha do dono, D23) cobrem o intervalo entre dois sábados; o plano original propunha 14; prazo maior amplia a exposição em aparelho perdido.
 - SQLCipher exige build de desenvolvimento (não roda no Expo Go).
 - Sincronização em segundo plano é oportunista no iOS e no Android; a garantida é ao abrir ou retomar o app.
 
