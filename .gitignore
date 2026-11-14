@@ -1,0 +1,27 @@
+node_modules/
+dist/
+coverage/
+.expo/
+web-build/
+*.log
+.DS_Store
+
+# Segredos: nunca versionar
+.env
+.env.*
+!.env.example
+segredos/
+*.p8
+*.p12
+*.jks
+*.keystore
+*.mobileprovision
+google-services.json
+GoogleService-Info.plist
+service-account*.json
+
+# Saídas locais
+tmp/
+.dados-dev/
+test-results/
+playwright-report/

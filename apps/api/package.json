@@ -1,0 +1,21 @@
+{
+  "name": "@uj/api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "tipos": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@uj/dominio": "*",
+    "fastify": "^5.12.8",
+    "kysely": "^0.29.9",
+    "pg": "^8.23.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1",
+    "embedded-postgres": "^17.11.0-beta.19"
+  }
+}

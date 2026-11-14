@@ -1,0 +1,11 @@
+#!/bin/sh
+# Barra segredo antes de entrar no histórico. Ativado por `npm run preparar`.
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks git --staged --redact --no-banner || {
+    echo "gitleaks encontrou possível segredo no que está sendo commitado. Commit cancelado." >&2
+    exit 1
+  }
+else
+  echo "AVISO: gitleaks não encontrado; varredura de segredos não executada." >&2
+  exit 1
+fi

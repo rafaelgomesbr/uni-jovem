@@ -1,0 +1,41 @@
+{
+  "name": "uni-jovem",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Uni Jovem: organização da liderança jovem (web, Android e iOS)",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/api"
+  ],
+  "engines": {
+    "node": ">=22 <23"
+  },
+  "scripts": {
+    "preparar": "git config core.hooksPath .githooks",
+    "formato": "prettier --write .",
+    "formato:conferir": "prettier --check .",
+    "lint": "eslint .",
+    "tipos": "tsc -p tsconfig.json && npm run tipos --workspaces --if-present",
+    "test": "vitest run",
+    "verificar": "npm run formato:conferir && npm run lint && npm run tipos && npm test",
+    "dev:api": "npm run dev --workspace @uj/api",
+    "gerar:matriz": "tsx scripts/gerar-matriz.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.19.0",
+    "eslint": "^10.15.0",
+    "globals": "^17.13.0",
+    "prettier": "^3.10.1",
+    "tsx": "^4.20.0",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.2",
+    "vitest": "^5.1.0"
+  },
+  "overrides": {
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "^11.0.8"
+    }
+  }
+}

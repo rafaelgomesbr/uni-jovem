@@ -1,0 +1,280 @@
+import { NIVEL, NOME_DO_PAPEL, type Papel } from './papeis.ts'
+
+/**
+ * Matriz papel × recurso × ação. É a ÚNICA fonte da verdade de permissão na
+ * aplicação: a API consulta `permite`, a interface usa o mesmo resultado só
+ * para esconder controles, e `docs/matriz-permissoes.md` é gerado daqui
+ * (`npm run gerar:matriz`; o teste reprova se o documento divergir).
+ *
+ * O banco (RLS) é uma segunda camada independente: mesmo que a API erre, a
+ * política da tabela segura a leitura e a escrita fora da comunidade.
+ *
+ * Negar por padrão: recurso ou ação que não estão aqui não são permitidos.
+ */
+
+export type Designacao = 'equipe_oracao'
+
+export type Exigencia =
+  /** Qualquer registro da comunidade, a partir deste papel. */
+  | { tipo: 'papel'; minimo: Papel }
+  /** Só registros da própria pessoa (autora, inscrita, escalada, responsável). */
+  | { tipo: 'proprio'; minimo: Papel }
+  /** Quem tem a designação, independentemente do papel. */
+  | { tipo: 'designacao'; designacao: Designacao }
+  /** Ação de plataforma: só o proprietário, com 2FA recente. */
+  | { tipo: 'proprietario' }
+
+const papel = (minimo: Papel): Exigencia => ({ tipo: 'papel', minimo })
+const proprio = (minimo: Papel = 'membro'): Exigencia => ({ tipo: 'proprio', minimo })
+const proprietario: Exigencia = { tipo: 'proprietario' }
+
+export const MATRIZ = {
+  plataforma: {
+    criar_comunidade: [proprietario],
+    suspender_comunidade: [proprietario],
+    arquivar_comunidade: [proprietario],
+    excluir_comunidade: [proprietario],
+    nomear_admin: [proprietario],
+    intervir_em_vinculo: [proprietario],
+    transferir_propriedade: [proprietario],
+    ler_auditoria_da_plataforma: [proprietario],
+  },
+  comunidade: {
+    ler: [papel('membro')],
+    configurar: [papel('admin')],
+  },
+  vinculo: {
+    listar: [papel('membro')],
+    ver_contato: [papel('organizador')],
+    alterar_papel: [papel('admin')],
+    desativar: [papel('admin')],
+    remover: [papel('admin')],
+    designar_equipe_oracao: [papel('admin')],
+    sair: [proprio('membro')],
+  },
+  convite: {
+    listar: [papel('admin')],
+    criar: [papel('admin')],
+    revogar: [papel('admin')],
+  },
+  evento: {
+    ler: [papel('membro')],
+    criar: [papel('organizador')],
+    editar: [papel('organizador')],
+    publicar: [papel('organizador')],
+    cancelar_ou_adiar: [papel('organizador')],
+    excluir: [papel('organizador')],
+  },
+  modelo: {
+    ler: [papel('organizador')],
+    gerenciar: [papel('organizador')],
+  },
+  etapa: {
+    ler: [papel('membro')],
+    gerenciar: [papel('organizador')],
+  },
+  escala: {
+    ler: [papel('membro')],
+    atribuir: [papel('organizador')],
+    confirmar: [proprio('membro')],
+    pedir_substituicao: [proprio('membro')],
+    assumir_substituicao: [papel('membro')],
+  },
+  disponibilidade: {
+    ler: [papel('organizador'), proprio('membro')],
+    informar: [proprio('membro')],
+  },
+  tarefa: {
+    ler: [papel('membro')],
+    gerenciar: [papel('organizador')],
+    concluir: [papel('organizador'), proprio('membro')],
+  },
+  material: {
+    ler: [papel('membro')],
+    gerenciar: [papel('organizador')],
+  },
+  checklist: {
+    ler: [papel('membro')],
+    gerenciar: [papel('organizador')],
+    marcar: [papel('organizador'), proprio('membro')],
+  },
+  nota_interna: {
+    ler: [papel('organizador')],
+    gerenciar: [papel('organizador')],
+  },
+  anexo: {
+    ler: [papel('membro')],
+    gerenciar: [papel('organizador')],
+  },
+  inscricao: {
+    ler_lista: [papel('organizador')],
+    inscrever_se: [proprio('membro')],
+    cancelar: [papel('organizador'), proprio('membro')],
+    gerenciar: [papel('organizador')],
+  },
+  presenca: {
+    ler: [papel('organizador')],
+    registrar: [papel('organizador')],
+  },
+  ao_vivo: {
+    acompanhar: [papel('membro')],
+    conduzir: [papel('organizador')],
+  },
+  sugestao: {
+    criar: [papel('membro')],
+    ler: [papel('organizador'), proprio('membro')],
+    moderar: [papel('organizador')],
+  },
+  pedido_oracao: {
+    // Leitura depende da visibilidade do pedido: ver `podeVerPedidoDeOracao`.
+    criar: [papel('membro')],
+    editar: [proprio('membro')],
+    excluir: [proprio('membro')],
+    mudar_visibilidade: [proprio('membro')],
+  },
+  conteudo: {
+    ler: [papel('membro')],
+    gerenciar: [papel('organizador')],
+  },
+  aviso: {
+    ler: [papel('membro')],
+    publicar: [papel('organizador')],
+  },
+  relatorio: {
+    ler: [papel('organizador')],
+  },
+  exportacao: {
+    sem_contatos: [papel('organizador')],
+    com_contatos: [papel('admin')],
+  },
+  auditoria: {
+    ler: [papel('admin')],
+  },
+} as const satisfies Record<string, Record<string, readonly Exigencia[]>>
+
+export type Recurso = keyof typeof MATRIZ
+export type Acao<R extends Recurso> = keyof (typeof MATRIZ)[R] & string
+
+export interface Ator {
+  /** Papel do vínculo ATIVO na comunidade do contexto; null sem vínculo. */
+  papel: Papel | null
+  designacoes: readonly Designacao[]
+  /** Proprietário da plataforma, com 2FA recente já conferido pela API. */
+  proprietarioComDoisFatores: boolean
+}
+
+export interface Alvo {
+  /** O registro pertence à própria pessoa (autora, inscrita, escalada, responsável). */
+  proprio: boolean
+}
+
+function atende(exigencia: Exigencia, ator: Ator, alvo: Alvo | undefined): boolean {
+  switch (exigencia.tipo) {
+    case 'proprietario':
+      return ator.proprietarioComDoisFatores
+    case 'designacao':
+      return ator.papel !== null && ator.designacoes.includes(exigencia.designacao)
+    case 'papel':
+      return ator.papel !== null && NIVEL[ator.papel] >= NIVEL[exigencia.minimo]
+    case 'proprio':
+      return (
+        ator.papel !== null &&
+        NIVEL[ator.papel] >= NIVEL[exigencia.minimo] &&
+        alvo?.proprio === true
+      )
+  }
+}
+
+export function permite<R extends Recurso>(
+  ator: Ator,
+  recurso: R,
+  acao: Acao<R>,
+  alvo?: Alvo,
+): boolean {
+  const exigencias = (MATRIZ[recurso] as Record<string, readonly Exigencia[] | undefined>)[acao]
+  if (!exigencias) return false
+  return exigencias.some((e) => atende(e, ator, alvo))
+}
+
+// ------------------------------------------------------------ pedidos de oração
+
+export const VISIBILIDADES_DE_ORACAO = ['somente_eu', 'equipe_oracao', 'comunidade'] as const
+export type VisibilidadeDeOracao = (typeof VISIBILIDADES_DE_ORACAO)[number]
+/** Todo pedido começa no público mais restrito. */
+export const VISIBILIDADE_PADRAO_DE_ORACAO: VisibilidadeDeOracao = 'somente_eu'
+
+export const QUEM_VE_O_PEDIDO: Readonly<Record<VisibilidadeDeOracao, string>> = {
+  somente_eu: 'Só você.',
+  equipe_oracao:
+    'Você e as pessoas designadas para a equipe de oração desta comunidade. Administradores não veem, a menos que estejam na equipe.',
+  comunidade: 'Você e todos os membros ativos desta comunidade.',
+}
+
+/**
+ * Quem lê um pedido. Ser admin ou proprietário da plataforma NÃO dá acesso:
+ * a regra só olha autoria, designação e vínculo ativo.
+ */
+export function podeVerPedidoDeOracao(
+  pedido: { autorContaId: string; visibilidade: VisibilidadeDeOracao },
+  ator: { contaId: string; papel: Papel | null; designacoes: readonly Designacao[] },
+): boolean {
+  if (ator.contaId === pedido.autorContaId) return true
+  if (ator.papel === null) return false
+  switch (pedido.visibilidade) {
+    case 'somente_eu':
+      return false
+    case 'equipe_oracao':
+      return ator.designacoes.includes('equipe_oracao')
+    case 'comunidade':
+      return true
+  }
+}
+
+// ------------------------------------------------------------ documento gerado
+
+function descrever(e: Exigencia): string {
+  switch (e.tipo) {
+    case 'proprietario':
+      return 'Criador (2FA)'
+    case 'designacao':
+      return 'equipe de oração'
+    case 'papel':
+      return `${NOME_DO_PAPEL[e.minimo]} ou acima`
+    case 'proprio':
+      return `${NOME_DO_PAPEL[e.minimo]} ou acima, só o próprio`
+  }
+}
+
+export function gerarMatrizMarkdown(): string {
+  const linhas = [
+    '# Matriz de permissões',
+    '',
+    '> Gerado de `packages/dominio/src/permissoes.ts` por `npm run gerar:matriz`. Não edite à mão:',
+    '> o teste `matriz-documento` reprova quando este arquivo diverge do código.',
+    '',
+    'Hierarquia: Administrador (30) > Organizador (20) > Membro (10). "Criador" é o proprietário',
+    'da plataforma, um atributo global e não um papel de comunidade. Tudo que não está listado é negado.',
+    '',
+    '| Recurso | Ação | Quem pode |',
+    '| --- | --- | --- |',
+  ]
+  for (const [recurso, acoes] of Object.entries(MATRIZ)) {
+    for (const [acao, exigencias] of Object.entries(
+      acoes as Record<string, readonly Exigencia[]>,
+    )) {
+      linhas.push(`| ${recurso} | ${acao} | ${exigencias.map(descrever).join('; ')} |`)
+    }
+  }
+  linhas.push(
+    '',
+    '## Pedidos de oração',
+    '',
+    '| Visibilidade | Quem lê |',
+    '| --- | --- |',
+    ...VISIBILIDADES_DE_ORACAO.map((v) => `| ${v} | ${QUEM_VE_O_PEDIDO[v]} |`),
+    '',
+    'Administradores e o Criador não recebem acesso automático a pedidos de outras pessoas.',
+    '',
+  )
+  return linhas.join('\n')
+}
