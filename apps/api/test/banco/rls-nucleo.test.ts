@@ -827,7 +827,13 @@ describe('cursor de sincronização', () => {
     } finally {
       lenta.release()
     }
-    const depois = await b.su.query(consulta, [c, await limite()])
-    expect(depois.rows).toHaveLength(2)
+    // A marca d'água é do cluster inteiro: transações de outros testes em
+    // paralelo podem atrasá-la (D13: atraso, nunca perda). Espera até 10 s.
+    let visiveis = 0
+    for (let i = 0; i < 100 && visiveis < 2; i++) {
+      visiveis = (await b.su.query(consulta, [c, await limite()])).rows.length
+      if (visiveis < 2) await new Promise((r) => setTimeout(r, 100))
+    }
+    expect(visiveis).toBe(2)
   })
 })

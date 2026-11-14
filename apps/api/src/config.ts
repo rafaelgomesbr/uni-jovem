@@ -18,6 +18,11 @@ const segredo = (nome: string) =>
     .min(32, `${nome} precisa de pelo menos 32 caracteres`)
     .refine((v) => !/troque|exemplo|changeme/i.test(v), `${nome} ainda está com valor de exemplo`)
 
+const chave32 = (nome: string) =>
+  z
+    .string({ error: `${nome} é obrigatório` })
+    .refine((v) => Buffer.from(v, 'base64').length === 32, `${nome} precisa ser 32 bytes em base64`)
+
 const esquema = z
   .object({
     UJ_AMBIENTE: z.enum(AMBIENTES),
@@ -26,15 +31,13 @@ const esquema = z
     // Domínio de produção, informado em homologação para a guarda abaixo. Fica
     // em configuração (não no código) para que trocar de domínio seja só config.
     URL_PUBLICA_PRODUCAO: z.url().optional(),
-    DATABASE_URL: z.string().min(1, 'DATABASE_URL é obrigatório'),
+    // Um pool por papel do banco: rotas (uj_api) e autenticação (uj_auth).
+    DATABASE_URL_API: z.string().min(1, 'DATABASE_URL_API é obrigatório'),
+    DATABASE_URL_AUTH: z.string().min(1, 'DATABASE_URL_AUTH é obrigatório'),
     JWT_SEGREDO: segredo('JWT_SEGREDO'),
     CONVITE_SEGREDO: segredo('CONVITE_SEGREDO'),
-    ORACAO_CHAVE: z
-      .string({ error: 'ORACAO_CHAVE é obrigatório' })
-      .refine(
-        (v) => Buffer.from(v, 'base64').length === 32,
-        'ORACAO_CHAVE precisa ser 32 bytes em base64',
-      ),
+    ORACAO_CHAVE: chave32('ORACAO_CHAVE'),
+    TOTP_CHAVE: chave32('TOTP_CHAVE'),
     EMAIL_MODO: z.enum(['desligado', 'arquivo', 'resend']).default('desligado'),
     EMAIL_REMETENTE: z.string().optional(),
     RESEND_CHAVE: z.string().optional(),
@@ -46,6 +49,9 @@ const esquema = z
 
     if (c.JWT_SEGREDO === c.CONVITE_SEGREDO) {
       falha('JWT_SEGREDO e CONVITE_SEGREDO precisam ser diferentes')
+    }
+    if (c.ORACAO_CHAVE === c.TOTP_CHAVE) {
+      falha('ORACAO_CHAVE e TOTP_CHAVE precisam ser diferentes')
     }
     if (c.EMAIL_MODO === 'resend' && (!c.RESEND_CHAVE || !c.EMAIL_REMETENTE)) {
       falha('EMAIL_MODO=resend exige RESEND_CHAVE e EMAIL_REMETENTE')

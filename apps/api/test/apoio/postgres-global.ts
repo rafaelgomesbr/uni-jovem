@@ -33,7 +33,9 @@ export default async function setup(projeto: TestProject) {
     user: 'postgres',
     password: SENHAS_TESTE.su,
     port: porta,
-    persistent: false,
+    // A pasta é apagada por nós no fim (com novas tentativas: no Windows o
+    // arquivo pode continuar travado alguns instantes depois do stop).
+    persistent: true,
     onLog: () => undefined,
   })
   await servidor.initialise()
@@ -65,6 +67,8 @@ export default async function setup(projeto: TestProject) {
 
   return async () => {
     await servidor.stop()
-    await rm(pasta, { recursive: true, force: true }).catch(() => undefined)
+    await rm(pasta, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }).catch(
+      () => undefined,
+    )
   }
 }

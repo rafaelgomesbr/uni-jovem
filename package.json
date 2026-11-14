@@ -20,7 +20,8 @@
     "test": "vitest run",
     "verificar": "npm run formato:conferir && npm run lint && npm run tipos && npm test",
     "dev:api": "npm run dev --workspace @uj/api",
-    "gerar:matriz": "tsx scripts/gerar-matriz.ts"
+    "gerar:matriz": "tsx scripts/gerar-matriz.ts",
+    "criador:iniciar": "tsx apps/api/src/cli/criador-iniciar.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

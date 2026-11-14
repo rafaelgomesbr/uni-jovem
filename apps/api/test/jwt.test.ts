@@ -12,15 +12,26 @@ const agora = 1_800_000_000
 
 describe('token de acesso', () => {
   it('emite e verifica, sem papel nem comunidade no token', async () => {
-    const t = await emitirAcesso(segredo, { contaId: 'c1', sessaoId: 's1', mfaEm: null }, agora)
+    const t = await emitirAcesso(
+      segredo,
+      { contaId: 'c1', sessaoId: 's1', mfaEm: null, prova: null },
+      agora,
+    )
     const r = await verificarAcesso(segredo, t, agora + 60)
-    expect(r).toEqual({ ok: true, conteudo: { contaId: 'c1', sessaoId: 's1', mfaEm: null } })
+    expect(r).toEqual({
+      ok: true,
+      conteudo: { contaId: 'c1', sessaoId: 's1', mfaEm: null, prova: null },
+    })
     const corpo = JSON.parse(Buffer.from(t.split('.')[1]!, 'base64url').toString())
     expect(Object.keys(corpo).sort()).toEqual(['aud', 'exp', 'iat', 'iss', 'sid', 'sub'])
   })
 
   it('expira em 15 minutos', async () => {
-    const t = await emitirAcesso(segredo, { contaId: 'c1', sessaoId: 's1', mfaEm: null }, agora)
+    const t = await emitirAcesso(
+      segredo,
+      { contaId: 'c1', sessaoId: 's1', mfaEm: null, prova: null },
+      agora,
+    )
     expect(await verificarAcesso(segredo, t, agora + DURACAO_ACESSO_S + 1)).toEqual({
       ok: false,
       motivo: 'expirado',
@@ -28,7 +39,11 @@ describe('token de acesso', () => {
   })
 
   it('recusa segredo errado, alg none e token de outro emissor', async () => {
-    const t = await emitirAcesso(segredo, { contaId: 'c1', sessaoId: 's1', mfaEm: null }, agora)
+    const t = await emitirAcesso(
+      segredo,
+      { contaId: 'c1', sessaoId: 's1', mfaEm: null, prova: null },
+      agora,
+    )
     expect((await verificarAcesso('x'.repeat(48), t, agora)).ok).toBe(false)
     const [, corpo] = t.split('.')
     const semAssinatura = `${Buffer.from('{"alg":"none"}').toString('base64url')}.${corpo}.`
@@ -44,11 +59,15 @@ describe('token de acesso', () => {
   })
 
   it('2FA recente vale por 10 minutos', async () => {
-    const t = await emitirAcesso(segredo, { contaId: 'c1', sessaoId: 's1', mfaEm: agora }, agora)
+    const t = await emitirAcesso(
+      segredo,
+      { contaId: 'c1', sessaoId: 's1', mfaEm: agora, prova: null },
+      agora,
+    )
     const r = await verificarAcesso(segredo, t, agora)
     if (!r.ok) throw new Error('esperava ok')
     expect(doisFatoresRecente(r.conteudo, agora + 600)).toBe(true)
     expect(doisFatoresRecente(r.conteudo, agora + 601)).toBe(false)
-    expect(doisFatoresRecente({ ...r.conteudo, mfaEm: null }, agora)).toBe(false)
+    expect(doisFatoresRecente({ ...r.conteudo, mfaEm: null, prova: null }, agora)).toBe(false)
   })
 })

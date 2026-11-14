@@ -1,16 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { carregarConfig, ConfigInvalida } from '../src/config.ts'
+import { envDeTeste } from './apoio/config.ts'
 
-const chave32 = Buffer.alloc(32, 7).toString('base64')
-
-const base = {
-  UJ_AMBIENTE: 'desenvolvimento',
-  URL_PUBLICA: 'http://localhost:8081',
-  DATABASE_URL: 'postgres://localhost/uj',
-  JWT_SEGREDO: 'a'.repeat(40),
-  CONVITE_SEGREDO: 'b'.repeat(40),
-  ORACAO_CHAVE: chave32,
-}
+const base = envDeTeste()
 
 function problemas(env: Record<string, string | undefined>): string[] {
   try {
@@ -46,6 +38,7 @@ describe('carregarConfig', () => {
 
   it('exige chave de oração de 32 bytes', () => {
     expect(problemas({ ...base, ORACAO_CHAVE: 'abc' }).join()).toMatch(/32 bytes/)
+    expect(problemas({ ...base, TOTP_CHAVE: base.ORACAO_CHAVE! }).join()).toMatch(/diferentes/)
   })
 
   it('produção recusa http, e-mail em arquivo, falta de Turnstile e URL de homologação', () => {
