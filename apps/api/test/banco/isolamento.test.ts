@@ -21,6 +21,9 @@ import { pessoaComSessao, type Pessoa } from '../apoio/pessoas.ts'
 
 const config = carregarConfig(envDeTeste())
 
+/** Token verdadeiro da exportação de B: nem com ele A baixa o arquivo. */
+const TOKEN_DE_B = 'token-da-exportacao-de-b-com-entropia-suficiente'
+
 /** Corpo válido por rota, para que a validação não responda antes da checagem de acesso. */
 const CASOS: Record<string, Record<string, unknown> | undefined> = {
   'GET /api/v1/c/:comunidadeId': undefined,
@@ -124,6 +127,67 @@ const CASOS: Record<string, Record<string, unknown> | undefined> = {
     nomeAvulso: 'Invasor',
   },
   'DELETE /api/v1/c/:comunidadeId/eventos/:eventoId/presencas/:presencaId': undefined,
+  // F15: pedidos de oração
+  'GET /api/v1/c/:comunidadeId/oracao': undefined,
+  'POST /api/v1/c/:comunidadeId/oracao': { texto: 'Invasão', visibilidade: 'comunidade' },
+  'GET /api/v1/c/:comunidadeId/oracao/:pedidoId': undefined,
+  'PATCH /api/v1/c/:comunidadeId/oracao/:pedidoId': { texto: 'Tomado' },
+  'PUT /api/v1/c/:comunidadeId/oracao/:pedidoId/visibilidade': {
+    de: 'comunidade',
+    para: 'somente_eu',
+  },
+  'POST /api/v1/c/:comunidadeId/oracao/:pedidoId/respondido': { respondido: true },
+  'POST /api/v1/c/:comunidadeId/oracao/:pedidoId/orando': undefined,
+  'DELETE /api/v1/c/:comunidadeId/oracao/:pedidoId/orando': undefined,
+  'DELETE /api/v1/c/:comunidadeId/oracao/:pedidoId': undefined,
+  // F15: sugestões
+  'GET /api/v1/c/:comunidadeId/sugestoes': undefined,
+  'POST /api/v1/c/:comunidadeId/sugestoes': { titulo: 'Invasão', texto: 'Texto' },
+  'GET /api/v1/c/:comunidadeId/sugestoes/:sugestaoId': undefined,
+  'PATCH /api/v1/c/:comunidadeId/sugestoes/:sugestaoId': { status: 'recusada', resposta: 'Não' },
+  'DELETE /api/v1/c/:comunidadeId/sugestoes/:sugestaoId': undefined,
+  // F15: conteúdos
+  'GET /api/v1/c/:comunidadeId/conteudos/musicas': undefined,
+  'POST /api/v1/c/:comunidadeId/conteudos/musicas': { titulo: 'Invasão' },
+  'GET /api/v1/c/:comunidadeId/conteudos/musicas/:musicaId': undefined,
+  'PATCH /api/v1/c/:comunidadeId/conteudos/musicas/:musicaId': { versao: 1, titulo: 'Tomada' },
+  'DELETE /api/v1/c/:comunidadeId/conteudos/musicas/:musicaId': undefined,
+  'PUT /api/v1/c/:comunidadeId/conteudos/musicas/:musicaId/musicos': { musicoIds: [] },
+  'GET /api/v1/c/:comunidadeId/conteudos/musicos': undefined,
+  'POST /api/v1/c/:comunidadeId/conteudos/musicos': { nome: 'Invasor' },
+  'GET /api/v1/c/:comunidadeId/conteudos/musicos/:musicoId': undefined,
+  'PATCH /api/v1/c/:comunidadeId/conteudos/musicos/:musicoId': { versao: 1, nome: 'Tomado' },
+  'DELETE /api/v1/c/:comunidadeId/conteudos/musicos/:musicoId': undefined,
+  'GET /api/v1/c/:comunidadeId/conteudos/palestrantes': undefined,
+  'POST /api/v1/c/:comunidadeId/conteudos/palestrantes': { nome: 'Invasor' },
+  'GET /api/v1/c/:comunidadeId/conteudos/palestrantes/:palestranteId': undefined,
+  'PATCH /api/v1/c/:comunidadeId/conteudos/palestrantes/:palestranteId': {
+    versao: 1,
+    nome: 'Tomado',
+  },
+  'DELETE /api/v1/c/:comunidadeId/conteudos/palestrantes/:palestranteId': undefined,
+  'GET /api/v1/c/:comunidadeId/conteudos/dinamicas': undefined,
+  'POST /api/v1/c/:comunidadeId/conteudos/dinamicas': { titulo: 'Invasão' },
+  'GET /api/v1/c/:comunidadeId/conteudos/dinamicas/:dinamicaId': undefined,
+  'PATCH /api/v1/c/:comunidadeId/conteudos/dinamicas/:dinamicaId': { versao: 1, titulo: 'Tomada' },
+  'DELETE /api/v1/c/:comunidadeId/conteudos/dinamicas/:dinamicaId': undefined,
+  // F15: avisos
+  'GET /api/v1/c/:comunidadeId/avisos': undefined,
+  'POST /api/v1/c/:comunidadeId/avisos': { titulo: 'Invasão', texto: 'Texto', publicar: true },
+  'GET /api/v1/c/:comunidadeId/avisos/:avisoId': undefined,
+  'PATCH /api/v1/c/:comunidadeId/avisos/:avisoId': { versao: 1, titulo: 'Tomado' },
+  'POST /api/v1/c/:comunidadeId/avisos/:avisoId/publicar': undefined,
+  'POST /api/v1/c/:comunidadeId/avisos/:avisoId/despublicar': undefined,
+  'DELETE /api/v1/c/:comunidadeId/avisos/:avisoId': undefined,
+  // F16: relatórios e exportações
+  'GET /api/v1/c/:comunidadeId/relatorios/presenca': undefined,
+  'GET /api/v1/c/:comunidadeId/relatorios/inscricoes': undefined,
+  'GET /api/v1/c/:comunidadeId/relatorios/escalas': undefined,
+  'GET /api/v1/c/:comunidadeId/relatorios/atividade': undefined,
+  'GET /api/v1/c/:comunidadeId/exportacoes': undefined,
+  'POST /api/v1/c/:comunidadeId/exportacoes': { tipo: 'membros', comContatos: true },
+  'POST /api/v1/c/:comunidadeId/exportacoes/:exportacaoId/arquivo': { token: TOKEN_DE_B },
+  'DELETE /api/v1/c/:comunidadeId/exportacoes/:exportacaoId': undefined,
 }
 
 interface Rota {
@@ -220,6 +284,45 @@ beforeAll(async () => {
     "insert into uj.presencas (comunidade_id, evento_id, inscricao_id, origem, registrada_por, chave_idempotencia) values ($1, $2, $3, 'manual', $4, gen_random_uuid()) returning id",
     [comB, eventoId, idsDeB['inscricaoId'], idsDeB['vinculoId']],
   )
+  // F15 e F16: um exemplar de cada recurso novo em B.
+  idsDeB['pedidoId'] = await um(
+    `insert into uj.pedidos_oracao (comunidade_id, autor_conta_id, texto_cifrado, visibilidade)
+     values ($1, $2, decode('01' || repeat('ab', 40), 'hex'), 'comunidade') returning id`,
+    [comB, adminB.id],
+  )
+  idsDeB['sugestaoId'] = await um(
+    "insert into uj.sugestoes (comunidade_id, autor_conta_id, titulo, texto) values ($1, $2, 'Sugestão de B', 'Texto') returning id",
+    [comB, adminB.id],
+  )
+  idsDeB['musicaId'] = await um(
+    "insert into uj.musicas (comunidade_id, titulo, criado_por) values ($1, 'Música de B', $2) returning id",
+    [comB, adminB.id],
+  )
+  idsDeB['musicoId'] = await um(
+    "insert into uj.musicos (comunidade_id, nome, criado_por) values ($1, 'Músico de B', $2) returning id",
+    [comB, adminB.id],
+  )
+  await um(
+    'insert into uj.musica_musicos (comunidade_id, musica_id, musico_id) values ($1, $2, $3) returning id',
+    [comB, idsDeB['musicaId'], idsDeB['musicoId']],
+  )
+  idsDeB['palestranteId'] = await um(
+    "insert into uj.palestrantes (comunidade_id, nome, criado_por) values ($1, 'Palestrante de B', $2) returning id",
+    [comB, adminB.id],
+  )
+  idsDeB['dinamicaId'] = await um(
+    "insert into uj.dinamicas (comunidade_id, titulo, criado_por) values ($1, 'Dinâmica de B', $2) returning id",
+    [comB, adminB.id],
+  )
+  idsDeB['avisoId'] = await um(
+    "insert into uj.avisos (comunidade_id, titulo, texto, estado, criado_por) values ($1, 'Aviso de B', 'Texto', 'publicado', $2) returning id",
+    [comB, adminB.id],
+  )
+  idsDeB['exportacaoId'] = await um(
+    `insert into uj.exportacoes (comunidade_id, dono_conta_id, tipo, com_contatos, token_hash, nome_arquivo, conteudo, linhas)
+     values ($1, $2, 'membros', true, sha256(convert_to($3, 'UTF8')), 'membros.csv', 'Nome;E-mail', 0) returning id`,
+    [comB, adminB.id, TOKEN_DE_B],
+  )
   idsDeB['anexoId'] = await um(
     "insert into uj.anexos (comunidade_id, evento_id, titulo, url, criado_por) values ($1, $2, 'Link de B', 'https://exemplo.test/b', $3) returning id",
     [comB, eventoId, adminB.id],
@@ -273,7 +376,17 @@ async function estadoDeB() {
             (select json_agg(row(estado, vinculo_id) order by id) from uj.atribuicoes where comunidade_id = $1) as at,
             (select count(*) from uj.disponibilidades where comunidade_id = $1) as d,
             (select json_agg(row(estado) order by id) from uj.inscricoes where comunidade_id = $1) as i,
-            (select count(*) from uj.presencas where comunidade_id = $1) as p`,
+            (select count(*) from uj.presencas where comunidade_id = $1) as p,
+            (select json_agg(row(texto_cifrado, visibilidade, respondido_em, versao) order by id) from uj.pedidos_oracao where comunidade_id = $1) as po,
+            (select count(*) from uj.intercessoes where comunidade_id = $1) as io,
+            (select json_agg(row(status, resposta, versao) order by id) from uj.sugestoes where comunidade_id = $1) as sg,
+            (select json_agg(row(titulo, versao) order by id) from uj.musicas where comunidade_id = $1) as mu,
+            (select json_agg(row(nome, versao) order by id) from uj.musicos where comunidade_id = $1) as mo,
+            (select count(*) from uj.musica_musicos where comunidade_id = $1) as mm,
+            (select json_agg(row(nome, versao) order by id) from uj.palestrantes where comunidade_id = $1) as pa,
+            (select json_agg(row(titulo, versao) order by id) from uj.dinamicas where comunidade_id = $1) as di,
+            (select json_agg(row(titulo, estado, fixado, versao) order by id) from uj.avisos where comunidade_id = $1) as av,
+            (select json_agg(row(downloads, baixada_em) order by id) from uj.exportacoes where comunidade_id = $1) as ex`,
     [comB],
   )
   return rows[0]

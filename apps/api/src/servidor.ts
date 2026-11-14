@@ -16,6 +16,11 @@ import { registrarPaginasPublicas } from './publico/rotas.ts'
 import { registrarRotasDeInscricoes } from './rotas/inscricoes.ts'
 import { registrarContextoDeComunidade } from './rotas/contexto.ts'
 import { registrarRotasDePlataforma } from './rotas/plataforma.ts'
+import { registrarRotasDeOracao } from './rotas/oracao.ts'
+import { registrarRotasDeSugestoes } from './rotas/sugestoes.ts'
+import { registrarRotasDeConteudos } from './rotas/conteudos.ts'
+import { registrarRotasDeAvisos } from './rotas/avisos.ts'
+import { registrarRotasDeRelatorios } from './rotas/relatorios.ts'
 
 export interface Recursos {
   api: pg.Pool
@@ -133,6 +138,11 @@ export function criarServidor(
       registrarRotaDeInicio(app, recursos.api)
       registrarRotasAoVivo(app, recursos.api)
       registrarRotasDeInscricoes(app, recursos.api)
+      registrarRotasDeOracao(app, { api: recursos.api, config })
+      registrarRotasDeSugestoes(app, recursos.api)
+      registrarRotasDeConteudos(app, recursos.api)
+      registrarRotasDeAvisos(app, recursos.api)
+      registrarRotasDeRelatorios(app, recursos.api)
       registrarPaginasPublicas(app, {
         config,
         api: recursos.api,

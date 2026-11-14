@@ -131,6 +131,9 @@ export const MATRIZ = {
     editar: [proprio('membro')],
     excluir: [proprio('membro')],
     mudar_visibilidade: [proprio('membro')],
+    marcar_respondido: [proprio('membro')],
+    // "Estou orando": qualquer vínculo, mas só em pedido que a pessoa já vê.
+    orar: [papel('membro')],
   },
   conteudo: {
     ler: [papel('membro')],
@@ -146,6 +149,8 @@ export const MATRIZ = {
   exportacao: {
     sem_contatos: [papel('organizador')],
     com_contatos: [papel('admin')],
+    // Só a própria exportação (dona), dentro da validade; a com contatos, só admin.
+    baixar: [proprio('organizador')],
   },
   auditoria: {
     ler: [papel('admin')],

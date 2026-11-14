@@ -84,6 +84,8 @@ const ESPERADO: Record<string, string> = {
   'pedido_oracao.editar': 'M:p',
   'pedido_oracao.excluir': 'M:p',
   'pedido_oracao.mudar_visibilidade': 'M:p',
+  'pedido_oracao.marcar_respondido': 'M:p',
+  'pedido_oracao.orar': 'M',
   'conteudo.ler': 'M',
   'conteudo.gerenciar': 'O',
   'aviso.ler': 'M',
@@ -91,6 +93,7 @@ const ESPERADO: Record<string, string> = {
   'relatorio.ler': 'O',
   'exportacao.sem_contatos': 'O',
   'exportacao.com_contatos': 'A',
+  'exportacao.baixar': 'O:p',
   'auditoria.ler': 'A',
 }
 

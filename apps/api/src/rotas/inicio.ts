@@ -53,7 +53,18 @@ export function registrarRotaDeInicio(app: FastifyInstance, api: pg.Pool): void 
               and (s.para_vinculo_id is null or s.para_vinculo_id = (select uj.vinculo_da_conta_no_contexto()))`,
         )
       ).rows[0]!.n
-      return { proximosEventos, minhasEscalas, minhasTarefas, substituicoesAbertas }
+      // Avisos publicados (a RLS já esconde rascunho e vencido): fixados primeiro.
+      const avisos = (
+        await c.query(
+          `select id, titulo, texto, fixado, publicado_em as "publicadoEm"
+             from uj.avisos
+            where comunidade_id = $1 and estado = 'publicado'
+              and (visivel_ate is null or visivel_ate > now())
+            order by fixado desc, publicado_em desc limit 5`,
+          [pedido.comunidade!.id],
+        )
+      ).rows
+      return { proximosEventos, minhasEscalas, minhasTarefas, substituicoesAbertas, avisos }
     })
   })
 }

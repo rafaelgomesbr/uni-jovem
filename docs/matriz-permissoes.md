@@ -72,6 +72,8 @@ da plataforma, um atributo global e não um papel de comunidade. Tudo que não e
 | pedido_oracao | editar | Membro ou acima, só o próprio |
 | pedido_oracao | excluir | Membro ou acima, só o próprio |
 | pedido_oracao | mudar_visibilidade | Membro ou acima, só o próprio |
+| pedido_oracao | marcar_respondido | Membro ou acima, só o próprio |
+| pedido_oracao | orar | Membro ou acima |
 | conteudo | ler | Membro ou acima |
 | conteudo | gerenciar | Organizador ou acima |
 | aviso | ler | Membro ou acima |
@@ -79,6 +81,7 @@ da plataforma, um atributo global e não um papel de comunidade. Tudo que não e
 | relatorio | ler | Organizador ou acima |
 | exportacao | sem_contatos | Organizador ou acima |
 | exportacao | com_contatos | Administrador ou acima |
+| exportacao | baixar | Organizador ou acima, só o próprio |
 | auditoria | ler | Administrador ou acima |
 
 ## Pedidos de oração
