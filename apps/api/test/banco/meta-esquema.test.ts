@@ -67,7 +67,7 @@ describe('padrão das tabelas de comunidade', () => {
          join pg_class c on c.oid = g.tgrelid
          join pg_namespace n on n.oid = c.relnamespace
          join pg_proc p on p.oid = g.tgfoid
-        where n.nspname = 'uj' and p.proname = 'registrar_mudanca'`,
+        where n.nspname = 'uj' and p.proname like 'registrar_mudanca%'`,
     )
     const comLog = new Set(rows.map((r) => r.tabela))
     const faltando = (await tabelasComComunidade()).filter((t) => !SEM_LOG.has(t) && !comLog.has(t))

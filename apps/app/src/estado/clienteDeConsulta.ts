@@ -1,0 +1,45 @@
+import NetInfo from '@react-native-community/netinfo'
+import { focusManager, onlineManager, QueryClient } from '@tanstack/react-query'
+import { AppState, Platform } from 'react-native'
+
+import { ErroDaApi } from '@/servicos/erros'
+
+/** Chaves de cache. Tudo que é de comunidade leva o id dela na chave (isolamento). */
+export const CHAVES = {
+  eu: ['eu'] as const,
+  aparelhos: ['eu', 'aparelhos'] as const,
+  comunidade: (id: string) => ['c', id] as const,
+  membros: (id: string) => ['c', id, 'membros'] as const,
+  convites: (id: string) => ['c', id, 'convites'] as const,
+  plataforma: ['plataforma', 'comunidades'] as const,
+}
+
+export function criarClienteDeConsulta(): QueryClient {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 30_000,
+        // Erro da API é resposta definitiva (permissão, validação): repetir não ajuda.
+        retry: (falhas, erro) => !(erro instanceof ErroDaApi) && falhas < 2,
+      },
+      mutations: { retry: false },
+    },
+  })
+}
+
+/**
+ * Liga o React Query à rede (NetInfo) e ao primeiro plano (AppState) no
+ * celular. Na web ele já usa os eventos do navegador.
+ */
+export function ligarGerentesDoReactQuery(): () => void {
+  if (Platform.OS === 'web') return () => {}
+  onlineManager.setEventListener((definirOnline) =>
+    NetInfo.addEventListener((estado) => {
+      definirOnline(estado.isConnected !== false)
+    }),
+  )
+  const assinatura = AppState.addEventListener('change', (estado) => {
+    focusManager.setFocused(estado === 'active')
+  })
+  return () => assinatura.remove()
+}

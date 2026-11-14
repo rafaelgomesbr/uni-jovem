@@ -54,7 +54,21 @@ export function traduzirErroDoBanco(e: unknown): never {
   if (msg.includes('exclusivo do proprietario')) {
     throw new ErroHttp('so_criador', 403, 'Só o Criador altera o ciclo de vida da comunidade.')
   }
+  if (msg.includes('so organizadores')) {
+    throw new ErroHttp('so_organizadores', 403, 'Só organizadores podem editar isto.')
+  }
   if (msg.includes('row-level security')) throw SEM_PERMISSAO()
+  if (erro.code === '23503') {
+    // Referência a algo de outra comunidade ou inexistente: mesmo tratamento.
+    throw new ErroHttp(
+      'referencia_invalida',
+      400,
+      'Uma das pessoas ou itens escolhidos não existe aqui.',
+    )
+  }
+  if (erro.code === '23505') {
+    throw new ErroHttp('duplicado', 409, 'Isto já está cadastrado.')
+  }
   if (erro.code === '23514') {
     throw new ErroHttp('dados_invalidos', 400, 'Algum valor está fora do permitido.')
   }

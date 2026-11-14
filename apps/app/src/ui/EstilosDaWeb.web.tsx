@@ -1,0 +1,30 @@
+import { useEffect } from 'react'
+
+import { useTema } from './tema'
+
+const ID = 'uj-estilos-globais'
+
+/**
+ * Foco visível para quem navega por teclado. A cor vem dos tokens, então o
+ * estilo é montado aqui (sincronia com o DOM, por isso o efeito).
+ */
+export function EstilosDaWeb() {
+  const { cores } = useTema()
+  useEffect(() => {
+    let estilo = document.getElementById(ID) as HTMLStyleElement | null
+    if (!estilo) {
+      estilo = document.createElement('style')
+      estilo.id = ID
+      document.head.appendChild(estilo)
+    }
+    estilo.textContent = [
+      `:focus-visible { outline: 3px solid ${cores.foco} !important; outline-offset: 2px !important; }`,
+      ':focus:not(:focus-visible) { outline: none; }',
+      `body { background-color: ${cores.fundo}; }`,
+      '@media (prefers-reduced-motion: reduce) {',
+      '  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }',
+      '}',
+    ].join('\n')
+  }, [cores.foco, cores.fundo])
+  return null
+}

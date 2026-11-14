@@ -6,7 +6,8 @@
   "type": "module",
   "workspaces": [
     "packages/*",
-    "apps/api"
+    "apps/api",
+    "apps/app"
   ],
   "engines": {
     "node": ">=22 <23"
@@ -18,10 +19,11 @@
     "lint": "eslint .",
     "tipos": "tsc -p tsconfig.json && npm run tipos --workspaces --if-present",
     "test": "vitest run",
-    "verificar": "npm run formato:conferir && npm run lint && npm run tipos && npm test",
+    "verificar": "npm run formato:conferir && npm run lint && npm run tipos && npm test && npm run test:app",
     "dev:api": "npm run dev --workspace @uj/api",
     "gerar:matriz": "tsx scripts/gerar-matriz.ts",
-    "criador:iniciar": "tsx apps/api/src/cli/criador-iniciar.ts"
+    "criador:iniciar": "tsx apps/api/src/cli/criador-iniciar.ts",
+    "test:app": "npm test --workspace @uj/app"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -36,6 +38,9 @@
   },
   "overrides": {
     "@typescript-eslint/typescript-estree": {
+      "minimatch": "^11.0.8"
+    },
+    "@expo/fingerprint": {
       "minimatch": "^11.0.8"
     }
   }

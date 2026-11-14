@@ -1,2 +1,5 @@
 export * from './papeis.ts'
 export * from './permissoes.ts'
+export * from './programacao.ts'
+export * from './recorrencia.ts'
+export * from './ao-vivo.ts'

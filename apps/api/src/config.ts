@@ -58,6 +58,8 @@ const esquema = z
     RESEND_CHAVE: z.string().optional(),
     NOTIFICADOR_ARQUIVO: z.string().optional(),
     TURNSTILE_SEGREDO: z.string().optional(),
+    // Chave PÚBLICA do widget (vai no HTML); a secreta é TURNSTILE_SEGREDO.
+    TURNSTILE_CHAVE_DO_SITE: z.string().optional(),
   })
   .superRefine((c, ctx) => {
     const falha = (mensagem: string) => ctx.addIssue({ code: 'custom', message: mensagem })

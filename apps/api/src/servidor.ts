@@ -1,4 +1,5 @@
 import cookie from '@fastify/cookie'
+import formbody from '@fastify/formbody'
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify'
 import type pg from 'pg'
 import { ErroHttp } from './http.ts'
@@ -6,6 +7,13 @@ import type { Config } from './config.ts'
 import type { Correio } from './correio/correio.ts'
 import { registrarRotasDeAutenticacao } from './rotas/autenticacao.ts'
 import { registrarRotasDeComunidade } from './rotas/comunidades.ts'
+import { registrarRotasDeEventos } from './rotas/eventos.ts'
+import { registrarRotasDeSeries } from './rotas/series.ts'
+import { registrarRotasDeEscalas } from './rotas/escalas.ts'
+import { registrarRotaDeInicio } from './rotas/inicio.ts'
+import { registrarRotasAoVivo } from './rotas/ao-vivo.ts'
+import { registrarPaginasPublicas } from './publico/rotas.ts'
+import { registrarRotasDeInscricoes } from './rotas/inscricoes.ts'
 import { registrarContextoDeComunidade } from './rotas/contexto.ts'
 import { registrarRotasDePlataforma } from './rotas/plataforma.ts'
 
@@ -82,7 +90,13 @@ export function criarServidor(
 
   app.setErrorHandler((erro: FastifyError | ErroHttp, _pedido, resposta) => {
     if (erro instanceof ErroHttp) {
-      return resposta.code(erro.status).send({ erro: erro.codigo, mensagem: erro.message })
+      // Conflito de edição leva a versão atual, para o app mostrar as duas.
+      const atual = (erro as ErroHttp & { atual?: unknown }).atual
+      return resposta.code(erro.status).send({
+        erro: erro.codigo,
+        mensagem: erro.message,
+        ...(atual === undefined ? {} : { atual }),
+      })
     }
     if ((erro as FastifyError).statusCode && (erro as FastifyError).statusCode! < 500) {
       return resposta
@@ -100,6 +114,7 @@ export function criarServidor(
 
   if (recursos) {
     void app.register(cookie)
+    void app.register(formbody, { bodyLimit: 16 * 1024 })
     app.after(() => {
       registrarRotasDeAutenticacao(
         app,
@@ -112,6 +127,22 @@ export function criarServidor(
       const deps = { config, api: recursos.api, correio: recursos.correio, emSegundoPlano }
       registrarRotasDeComunidade(app, deps)
       registrarRotasDePlataforma(app, deps)
+      registrarRotasDeEventos(app, recursos.api)
+      registrarRotasDeSeries(app, recursos.api)
+      registrarRotasDeEscalas(app, recursos.api)
+      registrarRotaDeInicio(app, recursos.api)
+      registrarRotasAoVivo(app, recursos.api)
+      registrarRotasDeInscricoes(app, recursos.api)
+      registrarPaginasPublicas(app, {
+        config,
+        api: recursos.api,
+        ...(config.TURNSTILE_CHAVE_DO_SITE
+          ? { chaveDoSiteTurnstile: config.TURNSTILE_CHAVE_DO_SITE }
+          : {}),
+        ...(recursos.fatorDeLimitePorIp === undefined
+          ? {}
+          : { fatorDeLimitePorIp: recursos.fatorDeLimitePorIp }),
+      })
     })
   }
 

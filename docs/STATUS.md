@@ -5,10 +5,13 @@ Atualizado em 14/11/2026.
 ## Fase atual
 
 - **F0 Fundação:** concluída (`UJ-F00-E01`).
-- **F1 Identidade:** três direções visuais publicadas para escolha do dono (quadro privado "Uni Jovem: direções visuais": A Aurora, B Areia e oliva, C Céu aberto). Recomendada: A. Sem resposta até o início da F5, adota-se A (registrar em DECISOES).
+- **F1 Identidade:** direção A (Aurora) adotada de forma provisória (D15); tokens em `packages/tokens` com contraste AA testado nos temas claro e escuro. O dono ainda pode escolher B ou C no quadro "Uni Jovem: direções visuais".
 - **F2 Banco e domínio:** concluída (`UJ-F02-E02`), após revisão independente do agente de banco (D11 a D13).
 - **F3 Autenticação:** concluída na API (`UJ-F03-E01`, `UJ-F03-E02`), após revisão de segurança independente (D14). Telas de login, convite e 2FA ficam para a F5. E-mail real depende do Resend (pendência humana).
-- **F4 Comunidades, convites, vínculos:** API concluída (`UJ-F04-E01`), com suíte de isolamento por inventário de rotas. Telas na F5.
+- **F4 Comunidades, convites, vínculos:** API concluída (`UJ-F04-E01`), com suíte de isolamento por inventário de rotas.
+- **F5 Casca do app:** `apps/app` (Expo 58): entrar, 2FA, recuperação, convite, primeiro acesso, abas (nativas no iOS/Android, laterais na web), comunidade ativa com seletor, comunidade e convites, perfil, aparelhos, plataforma do Criador. 22 testes (jest-expo). Empacotamento web e iOS conferidos; **nada aberto em simulador ou aparelho ainda**. Falta a camada offline (SQLite cifrado + fila), que vai com a F13.
+- **F7 Eventos e programação, F8 Recorrência, F9 Escalas, F10 (API do Início), F11 Ao vivo, F12 Inscrições e presença:** API concluída com testes contra Postgres real, incluindo 50 inscrições simultâneas para 20 vagas (exatamente 20 confirmadas) e a suíte de isolamento cobrindo todas as rotas de comunidade. As telas desses módulos ainda não existem no app.
+- **Próximo:** telas das F7 a F12 no app; F13 (offline do evento); F6 depende de ações do dono.
 
 O mapa de fases está no fim deste arquivo; o que cada requisito exige está em [`rastreabilidade.md`](rastreabilidade.md).
 
