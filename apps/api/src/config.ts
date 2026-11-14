@@ -27,6 +27,21 @@ const esquema = z
   .object({
     UJ_AMBIENTE: z.enum(AMBIENTES),
     PORTA: z.coerce.number().int().min(1).max(65535).default(3333),
+    // Onde a API escuta. Padrão: só a própria máquina. No Docker, 0.0.0.0 com a
+    // porta NÃO publicada no host (só o Caddy alcança).
+    HOST: z.string().default('127.0.0.1'),
+    // Proxies cujo X-Forwarded-For é aceito (o Caddy). Nunca `true`: com ele,
+    // qualquer cliente forjaria o próprio IP e anularia os limites por IP.
+    // O Caddy, por sua vez, troca o XFF pelo CF-Connecting-IP do Cloudflare.
+    PROXIES_CONFIAVEIS: z
+      .string()
+      .default('127.0.0.1,::1')
+      .transform((v) =>
+        v
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean),
+      ),
     URL_PUBLICA: z.url(),
     // Domínio de produção, informado em homologação para a guarda abaixo. Fica
     // em configuração (não no código) para que trocar de domínio seja só config.

@@ -43,4 +43,4 @@ const encerrar = async () => {
 process.once('SIGTERM', () => void encerrar())
 process.once('SIGINT', () => void encerrar())
 
-await app.listen({ port: config.PORTA, host: '0.0.0.0' })
+await app.listen({ port: config.PORTA, host: config.HOST })

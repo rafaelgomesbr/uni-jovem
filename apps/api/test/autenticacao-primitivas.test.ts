@@ -143,6 +143,7 @@ describe('limitador', () => {
   it('trunca IPs para log', () => {
     expect(truncarIp('203.0.113.77')).toBe('203.0.113.0')
     expect(truncarIp('::ffff:203.0.113.77')).toBe('203.0.113.0')
-    expect(truncarIp('2001:db8:abcd:12::1')).toBe('2001:db8:abcd::')
+    expect(truncarIp('2001:db8:abcd:12::1')).toBe('2001:db8:abcd::/48')
+    expect(truncarIp('2001:db8::1')).toBe(truncarIp('2001:db8:0:1::1'))
   })
 })

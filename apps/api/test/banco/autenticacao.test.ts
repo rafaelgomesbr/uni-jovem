@@ -4,7 +4,8 @@ import { verificarAcesso } from '../../src/autenticacao/jwt.ts'
 import { codigoTotp, contadorAtual } from '../../src/autenticacao/totp.ts'
 import { carregarConfig } from '../../src/config.ts'
 import type { Correio, Mensagem } from '../../src/correio/correio.ts'
-import { CABECALHO_CSRF, COOKIE_REFRESH } from '../../src/rotas/autenticacao.ts'
+import { CABECALHO_CSRF, nomeDoCookieDeRefresh } from '../../src/rotas/autenticacao.ts'
+const COOKIE_REFRESH = nomeDoCookieDeRefresh(false)
 import { criarServidor } from '../../src/servidor.ts'
 import { envDeTeste } from '../apoio/config.ts'
 import {
@@ -181,7 +182,7 @@ describe('cadastro por convite', () => {
     expect(rows).toEqual([])
   })
 
-  it('convite para outro e-mail e e-mail que já tem conta são recusados no início', async () => {
+  it('convite para outro e-mail é recusado; e-mail com conta recebe a mesma resposta', async () => {
     const dirigido = await convite('membro', 'certo@exemplo.test')
     const r1 = await post('/api/auth/convite/iniciar', {
       token: dirigido,
@@ -193,12 +194,66 @@ describe('cadastro por convite', () => {
     expect(consulta.json().emailDestinoMascarado).toBe('c••••@exemplo.test')
 
     await cadastrar('existe@exemplo.test')
+    const tokenExistente = await convite('membro')
     const r2 = await post('/api/auth/convite/iniciar', {
-      token: await convite('membro'),
+      token: tokenExistente,
       nome: 'Existe',
       email: 'existe@exemplo.test',
     })
-    expect(r2.json().erro).toBe('conta_existente')
+    // Mesma forma de resposta de quem não tem conta: o link não revela quem tem conta.
+    expect(r2.statusCode).toBe(200)
+    expect(Object.keys(r2.json())).toEqual(['verificacaoId'])
+    expect(caixa.at(-1)!.corpo).toContain('já tem conta')
+    // O identificador não corresponde a nenhuma verificação: concluir não cria nada.
+    const r3 = await post('/api/auth/convite/concluir', {
+      token: tokenExistente,
+      verificacaoId: r2.json().verificacaoId,
+      codigo: '123456',
+      nome: 'Existe',
+      senha: SENHA,
+      plataforma: 'ios',
+    })
+    expect(r3.statusCode).toBe(410)
+  })
+
+  it('cota diária por convite: um link não esgota o e-mail de todos', async () => {
+    const token = await convite('membro')
+    let ultimo = 0
+    for (let i = 0; i < 16; i++) {
+      const r = await post('/api/auth/convite/iniciar', {
+        token,
+        nome: 'Cota',
+        email: `cota${i}@exemplo.test`,
+      })
+      ultimo = r.statusCode
+    }
+    expect(ultimo).toBe(429)
+  })
+
+  it('vínculo desativado não volta por convite genérico, só por convite dirigido', async () => {
+    const sessao = await cadastrar('desativado@exemplo.test')
+    const contaId = (
+      await b.su.query<{ id: string }>(
+        "select id from uj.contas where email = 'desativado@exemplo.test'",
+      )
+    ).rows[0]!.id
+    await b.su.query(
+      "update uj.vinculos set estado = 'desativado' where conta_id = $1 and comunidade_id = $2",
+      [contaId, comunidade],
+    )
+    const auth = { authorization: `Bearer ${sessao.acesso}` }
+    const generico = await post(
+      '/api/auth/convite/aceitar',
+      { token: await convite('organizador') },
+      auth,
+    )
+    expect(generico.json().erro).toBe('convite_indisponivel')
+    const dirigido = await post(
+      '/api/auth/convite/aceitar',
+      { token: await convite('membro', 'desativado@exemplo.test') },
+      auth,
+    )
+    expect(dirigido.statusCode).toBe(200)
   })
 
   it('conta existente aceita convite de outra comunidade autenticada', async () => {
@@ -391,7 +446,7 @@ describe('verificação em duas etapas', () => {
   it('ativar, entrar com desafio, recusar reuso do código e aceitar código de recuperação', async () => {
     const sessao = await cadastrar('dois@exemplo.test')
     const auth = { authorization: `Bearer ${sessao.acesso}` }
-    const ini = await post('/api/auth/2fa/iniciar', {}, auth)
+    const ini = await post('/api/auth/2fa/iniciar', { senhaAtual: SENHA }, auth)
     const segredo = ini.json().segredo as string
     expect(ini.json().uri).toMatch(/^otpauth:\/\/totp\//)
 
@@ -436,8 +491,18 @@ describe('verificação em duas etapas', () => {
     })
     expect(proximo.statusCode).toBe(200)
     const token = await verificarAcesso(config.JWT_SEGREDO, proximo.json().acesso)
-    // Conta comum: segundo fator registrado, mas sem prova de plataforma.
-    expect(token.ok && token.conteudo.mfaEm !== null && token.conteudo.prova === null).toBe(true)
+    if (!token.ok) throw new Error('token inválido')
+    expect(token.conteudo.mfaEm).not.toBeNull()
+    // Conta comum recebe prova de 2FA, mas ela não dá poder de plataforma no banco.
+    const usuario = token.conteudo.contaId
+    const tentativa = await b
+      .comoApi(
+        { contaId: usuario, prova: token.conteudo.prova },
+        "insert into uj.comunidades (nome, criado_por) values ('Não pode', $1)",
+        [usuario],
+      )
+      .catch((e: Error) => e.message)
+    expect(tentativa).toMatch(/row-level security/)
   })
 })
 
@@ -450,8 +515,8 @@ describe('primeiro acesso do Criador', () => {
     const criador = rows[0]!.id
     const link = gerarToken()
     await b.su.query(
-      `insert into uj.recuperacoes_senha (conta_id, token_hash, expira_em)
-       values ($1, $2, now() + interval '30 minutes')`,
+      `insert into uj.recuperacoes_senha (conta_id, finalidade, token_hash, expira_em)
+       values ($1, 'primeiro_acesso', $2, now() + interval '30 minutes')`,
       [criador, hashDeToken(link)],
     )
     const ini = await post('/api/auth/primeiro-acesso/iniciar', { token: link })
@@ -487,5 +552,101 @@ describe('primeiro acesso do Criador', () => {
       [criador],
     )
     expect(criada).toEqual([{ nome: 'Comunidade do Criador' }])
+  })
+})
+
+describe('proteções do segundo fator (revisão de segurança)', () => {
+  async function contaCom2fa(emailNovo: string): Promise<{ segredo: string; acesso: string }> {
+    const sessao = await cadastrar(emailNovo)
+    const auth = { authorization: `Bearer ${sessao.acesso}` }
+    const ini = await post('/api/auth/2fa/iniciar', { senhaAtual: SENHA }, auth)
+    const segredo = ini.json().segredo as string
+    await post('/api/auth/2fa/confirmar', { codigo: codigoTotp(segredo, contadorAtual()) }, auth)
+    return { segredo, acesso: sessao.acesso }
+  }
+
+  it('ligar o 2FA exige a senha atual', async () => {
+    const sessao = await cadastrar('sem2fa@exemplo.test')
+    const r = await post(
+      '/api/auth/2fa/iniciar',
+      { senhaAtual: 'outra senha qualquer' },
+      { authorization: `Bearer ${sessao.acesso}` },
+    )
+    expect(r.statusCode).toBe(401)
+    expect(r.json().erro).toBe('senha_incorreta')
+  })
+
+  it('5 códigos errados bloqueiam a CONTA por 15 min (venham de onde vierem) e avisam por e-mail', async () => {
+    const { segredo } = await contaCom2fa('forca@exemplo.test')
+    const entrarDeNovo = async () =>
+      (
+        await post('/api/auth/entrar', {
+          email: 'forca@exemplo.test',
+          senha: SENHA,
+          plataforma: 'ios',
+        })
+      ).json().desafio as string
+    // Cada tentativa com um desafio NOVO (e espaços no fim, que antes mudavam a chave).
+    for (let i = 0; i < 5; i++) {
+      const r = await post('/api/auth/segundo-fator', {
+        desafio: `${await entrarDeNovo()}${' '.repeat(i)}`,
+        codigo: '000000',
+      })
+      expect(r.statusCode).toBe(401)
+    }
+    const certo = await post('/api/auth/segundo-fator', {
+      desafio: await entrarDeNovo(),
+      codigo: codigoTotp(segredo, contadorAtual() + 1),
+    })
+    expect(certo.statusCode).toBe(429)
+    expect(certo.json().erro).toBe('segundo_fator_bloqueado')
+    await app.emAndamento()
+    expect(
+      caixa.some((m) => m.para === 'forca@exemplo.test' && m.assunto.includes('segurança')),
+    ).toBe(true)
+  })
+
+  it('trocar a senha invalida desafios em aberto', async () => {
+    const { segredo } = await contaCom2fa('troca@exemplo.test')
+    const desafio = (
+      await post('/api/auth/entrar', {
+        email: 'troca@exemplo.test',
+        senha: SENHA,
+        plataforma: 'ios',
+      })
+    ).json().desafio as string
+    await post('/api/auth/recuperar', { email: 'troca@exemplo.test' })
+    await app.emAndamento()
+    const token = caixa.at(-1)!.corpo.match(/#t=([\w-]+)/)![1]!
+    expect(
+      (await post('/api/auth/redefinir', { token, senha: 'outra frase bem comprida' })).statusCode,
+    ).toBe(200)
+    const r = await post('/api/auth/segundo-fator', {
+      desafio,
+      codigo: codigoTotp(segredo, contadorAtual() + 1),
+    })
+    expect(r.statusCode).toBe(401)
+    expect(r.json().erro).toBe('desafio_invalido')
+  })
+
+  it('o link de primeiro acesso não serve para redefinir senha', async () => {
+    const link = gerarToken()
+    const conta = await criarConta(b, 'Alguém')
+    await b.su.query(
+      `insert into uj.recuperacoes_senha (conta_id, finalidade, token_hash, expira_em)
+       values ($1, 'primeiro_acesso', $2, now() + interval '30 minutes')`,
+      [conta, hashDeToken(link)],
+    )
+    const r = await post('/api/auth/redefinir', { token: link, senha: 'uma senha nova e longa' })
+    expect(r.statusCode).toBe(401)
+  })
+})
+
+describe('cabeçalhos de segurança', () => {
+  it('toda resposta da API sai sem cache e com nosniff', async () => {
+    const r = await app.inject({ method: 'GET', url: '/api/saude' })
+    expect(r.headers['cache-control']).toBe('no-store')
+    expect(r.headers['x-content-type-options']).toBe('nosniff')
+    expect(r.headers['referrer-policy']).toBe('no-referrer')
   })
 })

@@ -98,6 +98,8 @@ export interface Desafio {
   contaId: string
   aparelho: string | null
   plataforma: 'ios' | 'android' | 'web'
+  /** Marca da senha vigente: trocar a senha invalida desafios em aberto. */
+  versaoDaSenha: string
 }
 
 export async function emitirDesafio(
@@ -105,7 +107,7 @@ export async function emitirDesafio(
   d: Desafio,
   agoraS: number = Math.floor(Date.now() / 1000),
 ): Promise<string> {
-  return new SignJWT({ apa: d.aparelho, pla: d.plataforma })
+  return new SignJWT({ apa: d.aparelho, pla: d.plataforma, sv: d.versaoDaSenha })
     .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
     .setSubject(d.contaId)
     .setIssuer(EMISSOR)
@@ -128,11 +130,21 @@ export async function verificarDesafio(
       currentDate: new Date(agoraS * 1000),
     })
     const pla = payload['pla']
-    if (typeof payload.sub !== 'string' || (pla !== 'ios' && pla !== 'android' && pla !== 'web')) {
+    const sv = payload['sv']
+    if (
+      typeof payload.sub !== 'string' ||
+      typeof sv !== 'string' ||
+      (pla !== 'ios' && pla !== 'android' && pla !== 'web')
+    ) {
       return null
     }
     const apa = payload['apa']
-    return { contaId: payload.sub, aparelho: typeof apa === 'string' ? apa : null, plataforma: pla }
+    return {
+      contaId: payload.sub,
+      aparelho: typeof apa === 'string' ? apa : null,
+      plataforma: pla,
+      versaoDaSenha: sv,
+    }
   } catch {
     return null
   }

@@ -44,13 +44,14 @@ export async function iniciarCriador(
       contaId = nova.rows[0]!.id
     }
     await c.query(
-      'update uj.recuperacoes_senha set usado_em = now() where conta_id = $1 and usado_em is null',
+      `update uj.recuperacoes_senha set usado_em = now()
+        where conta_id = $1 and finalidade = 'primeiro_acesso' and usado_em is null`,
       [contaId],
     )
     const token = gerarToken()
     await c.query(
-      `insert into uj.recuperacoes_senha (conta_id, token_hash, expira_em)
-       values ($1, $2, now() + interval '30 minutes')`,
+      `insert into uj.recuperacoes_senha (conta_id, finalidade, token_hash, expira_em)
+       values ($1, 'primeiro_acesso', $2, now() + interval '30 minutes')`,
       [contaId, hashDeToken(token)],
     )
     await c.query("insert into uj.auditoria (conta_id, acao) values ($1, 'criador.link_emitido')", [

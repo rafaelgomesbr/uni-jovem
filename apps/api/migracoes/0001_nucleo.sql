@@ -68,6 +68,10 @@ create table uj.contas (
   totp_segredo_cifrado bytea,
   totp_ativado_em timestamptz,
   totp_ultimo_contador bigint,
+  -- Falhas de segundo fator por CONTA (não por IP nem por desafio): a força
+  -- bruta do código de 6 dígitos esbarra aqui, venha de onde vier.
+  falhas_2fa int not null default 0 check (falhas_2fa >= 0),
+  bloqueio_2fa_ate timestamptz,
   estado text not null default 'ativa' check (estado in ('ativa', 'desativada', 'anonimizada')),
   criado_em timestamptz not null default now(),
   atualizado_em timestamptz not null default now(),
@@ -113,7 +117,10 @@ create table uj.sessoes (
   expira_em timestamptz not null,
   substituida_em timestamptz,
   revogada_em timestamptz,
-  motivo_revogacao text check (length(motivo_revogacao) <= 60)
+  motivo_revogacao text check (length(motivo_revogacao) <= 60),
+  -- Início da família (o aparelho). A renovação recusa famílias com mais de
+  -- 365 dias: a sessão persistente tem fim, mesmo usada todo dia.
+  familia_criada_em timestamptz not null default now()
 );
 create index sessoes_conta on uj.sessoes (conta_id);
 create index sessoes_familia on uj.sessoes (familia);
@@ -121,6 +128,8 @@ create index sessoes_familia on uj.sessoes (familia);
 create table uj.recuperacoes_senha (
   id uuid primary key default gen_random_uuid(),
   conta_id uuid not null references uj.contas (id),
+  -- O link de primeiro acesso do Criador não serve para redefinir senha, e vice-versa.
+  finalidade text not null default 'senha' check (finalidade in ('senha', 'primeiro_acesso')),
   token_hash bytea not null unique,
   expira_em timestamptz not null,
   usado_em timestamptz,
@@ -628,6 +637,11 @@ begin
   if found and existente.estado = 'ativo' then
     raise exception 'ja participa da comunidade' using errcode = 'UJ003';
   end if;
+  -- Vínculo DESATIVADO por um admin não volta por qualquer link de convite:
+  -- só por convite dirigido ao e-mail da pessoa (decisão consciente de quem convidou).
+  if found and existente.estado = 'desativado' and c.email_destino is null then
+    raise exception 'convite indisponivel' using errcode = 'UJ001';
+  end if;
 
   update uj.convites set usos = usos + 1, ultimo_uso_em = now() where id = c.id;
 
@@ -669,6 +683,13 @@ begin
   return query select nova, uj.aceitar_convite(p_token_hmac, nova);
 end
 $$;
+
+-- Descarta as provas de 2FA de uma conta (sair, redefinir senha, reuso de refresh).
+-- uj_auth não lê a tabela de provas; por isso o descarte é por função.
+create function uj.descartar_provas(p_conta uuid) returns void
+  language sql security definer
+  set search_path = pg_catalog, uj
+  as $$ delete from uj.provas_de_plataforma where conta_id = p_conta $$;
 
 -- ---------------------------------------------------------------- RLS e políticas
 
@@ -786,7 +807,7 @@ grant execute on function
   to uj_api;
 grant execute on function uj.conta_atual(), uj.comunidade_atual(), uj.eh_proprietario(),
   uj.conta_eh_proprietaria(uuid),
-  uj.consultar_convite(bytea), uj.aceitar_convite(bytea, uuid),
+  uj.consultar_convite(bytea), uj.aceitar_convite(bytea, uuid), uj.descartar_provas(uuid),
   uj.criar_conta_por_convite(bytea, text, text, text, text)
   to uj_auth;
 
@@ -813,7 +834,7 @@ grant select on uj.mudancas to uj_api;
 
 grant select on uj.contas to uj_auth;
 grant update (senha_hash, email_verificado_em, totp_segredo_cifrado, totp_ativado_em,
-  totp_ultimo_contador) on uj.contas to uj_auth;
+  totp_ultimo_contador, falhas_2fa, bloqueio_2fa_ate) on uj.contas to uj_auth;
 grant select, insert, delete on uj.codigos_recuperacao to uj_auth;
 grant update (usado_em) on uj.codigos_recuperacao to uj_auth;
 grant insert on uj.provas_de_plataforma to uj_auth;

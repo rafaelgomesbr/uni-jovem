@@ -1,10 +1,13 @@
 import cookie from '@fastify/cookie'
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify'
 import type pg from 'pg'
-import { ErroDeAuth } from './autenticacao/servico.ts'
+import { ErroHttp } from './http.ts'
 import type { Config } from './config.ts'
 import type { Correio } from './correio/correio.ts'
 import { registrarRotasDeAutenticacao } from './rotas/autenticacao.ts'
+import { registrarRotasDeComunidade } from './rotas/comunidades.ts'
+import { registrarContextoDeComunidade } from './rotas/contexto.ts'
+import { registrarRotasDePlataforma } from './rotas/plataforma.ts'
 
 export interface Recursos {
   api: pg.Pool
@@ -35,8 +38,23 @@ export function criarServidor(
               'res.headers["set-cookie"]',
             ],
           },
-    trustProxy: true,
+    // Só o proxy configurado (o Caddy) pode informar o IP do cliente.
+    trustProxy: config.PROXIES_CONFIAVEIS,
     bodyLimit: 64 * 1024,
+  })
+
+  // Cabeçalhos de segurança em toda resposta da API. Respostas com tokens e
+  // dados pessoais nunca ficam em cache (navegador, proxy ou CDN).
+  app.addHook('onSend', async (_pedido, resposta) => {
+    resposta.header('Cache-Control', 'no-store')
+    resposta.header('X-Content-Type-Options', 'nosniff')
+    resposta.header('Referrer-Policy', 'no-referrer')
+    resposta.header('X-Frame-Options', 'DENY')
+    resposta.header('Cross-Origin-Resource-Policy', 'same-origin')
+    if (config.UJ_AMBIENTE !== 'desenvolvimento') {
+      // Com includeSubDomains e sem preload, como o resto de *.solerte.com.br.
+      resposta.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+    }
   })
 
   // Trabalho depois da resposta (e-mail). Guardado para os testes e o desligamento.
@@ -50,8 +68,8 @@ export function criarServidor(
     pendentes.add(p)
   }
 
-  app.setErrorHandler((erro: FastifyError | ErroDeAuth, _pedido, resposta) => {
-    if (erro instanceof ErroDeAuth) {
+  app.setErrorHandler((erro: FastifyError | ErroHttp, _pedido, resposta) => {
+    if (erro instanceof ErroHttp) {
       return resposta.code(erro.status).send({ erro: erro.codigo, mensagem: erro.message })
     }
     if ((erro as FastifyError).statusCode && (erro as FastifyError).statusCode! < 500) {
@@ -78,6 +96,10 @@ export function criarServidor(
           ? {}
           : { fatorDeLimitePorIp: recursos.fatorDeLimitePorIp },
       )
+      registrarContextoDeComunidade(app, recursos.api)
+      const deps = { config, api: recursos.api, correio: recursos.correio, emSegundoPlano }
+      registrarRotasDeComunidade(app, deps)
+      registrarRotasDePlataforma(app, deps)
     })
   }
 
