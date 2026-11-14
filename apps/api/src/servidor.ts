@@ -24,7 +24,10 @@ export interface Recursos {
 export function criarServidor(
   config: Config,
   recursos?: Recursos,
-): FastifyInstance & { emAndamento: () => Promise<void> } {
+): FastifyInstance & {
+  emAndamento: () => Promise<void>
+  rotas: () => { metodo: string; url: string }[]
+} {
   const app = Fastify({
     logger:
       config.UJ_AMBIENTE === 'desenvolvimento'
@@ -41,6 +44,15 @@ export function criarServidor(
     // Só o proxy configurado (o Caddy) pode informar o IP do cliente.
     trustProxy: config.PROXIES_CONFIAVEIS,
     bodyLimit: 64 * 1024,
+  })
+
+  // Inventário de rotas: a suíte de isolamento percorre todas as rotas de
+  // comunidade e reprova a que não tiver caso de teste.
+  const rotas: { metodo: string; url: string }[] = []
+  app.addHook('onRoute', (r) => {
+    for (const m of [r.method].flat()) {
+      if (m !== 'HEAD') rotas.push({ metodo: m, url: r.url })
+    }
   })
 
   // Cabeçalhos de segurança em toda resposta da API. Respostas com tokens e
@@ -107,5 +119,6 @@ export function criarServidor(
     emAndamento: async () => {
       await Promise.all([...pendentes])
     },
+    rotas: () => [...rotas],
   })
 }

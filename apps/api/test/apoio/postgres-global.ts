@@ -37,6 +37,9 @@ export default async function setup(projeto: TestProject) {
     // arquivo pode continuar travado alguns instantes depois do stop).
     persistent: true,
     onLog: () => undefined,
+    // Vários arquivos de teste em paralelo, cada um com seus pools: o padrão
+    // de 100 conexões esgotava e o pool esperava para sempre.
+    postgresFlags: ['-c', 'max_connections=400'],
   })
   await servidor.initialise()
   await servidor.start()

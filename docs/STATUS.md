@@ -4,15 +4,28 @@ Atualizado em 14/11/2026.
 
 ## Fase atual
 
-- **F0 Fundação:** concluída no commit `UJ-F00-E01` (hash em `git log`).
-- **F1 Identidade:** três direções visuais publicadas para escolha do dono (quadro privado "Uni Jovem: direções visuais": A Aurora, B Areia e oliva, C Céu aberto). Recomendada: A. A escolha não bloqueia a F2.
-- **F2 Banco e domínio:** etapa E01 (núcleo) concluída; próxima etapa é a revisão do schema por agente de banco e o fechamento da F2.
+- **F0 Fundação:** concluída (`UJ-F00-E01`).
+- **F1 Identidade:** três direções visuais publicadas para escolha do dono (quadro privado "Uni Jovem: direções visuais": A Aurora, B Areia e oliva, C Céu aberto). Recomendada: A. Sem resposta até o início da F5, adota-se A (registrar em DECISOES).
+- **F2 Banco e domínio:** concluída (`UJ-F02-E02`), após revisão independente do agente de banco (D11 a D13).
+- **F3 Autenticação:** concluída na API (`UJ-F03-E01`, `UJ-F03-E02`), após revisão de segurança independente (D14). Telas de login, convite e 2FA ficam para a F5. E-mail real depende do Resend (pendência humana).
+- **F4 Comunidades, convites, vínculos:** API concluída (`UJ-F04-E01`), com suíte de isolamento por inventário de rotas. Telas na F5.
 
 O mapa de fases está no fim deste arquivo; o que cada requisito exige está em [`rastreabilidade.md`](rastreabilidade.md).
 
-## O que está pronto, com evidência
+## Como está agora (14/11/2026)
 
-Só o que foi conferido em 14/11/2026. Não há app, telas, ambiente de homologação nem produção.
+`npm run verificar` verde: 13 arquivos, **164 testes** (cerca de 115 contra Postgres 17 real). Não há app, telas, ambiente de homologação nem produção.
+
+| Item (F3/F4)          | Evidência                                                                                                                                                                                                                                                                                                         |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Autenticação          | `apps/api/src/autenticacao/*`, `apps/api/src/rotas/autenticacao.ts`; `apps/api/test/banco/autenticacao.test.ts` (convite com código por e-mail, login com resposta idêntica, refresh rotativo com detecção de reuso, cookie HttpOnly na web, recuperação, 2FA com bloqueio por conta, primeiro acesso do Criador) |
+| Comando do Criador    | `npm run criador:iniciar` (`apps/api/src/cli/`), `criador-cli.test.ts`                                                                                                                                                                                                                                            |
+| Comunidades e membros | `apps/api/src/rotas/comunidades.ts`, `migracoes/0002_comunidades.sql`; `comunidades.test.ts` (contatos só a partir de organizador, papéis, último admin, convites, suspensa)                                                                                                                                      |
+| Plataforma (Criador)  | `apps/api/src/rotas/plataforma.ts`; criação com convite do primeiro admin, ciclo de vida com confirmação, intervenção com motivo, transferência de propriedade com 72 h                                                                                                                                           |
+| Isolamento            | `apps/api/test/banco/isolamento.test.ts`: toda rota de comunidade (inventário) atacada com a sessão de outra comunidade = 404; rota nova sem caso reprova                                                                                                                                                         |
+| Cotas de e-mail       | `migracoes/0003_cotas.sql` (convite 60/dia, por convite 15/dia, recuperação 30/dia)                                                                                                                                                                                                                               |
+
+## O que estava pronto antes (F0 e F2-E01)
 
 | Item (F2-E01)              | Evidência                                                                                                                                                                                                                                                                               |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -45,9 +58,9 @@ Só o que foi conferido em 14/11/2026. Não há app, telas, ambiente de homologa
 
 ## Próximo passo
 
-1. **F2 (fechamento):** revisão do schema por agente de banco; correções; marcar F2 concluída.
-2. **F1:** aguardar a escolha visual; com ela (ou com a recomendada A, se não houver resposta), tokens, componentes base e script de contraste.
-3. **F3 Autenticação.**
+1. **F1 + F5:** com a escolha visual (ou a recomendada A), `packages/tokens`, script de contraste AA, criar o app Expo (`apps/app`, SDK 58, Expo Router) com casca, telas de entrar, convite, primeiro acesso, 2FA, seletor de comunidade, perfil e camada de dados offline (SQLite cifrado por partição + fila de saída).
+2. **F6 HML no Mac:** exige ações do dono (hostnames no túnel, conta R2, `eas init`); ver PENDENCIAS-HUMANAS.
+3. **F7 Eventos e programação** (API) pode avançar em paralelo à F5.
 
 ## Como retomar
 

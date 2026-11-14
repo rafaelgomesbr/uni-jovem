@@ -493,7 +493,9 @@ begin
     raise exception 'modo de entrada nao habilitado nesta versao' using errcode = '0A000';
   end if;
 
-  if tg_op = 'UPDATE' and not uj.eh_proprietario() and (
+  -- Exceção: sessões conectadas como o dono do banco (jobs do servidor, como a
+  -- exclusão agendada, e o operador). O aplicativo nunca conecta como dono.
+  if tg_op = 'UPDATE' and session_user <> 'uj_dono' and not uj.eh_proprietario() and (
        new.estado is distinct from old.estado
        or new.exclusao_agendada_para is distinct from old.exclusao_agendada_para) then
     raise exception 'ciclo de vida da comunidade e exclusivo do proprietario' using errcode = '42501';

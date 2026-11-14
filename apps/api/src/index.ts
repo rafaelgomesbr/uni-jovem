@@ -30,8 +30,16 @@ try {
   throw erro
 }
 
-const api = new pg.Pool({ connectionString: config.DATABASE_URL_API, max: 10 })
-const auth = new pg.Pool({ connectionString: config.DATABASE_URL_AUTH, max: 5 })
+const api = new pg.Pool({
+  connectionString: config.DATABASE_URL_API,
+  max: 10,
+  connectionTimeoutMillis: 5_000,
+})
+const auth = new pg.Pool({
+  connectionString: config.DATABASE_URL_AUTH,
+  max: 5,
+  connectionTimeoutMillis: 5_000,
+})
 const app = criarServidor(config, { api, auth, correio: criarCorreio(config) })
 
 const encerrar = async () => {

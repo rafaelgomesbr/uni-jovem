@@ -32,10 +32,26 @@ export async function novoBanco(): Promise<BancoDeTeste> {
   await admin.query(`grant connect on database ${nome} to uj_api, uj_auth`)
   await admin.end()
 
-  const su = new pg.Pool({ connectionString: url('postgres', SENHAS_TESTE.su, nome), max: 2 })
-  const dono = new pg.Pool({ connectionString: url('uj_dono', SENHAS_TESTE.dono, nome), max: 2 })
-  const api = new pg.Pool({ connectionString: url('uj_api', SENHAS_TESTE.api, nome), max: 4 })
-  const auth = new pg.Pool({ connectionString: url('uj_auth', SENHAS_TESTE.auth, nome), max: 4 })
+  const su = new pg.Pool({
+    connectionString: url('postgres', SENHAS_TESTE.su, nome),
+    max: 2,
+    connectionTimeoutMillis: 10_000,
+  })
+  const dono = new pg.Pool({
+    connectionString: url('uj_dono', SENHAS_TESTE.dono, nome),
+    max: 2,
+    connectionTimeoutMillis: 10_000,
+  })
+  const api = new pg.Pool({
+    connectionString: url('uj_api', SENHAS_TESTE.api, nome),
+    max: 4,
+    connectionTimeoutMillis: 10_000,
+  })
+  const auth = new pg.Pool({
+    connectionString: url('uj_auth', SENHAS_TESTE.auth, nome),
+    max: 4,
+    connectionTimeoutMillis: 10_000,
+  })
 
   return {
     nome,
