@@ -46,7 +46,11 @@ export async function novoBanco(): Promise<BancoDeTeste> {
     async comoApi<T>(ctx: Partial<Contexto>, sql: string, params: unknown[] = []) {
       return emTransacao(
         api,
-        { contaId: ctx.contaId ?? null, comunidadeId: ctx.comunidadeId ?? null },
+        {
+          contaId: ctx.contaId ?? null,
+          comunidadeId: ctx.comunidadeId ?? null,
+          prova: ctx.prova ?? null,
+        },
         async (c) => (await c.query(sql, params)).rows as T[],
       )
     },
@@ -76,6 +80,20 @@ export async function criarConta(
   return rows[0]!.id
 }
 
+/**
+ * Prova de 2FA recente do Criador (o que a API grava depois de conferir o TOTP).
+ * Devolve o valor cru, que vai no contexto como `prova`.
+ */
+export async function concederProva(b: BancoDeTeste, contaId: string): Promise<string> {
+  const prova = randomBytes(32).toString('base64url')
+  await b.su.query(
+    `insert into uj.provas_de_plataforma (prova_hash, conta_id, expira_em)
+     values (sha256(convert_to($1, 'UTF8')), $2, now() + interval '10 minutes')`,
+    [prova, contaId],
+  )
+  return prova
+}
+
 export async function criarComunidade(b: BancoDeTeste, nome: string): Promise<string> {
   const { rows } = await b.su.query<{ id: string }>(
     'insert into uj.comunidades (nome) values ($1) returning id',
@@ -90,11 +108,11 @@ export async function vincular(
   comunidadeId: string,
   papel: 'admin' | 'organizador' | 'membro',
 ): Promise<string> {
-  // Simula o aceite feito pela própria pessoa (autor = a conta vinculada).
+  // Como o dono (o mesmo caminho das funções atômicas de aceite de convite).
   const c = await b.su.connect()
   try {
     await c.query('begin')
-    await c.query("select set_config('app.conta_id', $1, true)", [contaId])
+    await c.query('set local role uj_dono')
     const { rows } = await c.query<{ id: string }>(
       'insert into uj.vinculos (conta_id, comunidade_id, papel) values ($1, $2, $3) returning id',
       [contaId, comunidadeId, papel],

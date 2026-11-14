@@ -6,10 +6,15 @@ import type pg from 'pg'
  *
  * A comunidade aqui vem SEMPRE do caminho da rota já conferido contra o vínculo
  * da conta autenticada, nunca de corpo ou cabeçalho enviado pelo cliente.
+ *
+ * `prova` é a prova de 2FA recente do Criador (claim do token de acesso). Sem
+ * ela, o banco não reconhece poderes de plataforma, mesmo que alguém forje
+ * `app.conta_id` (ver 0001_nucleo.sql, uj.eh_proprietario).
  */
 export interface Contexto {
   contaId: string | null
   comunidadeId: string | null
+  prova?: string | null
 }
 
 export async function emTransacao<T>(
@@ -21,8 +26,10 @@ export async function emTransacao<T>(
   try {
     await cliente.query('begin')
     await cliente.query(
-      "select set_config('app.conta_id', $1, true), set_config('app.comunidade_id', $2, true)",
-      [contexto.contaId ?? '', contexto.comunidadeId ?? ''],
+      `select set_config('app.conta_id', $1, true),
+              set_config('app.comunidade_id', $2, true),
+              set_config('app.prova', $3, true)`,
+      [contexto.contaId ?? '', contexto.comunidadeId ?? '', contexto.prova ?? ''],
     )
     const resultado = await trabalho(cliente)
     await cliente.query('commit')

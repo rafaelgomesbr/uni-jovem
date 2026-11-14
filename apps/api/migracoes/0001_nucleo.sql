@@ -1,19 +1,36 @@
 -- 0001: núcleo de contas, comunidades, vínculos, convites, sessões e auditoria.
+-- (Revisada em 14/11/2026 após revisão independente, antes de qualquer
+-- aplicação fora de bancos de teste; ver docs/DECISOES.md D11.)
 --
 -- PAPÉIS DO BANCO (criados por infra/banco/papeis.sql, fora das migrações):
 --   uj_dono  dono do esquema; só aplica migrações; o aplicativo nunca conecta com ele.
 --   uj_api   rotas do aplicativo; sempre sob RLS; nunca é dono nem tem BYPASSRLS.
---   uj_auth  autenticação e aceite de convite; só enxerga tabelas de identidade.
+--   uj_auth  autenticação; lê identidade; vínculos e convites SÓ por funções
+--            atômicas (consultar_convite, aceitar_convite, criar_conta_por_convite).
 --
--- POR QUE NÃO "FORCE ROW LEVEL SECURITY": as funções auxiliares das políticas
--- (papel_na, nivel_na...) são SECURITY DEFINER do dono e precisam ler `vinculos`
--- sem recursão. Como o dono só migra, RLS habilitada já vale para os dois papéis
--- do aplicativo. O teste `rls-papeis` garante que uj_api e uj_auth não são donos
--- e não têm BYPASSRLS.
+-- RLS HABILITADA, NÃO "FORCE": as funções das políticas são SECURITY DEFINER do
+-- dono e leem vínculos sem recursão. O dono só migra; o teste `rls-nucleo`
+-- garante que uj_api e uj_auth não são donos nem têm BYPASSRLS.
 --
--- CONTEXTO: toda transação do aplicativo faz
---   select set_config('app.conta_id', $1, true), set_config('app.comunidade_id', $2, true)
--- e as políticas comparam com isso. Sem contexto, nada aparece.
+-- CONTEXTO por transação (set_config(..., true)):
+--   app.conta_id, app.comunidade_id  quem age e em qual comunidade
+--   app.prova                        prova de 2FA recente do Criador (opcional)
+-- Um GUC pode ser definido por quem executa SQL; por isso os poderes de
+-- plataforma não confiam em app.conta_id sozinho: exigem `app.prova`, cujo hash
+-- está numa tabela que nem uj_api nem uj_auth conseguem ler.
+--
+-- PADRÃO PARA TABELAS DE CONTEÚDO (migrações seguintes):
+--   comunidade_id uuid not null, índice começando por comunidade_id,
+--   gatilho registrar_mudanca('<nivel_minimo>'), e políticas no formato
+--     using (comunidade_id = (select uj.comunidade_atual())
+--            and (select uj.nivel_no_contexto()) >= 10)
+--   O "(select ...)" vira InitPlan: a função roda uma vez por consulta, não por linha.
+--   O teste `meta-esquema` reprova tabela com comunidade_id fora do padrão.
+
+-- Nenhuma função criada pelo dono nasce executável por PUBLIC; EXECUTE é
+-- concedido uma a uma. (Precisa ser global: privilégio padrão por esquema só
+-- acrescenta, não remove o padrão do Postgres.)
+alter default privileges revoke execute on functions from public;
 
 create schema uj;
 revoke all on schema uj from public;
@@ -50,11 +67,13 @@ create table uj.contas (
   plataforma_proprietario boolean not null default false,
   totp_segredo_cifrado bytea,
   totp_ativado_em timestamptz,
+  totp_ultimo_contador bigint,
   estado text not null default 'ativa' check (estado in ('ativa', 'desativada', 'anonimizada')),
   criado_em timestamptz not null default now(),
   atualizado_em timestamptz not null default now(),
   anonimizada_em timestamptz,
-  check ((estado = 'anonimizada') = (anonimizada_em is not null))
+  check ((estado = 'anonimizada') = (anonimizada_em is not null)),
+  check (not plataforma_proprietario or totp_ativado_em is not null or senha_hash is null)
 );
 create unique index contas_email_unico on uj.contas (email);
 -- Um único proprietário da plataforma, no máximo.
@@ -71,6 +90,17 @@ create table uj.codigos_recuperacao (
   primary key (conta_id, codigo_hash)
 );
 
+-- Prova de 2FA recente do Criador. Ninguém do aplicativo lê esta tabela:
+-- uj_auth só insere (depois de conferir o TOTP); eh_proprietario() confere.
+create table uj.provas_de_plataforma (
+  prova_hash bytea primary key,
+  conta_id uuid not null references uj.contas (id),
+  expira_em timestamptz not null,
+  criado_em timestamptz not null default now(),
+  check (expira_em <= criado_em + interval '15 minutes')
+);
+create index provas_conta on uj.provas_de_plataforma (conta_id);
+
 create table uj.sessoes (
   id uuid primary key default gen_random_uuid(),
   conta_id uuid not null references uj.contas (id),
@@ -85,7 +115,7 @@ create table uj.sessoes (
   revogada_em timestamptz,
   motivo_revogacao text check (length(motivo_revogacao) <= 60)
 );
-create index sessoes_conta on uj.sessoes (conta_id) where revogada_em is null;
+create index sessoes_conta on uj.sessoes (conta_id);
 create index sessoes_familia on uj.sessoes (familia);
 
 create table uj.recuperacoes_senha (
@@ -96,6 +126,7 @@ create table uj.recuperacoes_senha (
   usado_em timestamptz,
   criado_em timestamptz not null default now()
 );
+create index recuperacoes_conta on uj.recuperacoes_senha (conta_id);
 
 -- ---------------------------------------------------------------- comunidades
 
@@ -104,8 +135,7 @@ create table uj.comunidades (
   nome text not null check (length(btrim(nome)) between 2 and 80),
   cor text not null default '#5B4BDB' check (cor ~ '^#[0-9A-Fa-f]{6}$'),
   fuso text not null default 'America/Sao_Paulo',
-  -- Ponto de extensão: v1 só aceita 'convite' (gatilho abaixo). Os outros
-  -- valores existem para que habilitá-los depois não exija mudar o esquema.
+  -- Ponto de extensão: v1 só aceita 'convite' (gatilho abaixo).
   modo_entrada text not null default 'convite'
     check (modo_entrada in ('convite', 'solicitacao', 'livre')),
   estado text not null default 'ativa'
@@ -120,26 +150,8 @@ create table uj.comunidades (
   versao int not null default 1,
   check ((estado = 'exclusao_agendada') = (exclusao_agendada_para is not null))
 );
+create index comunidades_criado_por on uj.comunidades (criado_por);
 create trigger comunidades_atualizado before update on uj.comunidades
-  for each row execute function uj.tocar_atualizado_em();
-
--- ---------------------------------------------------------------- vínculos
-
-create table uj.vinculos (
-  id uuid primary key default gen_random_uuid(),
-  conta_id uuid not null references uj.contas (id),
-  comunidade_id uuid not null references uj.comunidades (id),
-  papel text not null check (papel in ('admin', 'organizador', 'membro')),
-  estado text not null default 'ativo' check (estado in ('ativo', 'desativado', 'removido')),
-  designacoes text[] not null default '{}'
-    check (designacoes <@ array['equipe_oracao']::text[]),
-  convite_id uuid,
-  criado_em timestamptz not null default now(),
-  atualizado_em timestamptz not null default now(),
-  unique (conta_id, comunidade_id)
-);
-create index vinculos_comunidade_ativos on uj.vinculos (comunidade_id) where estado = 'ativo';
-create trigger vinculos_atualizado before update on uj.vinculos
   for each row execute function uj.tocar_atualizado_em();
 
 -- ---------------------------------------------------------------- convites
@@ -159,11 +171,32 @@ create table uj.convites (
   criado_por uuid not null references uj.contas (id),
   criado_em timestamptz not null default now(),
   ultimo_uso_em timestamptz,
-  check (usos between 0 and usos_maximos)
+  check (usos between 0 and usos_maximos),
+  check (expira_em > criado_em and expira_em <= criado_em + interval '7 days')
 );
 create index convites_comunidade on uj.convites (comunidade_id, criado_em desc);
-alter table uj.vinculos
-  add constraint vinculos_convite_fk foreign key (convite_id) references uj.convites (id);
+create index convites_criado_por on uj.convites (criado_por);
+create index convites_revogado_por on uj.convites (revogado_por);
+
+-- ---------------------------------------------------------------- vínculos
+
+create table uj.vinculos (
+  id uuid primary key default gen_random_uuid(),
+  conta_id uuid not null references uj.contas (id),
+  comunidade_id uuid not null references uj.comunidades (id),
+  papel text not null check (papel in ('admin', 'organizador', 'membro')),
+  estado text not null default 'ativo' check (estado in ('ativo', 'desativado', 'removido')),
+  designacoes text[] not null default '{}'
+    check (designacoes <@ array['equipe_oracao']::text[]),
+  convite_id uuid references uj.convites (id),
+  criado_em timestamptz not null default now(),
+  atualizado_em timestamptz not null default now(),
+  unique (conta_id, comunidade_id)
+);
+create index vinculos_comunidade on uj.vinculos (comunidade_id, estado);
+create index vinculos_convite on uj.vinculos (convite_id);
+create trigger vinculos_atualizado before update on uj.vinculos
+  for each row execute function uj.tocar_atualizado_em();
 
 create table uj.verificacoes_email (
   id uuid primary key default gen_random_uuid(),
@@ -177,6 +210,7 @@ create table uj.verificacoes_email (
   criado_em timestamptz not null default now()
 );
 create index verificacoes_email_email on uj.verificacoes_email (email, criado_em desc);
+create index verificacoes_email_convite on uj.verificacoes_email (convite_id);
 
 create table uj.transferencias_propriedade (
   id uuid primary key default gen_random_uuid(),
@@ -189,9 +223,10 @@ create table uj.transferencias_propriedade (
   concluida_em timestamptz,
   check (de_conta <> para_conta)
 );
--- No máximo uma transferência em aberto.
 create unique index transferencias_uma_aberta on uj.transferencias_propriedade ((true))
   where cancelada_em is null and concluida_em is null;
+create index transferencias_de on uj.transferencias_propriedade (de_conta);
+create index transferencias_para on uj.transferencias_propriedade (para_conta);
 
 -- ---------------------------------------------------------------- auditoria (só inserção)
 
@@ -224,18 +259,24 @@ create trigger auditoria_sem_truncate before truncate on uj.auditoria
 
 -- ---------------------------------------------------------------- log de mudanças (sincronização)
 
--- Cursor de sincronização por comunidade. `xid` permite ao leitor ignorar
--- linhas de transações ainda em andamento (ver ADR 0005).
+-- Leitura (ADR 0005): cursor = (xact, id); só entram linhas com
+-- xact < pg_snapshot_xmin(pg_current_snapshot()), ou seja, de transações que já
+-- terminaram. Assim uma transação que confirma depois de outra mais nova nunca
+-- fica para trás do cursor.
 create table uj.mudancas (
   id bigint generated always as identity primary key,
   comunidade_id uuid not null,
   tabela text not null,
   registro_id uuid not null,
   operacao char(1) not null check (operacao in ('I', 'U', 'D')),
-  xid xid8 not null default pg_current_xact_id(),
+  xact xid8 not null default pg_current_xact_id(),
+  -- Quem pode saber que a mudança existe (espelha a leitura do registro).
+  nivel_minimo int not null default 10 check (nivel_minimo in (10, 20, 30)),
+  conta_alvo uuid,
+  designacao text check (designacao in ('equipe_oracao')),
   momento timestamptz not null default now()
 );
-create index mudancas_comunidade on uj.mudancas (comunidade_id, id);
+create index mudancas_sync on uj.mudancas (comunidade_id, xact, id);
 
 -- ---------------------------------------------------------------- funções das políticas
 
@@ -243,12 +284,23 @@ create function uj.eh_proprietario() returns boolean
   language sql stable security definer
   set search_path = pg_catalog, uj
   as $$
-    select coalesce(
-      (select plataforma_proprietario from uj.contas
-        where id = uj.conta_atual() and estado = 'ativa'),
-      false)
+    select exists (
+      select 1
+        from uj.contas a
+        join uj.provas_de_plataforma p on p.conta_id = a.id
+       where a.id = uj.conta_atual()
+         and a.plataforma_proprietario
+         and a.estado = 'ativa'
+         and p.expira_em > now()
+         and p.prova_hash = sha256(convert_to(coalesce(current_setting('app.prova', true), ''), 'UTF8')))
   $$;
 
+create function uj.conta_eh_proprietaria(c uuid) returns boolean
+  language sql stable security definer
+  set search_path = pg_catalog, uj
+  as $$ select coalesce((select plataforma_proprietario from uj.contas where id = c), false) $$;
+
+-- Papel ativo da conta atual numa comunidade (lista de comunidades, tabela pequena).
 create function uj.papel_na(c uuid) returns text
   language sql stable security definer
   set search_path = pg_catalog, uj
@@ -267,67 +319,90 @@ create function uj.nivel_na(c uuid) returns int
   set search_path = pg_catalog, uj
   as $$
     select case uj.papel_na(c)
-      when 'admin' then 30
-      when 'organizador' then 20
-      when 'membro' then 10
-      else 0
-    end
+      when 'admin' then 30 when 'organizador' then 20 when 'membro' then 10 else 0 end
   $$;
 
-create function uj.estado_da_comunidade(c uuid) returns text
+-- Nível na comunidade do CONTEXTO, que precisa estar ativa ou suspensa. 0 sem vínculo.
+create function uj.nivel_no_contexto() returns int
   language sql stable security definer
   set search_path = pg_catalog, uj
-  as $$ select estado from uj.comunidades where id = c $$;
-
--- Leitura de dado de comunidade: só na comunidade ATIVA do contexto, com vínculo
--- ativo, e com a comunidade ativa ou suspensa (suspensa = somente leitura).
-create function uj.pode_ler(c uuid) returns boolean
-  language sql stable
-  set search_path = pg_catalog, uj
   as $$
-    select c = uj.comunidade_atual()
-       and uj.nivel_na(c) >= 10
-       and uj.estado_da_comunidade(c) in ('ativa', 'suspensa')
+    select coalesce((
+      select case v.papel when 'admin' then 30 when 'organizador' then 20 else 10 end
+        from uj.vinculos v
+        join uj.contas a on a.id = v.conta_id
+        join uj.comunidades c on c.id = v.comunidade_id
+       where v.comunidade_id = uj.comunidade_atual()
+         and v.conta_id = uj.conta_atual()
+         and v.estado = 'ativo' and a.estado = 'ativa'
+         and c.estado in ('ativa', 'suspensa')), 0)
   $$;
 
--- Escrita: além disso, nível mínimo e comunidade no estado 'ativa'.
-create function uj.pode_gravar(c uuid, nivel_minimo int) returns boolean
-  language sql stable
+-- Igual, mas só conta para escrita: a comunidade precisa estar 'ativa'.
+create function uj.nivel_gravavel_no_contexto() returns int
+  language sql stable security definer
   set search_path = pg_catalog, uj
   as $$
-    select c = uj.comunidade_atual()
-       and uj.nivel_na(c) >= nivel_minimo
-       and uj.estado_da_comunidade(c) = 'ativa'
+    select coalesce((
+      select case v.papel when 'admin' then 30 when 'organizador' then 20 else 10 end
+        from uj.vinculos v
+        join uj.contas a on a.id = v.conta_id
+        join uj.comunidades c on c.id = v.comunidade_id
+       where v.comunidade_id = uj.comunidade_atual()
+         and v.conta_id = uj.conta_atual()
+         and v.estado = 'ativo' and a.estado = 'ativa'
+         and c.estado = 'ativa'), 0)
+  $$;
+
+create function uj.designacoes_no_contexto() returns text[]
+  language sql stable security definer
+  set search_path = pg_catalog, uj
+  as $$
+    select coalesce((
+      select v.designacoes from uj.vinculos v
+       where v.comunidade_id = uj.comunidade_atual()
+         and v.conta_id = uj.conta_atual()
+         and v.estado = 'ativo'), '{}'::text[])
   $$;
 
 -- ---------------------------------------------------------------- regras de vínculo
 
+-- SECURITY INVOKER de propósito: dentro das funções atômicas (donas: uj_dono)
+-- `current_user` é o dono, e a regra de "não mexer em si mesmo" não se aplica
+-- ao aceite de convite feito pela função. Em DML direto, current_user é o papel
+-- do aplicativo, e a regra vale. Um GUC não muda current_user.
 create function uj.guardar_vinculo() returns trigger
-  language plpgsql security definer
+  language plpgsql
   set search_path = pg_catalog, uj
   as $$
 declare
   ator uuid := uj.conta_atual();
   proprietario boolean := uj.eh_proprietario();
-  alvo_protegido boolean;
 begin
-  select plataforma_proprietario into alvo_protegido from uj.contas where id = new.conta_id;
-
-  -- A conta do Criador não é alterada por mais ninguém.
-  if alvo_protegido and not proprietario and ator is distinct from new.conta_id then
-    raise exception 'vinculo da conta proprietaria e protegido' using errcode = '42501';
+  if current_user = 'uj_dono' then
+    return new;
   end if;
 
-  if tg_op = 'UPDATE' and not proprietario then
-    -- Ninguém altera o próprio papel ou as próprias designações.
-    if ator = new.conta_id
-       and (new.papel <> old.papel or new.designacoes <> old.designacoes) then
-      raise exception 'nao e permitido alterar o proprio papel' using errcode = '42501';
-    end if;
-    -- Sobre si mesmo, só é possível sair (estado 'removido').
-    if ator = new.conta_id and new.estado <> old.estado and new.estado <> 'removido' then
-      raise exception 'so e permitido sair da comunidade' using errcode = '42501';
-    end if;
+  -- Ninguém, nem o Criador, concede papel ou designação a si mesmo.
+  if ator = new.conta_id and (
+       tg_op = 'INSERT'
+       or new.papel <> old.papel
+       or new.designacoes <> old.designacoes) then
+    raise exception 'nao e permitido alterar o proprio papel' using errcode = '42501';
+  end if;
+
+  -- Sobre si mesmo, só é possível sair (estado 'removido').
+  if tg_op = 'UPDATE' and ator = new.conta_id
+     and new.estado <> old.estado and new.estado <> 'removido' then
+    raise exception 'so e permitido sair da comunidade' using errcode = '42501';
+  end if;
+
+  -- O vínculo da conta do Criador não é rebaixado nem removido por terceiros.
+  -- (Designações podem ser ajustadas por um admin; papel e estado, não.)
+  if tg_op = 'UPDATE' and ator is distinct from new.conta_id and not proprietario
+     and uj.conta_eh_proprietaria(new.conta_id)
+     and (new.papel <> old.papel or new.estado <> old.estado) then
+    raise exception 'vinculo da conta proprietaria e protegido' using errcode = '42501';
   end if;
 
   return new;
@@ -337,26 +412,63 @@ create trigger vinculos_guardar before insert or update on uj.vinculos
   for each row execute function uj.guardar_vinculo();
 
 -- A comunidade não fica sem admin ativo, exceto por intervenção do Criador.
+-- A trava na linha da comunidade serializa dois rebaixamentos simultâneos.
+create function uj.comunidade_tem_outro_admin(c uuid, exceto_vinculo uuid, exceto_conta uuid)
+  returns boolean
+  language sql stable security definer
+  set search_path = pg_catalog, uj
+  as $$
+    select exists (
+      select 1 from uj.vinculos v join uj.contas a on a.id = v.conta_id
+       where v.comunidade_id = c
+         and v.id is distinct from exceto_vinculo
+         and v.conta_id is distinct from exceto_conta
+         and v.papel = 'admin' and v.estado = 'ativo' and a.estado = 'ativa')
+  $$;
+
 create function uj.manter_um_admin() returns trigger
   language plpgsql security definer
   set search_path = pg_catalog, uj
   as $$
 begin
   if old.papel = 'admin' and old.estado = 'ativo'
-     and not (new.papel = 'admin' and new.estado = 'ativo')
-     and not uj.eh_proprietario()
-     and not exists (
-       select 1 from uj.vinculos v join uj.contas a on a.id = v.conta_id
-        where v.comunidade_id = old.comunidade_id and v.id <> old.id
-          and v.papel = 'admin' and v.estado = 'ativo' and a.estado = 'ativa')
-  then
-    raise exception 'a comunidade ficaria sem administrador' using errcode = '23514';
+     and not (new.papel = 'admin' and new.estado = 'ativo') then
+    perform 1 from uj.comunidades where id = old.comunidade_id for no key update;
+    if not uj.comunidade_tem_outro_admin(old.comunidade_id, old.id, null)
+       and not uj.eh_proprietario() then
+      raise exception 'a comunidade ficaria sem administrador' using errcode = '23514';
+    end if;
   end if;
   return new;
 end
 $$;
 create trigger vinculos_um_admin after update on uj.vinculos
   for each row execute function uj.manter_um_admin();
+
+-- Desativar ou anonimizar a conta do único admin também deixaria a comunidade sem admin.
+create function uj.manter_um_admin_ao_encerrar_conta() returns trigger
+  language plpgsql security definer
+  set search_path = pg_catalog, uj
+  as $$
+declare
+  c uuid;
+begin
+  if old.estado = 'ativa' and new.estado <> 'ativa' then
+    for c in
+      select v.comunidade_id from uj.vinculos v
+       where v.conta_id = new.id and v.papel = 'admin' and v.estado = 'ativo'
+    loop
+      perform 1 from uj.comunidades where id = c for no key update;
+      if not uj.comunidade_tem_outro_admin(c, null, new.id) and not uj.eh_proprietario() then
+        raise exception 'a comunidade ficaria sem administrador' using errcode = '23514';
+      end if;
+    end loop;
+  end if;
+  return new;
+end
+$$;
+create trigger contas_um_admin after update of estado on uj.contas
+  for each row execute function uj.manter_um_admin_ao_encerrar_conta();
 
 -- ---------------------------------------------------------------- regras de comunidade
 
@@ -387,35 +499,182 @@ $$;
 create trigger comunidades_guardar before insert or update on uj.comunidades
   for each row execute function uj.guardar_comunidade();
 
+-- ---------------------------------------------------------------- revogação irreversível
+
+create function uj.revogacao_irreversivel() returns trigger
+  language plpgsql
+  set search_path = pg_catalog, uj
+  as $$
+begin
+  if tg_table_name = 'sessoes' then
+    if old.revogada_em is not null and new.revogada_em is distinct from old.revogada_em then
+      raise exception 'revogacao e irreversivel' using errcode = '42501';
+    end if;
+  elsif tg_table_name = 'convites' then
+    if old.revogado_em is not null and (
+         new.revogado_em is distinct from old.revogado_em
+         or new.revogado_por is distinct from old.revogado_por) then
+      raise exception 'revogacao e irreversivel' using errcode = '42501';
+    end if;
+    if old.revogado_em is null and new.revogado_em is not null and current_user <> 'uj_dono' then
+      new.revogado_em := now();
+      new.revogado_por := uj.conta_atual();
+    end if;
+  end if;
+  return new;
+end
+$$;
+create trigger sessoes_revogacao before update on uj.sessoes
+  for each row execute function uj.revogacao_irreversivel();
+create trigger convites_revogacao before update on uj.convites
+  for each row execute function uj.revogacao_irreversivel();
+
 -- ---------------------------------------------------------------- log de mudanças
 
+-- Argumento do gatilho: nível mínimo para saber da mudança ('10', '20' ou '30').
 create function uj.registrar_mudanca() returns trigger
   language plpgsql security definer
   set search_path = pg_catalog, uj
   as $$
 declare
-  linha record := coalesce(new, old);
+  linha record;
   c uuid;
 begin
+  if tg_op = 'DELETE' then linha := old; else linha := new; end if;
   if tg_table_name = 'comunidades' then
     c := linha.id;
   else
     c := linha.comunidade_id;
   end if;
-  insert into uj.mudancas (comunidade_id, tabela, registro_id, operacao)
-    values (c, tg_table_name, linha.id, left(tg_op, 1));
+  insert into uj.mudancas (comunidade_id, tabela, registro_id, operacao, nivel_minimo)
+    values (c, tg_table_name, linha.id, left(tg_op, 1), tg_argv[0]::int);
   return null;
 end
 $$;
 create trigger comunidades_mudanca after insert or update or delete on uj.comunidades
-  for each row execute function uj.registrar_mudanca();
+  for each row execute function uj.registrar_mudanca('10');
 create trigger vinculos_mudanca after insert or update or delete on uj.vinculos
-  for each row execute function uj.registrar_mudanca();
+  for each row execute function uj.registrar_mudanca('10');
+create trigger convites_mudanca after insert or update or delete on uj.convites
+  for each row execute function uj.registrar_mudanca('30');
+
+-- Renomear a conta muda o nome mostrado em todas as comunidades da pessoa.
+create function uj.registrar_mudanca_de_conta() returns trigger
+  language plpgsql security definer
+  set search_path = pg_catalog, uj
+  as $$
+begin
+  insert into uj.mudancas (comunidade_id, tabela, registro_id, operacao)
+    select v.comunidade_id, 'contas', new.id, 'U'
+      from uj.vinculos v where v.conta_id = new.id and v.estado = 'ativo';
+  return null;
+end
+$$;
+create trigger contas_mudanca after update of nome, whatsapp, estado on uj.contas
+  for each row execute function uj.registrar_mudanca_de_conta();
+
+-- ---------------------------------------------------------------- funções atômicas de convite
+
+-- Situação de um convite, para a tela de aceite (quem chama tem o token).
+create function uj.consultar_convite(p_token_hmac bytea)
+  returns table (convite_id uuid, comunidade_nome text, comunidade_cor text, papel text,
+                 email_destino text, situacao text)
+  language sql stable security definer
+  set search_path = pg_catalog, uj
+  as $$
+    select c.id, m.nome, m.cor, c.papel, c.email_destino,
+           case
+             when c.revogado_em is not null then 'revogado'
+             when c.expira_em <= now() then 'expirado'
+             when c.usos >= c.usos_maximos then 'usado'
+             when m.estado <> 'ativa' then 'indisponivel'
+             else 'valido'
+           end
+      from uj.convites c join uj.comunidades m on m.id = c.comunidade_id
+     where c.token_hmac = p_token_hmac
+  $$;
+
+-- Aceite por conta existente. Trava o convite (FOR UPDATE): dois aceites
+-- simultâneos do mesmo convite de uso único não geram dois vínculos.
+-- Erros: UJ001 convite indisponível, UJ002 e-mail diferente, UJ003 já participa,
+-- UJ004 conta inválida.
+create function uj.aceitar_convite(p_token_hmac bytea, p_conta uuid) returns uuid
+  language plpgsql security definer
+  set search_path = pg_catalog, uj
+  as $$
+declare
+  c uj.convites;
+  email_da_conta text;
+  existente uj.vinculos;
+  v_id uuid;
+begin
+  select email into email_da_conta from uj.contas where id = p_conta and estado = 'ativa';
+  if not found then
+    raise exception 'conta invalida' using errcode = 'UJ004';
+  end if;
+
+  select * into c from uj.convites where token_hmac = p_token_hmac for update;
+  if not found or c.revogado_em is not null or c.expira_em <= now()
+     or c.usos >= c.usos_maximos
+     or (select estado from uj.comunidades where id = c.comunidade_id) <> 'ativa' then
+    raise exception 'convite indisponivel' using errcode = 'UJ001';
+  end if;
+  if c.email_destino is not null and c.email_destino <> email_da_conta then
+    raise exception 'convite destinado a outro e-mail' using errcode = 'UJ002';
+  end if;
+
+  select * into existente from uj.vinculos
+   where conta_id = p_conta and comunidade_id = c.comunidade_id for update;
+  if found and existente.estado = 'ativo' then
+    raise exception 'ja participa da comunidade' using errcode = 'UJ003';
+  end if;
+
+  update uj.convites set usos = usos + 1, ultimo_uso_em = now() where id = c.id;
+
+  if existente.id is not null then
+    update uj.vinculos
+       set papel = c.papel, estado = 'ativo', designacoes = '{}', convite_id = c.id
+     where id = existente.id
+    returning id into v_id;
+  else
+    insert into uj.vinculos (conta_id, comunidade_id, papel, convite_id)
+      values (p_conta, c.comunidade_id, c.papel, c.id)
+    returning id into v_id;
+  end if;
+
+  insert into uj.auditoria (conta_id, comunidade_id, acao, recurso_tipo, recurso_id, detalhes)
+    values (p_conta, c.comunidade_id, 'convite.aceito', 'convite', c.id::text,
+            jsonb_build_object('papel', c.papel, 'vinculo', v_id));
+  return v_id;
+end
+$$;
+
+-- Conta nova a partir de convite: cria a conta (e-mail já verificado pela API)
+-- e aceita o convite na mesma transação. UJ005: e-mail já tem conta.
+create function uj.criar_conta_por_convite(p_token_hmac bytea, p_nome text, p_email text,
+                                           p_whatsapp text, p_senha_hash text)
+  returns table (conta_id uuid, vinculo_id uuid)
+  language plpgsql security definer
+  set search_path = pg_catalog, uj
+  as $$
+declare
+  nova uuid;
+begin
+  if exists (select 1 from uj.contas where email = lower(p_email)) then
+    raise exception 'e-mail ja possui conta' using errcode = 'UJ005';
+  end if;
+  insert into uj.contas (nome, email, email_verificado_em, whatsapp, senha_hash)
+    values (btrim(p_nome), lower(p_email), now(), p_whatsapp, p_senha_hash)
+  returning id into nova;
+  return query select nova, uj.aceitar_convite(p_token_hmac, nova);
+end
+$$;
 
 -- ---------------------------------------------------------------- RLS e políticas
 
 alter table uj.contas enable row level security;
 alter table uj.codigos_recuperacao enable row level security;
+alter table uj.provas_de_plataforma enable row level security;
 alter table uj.sessoes enable row level security;
 alter table uj.recuperacoes_senha enable row level security;
 alter table uj.comunidades enable row level security;
@@ -426,91 +685,143 @@ alter table uj.transferencias_propriedade enable row level security;
 alter table uj.auditoria enable row level security;
 alter table uj.mudancas enable row level security;
 
--- uj_api: a própria conta. Nome de outras pessoas sai por função de projeção (F4).
+-- uj_api ----------------------------------------------------------------
+
 create policy contas_api_propria on uj.contas for select to uj_api
-  using (id = uj.conta_atual());
+  using (id = (select uj.conta_atual()));
 create policy contas_api_editar on uj.contas for update to uj_api
-  using (id = uj.conta_atual()) with check (id = uj.conta_atual());
+  using (id = (select uj.conta_atual())) with check (id = (select uj.conta_atual()));
 
 create policy sessoes_api_proprias on uj.sessoes for select to uj_api
-  using (conta_id = uj.conta_atual());
+  using (conta_id = (select uj.conta_atual()));
 create policy sessoes_api_revogar on uj.sessoes for update to uj_api
-  using (conta_id = uj.conta_atual()) with check (conta_id = uj.conta_atual());
+  using (conta_id = (select uj.conta_atual())) with check (conta_id = (select uj.conta_atual()));
 
 create policy comunidades_api_ler on uj.comunidades for select to uj_api
   using (
-    uj.eh_proprietario()
+    (select uj.eh_proprietario())
     or (uj.nivel_na(id) >= 10 and estado in ('ativa', 'suspensa'))
     or (uj.nivel_na(id) >= 30 and estado = 'arquivada'));
 create policy comunidades_api_criar on uj.comunidades for insert to uj_api
-  with check (uj.eh_proprietario() and criado_por = uj.conta_atual());
+  with check ((select uj.eh_proprietario()) and criado_por = (select uj.conta_atual()));
 create policy comunidades_api_editar on uj.comunidades for update to uj_api
-  using (uj.eh_proprietario() or uj.pode_gravar(id, 30))
-  with check (uj.eh_proprietario() or uj.pode_gravar(id, 30));
+  using ((select uj.eh_proprietario())
+         or (id = (select uj.comunidade_atual()) and (select uj.nivel_gravavel_no_contexto()) >= 30))
+  with check ((select uj.eh_proprietario())
+         or (id = (select uj.comunidade_atual()) and (select uj.nivel_gravavel_no_contexto()) >= 30));
 
+-- O Criador só enxerga vínculos de outra comunidade em modo de intervenção,
+-- isto é, com aquela comunidade no contexto e a prova de 2FA.
 create policy vinculos_api_ler on uj.vinculos for select to uj_api
-  using (conta_id = uj.conta_atual() or uj.pode_ler(comunidade_id) or uj.eh_proprietario());
+  using (
+    conta_id = (select uj.conta_atual())
+    or (comunidade_id = (select uj.comunidade_atual())
+        and ((select uj.nivel_no_contexto()) >= 10 or (select uj.eh_proprietario()))));
 create policy vinculos_api_nomear on uj.vinculos for insert to uj_api
-  with check (uj.eh_proprietario());
+  with check (comunidade_id = (select uj.comunidade_atual()) and (select uj.eh_proprietario()));
 create policy vinculos_api_editar on uj.vinculos for update to uj_api
-  using (uj.eh_proprietario() or uj.pode_gravar(comunidade_id, 30) or conta_id = uj.conta_atual())
+  using (
+    conta_id = (select uj.conta_atual())
+    or (comunidade_id = (select uj.comunidade_atual())
+        and ((select uj.nivel_gravavel_no_contexto()) >= 30 or (select uj.eh_proprietario()))))
   with check (
-    uj.eh_proprietario() or uj.pode_gravar(comunidade_id, 30) or conta_id = uj.conta_atual());
+    conta_id = (select uj.conta_atual())
+    or (comunidade_id = (select uj.comunidade_atual())
+        and ((select uj.nivel_gravavel_no_contexto()) >= 30 or (select uj.eh_proprietario()))));
 
 create policy convites_api_ler on uj.convites for select to uj_api
-  using (uj.eh_proprietario() or uj.pode_gravar(comunidade_id, 30));
+  using (comunidade_id = (select uj.comunidade_atual())
+         and ((select uj.nivel_no_contexto()) >= 30 or (select uj.eh_proprietario())));
 create policy convites_api_criar on uj.convites for insert to uj_api
   with check (
-    (uj.eh_proprietario() or uj.pode_gravar(comunidade_id, 30))
-    and criado_por = uj.conta_atual());
+    comunidade_id = (select uj.comunidade_atual())
+    and ((select uj.nivel_gravavel_no_contexto()) >= 30 or (select uj.eh_proprietario()))
+    and criado_por = (select uj.conta_atual()));
 create policy convites_api_revogar on uj.convites for update to uj_api
-  using (uj.eh_proprietario() or uj.pode_gravar(comunidade_id, 30))
-  with check (uj.eh_proprietario() or uj.pode_gravar(comunidade_id, 30));
+  using (comunidade_id = (select uj.comunidade_atual())
+         and ((select uj.nivel_gravavel_no_contexto()) >= 30 or (select uj.eh_proprietario())))
+  with check (comunidade_id = (select uj.comunidade_atual())
+         and ((select uj.nivel_gravavel_no_contexto()) >= 30 or (select uj.eh_proprietario())));
 
 create policy auditoria_api_ler on uj.auditoria for select to uj_api
   using (
-    uj.eh_proprietario()
-    or (comunidade_id = uj.comunidade_atual() and uj.nivel_na(comunidade_id) >= 30));
+    (comunidade_id is null and (select uj.eh_proprietario()))
+    or (comunidade_id = (select uj.comunidade_atual())
+        and ((select uj.nivel_no_contexto()) >= 30 or (select uj.eh_proprietario()))));
 create policy auditoria_api_inserir on uj.auditoria for insert to uj_api
-  with check (conta_id is not distinct from uj.conta_atual());
+  with check (
+    conta_id is not distinct from (select uj.conta_atual())
+    and (comunidade_id is null or comunidade_id = (select uj.comunidade_atual())));
 
 create policy mudancas_api_ler on uj.mudancas for select to uj_api
-  using (uj.pode_ler(comunidade_id));
+  using (
+    comunidade_id = (select uj.comunidade_atual())
+    and (select uj.nivel_no_contexto()) >= nivel_minimo
+    and (conta_alvo is null or conta_alvo = (select uj.conta_atual()))
+    and (designacao is null or array[designacao] <@ (select uj.designacoes_no_contexto())));
 
--- uj_auth: identidade e aceite de convite. Sem acesso a conteúdo de comunidade.
-create policy contas_auth on uj.contas to uj_auth using (true) with check (true);
+-- uj_auth ---------------------------------------------------------------
+-- Só identidade. Nenhuma política em comunidades, vínculos, convites,
+-- transferências, provas (só insere) ou mudanças.
+
+create policy contas_auth_ler on uj.contas for select to uj_auth using (true);
+create policy contas_auth_editar on uj.contas for update to uj_auth using (true) with check (true);
 create policy codigos_auth on uj.codigos_recuperacao to uj_auth using (true) with check (true);
+create policy provas_auth_inserir on uj.provas_de_plataforma for insert to uj_auth
+  with check (expira_em <= now() + interval '15 minutes');
 create policy sessoes_auth on uj.sessoes to uj_auth using (true) with check (true);
 create policy recuperacoes_auth on uj.recuperacoes_senha to uj_auth using (true) with check (true);
 create policy verificacoes_auth on uj.verificacoes_email to uj_auth using (true) with check (true);
-create policy transferencias_auth on uj.transferencias_propriedade to uj_auth
-  using (true) with check (true);
-create policy comunidades_auth_ler on uj.comunidades for select to uj_auth using (true);
-create policy convites_auth on uj.convites to uj_auth using (true) with check (true);
-create policy vinculos_auth on uj.vinculos to uj_auth using (true) with check (true);
-create policy auditoria_auth_inserir on uj.auditoria for insert to uj_auth with check (true);
+create policy auditoria_auth_inserir on uj.auditoria for insert to uj_auth
+  with check (comunidade_id is null);
 
--- ---------------------------------------------------------------- privilégios (coluna a coluna)
+-- ---------------------------------------------------------------- privilégios
 
-grant execute on all functions in schema uj to uj_api, uj_auth;
+revoke execute on all functions in schema uj from public;
+
+grant execute on function
+  uj.conta_atual(), uj.comunidade_atual(), uj.eh_proprietario(), uj.conta_eh_proprietaria(uuid),
+  uj.papel_na(uuid), uj.nivel_na(uuid), uj.nivel_no_contexto(), uj.nivel_gravavel_no_contexto(),
+  uj.designacoes_no_contexto()
+  to uj_api;
+grant execute on function uj.conta_atual(), uj.comunidade_atual(), uj.eh_proprietario(),
+  uj.conta_eh_proprietaria(uuid),
+  uj.consultar_convite(bytea), uj.aceitar_convite(bytea, uuid),
+  uj.criar_conta_por_convite(bytea, text, text, text, text)
+  to uj_auth;
 
 grant select on uj.contas to uj_api;
 grant update (nome, whatsapp) on uj.contas to uj_api;
 grant select on uj.sessoes to uj_api;
 grant update (revogada_em, motivo_revogacao) on uj.sessoes to uj_api;
-grant select, insert on uj.comunidades to uj_api;
+grant select on uj.comunidades to uj_api;
+grant insert (nome, cor, fuso, validade_offline_dias, retencao_inscricoes_dias, criado_por)
+  on uj.comunidades to uj_api;
 grant update (nome, cor, fuso, validade_offline_dias, retencao_inscricoes_dias, estado,
   exclusao_agendada_para) on uj.comunidades to uj_api;
-grant select, insert on uj.vinculos to uj_api;
+grant select on uj.vinculos to uj_api;
+grant insert (conta_id, comunidade_id, papel) on uj.vinculos to uj_api;
 grant update (papel, estado, designacoes) on uj.vinculos to uj_api;
-grant select, insert on uj.convites to uj_api;
-grant update (revogado_em, revogado_por) on uj.convites to uj_api;
-grant select, insert on uj.auditoria to uj_api;
+grant select on uj.convites to uj_api;
+grant insert (comunidade_id, papel, email_destino, token_hmac, expira_em, criado_por)
+  on uj.convites to uj_api;
+grant update (revogado_em) on uj.convites to uj_api;
+grant select on uj.auditoria to uj_api;
+grant insert (conta_id, comunidade_id, acao, recurso_tipo, recurso_id, detalhes, ip_truncado)
+  on uj.auditoria to uj_api;
 grant select on uj.mudancas to uj_api;
 
-grant select, insert, update on uj.contas, uj.codigos_recuperacao, uj.sessoes,
-  uj.recuperacoes_senha, uj.verificacoes_email, uj.transferencias_propriedade to uj_auth;
-grant select on uj.comunidades to uj_auth;
-grant select, update (usos, ultimo_uso_em) on uj.convites to uj_auth;
-grant select, insert, update (papel, estado, convite_id) on uj.vinculos to uj_auth;
-grant insert on uj.auditoria to uj_auth;
+grant select on uj.contas to uj_auth;
+grant update (senha_hash, email_verificado_em, totp_segredo_cifrado, totp_ativado_em,
+  totp_ultimo_contador) on uj.contas to uj_auth;
+grant select, insert, delete on uj.codigos_recuperacao to uj_auth;
+grant update (usado_em) on uj.codigos_recuperacao to uj_auth;
+grant insert on uj.provas_de_plataforma to uj_auth;
+grant select, insert on uj.sessoes to uj_auth;
+grant update (ultimo_uso_em, substituida_em, revogada_em, motivo_revogacao) on uj.sessoes to uj_auth;
+grant select, insert on uj.recuperacoes_senha to uj_auth;
+grant update (usado_em) on uj.recuperacoes_senha to uj_auth;
+grant select, insert on uj.verificacoes_email to uj_auth;
+grant update (tentativas, consumido_em) on uj.verificacoes_email to uj_auth;
+grant insert (conta_id, comunidade_id, acao, recurso_tipo, recurso_id, detalhes, ip_truncado)
+  on uj.auditoria to uj_auth;

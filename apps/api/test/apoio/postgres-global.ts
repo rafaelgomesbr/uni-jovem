@@ -50,6 +50,12 @@ export default async function setup(projeto: TestProject) {
       `create role ${papel} login password '${senha}' nosuperuser nocreatedb nocreaterole nobypassrls`,
     )
   }
+  // Mesmos limites de infra/banco/papeis.sql.
+  for (const papel of ['uj_api', 'uj_auth']) {
+    await su.query(`alter role ${papel} set statement_timeout = '15s'`)
+    await su.query(`alter role ${papel} set idle_in_transaction_session_timeout = '30s'`)
+    await su.query(`alter role ${papel} set lock_timeout = '5s'`)
+  }
   await su.query('create database uj_modelo owner uj_dono')
   await su.end()
 

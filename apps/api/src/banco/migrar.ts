@@ -28,6 +28,10 @@ export async function migrar(
   const cliente = new pg.Client({ connectionString: urlDono })
   await cliente.connect()
   try {
+    // Duas instâncias migrando ao mesmo tempo: a segunda espera a primeira.
+    await cliente.query("select pg_advisory_lock(hashtext('uj_migracoes'))")
+    // Migração que espera trava por muito tempo derruba a aplicação: falha cedo.
+    await cliente.query("set lock_timeout = '10s'")
     await cliente.query(`
       create table if not exists public.migracoes_aplicadas (
         nome text primary key,
@@ -55,22 +59,28 @@ export async function migrar(
         resultado.jaAplicadas.push(arquivo)
         continue
       }
-      await cliente.query('begin')
+      // `-- uj:sem-transacao` na primeira linha: para `create index concurrently`,
+      // que não roda dentro de transação. Esse arquivo deve ter UM comando só.
+      const semTransacao = sql.startsWith('-- uj:sem-transacao')
       try {
+        if (!semTransacao) await cliente.query('begin')
         await cliente.query(sql)
         await cliente.query(
           'insert into public.migracoes_aplicadas (nome, checksum) values ($1, $2)',
           [arquivo, soma],
         )
-        await cliente.query('commit')
+        if (!semTransacao) await cliente.query('commit')
       } catch (erro) {
-        await cliente.query('rollback')
+        if (!semTransacao) await cliente.query('rollback')
         throw new Error(`Falha ao aplicar ${arquivo}: ${(erro as Error).message}`, { cause: erro })
       }
       resultado.aplicadas.push(arquivo)
     }
     return resultado
   } finally {
+    await cliente
+      .query("select pg_advisory_unlock(hashtext('uj_migracoes'))")
+      .catch(() => undefined)
     await cliente.end()
   }
 }

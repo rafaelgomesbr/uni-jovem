@@ -19,7 +19,8 @@ No dia do evento a internet costuma falhar (igreja, retiro, sítio). Organizador
 **Servidor:**
 
 - `POST /api/v1/c/:id/sync/operacoes` recebe um lote e **revalida tudo** (sessão, vínculo, papel, regra, versão). Responde por operação: `aceita`, `ja_aplicada`, `rejeitada` (com motivo) ou `conflito` (com o estado do servidor).
-- `GET /api/v1/c/:id/sync/mudancas?cursor=` devolve o log de mudanças da comunidade, com cursor monotônico, já filtrado pelo que a pessoa pode ver.
+- `GET /api/v1/c/:id/sync/mudancas?cursor=` devolve o log de mudanças da comunidade, já filtrado pelo que a pessoa pode ver (`nivel_minimo`, `conta_alvo`, `designacao` em `uj.mudancas`).
+- **Cursor sem perder linhas (D13):** o cursor é o par `(xact, id)`, e só entram linhas com `xact < pg_snapshot_xmin(pg_current_snapshot())`, isto é, de transações que já terminaram. Um id sequencial sozinho perderia a linha de uma transação mais antiga que confirma depois de uma mais nova. Página cheia: cursor = `(xact, id)` da última linha; página incompleta: cursor = `(limite, 0)`. Custo aceito: uma transação longa atrasa a sincronização de todos, por isso os papéis do app têm `idle_in_transaction_session_timeout` e `statement_timeout`. Teste: `rls-nucleo.test.ts`, "cursor de sincronização".
 - Envelope repetido com o mesmo conteúdo é aceito sem efeito; conteúdo diferente com a mesma chave é conflito (409).
 
 **Gatilhos:** ao abrir, ao voltar ao primeiro plano, ao recuperar rede, botão "Sincronizar agora" e tarefa em segundo plano oportunista, sem depender só dela.
