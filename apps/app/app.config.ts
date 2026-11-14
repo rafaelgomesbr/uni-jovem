@@ -50,7 +50,7 @@ const TEXTO_CAMERA =
   'Nenhuma foto é tirada nem guardada.'
 
 /** Versão vista pelas pessoas; o número de build fica com o EAS (`appVersionSource: remote`). */
-const VERSAO = '0.1.0'
+const VERSAO = '1.0.0'
 
 /** Projeto no EAS (conta `rafaelgmsz`), criado pelo `eas init` em 14/11/2026. Não é segredo. */
 const ID_DO_PROJETO_EAS = '70fc7050-14d4-468a-b55a-6e01da3ddbac'
@@ -88,7 +88,13 @@ const config: ExpoConfig = {
       'android.permission.READ_EXTERNAL_STORAGE',
       'android.permission.WRITE_EXTERNAL_STORAGE',
       'android.permission.SYSTEM_ALERT_WINDOW',
+      // Sem anúncios nem alarmes exatos: as lojas cobram justificativa para estes.
+      'com.google.android.gms.permission.AD_ID',
+      'android.permission.USE_EXACT_ALARM',
+      'android.permission.SCHEDULE_EXACT_ALARM',
     ],
+    // Dados locais (sessão, banco cifrado) não vão para o backup do Google.
+    allowBackup: false,
     intentFilters: [
       {
         action: 'VIEW',
