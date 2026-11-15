@@ -2,14 +2,24 @@ import { screen, userEvent, waitFor } from '@testing-library/react-native'
 import { router } from 'expo-router'
 
 import { ETAPAS, EVENTO_ID, eventoDeTeste } from '@/testes/fixturas'
+import { confirmar } from '@/utilidades/confirmar'
 import { BASE, COMUNIDADE, MEU_VINCULO, pedidosPara, renderizarTela } from '@/testes/telas'
 
 import { DetalheDoEvento } from '../DetalheDoEvento'
 
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), setParams: jest.fn() },
+  router: {
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    setParams: jest.fn(),
+    canGoBack: jest.fn(() => true),
+  },
   useLocalSearchParams: jest.fn(() => ({})),
+  usePreventRemove: jest.fn(() => jest.fn()),
 }))
+// O diálogo de confirmação: o teste lê o que ele pergunta e responde.
+jest.mock('@/utilidades/confirmar', () => ({ confirmar: jest.fn(async () => true) }))
 
 const CAMINHO = `${BASE}/eventos/${EVENTO_ID}`
 
@@ -28,7 +38,7 @@ describe('detalhe do evento', () => {
 
   test('etapas com hora prevista e quem cuida, lidas por inteiro pelo leitor de tela', async () => {
     await montar('organizador')
-    await userEvent.setup().press(await screen.findByRole('radio', { name: 'Etapas' }))
+    await userEvent.setup().press(await screen.findByRole('radio', { name: 'Programação' }))
     expect(
       await screen.findByLabelText(
         'Etapa 2 de 3: Louvor. Das 16:05 a 16:20, 15 min. Com Bruno Lima (responsável).',
@@ -43,7 +53,7 @@ describe('detalhe do evento', () => {
     })
     const usuario = userEvent.setup()
 
-    await usuario.press(await screen.findByRole('radio', { name: 'Etapas' }))
+    await usuario.press(await screen.findByRole('radio', { name: 'Programação' }))
     // Fora da edição, a ordem não se mexe por engano; "Editar etapas" mostra Subir e Descer.
     expect(screen.queryByRole('button', { name: 'Descer Boas-vindas' })).toBeNull()
     await usuario.press(screen.getByRole('button', { name: 'Editar etapas' }))
@@ -63,8 +73,11 @@ describe('detalhe do evento', () => {
     await montar('organizador')
     const usuario = userEvent.setup()
 
-    // Publicado e fora do dia: o primário é Editar, ao lado do "Mais ações".
+    // Publicado e fora do dia: o primário é Editar, ao lado do "Mais", com o texto à vista.
     expect(await screen.findByRole('button', { name: 'Editar' })).toBeOnTheScreen()
+    expect(screen.getByText('Mais')).toBeOnTheScreen()
+    // Fora do dia, o check-in não ocupa a barra.
+    expect(screen.queryByRole('button', { name: 'Check-in de presença' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Cancelar evento' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Duplicar' })).toBeNull()
 
@@ -79,13 +92,13 @@ describe('detalhe do evento', () => {
     )
   })
 
-  test('rascunho: o primário é Publicar; a organização vê Equipe e as notas internas', async () => {
+  test('rascunho: o primário é Publicar; a organização vê Quem serve e as notas internas', async () => {
     await montar('organizador', {}, eventoDeTeste({ status: 'rascunho' }))
     const usuario = userEvent.setup()
     expect(await screen.findByRole('button', { name: 'Publicar' })).toBeOnTheScreen()
     expect(screen.getByText('Rascunho')).toBeOnTheScreen()
 
-    await usuario.press(screen.getByRole('radio', { name: 'Equipe' }))
+    await usuario.press(screen.getByRole('radio', { name: 'Quem serve' }))
     expect(await screen.findByText('Bruno Lima')).toBeOnTheScreen()
     expect(screen.getAllByRole('button', { name: /^Escalar pessoa/ }).length).toBeGreaterThan(0)
     await usuario.press(screen.getByRole('radio', { name: 'Preparação' }))
@@ -96,12 +109,13 @@ describe('detalhe do evento', () => {
     await montar('membro')
     const usuario = userEvent.setup()
     await screen.findByRole('radio', { name: 'Visão geral' })
-    // Membro: sem barra de ação, sem "Equipe" e sem a lista de inscrições.
+    // Membro: sem barra de ação, sem "Quem serve", sem a lista de inscrições e sem check-in.
     expect(screen.queryByRole('button', { name: 'Mais ações' })).toBeNull()
-    expect(screen.queryByRole('radio', { name: 'Equipe' })).toBeNull()
+    expect(screen.queryByRole('radio', { name: 'Quem serve' })).toBeNull()
     expect(screen.queryByRole('button', { name: /^Inscrições/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Check-in/ })).toBeNull()
 
-    await usuario.press(screen.getByRole('radio', { name: 'Etapas' }))
+    await usuario.press(screen.getByRole('radio', { name: 'Programação' }))
     expect(screen.queryByRole('button', { name: 'Editar etapas' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Descer Boas-vindas' })).toBeNull()
 
@@ -110,6 +124,56 @@ describe('detalhe do evento', () => {
     // A própria tarefa pode ser concluída; a de outra pessoa fica desabilitada, com o motivo.
     expect(await screen.findByRole('checkbox', { name: 'Testar o som' })).toBeEnabled()
     expect(screen.getByRole('checkbox', { name: 'Comprar o lanche' })).toBeDisabled()
+  })
+
+  test('no dia: "Check-in" na barra, ao lado de "Abrir ao vivo", e fora do "Mais"', async () => {
+    // Começou há um minuto: é hoje em qualquer fuso, e o ao vivo já pode abrir.
+    const agora = new Date(Date.now() - 60_000).toISOString()
+    await montar('organizador', {}, eventoDeTeste({ inicio: agora }))
+    const usuario = userEvent.setup()
+
+    expect(await screen.findByRole('button', { name: 'Abrir ao vivo' })).toBeOnTheScreen()
+    await usuario.press(screen.getByRole('button', { name: 'Check-in de presença' }))
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/evento/[eventoId]/checkin',
+      params: { eventoId: EVENTO_ID },
+    })
+    // Na barra e na linha da Visão geral; nada mais pede gesto ou menu.
+    expect(screen.getAllByRole('button', { name: /^Check-in de presença/ })).toHaveLength(2)
+  })
+
+  test('Visão geral: a linha "Check-in" abre a presença, em qualquer dia', async () => {
+    await montar('organizador')
+    await userEvent
+      .setup()
+      .press(await screen.findByRole('button', { name: /^Check-in de presença\. Marque/ }))
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/evento/[eventoId]/checkin',
+      params: { eventoId: EVENTO_ID },
+    })
+  })
+
+  test('rascunho com data no passado: publicar avisa antes', async () => {
+    const ontem = new Date(Date.now() - 86_400_000).toISOString()
+    const { servidor } = await montar(
+      'organizador',
+      { [`POST ${CAMINHO}/status`]: () => ({ status: 200, corpo: { ok: true } }) },
+      eventoDeTeste({ status: 'rascunho', inicio: ontem }),
+    )
+    await userEvent.setup().press(await screen.findByRole('button', { name: 'Publicar' }))
+    await waitFor(() =>
+      expect(confirmar).toHaveBeenCalledWith(
+        expect.objectContaining({
+          titulo: 'Esta data já passou',
+          confirmar: 'Publicar mesmo assim',
+        }),
+      ),
+    )
+    await waitFor(() =>
+      expect(pedidosPara(servidor, 'POST', `${CAMINHO}/status`)[0]?.corpo).toEqual({
+        status: 'publicado',
+      }),
+    )
   })
 
   test('membro se inscreve e vê o código de entrada', async () => {

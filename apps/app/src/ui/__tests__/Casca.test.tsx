@@ -13,6 +13,7 @@ import { pontoDeAssentar } from '../Tela'
 
 jest.mock('expo-router', () => ({
   router: { back: jest.fn(), replace: jest.fn(), canGoBack: jest.fn(() => true) },
+  usePreventRemove: jest.fn(() => jest.fn()),
 }))
 
 describe('casca', () => {

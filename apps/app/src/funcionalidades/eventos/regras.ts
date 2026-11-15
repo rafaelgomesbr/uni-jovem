@@ -45,6 +45,14 @@ export const EXPLICACAO_SEM_INSCRICAO: Readonly<Record<NonNullable<MotivoSemInsc
   prazo_encerrado: 'O prazo de inscrição terminou.',
 }
 
+/**
+ * O início já passou? Quem erra o ano no calendário publicaria (com push) um
+ * encontro que não vai acontecer: antes de publicar, a tela pergunta (M6).
+ */
+export function dataJaPassou(inicio: string, agora: Date = new Date()): boolean {
+  return new Date(inicio).getTime() < agora.getTime()
+}
+
 /** Ao vivo só existe para evento publicado (a API recusa os demais). */
 export function podeIrAoVivo(status: StatusDoEvento): boolean {
   return status === 'publicado' || status === 'encerrado'

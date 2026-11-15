@@ -18,6 +18,7 @@ import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
 import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
 import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
+import { useConfirmarDescarte, voltarOu } from '@/ui/navegacao'
 import { Secao } from '@/ui/Secao'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
@@ -49,8 +50,7 @@ import {
 } from './visibilidade'
 
 function voltarAosPedidos() {
-  if (router.canGoBack()) router.back()
-  else router.replace('/oracao')
+  voltarOu('/oracao')
 }
 
 /**
@@ -132,6 +132,7 @@ function DetalheDoPedido({ comunidadeId, pedidoId }: PropsDoPedido) {
                 {p.minha || podeDenunciar(p) ? (
                   <BotaoIcone
                     icone="maisAcoes"
+                    texto="Mais"
                     rotulo={`Mais ações do ${autor}`}
                     lado={ALTURA.controle}
                     aoPressionar={() => setFolhaAberta(true)}
@@ -235,6 +236,8 @@ function EditarTexto({ comunidadeId, pedido }: { comunidadeId: string; pedido: P
   const [texto, setTexto] = useState(pedido.texto ?? '')
   const editar = useEditarPedido(comunidadeId)
   const mudou = texto.trim() !== (pedido.texto ?? '').trim()
+  // Texto mudado e não salvo: sair pergunta antes (A5). Nada vai para o aparelho.
+  useConfirmarDescarte(mudou)
   return (
     <CartaoDeVidro
       sobrancelha="Texto"

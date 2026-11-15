@@ -64,8 +64,8 @@ export function ProvaDeSegundoFator({ aoConfirmar, aoCancelar, motivo }: PropsDa
     return (
       <CartaoDeDestaque
         sobrancelha="Segurança"
-        titulo="Ative a verificação em duas etapas"
-        descricao="Ações da plataforma pedem um código do app autenticador. Ative a verificação em duas etapas e volte aqui."
+        titulo="Ligue o código extra ao entrar"
+        descricao="Ações da plataforma pedem um código do app autenticador. Ligue o código extra ao entrar (verificação em duas etapas) e volte aqui."
         acoes={
           <View style={{ gap: ESPACO.e8, alignItems: 'flex-start' }}>
             <Botao titulo="Ativar agora" aoPressionar={() => router.push('/ativar-2fa')} />

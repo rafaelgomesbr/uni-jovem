@@ -10,8 +10,15 @@ import { TelaExportacoes } from '../TelaExportacoes'
 import { rotuloDoPeriodo, TelaRelatorios } from '../TelaRelatorios'
 
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), setParams: jest.fn() },
+  router: {
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    canGoBack: jest.fn(() => true),
+    setParams: jest.fn(),
+  },
   useLocalSearchParams: jest.fn(() => ({})),
+  usePreventRemove: jest.fn(() => jest.fn()),
 }))
 
 const PRESENCA = {
@@ -37,6 +44,14 @@ describe('relatórios', () => {
     await renderizarTela(<TelaPerfil />, { papel: 'membro' })
     expect(await screen.findByRole('button', { name: /^Oração\./ })).toBeOnTheScreen()
     expect(screen.queryByRole('button', { name: /^Relatórios\./ })).toBeNull()
+  })
+
+  test('o Perfil abre com "Minhas escalas e disponibilidade" no topo, para qualquer papel', async () => {
+    await renderizarTela(<TelaPerfil />, { papel: 'membro' })
+    await fireEvent.press(
+      await screen.findByRole('button', { name: /^Minhas escalas e disponibilidade/ }),
+    )
+    expect(router.push).toHaveBeenCalledWith('/escalas')
   })
 
   test('organizador vê Relatórios no Perfil e abre a tela', async () => {

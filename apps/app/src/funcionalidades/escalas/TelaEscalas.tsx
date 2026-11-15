@@ -201,7 +201,7 @@ function PedidosDeSubstituicao({
               ? 'Seu pedido'
               : s.dirigida
                 ? `${s.pedidaPor} pediu direto para você`
-                : `${s.pedidaPor} pediu à equipe`
+                : `${s.pedidaPor} pediu a qualquer pessoa da comunidade`
             const descricao = [
               `${quem} · ${s.funcao}`,
               quandoDaEscala(s.evento.inicio, fuso),

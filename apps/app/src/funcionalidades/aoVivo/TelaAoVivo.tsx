@@ -263,6 +263,7 @@ function Painel({ r, conexao, comandar, enviando, erro }: PropsDoPainel) {
       {temMenu ? (
         <BotaoIcone
           icone="maisAcoes"
+          texto="Mais"
           rotulo="Mais ações"
           circular
           aoPressionar={() => setMenu(true)}
@@ -288,10 +289,13 @@ function Painel({ r, conexao, comandar, enviando, erro }: PropsDoPainel) {
       </BarraDeControle>
     ) : (
       <BarraDeControle>
+        {/* Rótulo escrito embaixo do símbolo: "|◁" sozinho parecia "voltar de tela" (U-20). */}
         {r.situacao !== 'nao_iniciado' ? (
           <BotaoIcone
             icone="etapaAnterior"
             rotulo="Voltar etapa"
+            texto="Voltar etapa"
+            disposicao="embaixo"
             lado={ALTURA_DO_CONTROLE}
             desabilitado={recusa('voltar') !== null || enviando !== null}
             dica={recusa('voltar') ?? 'Volta para a etapa anterior.'}
@@ -323,6 +327,8 @@ function Painel({ r, conexao, comandar, enviando, erro }: PropsDoPainel) {
           <BotaoIcone
             icone="pausar"
             rotulo="Pausar"
+            texto="Pausar"
+            disposicao="embaixo"
             lado={ALTURA_DO_CONTROLE}
             desabilitado={recusa('pausar') !== null || enviando !== null}
             dica={recusa('pausar') ?? 'Para o relógio da etapa.'}
@@ -355,7 +361,7 @@ function Painel({ r, conexao, comandar, enviando, erro }: PropsDoPainel) {
 
       {t.proxima ? (
         <CartaoDeVidro sobrancelha="A seguir" opaco comecaComTitulo titulo={t.proxima.titulo}>
-          <Texto variante="legenda" cor="textoSuave">
+          <Texto variante="meta" cor="textoSuave">
             {`${formatarDuracao(t.proxima.duracaoMin)} · das ${formatarHora(t.proxima.inicioPrevisto, fuso)} às ${formatarHora(t.proxima.fimPrevisto, fuso)}`}
           </Texto>
         </CartaoDeVidro>
@@ -367,7 +373,7 @@ function Painel({ r, conexao, comandar, enviando, erro }: PropsDoPainel) {
 
       <View style={{ gap: ESPACO.e8 }}>
         <Trilho fracao={t.total ? t.concluidas / t.total : 0} />
-        <Texto variante="legenda" cor="textoSuave" tabular>
+        <Texto variante="meta" cor="textoSuave" tabular>
           {`${t.concluidas} de ${t.total} etapas concluídas`}
         </Texto>
       </View>
@@ -420,7 +426,7 @@ function EtapaAtual({
           {`Previsto para ${formatarHora(r.evento.inicio, fuso)}`}
         </Texto>
         {t.atrasoParaComecarMin > 0 ? (
-          <Texto variante="legenda" cor="textoSuave" style={{ marginTop: ESPACO.e12 }}>
+          <Texto variante="meta" cor="textoSuave" style={{ marginTop: ESPACO.e12 }}>
             {`${t.atrasoParaComecarMin} min além do horário previsto`}
           </Texto>
         ) : null}
@@ -462,7 +468,7 @@ function EtapaAtual({
           separado
         />
       </View>
-      <Texto variante="legenda" cor="textoSuave" style={{ marginTop: ESPACO.e12 }}>
+      <Texto variante="meta" cor="textoSuave" style={{ marginTop: ESPACO.e12 }}>
         {`Previsto ${formatarDuracao(t.atual.duracaoMin)}, das ${formatarHora(t.atual.inicioPrevisto, fuso)} às ${formatarHora(t.atual.fimPrevisto, fuso)}`}
       </Texto>
     </CartaoDeDestaque>

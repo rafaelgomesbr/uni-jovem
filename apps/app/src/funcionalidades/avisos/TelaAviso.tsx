@@ -1,5 +1,5 @@
 import { ESPACO } from '@uj/tokens'
-import { router, useLocalSearchParams } from 'expo-router'
+import { useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 import { View } from 'react-native'
 
@@ -17,6 +17,7 @@ import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Chip } from '@/ui/Chip'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
+import { useConfirmarDescarte, voltarOu } from '@/ui/navegacao'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { mostrarToast } from '@/ui/Toast'
@@ -100,7 +101,7 @@ function Leitura({ aviso: a, publica }: { aviso: Aviso; publica: boolean }) {
             ) : null}
           </View>
         ) : null}
-        <Texto variante="legenda" cor="textoSuave">
+        <Texto variante="meta" cor="textoSuave">
           {[
             a.autorNome ? `Por ${a.autorNome}` : null,
             a.publicadoEm ? `publicado em ${formatarData(a.publicadoEm)}` : 'ainda não publicado',
@@ -136,6 +137,14 @@ function Gestao({ comunidadeId, aviso }: { comunidadeId: string; aviso: Aviso })
   const excluir = useExcluirAviso(comunidadeId)
   const publicado = aviso.estado === 'publicado'
   const erro = editar.error ?? publicacao.error ?? excluir.error
+  // Editando com algo mudado, sair pergunta antes (A5). Salvo, o aviso novo é a base: nada a perder.
+  const iniciais = valoresIniciais(aviso, fuso)
+  useConfirmarDescarte(
+    editando &&
+      (valores.titulo !== iniciais.titulo ||
+        valores.texto !== iniciais.texto ||
+        valores.ate !== iniciais.ate),
+  )
 
   function salvar() {
     const r = lerFormulario(valores, fuso)
@@ -171,7 +180,7 @@ function Gestao({ comunidadeId, aviso }: { comunidadeId: string; aviso: Aviso })
       confirmar: 'Excluir aviso',
       destrutivo: true,
     })
-    if (ok) excluir.mutate(aviso.id, { onSuccess: () => router.back() })
+    if (ok) excluir.mutate(aviso.id, { onSuccess: () => voltarOu('/avisos') })
   }
 
   if (editando) {
@@ -221,8 +230,10 @@ function Gestao({ comunidadeId, aviso }: { comunidadeId: string; aviso: Aviso })
       titulo={aviso.titulo}
       barraDeAcao={
         <BarraDeAcao>
+          {/* "Editar" mora aqui: com "Mais" escrito, quem não lê o "…" acha (U-05). */}
           <BotaoIcone
             icone="maisAcoes"
+            texto="Mais"
             rotulo="Mais ações"
             lado={48}
             dica="Editar, tirar do ar ou excluir o aviso."

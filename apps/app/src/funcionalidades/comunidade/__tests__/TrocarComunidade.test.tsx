@@ -8,6 +8,7 @@ import { TelaTrocarComunidade } from '../TelaTrocarComunidade'
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: jest.fn(() => true) },
+  usePreventRemove: jest.fn(() => jest.fn()),
 }))
 jest.mock('@/ui/Toast', () => ({
   ...jest.requireActual('@/ui/Toast'),

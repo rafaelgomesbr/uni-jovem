@@ -3,7 +3,7 @@ import { useState } from 'react'
 
 import { useSessao } from '@/estado/sessao'
 import type { FiltroDeOracao, FiltroDeRespondidos } from '@/servicos/contratoDosModulos'
-import { BotaoIcone } from '@/ui/Botao'
+import { Botao } from '@/ui/Botao'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
 import { ErroDaTela } from '@/ui/Falha'
@@ -19,8 +19,9 @@ function novoPedido() {
 }
 
 /**
- * Rota `/oracao` (3.7.1): título "Oração", o "+" no cabeçalho, as pílulas
- * de filtro (de quem e situação, separadas) e um cartão por pedido.
+ * Rota `/oracao` (3.7.1): título "Oração", "Novo pedido" no cabeçalho (com
+ * texto: o "+" sozinho não dizia o que fazia, U-06), as pílulas de filtro (de
+ * quem e situação, separadas) e um cartão por pedido.
  */
 export function TelaOracao() {
   const { comunidadeAtiva } = useSessao()
@@ -32,10 +33,11 @@ export function TelaOracao() {
       {...(comunidadeAtiva
         ? {
             acoes: (
-              <BotaoIcone
+              <Botao
+                titulo="Novo pedido"
                 icone="adicionar"
-                rotulo="Novo pedido de oração"
-                circular
+                variante="secundario"
+                rotuloAcessivel="Novo pedido de oração"
                 aoPressionar={novoPedido}
               />
             ),

@@ -22,6 +22,7 @@ import { Secao } from '@/ui/Secao'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { mostrarToast } from '@/ui/Toast'
+import { voltarOu } from '@/ui/navegacao'
 
 import { usePode } from '../comunidade/permissoes'
 import { SemComunidade } from '../navegacao/SemComunidade'
@@ -420,7 +421,7 @@ function Edicao({
       confirmar: 'Excluir',
       destrutivo: true,
     })
-    if (ok) excluir.mutate(id, { onSuccess: () => router.back() })
+    if (ok) excluir.mutate(id, { onSuccess: () => voltarOu('/conteudos') })
   }
 
   return (

@@ -110,7 +110,7 @@ export function SeletorDePeriodo({
           </View>
         </View>
       ) : null}
-      <TextoAnunciado soMudancas variante="legenda" cor="textoSuave">
+      <TextoAnunciado soMudancas variante="meta" cor="textoSuave">
         De {formatarDataLocal(periodo.de)} a {formatarDataLocal(periodo.ate)}
       </TextoAnunciado>
     </View>

@@ -7,7 +7,7 @@ import { useSessao } from '@/estado/sessao'
 import type { Aviso } from '@/servicos/contratoDosModulos'
 import { mensagemDoErro, SemConexao } from '@/servicos/erros'
 import { formatarData } from '@/utilidades/formatos'
-import { BotaoIcone } from '@/ui/Botao'
+import { Botao } from '@/ui/Botao'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Chip } from '@/ui/Chip'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
@@ -46,7 +46,12 @@ export function TelaAvisos() {
       {...(comunidadeAtiva && publica
         ? {
             acoes: (
-              <BotaoIcone icone="adicionar" rotulo="Novo aviso" circular aoPressionar={novoAviso} />
+              <Botao
+                titulo="Novo aviso"
+                icone="adicionar"
+                variante="secundario"
+                aoPressionar={novoAviso}
+              />
             ),
           }
         : {})}
@@ -179,7 +184,7 @@ function LinhaDoAviso({ aviso, mostrarEstado }: { aviso: Aviso; mostrarEstado: b
       <Texto variante="corpo" cor="textoSuave" numberOfLines={2}>
         {aviso.texto}
       </Texto>
-      <Texto variante="legenda" cor="textoSuave">
+      <Texto variante="meta" cor="textoSuave">
         {aviso.publicadoEm
           ? `Publicado em ${formatarData(aviso.publicadoEm)}`
           : 'Ainda não publicado'}

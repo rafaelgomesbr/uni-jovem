@@ -1,5 +1,4 @@
 import { ESPACO, RITMO } from '@uj/tokens'
-import { router } from 'expo-router'
 import { useState, type ReactNode } from 'react'
 import { View } from 'react-native'
 
@@ -11,6 +10,7 @@ import { Aviso } from '@/ui/Aviso'
 import { BotaoIcone } from '@/ui/Botao'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
+import { voltarOu } from '@/ui/navegacao'
 import { AvisoDeFalha, ErroDaTela } from '@/ui/Falha'
 import { Segmentos, type Segmento } from '@/ui/Segmentos'
 import { Tela } from '@/ui/Tela'
@@ -48,7 +48,7 @@ interface Props {
 export function DetalheDoEvento({
   comunidadeId,
   eventoId,
-  aoSair = () => router.back(),
+  aoSair = () => voltarOu('/programacoes'),
   painel = false,
 }: Props) {
   const evento = useEvento(comunidadeId, eventoId)
@@ -70,7 +70,7 @@ export function DetalheDoEvento({
       <Moldura painel={painel}>
         <Aviso tipo="alerta" titulo="Sem conexão: esta programação abre quando a internet voltar">
           Ela não foi preparada para usar sem internet. Da próxima vez, use Preparar para usar sem
-          internet, em Mais ações, antes de sair.
+          internet, em Mais, antes de sair.
         </Aviso>
       </Moldura>
     )
@@ -154,14 +154,16 @@ function Conteudo({
   const acoes = useAcoesDoEvento({ evento: e, comunidadeId, aoSair })
   const [visao, setVisao] = useState<Visao>('geral')
 
-  // Membro: Visão geral e Etapas; a Preparação aparece quando há o que marcar.
+  // Membro: Visão geral e Programação; a Preparação aparece quando há o que marcar.
+  // "Programação" e "Quem serve", não "Etapas" e "Equipe": essas palavras já
+  // querem dizer outra coisa no app (verificação em duas etapas, aba Equipe; U-08).
   const temPreparacao =
     acoes.organiza ||
     e.tarefas.length + e.materiais.length + e.checklist.length + e.anexos.length > 0
   const visoes: Segmento<Visao>[] = [
     { valor: 'geral', rotulo: 'Visão geral' },
-    { valor: 'etapas', rotulo: 'Etapas' },
-    ...(acoes.organiza ? [{ valor: 'equipe' as const, rotulo: 'Equipe' }] : []),
+    { valor: 'etapas', rotulo: 'Programação' },
+    ...(acoes.organiza ? [{ valor: 'equipe' as const, rotulo: 'Quem serve' }] : []),
     ...(temPreparacao ? [{ valor: 'preparacao' as const, rotulo: 'Preparação' }] : []),
   ]
   const atual = visoes.some((v) => v.valor === visao) ? visao : 'geral'
@@ -191,6 +193,7 @@ function Conteudo({
         {!acoes.organiza && acoes.temMenu ? (
           <BotaoIcone
             icone="maisAcoes"
+            texto="Mais"
             rotulo="Mais ações"
             circular
             aoPressionar={acoes.abrirMenu}

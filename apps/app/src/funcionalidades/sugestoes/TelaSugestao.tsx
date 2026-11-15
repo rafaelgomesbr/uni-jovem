@@ -1,5 +1,5 @@
 import { ESPACO } from '@uj/tokens'
-import { router, useLocalSearchParams } from 'expo-router'
+import { useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 import { View } from 'react-native'
 
@@ -28,6 +28,7 @@ import { Segmentos } from '@/ui/Segmentos'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { mostrarToast } from '@/ui/Toast'
+import { voltarOu } from '@/ui/navegacao'
 
 import { usePode } from '../comunidade/permissoes'
 import { BotaoDenunciar } from '../denuncias/BotaoDenunciar'
@@ -109,7 +110,7 @@ function Leitura({ sugestao: s }: { sugestao: Sugestao }) {
           <Chip texto={NOME_DO_STATUS[s.status]} tom={TOM_DO_STATUS[s.status]} />
           {s.anonima ? <Chip texto="Anônima" tom="neutro" /> : null}
         </View>
-        <Texto variante="legenda" cor="textoSuave">
+        <Texto variante="meta" cor="textoSuave">
           {[
             s.minha
               ? 'Sua sugestão'
@@ -131,7 +132,7 @@ function Leitura({ sugestao: s }: { sugestao: Sugestao }) {
             <Texto variante="leitura" selectable>
               {s.resposta}
             </Texto>
-            <Texto variante="legenda" cor="textoSuave">
+            <Texto variante="meta" cor="textoSuave">
               {[s.respondidaPorNome, s.respondidaEm ? formatarData(s.respondidaEm) : null]
                 .filter(Boolean)
                 .join(' · ')}
@@ -166,7 +167,7 @@ function Moderacao({ comunidadeId, sugestao }: { comunidadeId: string; sugestao:
       confirmar: 'Excluir sugestão',
       destrutivo: true,
     })
-    if (ok) excluir.mutate(sugestao.id, { onSuccess: () => router.back() })
+    if (ok) excluir.mutate(sugestao.id, { onSuccess: () => voltarOu('/sugestoes') })
   }
 
   return (

@@ -1,6 +1,6 @@
 import { ALTURA, ESPACO, RAIO, RITMO } from '@uj/tokens'
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera'
-import { router, useLocalSearchParams } from 'expo-router'
+import { useLocalSearchParams } from 'expo-router'
 import { useEffect, useRef, type ReactNode } from 'react'
 import { Linking, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -18,6 +18,7 @@ import { mostrarToast, registrarRodape } from '@/ui/Toast'
 import { ProvedorDeTemaForcado, useTema } from '@/ui/tema'
 import { Vidro } from '@/ui/Vidro'
 import { parametro } from '@/utilidades/parametros'
+import { voltarOu } from '@/ui/navegacao'
 
 import { usePode } from '../comunidade/permissoes'
 import { SemComunidade } from '../navegacao/SemComunidade'
@@ -269,7 +270,7 @@ function Moldura({
           variante="secundario"
           tamanho="grande"
           larguraTotal
-          aoPressionar={() => router.back()}
+          aoPressionar={() => voltarOu('/programacoes')}
         />
       </View>
     </View>

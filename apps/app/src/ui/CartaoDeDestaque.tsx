@@ -10,7 +10,7 @@ import { ProvedorDeTemaInverso, sombra, useTema } from './tema'
 export interface PropsDoCartaoDeDestaque {
   /** Etiqueta acima do título ("PRIMEIROS PASSOS"). */
   sobrancelha?: string
-  /** Linha de meta: "Sábado · 16:00 · 60 min" (13/18 600, suave). */
+  /** Linha de meta: "Sábado · 16:00 · 60 min" (`rotulo` 15/20 600, suave). */
   meta?: string
   /** À direita da meta, alinhado pela linha de base: chip ("Na igreja"). */
   chip?: ReactNode

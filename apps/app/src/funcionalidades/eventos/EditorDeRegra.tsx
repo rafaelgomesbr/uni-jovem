@@ -175,7 +175,7 @@ export function EditorDeRegra({
               style={{ gap: ESPACO.e4 }}
             >
               <Texto variante="tituloItem">{descreverRegra(regra, hora ?? undefined)}</Texto>
-              <Texto variante="legenda" cor="textoSuave">
+              <Texto variante="meta" cor="textoSuave">
                 {`Próximas datas: ${
                   previa.length
                     ? previa.map((d) => formatarDataPorExtenso(d, false)).join('; ')

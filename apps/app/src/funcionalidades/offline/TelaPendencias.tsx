@@ -418,7 +418,7 @@ function Recusada({
       <Texto variante="corpo">
         Motivo: {op.mensagem ?? 'O servidor não aceitou esta alteração.'}
       </Texto>
-      <Texto variante="legenda" cor="textoSuave">
+      <Texto variante="meta" cor="textoSuave">
         Feita em {quandoNoAparelho(op.criadaEm)}
       </Texto>
       {copiado ? (

@@ -97,7 +97,7 @@ interface PropsDoBlocoDoCampo {
 
 /**
  * Rótulo, caixa e uma linha de apoio, todos com a borda esquerda em x=0:
- * 18 + 8 + 48 + 6 + 18 = 98 com ajuda; 74 sem.
+ * 20 + 8 + 48 + 6 + 18 = 100 com ajuda; 76 sem.
  */
 export function BlocoDoCampo({
   rotulo,
@@ -147,11 +147,12 @@ export function BlocoDoCampo({
           <View style={{ flex: 1 }}>
             {erro ? (
               <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: ESPACO.e6 }}>
-                <View style={{ height: 18, justifyContent: 'center' }}>
+                <View style={{ height: 20, justifyContent: 'center' }}>
                   <Icone nome="erroDeCampo" cor={cores.erro} tamanho={16} />
                 </View>
+                {/* O erro é o que a pessoa precisa ler para seguir: 15, não 13 (U-09). */}
                 <Texto
-                  variante="legenda"
+                  variante="meta"
                   peso="forte"
                   cor={corDoErro}
                   nativeID={idDoErro}

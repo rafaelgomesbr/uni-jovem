@@ -23,6 +23,7 @@ import { Tela } from '@/ui/Tela'
 import { mostrarToast } from '@/ui/Toast'
 import { confirmar } from '@/utilidades/confirmar'
 import { parametro } from '@/utilidades/parametros'
+import { voltarOu } from '@/ui/navegacao'
 
 import { usePode } from '../comunidade/permissoes'
 import { SemComunidade } from '../navegacao/SemComunidade'
@@ -216,7 +217,7 @@ function Formulario({ comunidadeId, local }: { comunidadeId: string; local: Loca
         return
       }
       mostrarToast({ texto: local ? 'Local salvo.' : 'Local cadastrado.' })
-      if (!local) router.back()
+      if (!local) voltarOu('/locais')
     },
   })
 

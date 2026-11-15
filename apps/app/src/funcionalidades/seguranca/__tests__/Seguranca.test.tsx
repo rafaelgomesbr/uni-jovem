@@ -9,8 +9,9 @@ import { TelaPlataforma } from '../../plataforma/TelaPlataforma'
 import { TelaSeguranca } from '../TelaSeguranca'
 
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() },
+  router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: jest.fn(() => true) },
   Redirect: () => null,
+  usePreventRemove: jest.fn(() => jest.fn()),
 }))
 jest.mock('@/utilidades/confirmar', () => ({ confirmar: jest.fn(async () => true) }))
 
@@ -125,7 +126,7 @@ describe('Perfil, Segurança', () => {
     )
   })
 
-  test('verificação em duas etapas: o Criador lê que o código é pedido na plataforma', async () => {
+  test('código extra ao entrar: o Criador lê que o código é pedido na plataforma', async () => {
     const eu = respostaEu('admin')
     await renderizarTela(<TelaSeguranca />, {
       rotas: {
@@ -138,7 +139,7 @@ describe('Perfil, Segurança', () => {
     })
     expect(
       await screen.findByText(
-        'Ligada. Como Criador, o código é pedido nas ações da plataforma, não ao entrar.',
+        'Ligado. Como Criador, o código é pedido nas ações da plataforma, não ao entrar.',
       ),
     ).toBeOnTheScreen()
   })

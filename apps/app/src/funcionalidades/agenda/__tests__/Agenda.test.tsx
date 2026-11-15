@@ -1,4 +1,4 @@
-import { screen, userEvent } from '@testing-library/react-native'
+import { screen, userEvent, waitFor } from '@testing-library/react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { Dimensions } from 'react-native'
 
@@ -9,6 +9,7 @@ import { formatarDataPorExtenso, hojeNoFuso } from '@/utilidades/datas'
 
 import {
   agruparPorDia,
+  dataDaRota,
   descreverPeriodo,
   intervaloDoModo,
   passo,
@@ -18,8 +19,15 @@ import { TelaAgenda } from '../TelaAgenda'
 import { TelaTimelineDoDia } from '../TelaTimelineDoDia'
 
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), setParams: jest.fn() },
+  router: {
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    setParams: jest.fn(),
+    canGoBack: jest.fn(() => true),
+  },
   useLocalSearchParams: jest.fn(() => ({})),
+  usePreventRemove: jest.fn(() => jest.fn()),
 }))
 
 function resumo(parcial: Partial<ResumoDoEvento>): ResumoDoEvento {
@@ -48,6 +56,15 @@ const EVENTOS = [
 ]
 
 describe('calendário (regras puras)', () => {
+  test('data da rota: real e de 1900 a 2100; o resto é inválido, e sem data vale hoje', () => {
+    expect(dataDaRota('2026-11-21')).toBe('2026-11-21')
+    expect(dataDaRota('9999-12-31')).toBe('invalida')
+    expect(dataDaRota('1899-12-31')).toBe('invalida')
+    expect(dataDaRota('2026-02-30')).toBe('invalida')
+    expect(dataDaRota('ontem')).toBe('invalida')
+    expect(dataDaRota(null)).toBeNull()
+  })
+
   test('intervalos de mês, semana e lista; passos para frente e para trás', () => {
     expect(intervaloDoModo('mes', '2026-11-15')).toEqual({
       inicio: '2026-11-01',
@@ -162,6 +179,39 @@ describe('agenda', () => {
       params: { data: DIA_DO_INICIO },
     })
   })
+
+  test('"Nova programação neste dia" abre a folha de modelos com a data do dia', async () => {
+    usarFonte(1)
+    await renderizarTela(<TelaAgenda />, {
+      rotas: { [`GET ${BASE}/eventos`]: () => ({ status: 200, corpo: { eventos: [] } }) },
+    })
+    const usuario = userEvent.setup()
+    const hoje = hojeNoFuso(FUSO)
+    await usuario.press(
+      await screen.findByRole('button', {
+        name: `Nova programação em ${formatarDataPorExtenso(hoje)}`,
+      }),
+    )
+    // A mesma folha de Programas: o sábado nunca nasce sem as etapas.
+    expect(await screen.findByText('Em branco')).toBeOnTheScreen()
+    await usuario.press(screen.getByRole('button', { name: /^Sábado padrão/ }))
+    await waitFor(() =>
+      expect(router.push).toHaveBeenCalledWith({
+        pathname: '/evento/novo',
+        params: { modelo: 'sabado_padrao', data: hoje },
+      }),
+    )
+  })
+
+  test('"Minhas escalas" tem lugar fixo no topo da Agenda', async () => {
+    usarFonte(1)
+    await renderizarTela(<TelaAgenda />, {
+      papel: 'membro',
+      rotas: { [`GET ${BASE}/eventos`]: () => ({ status: 200, corpo: { eventos: [] } }) },
+    })
+    await userEvent.setup().press(await screen.findByRole('button', { name: 'Minhas escalas' }))
+    expect(router.push).toHaveBeenCalledWith('/escalas')
+  })
 })
 
 describe('linha do tempo do dia', () => {
@@ -192,6 +242,16 @@ describe('linha do tempo do dia', () => {
     expect(screen.getByRole('button', { name: 'Dia anterior' })).toBeOnTheScreen()
     await userEvent.setup().press(screen.getByRole('button', { name: 'Dia seguinte' }))
     expect(router.setParams).toHaveBeenCalled()
+  })
+
+  test('data impossível no link (9999-12-31): "Data inválida" e "Ir para hoje", sem cair', async () => {
+    ;(useLocalSearchParams as jest.Mock).mockReturnValue({ data: '9999-12-31' })
+    const { servidor } = await renderizarTela(<TelaTimelineDoDia />, { papel: 'membro' })
+    expect(await screen.findByText('Data inválida')).toBeOnTheScreen()
+    await userEvent.setup().press(screen.getByRole('button', { name: 'Ir para hoje' }))
+    expect(router.setParams).toHaveBeenCalledWith({ data: hojeNoFuso(FUSO) })
+    // Nada vai à rede com uma data que não existe.
+    expect(servidor.pedidos.some((p) => p.url.includes('/eventos'))).toBe(false)
   })
 
   test('dia sem eventos explica e oferece voltar para a agenda', async () => {

@@ -16,6 +16,7 @@ jest.mock('expo-router', () => ({
     canGoBack: jest.fn(() => true),
   },
   useLocalSearchParams: jest.fn(() => ({})),
+  usePreventRemove: jest.fn(() => jest.fn()),
 }))
 
 jest.mock('@/utilidades/confirmar', () => ({ confirmar: jest.fn(async () => true) }))

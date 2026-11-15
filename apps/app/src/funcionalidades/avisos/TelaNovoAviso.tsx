@@ -1,5 +1,4 @@
 import { ESPACO } from '@uj/tokens'
-import { router } from 'expo-router'
 import { useState } from 'react'
 
 import { useSessao } from '@/estado/sessao'
@@ -17,6 +16,7 @@ import { Campo } from '@/ui/Campo'
 import { CampoDeData } from '@/ui/CampoDeMomento'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Interruptor } from '@/ui/Interruptor'
+import { useConfirmarDescarte, useTravaDeEnvio, voltarOu } from '@/ui/navegacao'
 import { Tela } from '@/ui/Tela'
 import { mostrarToast } from '@/ui/Toast'
 
@@ -139,6 +139,10 @@ function Formulario({ comunidadeId }: { comunidadeId: string }) {
   const [fixado, setFixado] = useState(false)
   const [erros, setErros] = useState<Partial<Record<keyof ValoresDoFormulario, string>>>({})
   const criar = useCriarAviso(comunidadeId)
+  const trava = useTravaDeEnvio()
+  const liberar = useConfirmarDescarte(
+    !!valores.titulo.trim() || !!valores.texto.trim() || !!valores.ate || fixado,
+  )
 
   function salvar(publicar: boolean) {
     const r = lerFormulario(valores, fuso)
@@ -147,13 +151,17 @@ function Formulario({ comunidadeId }: { comunidadeId: string }) {
       return
     }
     setErros({})
+    // Um aviso por envio: o segundo toque, antes da resposta, não cria outro (com push de novo).
+    if (!trava.pegar()) return
     criar.mutate(
       { ...r.dados, fixado: publicar && fixado, publicar },
       {
         onSuccess: () => {
           mostrarToast({ texto: publicar ? 'Aviso publicado' : 'Rascunho guardado' })
-          router.back()
+          liberar()
+          voltarOu('/avisos')
         },
+        onError: trava.soltar,
       },
     )
   }

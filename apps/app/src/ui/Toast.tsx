@@ -61,10 +61,18 @@ function assinar(o: () => void) {
 const lerAtual = () => fila[0] ?? null
 const lerRodape = () => rodape
 
-/** 4 s, mais 1 s a cada 10 palavras. Com leitor de tela ligado, o dobro (ele precisa ler). */
-export function duracaoDoToast(texto: string, leitorDeTela = false): number {
+/** Quanto fica na tela um toast com ação ("Desfazer"): tempo de ler e de alcançar o botão. */
+export const DURACAO_COM_ACAO = 10_000
+
+/**
+ * 4 s, mais 1 s a cada 10 palavras. Com ação ("Desfazer"), no mínimo 10 s:
+ * quem lê devagar, com fila na porta, ainda alcança o botão (auditoria U-13,
+ * WCAG 2.2.1). Com leitor de tela ligado, o dobro (ele precisa ler).
+ */
+export function duracaoDoToast(texto: string, leitorDeTela = false, comAcao = false): number {
   const palavras = texto.trim().split(/\s+/).length
-  const base = 4000 + Math.floor(palavras / 10) * 1000
+  const lido = 4000 + Math.floor(palavras / 10) * 1000
+  const base = comAcao ? Math.max(DURACAO_COM_ACAO, lido) : lido
   return leitorDeTela ? base * 2 : base
 }
 
@@ -107,6 +115,7 @@ function CaixaDoToast({ toast }: { toast: ToastNaFila }) {
   const { reduzirMovimento } = usePreferenciasDeAcessibilidade()
   const [entrada] = useState(() => new Animated.Value(0))
   const tipo = toast.tipo ?? 'sucesso'
+  const comAcao = !!toast.acao
 
   // Relógio e animação são sistemas externos: começam ao montar e param ao sair.
   useEffect(() => {
@@ -123,14 +132,17 @@ function CaixaDoToast({ toast }: { toast: ToastNaFila }) {
       .catch(() => false)
       .then((leitor) => {
         if (vivo)
-          relogio = setTimeout(() => tirarDaFila(toast.id), duracaoDoToast(toast.texto, leitor))
+          relogio = setTimeout(
+            () => tirarDaFila(toast.id),
+            duracaoDoToast(toast.texto, leitor, comAcao),
+          )
       })
     return () => {
       vivo = false
       animacao.stop()
       if (relogio) clearTimeout(relogio)
     }
-  }, [entrada, reduzirMovimento, toast.id, toast.texto])
+  }, [entrada, reduzirMovimento, toast.id, toast.texto, comAcao])
 
   const animacaoDeEntrada = {
     // A entrada é animação, não estado: dissolve e sobe 8 enquanto o toast aparece.

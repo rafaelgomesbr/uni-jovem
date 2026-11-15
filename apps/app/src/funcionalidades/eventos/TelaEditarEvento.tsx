@@ -19,6 +19,7 @@ import { Botao } from '@/ui/Botao'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
+import { useConfirmarDescarte, useTravaDeEnvio, voltarOu } from '@/ui/navegacao'
 import { Secao } from '@/ui/Secao'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
@@ -135,6 +136,12 @@ function EditarEvento({
   const daSerie = escopo === 'serie' || escopo === 'a_partir_de'
   const chaveDoEvento = CHAVES.evento(comunidadeId, inicial.id)
   const caminho = `${naComunidade(comunidadeId)}/eventos/${inicial.id}`
+  const trava = useTravaDeEnvio()
+  // Mudou algo e não salvou: fechar pergunta antes de perder (A5).
+  const liberar = useConfirmarDescarte(
+    JSON.stringify(rascunho) !== JSON.stringify(rascunhoDoEvento(base)),
+  )
+  const sair = () => voltarOu({ pathname: '/evento/[eventoId]', params: { eventoId: inicial.id } })
 
   const mudar = <K extends keyof RascunhoDoEvento>(campo: K, valor: RascunhoDoEvento[K]) =>
     setRascunho((r) => ({ ...r, [campo]: valor }))
@@ -174,8 +181,11 @@ function EditarEvento({
       }
       await invalidar(inicial.id)
       mostrarToast({ texto: 'Alterações salvas.' })
-      router.back()
+      liberar()
+      sair()
     },
+    // Sem mudança, com conflito ou com erro, a tela continua: dá para enviar de novo.
+    onSettled: trava.soltar,
     onError: async (erro, { dados }) => {
       if (!ehErroDaApi(erro, 'conflito')) return
       // Busca a versão atual e mostra o que diverge do que a pessoa escreveu.
@@ -235,8 +245,10 @@ function EditarEvento({
       await invalidar(inicial.id)
       await consultas.invalidateQueries({ queryKey: CHAVES.serie(comunidadeId, inicial.serieId!) })
       mostrarToast({ texto: 'Alterações salvas na série.' })
-      router.back()
+      liberar()
+      sair()
     },
+    onSettled: trava.soltar,
     onError: async (erro, { dados }) => {
       if (!ehErroDaApi(erro, 'confirmar_recriacao')) return
       const ok = await confirmar({
@@ -259,6 +271,7 @@ function EditarEvento({
     setErros(novos)
     focarPrimeiroErro(novos, refs)
     if (!dados || !escopo) return
+    if (!trava.pegar()) return
     if (daSerie) salvarSerie.mutate({ dados, confirmarRecriacao: false })
     else salvarOcorrencia.mutate({ dados, versaoBase })
   }

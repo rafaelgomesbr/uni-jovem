@@ -1,5 +1,4 @@
 import { ESPACO } from '@uj/tokens'
-import { router } from 'expo-router'
 import { useState } from 'react'
 
 import { useSessao } from '@/estado/sessao'
@@ -10,6 +9,7 @@ import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Interruptor } from '@/ui/Interruptor'
+import { useConfirmarDescarte, useTravaDeEnvio, voltarOu } from '@/ui/navegacao'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { mostrarToast } from '@/ui/Toast'
@@ -44,6 +44,8 @@ function Formulario({ comunidadeId }: { comunidadeId: string }) {
   const [anonima, setAnonima] = useState(false)
   const [erros, setErros] = useState<{ titulo?: string; texto?: string }>({})
   const criar = useCriarSugestao(comunidadeId)
+  const trava = useTravaDeEnvio()
+  const liberar = useConfirmarDescarte(!!titulo.trim() || !!texto.trim())
 
   function enviar() {
     const novos: typeof erros = {}
@@ -51,13 +53,16 @@ function Formulario({ comunidadeId }: { comunidadeId: string }) {
     if (!texto.trim()) novos.texto = 'Escreva a sua sugestão.'
     setErros(novos)
     if (novos.titulo || novos.texto) return
+    if (!trava.pegar()) return
     criar.mutate(
       { titulo: titulo.trim(), texto: texto.trim(), anonima },
       {
         onSuccess: () => {
           mostrarToast({ texto: 'Sugestão enviada' })
-          router.back()
+          liberar()
+          voltarOu('/sugestoes')
         },
+        onError: trava.soltar,
       },
     )
   }

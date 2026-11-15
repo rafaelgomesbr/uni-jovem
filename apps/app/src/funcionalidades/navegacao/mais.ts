@@ -104,7 +104,7 @@ export const ITENS_PESSOAIS: readonly ItemDoMais[] = [
   {
     href: '/conta',
     rotulo: 'Perfil e segurança',
-    descricao: 'Seus dados, verificação em duas etapas e aparelhos.',
+    descricao: 'Seus dados, código extra ao entrar e aparelhos.',
     icone: 'perfil',
   },
   {

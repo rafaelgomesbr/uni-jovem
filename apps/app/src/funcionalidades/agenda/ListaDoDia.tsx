@@ -1,6 +1,7 @@
 import type { StatusDoEvento } from '@uj/dominio'
 import { ESPACO, RAIO } from '@uj/tokens'
 import { router } from 'expo-router'
+import { useState } from 'react'
 import { View } from 'react-native'
 
 import type { ResumoDoEvento } from '@/servicos/contratoDosEventos'
@@ -17,6 +18,7 @@ import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
 import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
 
+import { FolhaNovaProgramacao } from '../eventos/FolhaNovaProgramacao'
 import { rotuloFaladoDoEvento } from '../eventos/LinhaDoEvento'
 import { NOME_DO_STATUS } from '../eventos/nomes'
 import { contarEventos } from './calendario'
@@ -114,7 +116,8 @@ export function SobrancelhaDoDia({
  * O dia escolhido (3.3.1, itens 5 e 6): cartão lista com as linhas de
  * evento e, no fim, o terciário "Ver a linha do tempo do dia". Sem nada
  * marcado, uma linha "Nada marcado" e, para quem cria, "Nova programação
- * neste dia".
+ * neste dia", que abre a mesma folha de Programas (Sábado padrão, Em branco,
+ * A partir de um modelo) com a data do dia.
  */
 export function CartaoDoDia({
   dia,
@@ -128,6 +131,7 @@ export function CartaoDoDia({
   /** Na vista de lista (3.3.3) o cartão traz só as linhas de evento. */
   comLinhaDoTempo?: boolean
 }) {
+  const [folhaAberta, setFolhaAberta] = useState(false)
   if (eventos.length === 0) {
     return (
       <CartaoDeVidro
@@ -140,9 +144,7 @@ export function CartaoDoDia({
                   variante="terciario"
                   alinhado
                   rotuloAcessivel={`Nova programação em ${formatarDataPorExtenso(dia)}`}
-                  aoPressionar={() =>
-                    router.push({ pathname: '/evento/novo', params: { data: dia } })
-                  }
+                  aoPressionar={() => setFolhaAberta(true)}
                 />
               ),
             }
@@ -151,6 +153,13 @@ export function CartaoDoDia({
         <Texto variante="corpo" cor="textoSuave">
           Nada marcado
         </Texto>
+        {podeCriar ? (
+          <FolhaNovaProgramacao
+            aberta={folhaAberta}
+            aoFechar={() => setFolhaAberta(false)}
+            data={dia}
+          />
+        ) : null}
       </CartaoDeVidro>
     )
   }

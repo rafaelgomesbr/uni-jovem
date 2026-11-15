@@ -41,7 +41,7 @@ export const CHIP_DO_ESTADO_DA_ATRIBUICAO: Readonly<
   pendente: { texto: 'Pendente', tom: 'alerta' },
   confirmada: { texto: 'Confirmada', tom: 'sucesso' },
   recusada: { texto: 'Recusada', tom: 'erro' },
-  substituicao_pedida: { texto: 'Substituição', tom: 'info' },
+  substituicao_pedida: { texto: 'Substituição pedida', tom: 'info' },
 }
 
 export const NOME_DA_VISIBILIDADE: Readonly<Record<Visibilidade, string>> = {

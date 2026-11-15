@@ -227,7 +227,7 @@ export function SecaoNotas({ evento, comunidadeId }: Props) {
             >
               <View style={{ paddingVertical: ESPACO.e12 }}>
                 <Texto variante="corpo">{n.texto}</Texto>
-                <Texto variante="legenda" cor="textoSuave">
+                <Texto variante="meta" cor="textoSuave">
                   {`Em ${formatarQuando(n.criadoEm, evento.fuso)}`}
                 </Texto>
               </View>

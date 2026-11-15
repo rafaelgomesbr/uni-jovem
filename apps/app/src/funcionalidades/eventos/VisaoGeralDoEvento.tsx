@@ -87,7 +87,7 @@ export function MetaDoEvento({ evento, extra }: { evento: DetalheDoEvento; extra
 /**
  * Visão geral (3.4.2, item 5): o aviso de cancelado ou adiado, a inscrição
  * da própria pessoa quando o destaque é outro, "QUANDO E ONDE" em cartão
- * lista e "SOBRE".
+ * lista (com Inscrições, Check-in e o ao vivo) e "SOBRE".
  */
 export function VisaoGeralDoEvento({
   evento,
@@ -101,6 +101,7 @@ export function VisaoGeralDoEvento({
   const tipoDeDestaque = useTipoDeDestaque(evento)
   const verLista = pode('inscricao', 'ler_lista')
   const conduz = pode('ao_vivo', 'conduzir')
+  const registraPresenca = pode('presenca', 'registrar') && podeIrAoVivo(evento.status)
   const params = { eventoId: evento.id }
   const dia = dataDoInstante(evento.inicio, evento.fuso)
   const fim = new Date(Date.parse(evento.inicio) + evento.duracaoMin * 60_000).toISOString()
@@ -173,6 +174,16 @@ export function VisaoGeralDoEvento({
                 }
               : {})}
           />
+          {/* Ao lado de Inscrições: o check-in não fica só atrás do "Mais" (U-04). */}
+          {registraPresenca ? (
+            <LinhaDeLista
+              icone="qr"
+              titulo="Check-in"
+              descricao="Marque quem chegou, pelo nome ou pelo QR"
+              rotuloAcessivel="Check-in de presença. Marque quem chegou, pelo nome ou pelo QR"
+              aoPressionar={() => router.push({ pathname: '/evento/[eventoId]/checkin', params })}
+            />
+          ) : null}
           {podeIrAoVivo(evento.status) && !noDia ? (
             <LinhaDeLista
               icone="aoVivo"

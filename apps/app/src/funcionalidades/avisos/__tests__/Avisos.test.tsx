@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native'
-import { useLocalSearchParams } from 'expo-router'
+import { router, useLocalSearchParams, usePreventRemove } from 'expo-router'
 import { Alert } from 'react-native'
 
 import { BASE, pedidosPara, renderizarTela } from '@/testes/telas'
@@ -7,10 +7,18 @@ import { BASE, pedidosPara, renderizarTela } from '@/testes/telas'
 import { AvisosDoInicio } from '../../inicio/AvisosDoInicio'
 import { TelaAviso } from '../TelaAviso'
 import { TelaAvisos } from '../TelaAvisos'
+import { TelaNovoAviso } from '../TelaNovoAviso'
 
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), setParams: jest.fn() },
+  router: {
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    canGoBack: jest.fn(() => true),
+    setParams: jest.fn(),
+  },
   useLocalSearchParams: jest.fn(() => ({})),
+  usePreventRemove: jest.fn(() => jest.fn()),
 }))
 
 const AVISO = {
@@ -43,6 +51,36 @@ describe('avisos', () => {
     const botoes = await screen.findAllByRole('button', { name: /publicado em 12\/11\/2026/ })
     expect(botoes[0]).toHaveAccessibleName('Retiro. Fixado, publicado em 12/11/2026')
     expect(screen.getByText('Fixado')).toBeOnTheScreen()
+  })
+
+  test('novo aviso aberto direto: um envio só, a tela fecha e o descarte deixa de perguntar', async () => {
+    // Aberto por link ou recarregado na web: não há tela para voltar (auditoria A2).
+    ;(router.canGoBack as jest.Mock).mockReturnValueOnce(false)
+    let responder: () => void = () => {}
+    const { servidor } = await renderizarTela(<TelaNovoAviso />, {
+      rotas: {
+        [`POST ${BASE}/avisos`]: () =>
+          new Promise((r) => {
+            responder = () => r({ status: 200, corpo: { id: 'novo' } })
+          }),
+      },
+    })
+    const prevenir = usePreventRemove as jest.Mock
+    // Vazio, sair não pergunta; com algo escrito, pergunta (A5).
+    expect(prevenir).toHaveBeenLastCalledWith(false, expect.any(Function))
+    await fireEvent.changeText(await screen.findByLabelText('Título'), 'Ensaio extra')
+    await fireEvent.changeText(screen.getByLabelText('Texto do aviso'), 'Sexta, às 19h.')
+    expect(prevenir).toHaveBeenLastCalledWith(true, expect.any(Function))
+
+    const publicar = screen.getByRole('button', { name: 'Publicar agora' })
+    await fireEvent.press(publicar)
+    await fireEvent.press(publicar)
+    responder()
+
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/avisos'))
+    expect(pedidosPara(servidor, 'POST', `${BASE}/avisos`)).toHaveLength(1)
+    // Salvo, sair não pergunta mais.
+    await waitFor(() => expect(prevenir).toHaveBeenLastCalledWith(false, expect.any(Function)))
   })
 
   test('membro não vê o botão de novo aviso', async () => {

@@ -300,8 +300,15 @@ export function Botao({
 
 export interface PropsDoBotaoIcone {
   icone: NomeDoIcone
-  /** Sempre: o botão só ícone não tem texto visível. */
+  /** Sempre: o nome acessível. Com `texto`, precisa contê-lo ("Mais ações" para "Mais"). */
   rotulo: string
+  /**
+   * Texto visível junto do ícone, para quem não lê o símbolo sozinho ("…" não
+   * é "menu" para todo mundo; auditoria U-05 e U-20). Sem ele, só o ícone.
+   */
+  texto?: string
+  /** Onde fica o `texto`: ao lado (padrão, "… Mais") ou embaixo do ícone (controles do Ao vivo). */
+  disposicao?: 'lado' | 'embaixo'
   aoPressionar: () => void
   dica?: string
   desabilitado?: boolean
@@ -312,10 +319,16 @@ export interface PropsDoBotaoIcone {
   ref?: Ref<NoDeView>
 }
 
-/** Botão só ícone (44×44, fundo tonal): voltar, mais ações, "+", subir e descer. */
+/**
+ * Botão de ícone (44×44, fundo tonal): voltar, mais ações, subir e descer.
+ * Com `texto`, a mesma altura e o texto visível ao lado (ou embaixo) do ícone;
+ * a largura segue o texto.
+ */
 export function BotaoIcone({
   icone,
   rotulo,
+  texto,
+  disposicao = 'lado',
   aoPressionar,
   dica,
   desabilitado = false,
@@ -341,9 +354,17 @@ export function BotaoIcone({
       ref={ref}
       hitSlop={Math.max(0, (ALVO - lado) / 2)}
       style={({ pressed }) => [
+        texto
+          ? {
+              minWidth: lado,
+              minHeight: lado,
+              flexDirection: disposicao === 'lado' ? 'row' : 'column',
+              gap: disposicao === 'lado' ? ESPACO.e6 : ESPACO.e2,
+              paddingHorizontal: disposicao === 'lado' ? ESPACO.e14 : ESPACO.e8,
+              paddingVertical: ESPACO.e4,
+            }
+          : { width: lado, height: lado },
         {
-          width: lado,
-          height: lado,
           alignItems: 'center',
           justifyContent: 'center',
           borderRadius: circular ? lado / 2 : RAIO.controle,
@@ -352,11 +373,26 @@ export function BotaoIcone({
           borderColor: aumentarContraste ? cores.texto : 'transparent',
         },
         // Pressionado: a camada `pressionado` sobre o tonal.
-        pressed ? { boxShadow: `inset 0px 0px 0px ${lado}px ${cores.pressionado}` } : null,
+        // Com texto o botão é mais largo que alto: o anel interno cobre a largura toda.
+        pressed
+          ? { boxShadow: `inset 0px 0px 0px ${texto ? 200 : lado}px ${cores.pressionado}` }
+          : null,
         anel.estilo,
       ]}
     >
       <Icone nome={icone} cor={cor} tamanho={ladoDoIcone(lado)} peso="semibold" />
+      {texto ? (
+        <Texto
+          variante={disposicao === 'lado' ? 'botao' : 'legenda'}
+          peso="forte"
+          centralizado
+          // Embaixo do ícone, o texto cresce até 1,6: mais que isso, a barra do Ao vivo não comporta.
+          {...(disposicao === 'embaixo' ? { maxFontSizeMultiplier: 1.6 } : {})}
+          style={{ color: cor }}
+        >
+          {texto}
+        </Texto>
+      ) : null}
     </Pressable>
   )
 }

@@ -10,6 +10,7 @@ import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao, BotaoIcone, EmPar } from '@/ui/Botao'
 import { type AcaoDoMenu, MenuDeAcoes } from '@/ui/FolhaNaTela'
 import type { NomeDoIcone } from '@/ui/Icone'
+import { useTravaDeEnvio } from '@/ui/navegacao'
 import { mostrarToast } from '@/ui/Toast'
 import { confirmar } from '@/utilidades/confirmar'
 
@@ -17,8 +18,8 @@ import { usePode } from '../comunidade/permissoes'
 import { textoDoPreparo } from '../offline/formatos'
 import { useOffline, usePacoteDoEvento } from '../offline/ProvedorOffline'
 import { naComunidade, useInvalidarEventos } from './consultas'
-import { useAoVivoNoDia } from './DestaqueDoEvento'
-import { acoesDeStatus, podeIrAoVivo } from './regras'
+import { ehHoje, useAoVivoNoDia } from './DestaqueDoEvento'
+import { acoesDeStatus, dataJaPassou, podeIrAoVivo } from './regras'
 
 interface AcaoPrincipal {
   titulo: string
@@ -37,8 +38,10 @@ interface Opcoes {
 /**
  * Ações sobre o evento (3.4.2, item 9): um primário contextual ("Publicar"
  * no rascunho, "Abrir ao vivo" no dia, "Editar" nos outros casos) e a folha
- * "Mais ações" com o resto. Cada ação só aparece se o papel permite (matriz
- * de `@uj/dominio`) e se a transição de situação é válida. A API confere de novo.
+ * "Mais ações" com o resto. No dia, quem registra presença ganha "Check-in"
+ * na própria barra: é a tarefa da porta, e no "Mais" ninguém achava (U-04).
+ * Cada ação só aparece se o papel permite (matriz de `@uj/dominio`) e se a
+ * transição de situação é válida. A API confere de novo.
  */
 export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
   const pode = usePode()
@@ -46,6 +49,7 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
   const offline = useOffline()
   const guardado = usePacoteDoEvento(evento.id).data ?? null
   const noDia = useAoVivoNoDia(evento)
+  const travaDoModelo = useTravaDeEnvio()
   const [menuAberto, setMenuAberto] = useState(false)
   const base = `${naComunidade(comunidadeId)}/eventos/${evento.id}`
   const acoes = acoesDeStatus(evento.status)
@@ -73,6 +77,8 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
         nome: evento.titulo.slice(0, 80),
       }),
     onSuccess: () => mostrarToast({ texto: `Modelo salvo. Ele aparece ao criar uma programação.` }),
+    // Dois toques não criam dois modelos iguais (M2); depois da resposta, pode salvar de novo.
+    onSettled: travaDoModelo.soltar,
   })
   const preparar = useMutation({
     mutationFn: () => offline.prepararEvento(evento.id),
@@ -94,16 +100,28 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
   const podeExcluir = pode('evento', 'excluir') && acoes.excluir
   const organiza = podeEditar || podePublicar || podeCancelarOuAdiar || podeDuplicar
   const conduz = pode('ao_vivo', 'conduzir')
+  const checkinNoDia =
+    pode('presenca', 'registrar') && podeIrAoVivo(evento.status) && ehHoje(evento)
 
   async function publicar() {
-    const ok = await confirmar({
-      titulo: evento.status === 'adiado' ? 'Publicar de novo?' : 'Publicar este evento?',
-      mensagem:
-        evento.visibilidade === 'publica'
-          ? 'Todos da comunidade passam a ver o evento, e a página pública de inscrição fica no ar.'
-          : 'Todos da comunidade passam a ver o evento na agenda.',
-      confirmar: 'Publicar',
-    })
+    const passou = dataJaPassou(evento.inicio)
+    const quemVe =
+      evento.visibilidade === 'publica'
+        ? 'Todos da comunidade passam a ver o evento, e a página pública de inscrição fica no ar.'
+        : 'Todos da comunidade passam a ver o evento na agenda.'
+    const ok = await confirmar(
+      passou
+        ? {
+            titulo: 'Esta data já passou',
+            mensagem: `O início marcado é anterior a agora: confira o dia e o ano. ${quemVe}`,
+            confirmar: 'Publicar mesmo assim',
+          }
+        : {
+            titulo: evento.status === 'adiado' ? 'Publicar de novo?' : 'Publicar este evento?',
+            mensagem: quemVe,
+            confirmar: 'Publicar',
+          },
+    )
     if (ok) mudarStatus.mutate('publicado')
   }
 
@@ -141,6 +159,7 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
     router.push({ pathname: '/evento/[eventoId]/status', params: { eventoId: evento.id, acao } })
   const editar = () => router.push({ pathname: '/evento/[eventoId]/editar', params })
   const abrirAoVivo = () => router.push({ pathname: '/evento/[eventoId]/ao-vivo', params })
+  const abrirCheckin = () => router.push({ pathname: '/evento/[eventoId]/checkin', params })
 
   const primaria: AcaoPrincipal | null = !organiza
     ? null
@@ -176,7 +195,9 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
         podeModelo && {
           titulo: 'Salvar como modelo',
           icone: 'modelo',
-          aoPressionar: () => salvarModelo.mutate(),
+          aoPressionar: () => {
+            if (travaDoModelo.pegar()) salvarModelo.mutate()
+          },
         },
         !!evento.serieId &&
           podeEditar && {
@@ -200,12 +221,14 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
           navega: true,
           aoPressionar: () => router.push({ pathname: '/evento/[eventoId]/inscricoes', params }),
         },
-        pode('presenca', 'registrar') && {
-          titulo: 'Check-in de presença',
-          icone: 'qr',
-          navega: true,
-          aoPressionar: () => router.push({ pathname: '/evento/[eventoId]/checkin', params }),
-        },
+        // No dia, o check-in está na barra; aqui, só nos outros dias.
+        pode('presenca', 'registrar') &&
+          !checkinNoDia && {
+            titulo: 'Check-in de presença',
+            icone: 'qr',
+            navega: true,
+            aoPressionar: abrirCheckin,
+          },
       ]
     : []
   const doAparelho: (AcaoDoMenu | false)[] = offline.disponivel
@@ -218,7 +241,9 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
               ? textoDoPreparo(guardado.baixadoEm, validoAte)
               : 'Programação, equipe e tarefas cifradas neste aparelho',
           motivo: offline.online ? null : 'Preparar exige conexão com a internet.',
-          aoPressionar: () => preparar.mutate(),
+          aoPressionar: () => {
+            if (!preparar.isPending) preparar.mutate()
+          },
         },
         !!guardado && {
           titulo: 'Remover deste aparelho',
@@ -273,6 +298,8 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
   return {
     organiza,
     primaria,
+    /** No dia, para quem registra presença: abre o check-in direto da barra. */
+    checkin: checkinNoDia ? abrirCheckin : null,
     temMenu,
     menu,
     abrirMenu: () => setMenuAberto(true),
@@ -291,23 +318,50 @@ export type AcoesDoEvento = ReturnType<typeof useAcoesDoEvento>
 const DICA_DO_MENU = 'Abre a folha com as outras ações da programação.'
 
 /**
- * Barra de ação do detalhe (quadro 03): "Mais ações" de 48 à esquerda e o
- * primário contextual com `flex: 1`. Sem primário, só o "Mais ações". O só
- * ícone vai direto na barra (ela reconhece e não o estica).
+ * "… Mais": o "…" sozinho não diz "menu" para todo mundo (U-05). Vai direto
+ * na barra, como elemento (e não como componente próprio): a barra reconhece
+ * o botão de ícone pelas props e não o estica.
+ */
+function botaoMais(acoes: AcoesDoEvento) {
+  return (
+    <BotaoIcone
+      icone="maisAcoes"
+      texto="Mais"
+      rotulo="Mais ações"
+      dica={DICA_DO_MENU}
+      lado={ALTURA.controle}
+      aoPressionar={acoes.abrirMenu}
+    />
+  )
+}
+
+/** "Check-in" do dia: secundário ao lado do primário ("Abrir ao vivo"); sozinho, é o primário. */
+function BotaoCheckin({ acoes }: { acoes: AcoesDoEvento }) {
+  if (!acoes.checkin) return null
+  return (
+    <Botao
+      titulo="Check-in"
+      icone="qr"
+      tamanho="grande"
+      variante={acoes.primaria ? 'secundario' : 'primario'}
+      rotuloAcessivel="Check-in de presença"
+      dica="Marque quem chegou, pelo nome ou pelo QR."
+      aoPressionar={acoes.checkin}
+    />
+  )
+}
+
+/**
+ * Barra de ação do detalhe (quadro 03): "Mais" à esquerda, o "Check-in" no
+ * dia e o primário contextual, os dois com `flex: 1`. Sem primário, só o
+ * "Mais" (e o check-in).
  */
 export function BarraDoEvento({ acoes }: { acoes: AcoesDoEvento }) {
   if (!acoes.organiza) return null
   return (
     <BarraDeAcao>
-      {acoes.temMenu ? (
-        <BotaoIcone
-          icone="maisAcoes"
-          rotulo="Mais ações"
-          dica={DICA_DO_MENU}
-          lado={ALTURA.controle}
-          aoPressionar={acoes.abrirMenu}
-        />
-      ) : null}
+      {acoes.temMenu ? botaoMais(acoes) : null}
+      {acoes.checkin ? <BotaoCheckin acoes={acoes} /> : null}
       {acoes.primaria ? <BotaoPrincipal acao={acoes.primaria} /> : null}
     </BarraDeAcao>
   )
@@ -330,14 +384,13 @@ export function AcoesNoPainel({ acoes }: { acoes: AcoesDoEvento }) {
   if (!acoes.organiza) return null
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e12 }}>
-      {acoes.temMenu ? (
-        <BotaoIcone
-          icone="maisAcoes"
-          rotulo="Mais ações"
-          dica={DICA_DO_MENU}
-          lado={ALTURA.controle}
-          aoPressionar={acoes.abrirMenu}
-        />
+      {acoes.temMenu ? botaoMais(acoes) : null}
+      {acoes.checkin ? (
+        <View style={{ flex: 1 }}>
+          <EmPar>
+            <BotaoCheckin acoes={acoes} />
+          </EmPar>
+        </View>
       ) : null}
       {acoes.primaria ? (
         <View style={{ flex: 1 }}>

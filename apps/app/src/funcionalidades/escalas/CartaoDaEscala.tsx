@@ -1,16 +1,15 @@
 import { useMutation } from '@tanstack/react-query'
 import { ESPACO } from '@uj/tokens'
 import { router } from 'expo-router'
-import { useRef, useState } from 'react'
+import { useRef } from 'react'
 import { View } from 'react-native'
 
 import { api } from '@/servicos/api'
 import type { EscalaDoInicio, MinhaEscala } from '@/servicos/contratoDosEventos'
 import { AvisoDeFalha } from '@/ui/Falha'
-import { MenuDeAcoes } from '@/ui/FolhaNaTela'
 import { confirmar } from '@/utilidades/confirmar'
 import { dataDoInstante, falarQuando, formatarHora } from '@/utilidades/datas'
-import { Botao, BotaoIcone, ParDeBotoes } from '@/ui/Botao'
+import { Botao, ParDeBotoes } from '@/ui/Botao'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Chip, type TomDoChip } from '@/ui/Chip'
 import { focar, type NoDeView } from '@/ui/foco'
@@ -26,7 +25,7 @@ const CHIP: Readonly<Record<EscalaDoInicio['estado'], { texto: string; tom: TomD
   pendente: { texto: 'Pendente', tom: 'alerta' },
   confirmada: { texto: 'Confirmada', tom: 'sucesso' },
   recusada: { texto: 'Recusada', tom: 'erro' },
-  substituicao_pedida: { texto: 'Substituição', tom: 'info' },
+  substituicao_pedida: { texto: 'Substituição pedida', tom: 'info' },
 }
 
 /** "Sábado, 21/11 · 16:00": a sobrancelha da data (maiúsculas por estilo). */
@@ -53,14 +52,14 @@ interface Props {
 /**
  * Uma escala da própria pessoa (3.4.5), no formato do "Sua escala" do
  * Início: a data na sobrancelha com o chip da situação à direita, 4, a
- * função em `tituloItem`, o evento em legenda e, embaixo, "Confirmar" e
- * "Pedir substituição" lado a lado. "Não posso ir" (recusar) fica na folha
- * "Mais ações"; com substituição pedida, a ação é cancelar o pedido.
+ * função em `tituloItem`, o evento em `meta` e, embaixo, "Confirmar" e
+ * "Pedir substituição" lado a lado. "Não posso ir" (recusar) fica à vista,
+ * em terciário logo abaixo: atrás de um "…" sem texto, ninguém achava (U-05).
+ * Com substituição pedida, a ação é cancelar o pedido.
  */
 export function CartaoDaEscala({ escala, comunidadeId, fuso, primario = false }: Props) {
   const responder = useResponderEscala(comunidadeId)
   const invalidar = useInvalidarEscalas(comunidadeId)
-  const [folhaAberta, setFolhaAberta] = useState(false)
   const pedidoAberto = 'substituicaoAberta' in escala ? escala.substituicaoAberta : null
   const cancelarPedido = useMutation({
     mutationFn: (id: string) =>
@@ -136,13 +135,16 @@ export function CartaoDaEscala({ escala, comunidadeId, fuso, primario = false }:
       {...(botoes || podeRecusar
         ? {
             acoes: (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}>
-                <View style={{ flex: 1 }}>{botoes}</View>
+              <View style={{ gap: ESPACO.e8 }}>
+                {botoes}
                 {podeRecusar ? (
-                  <BotaoIcone
-                    icone="maisAcoes"
-                    rotulo={`Mais ações da escala em ${escala.eventoTitulo}`}
-                    aoPressionar={() => setFolhaAberta(true)}
+                  <Botao
+                    titulo="Não posso ir"
+                    variante="terciario"
+                    alinhado
+                    rotuloAcessivel={`Não posso ir: recusar a escala em ${escala.eventoTitulo}, ${onde}`}
+                    carregando={responder.isPending && responder.variables?.resposta === 'recusar'}
+                    aoPressionar={() => void recusar()}
                   />
                 ) : null}
               </View>
@@ -157,7 +159,7 @@ export function CartaoDaEscala({ escala, comunidadeId, fuso, primario = false }:
         accessibilityLabel={`${onde}. ${escala.eventoTitulo}, ${falarQuando(escala.eventoInicio, fuso)}. Situação: ${NOME_DO_ESTADO_DA_ATRIBUICAO[escala.estado]}`}
       >
         <Texto variante="tituloItem">{onde}</Texto>
-        <Texto variante="legenda" cor="textoSuave">
+        <Texto variante="meta" cor="textoSuave">
           {escala.eventoTitulo}
         </Texto>
         {comSubstituicao && !pedidoAberto ? (
@@ -167,23 +169,6 @@ export function CartaoDaEscala({ escala, comunidadeId, fuso, primario = false }:
         ) : null}
       </View>
       {erro ? <AvisoDeFalha erro={erro} /> : null}
-      {podeRecusar ? (
-        <MenuDeAcoes
-          titulo="Mais ações"
-          aberto={folhaAberta}
-          esperarAcao
-          aoFechar={() => setFolhaAberta(false)}
-          acoes={[
-            {
-              titulo: 'Não posso ir',
-              descricao: 'Recusar esta escala. A organização fica sabendo.',
-              icone: 'cancelar',
-              destrutiva: true,
-              aoPressionar: recusar,
-            },
-          ]}
-        />
-      ) : null}
     </CartaoDeVidro>
   )
 }

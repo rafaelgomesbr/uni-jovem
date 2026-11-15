@@ -1,5 +1,6 @@
 import { fireEvent, screen, userEvent, waitFor } from '@testing-library/react-native'
-import { router, useLocalSearchParams } from 'expo-router'
+import { router, useLocalSearchParams, usePreventRemove } from 'expo-router'
+import { Alert } from 'react-native'
 
 import { EVENTO_ID, eventoDeTeste } from '@/testes/fixturas'
 import { BASE, pedidosPara, renderizarTela } from '@/testes/telas'
@@ -9,8 +10,15 @@ import { TelaMudarStatus } from '../TelaMudarStatus'
 import { TelaNovoEvento } from '../TelaNovoEvento'
 
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), setParams: jest.fn() },
+  router: {
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    canGoBack: jest.fn(() => true),
+    setParams: jest.fn(),
+  },
   useLocalSearchParams: jest.fn(() => ({})),
+  usePreventRemove: jest.fn(() => jest.fn()),
 }))
 
 const parametros = useLocalSearchParams as jest.Mock
@@ -89,6 +97,38 @@ describe('criar programação', () => {
     expect(
       await screen.findByRole('button', { name: /^Data: Sáb\., 5 de dez\. de 2026/ }),
     ).toBeOnTheScreen()
+  })
+
+  test('data no passado: publicar avisa antes; "Cancelar" não cria nada', async () => {
+    // Quem erra o ano no calendário (M6). 04/01/2020 foi sábado.
+    parametros.mockReturnValue({ modelo: 'sabado_padrao', data: '2020-01-04' })
+    const alerta = jest
+      .spyOn(Alert, 'alert')
+      .mockImplementation((_t, _m, botoes) => botoes?.[0]?.onPress?.())
+    const { servidor } = await renderizarTela(<TelaNovoEvento />, {
+      rotas: {
+        ...ROTAS_DO_FORMULARIO,
+        [`POST ${BASE}/eventos`]: () => ({ status: 200, corpo: { id: 'novo-1', versao: 1 } }),
+      },
+    })
+
+    expect(await screen.findByDisplayValue('Sábado')).toBeOnTheScreen()
+    await userEvent.setup().press(screen.getByRole('button', { name: 'Publicar' }))
+
+    await waitFor(() => expect(alerta).toHaveBeenCalled())
+    expect(alerta.mock.calls[0]![0]).toBe('Esta data já passou')
+    expect(pedidosPara(servidor, 'POST', `${BASE}/eventos`)).toHaveLength(0)
+    alerta.mockRestore()
+  })
+
+  test('com algo mudado, fechar o formulário pergunta antes de descartar', async () => {
+    parametros.mockReturnValue({})
+    await renderizarTela(<TelaNovoEvento />, { rotas: ROTAS_DO_FORMULARIO })
+    const prevenir = usePreventRemove as jest.Mock
+    await screen.findByRole('button', { name: 'Salvar rascunho' })
+    expect(prevenir).toHaveBeenLastCalledWith(false, expect.any(Function))
+    await fireEvent.changeText(screen.getByLabelText('Título'), 'Luau')
+    expect(prevenir).toHaveBeenLastCalledWith(true, expect.any(Function))
   })
 
   test('campos inválidos não vão à rede e mostram o erro junto do campo', async () => {

@@ -23,7 +23,7 @@ export function fimComBarraDeAcao(margemDeBaixo: number): number {
  * Barra de ação (seção 2.12.18): rodapé fixo das telas de pilha com ação
  * principal. Vidro da barra com borda de cima, padding 12 por 20 e a área
  * segura mais 12 embaixo. Até 2 botões grandes lado a lado (secundário à
- * esquerda, primário à direita) ou 1 primário com o só ícone "Mais ações".
+ * esquerda, primário à direita) ou o primário com o botão de ícone "Mais".
  * Quem a posiciona (e a faz subir com o teclado) é a `Tela`.
  *
  * O motivo de um botão desabilitado fica numa linha própria, na largura toda,
@@ -83,7 +83,7 @@ function motivoDoFilho(filho: ReactNode): string | null {
     : null
 }
 
-/** O só ícone "Mais ações" não estica: fica com 48×48 ao lado do primário. */
+/** O botão de ícone ("… Mais") não estica: fica na medida dele, ao lado do primário. */
 function ehSoIcone(filho: ReactNode): boolean {
   return (
     typeof filho === 'object' &&

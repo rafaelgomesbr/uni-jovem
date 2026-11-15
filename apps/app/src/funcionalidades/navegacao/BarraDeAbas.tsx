@@ -1,11 +1,11 @@
 import { ALTURA, BARRA_DE_ABAS, RAIO } from '@uj/tokens'
 import { TabTrigger, type TabTriggerSlotProps } from 'expo-router/ui'
 import { useEffect, useState } from 'react'
-import { Keyboard, Platform, StyleSheet } from 'react-native'
+import { Keyboard, Platform, StyleSheet, useWindowDimensions } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
 import type { NomeDoTraco } from '@/ui/IconeDeTraco'
-import { ItemDaBarraDeAbas } from '@/ui/ItemDaBarraDeAbas'
+import { ItemDaBarraDeAbas, rotulosCabemNaBarra } from '@/ui/ItemDaBarraDeAbas'
 import { sombra, useTema } from '@/ui/tema'
 import { Vidro } from '@/ui/Vidro'
 import { soNaWeb } from '@/ui/web'
@@ -25,6 +25,9 @@ export function distanciaDaBarra(margemDeBaixo: number): number {
 export function espacoDaBarra(margemDeBaixo: number): number {
   return distanciaDaBarra(margemDeBaixo) + ALTURA_DA_BARRA
 }
+
+/** Os rótulos escritos (a aba Perfil mostra o avatar, sem rótulo). */
+const ROTULOS_ESCRITOS = ABAS.filter((a) => a.icone !== 'avatar').map((a) => a.rotulo)
 
 /** O teclado está aberto? A barra some enquanto ele está na tela (2.12.17). */
 export function useTecladoAberto(): boolean {
@@ -58,9 +61,11 @@ interface PropsDoItem extends Omit<TabTriggerSlotProps, 'ref'> {
  */
 function ItemDaBarra({ rotulo, icone, isFocused, onPress, onLongPress }: PropsDoItem) {
   const { conta } = useSessao()
+  const { width, fontScale } = useWindowDimensions()
   return (
     <ItemDaBarraDeAbas
       rotulo={rotulo}
+      semRotulo={!rotulosCabemNaBarra(ROTULOS_ESCRITOS, ABAS.length, width, fontScale)}
       icone={icone === 'avatar' ? null : icone}
       avatar={
         icone === 'avatar' && conta

@@ -207,12 +207,20 @@ export const TIPO = {
   botao: papel('texto', '600', 15, 20, { teto: 2 }),
   /** Linhas compactas ("16:05 Louvor") e pílulas de filtro (500). */
   lista: papel('texto', '400', 14, 20),
-  /** Rótulo de campo, meta forte ("Sábado · 16:00 · 60 min"). */
-  rotulo: papel('texto', '600', 13, 18),
-  /** Ajuda, erro de campo (600), meta, referência, status de sincronização. */
+  /**
+   * Rótulo de campo, meta forte ("Sábado · 16:00 · 60 min"). 15, não 13: é
+   * informação útil, e quem tem 40 a 70 anos lia mal em 13 (auditoria U-09).
+   */
+  rotulo: papel('texto', '600', 15, 20),
+  /**
+   * Data, hora, local e a descrição de uma linha de lista: o que informa.
+   * Mínimo de 15, como o rótulo (U-09); a `legenda` fica para o dispensável.
+   */
+  meta: papel('texto', '400', 15, 20),
+  /** Ajuda, contador, referência, status de sincronização: o que dá para pular. */
   legenda: papel('texto', '400', 13, 18),
-  /** Etiqueta de seção no cartão e acima de grupos. */
-  sobrancelha: papel('texto', '600', 12, 16, {
+  /** Etiqueta de seção no cartão e acima de grupos (13, não 12: U-09). */
+  sobrancelha: papel('texto', '600', 13, 18, {
     espacamento: 1,
     maiusculas: true,
     teto: 1.6,
@@ -220,8 +228,12 @@ export const TIPO = {
   }),
   /** Chip de estado. */
   chip: papel('texto', '600', 12, 16, { teto: 1.6 }),
-  /** Rótulos da barra de abas: 600 na ativa, 500 nas outras. */
-  aba: papel('texto', '500', 11, 14, { teto: 1.3 }),
+  /**
+   * Rótulos da barra de abas: 600 na ativa, 500 nas outras. Teto de 1,6 (era
+   * 1,3): quando o rótulo não cabe no item, a barra mostra só os ícones, com o
+   * rótulo no leitor de tela e no visualizador de conteúdo grande do iOS.
+   */
+  aba: papel('texto', '500', 11, 14, { teto: 1.6 }),
 } as const satisfies Record<string, PapelTipografico>
 
 export type NomeDoPapel = keyof typeof TIPO

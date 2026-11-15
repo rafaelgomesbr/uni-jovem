@@ -1,17 +1,30 @@
 import { screen, userEvent, waitFor } from '@testing-library/react-native'
-import { useLocalSearchParams } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { Alert } from 'react-native'
 
 import { DIA_DO_INICIO, INICIO } from '@/testes/fixturas'
 import { BASE, pedidosPara, PESSOAS, renderizarTela } from '@/testes/telas'
+import { mostrarToast } from '@/ui/Toast'
 import { formatarDataPorExtenso } from '@/utilidades/datas'
 
 import { datasParaDisponibilidade, rotuloDaData, TelaEscalas } from '../TelaEscalas'
 import { TelaPedirSubstituicao } from '../TelaPedirSubstituicao'
 
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), setParams: jest.fn() },
+  router: {
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    setParams: jest.fn(),
+    canGoBack: jest.fn(() => true),
+  },
   useLocalSearchParams: jest.fn(() => ({})),
+  usePreventRemove: jest.fn(() => jest.fn()),
+}))
+// O retorno depois de agir vai em toast: o teste confere o texto.
+jest.mock('@/ui/Toast', () => ({
+  ...jest.requireActual('@/ui/Toast'),
+  mostrarToast: jest.fn(),
 }))
 
 const SABADO = INICIO
@@ -96,17 +109,19 @@ describe('escalas', () => {
     })
     const usuario = userEvent.setup()
 
-    // Na linha ficam só Confirmar e Pedir substituição; recusar está na folha.
+    // Confirmar e Pedir substituição na linha; "Não posso ir" à vista logo abaixo, sem menu.
     expect(
       await screen.findByRole('button', {
         name: 'Confirmar a escala em Sábado com a juventude, Louvor · responsável',
       }),
     ).toBeOnTheScreen()
-    expect(screen.queryByRole('button', { name: /Não posso ir/ })).toBeNull()
+    expect(screen.getByText('Não posso ir')).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: /^Mais ações/ })).toBeNull()
     await usuario.press(
-      screen.getByRole('button', { name: 'Mais ações da escala em Sábado com a juventude' }),
+      screen.getByRole('button', {
+        name: 'Não posso ir: recusar a escala em Sábado com a juventude, Louvor · responsável',
+      }),
     )
-    await usuario.press(await screen.findByRole('button', { name: /^Não posso ir/ }))
 
     await waitFor(() =>
       expect(pedidosPara(servidor, 'POST', `${BASE}/atribuicoes/a1/recusar`)).toHaveLength(1),
@@ -194,7 +209,9 @@ describe('pedir substituição', () => {
     await usuario.press(await screen.findByRole('radio', { name: 'Uma pessoa específica' }))
     await usuario.press(screen.getByRole('button', { name: 'Pedir substituição' }))
     expect(
-      await screen.findByText('Escolha para quem vai o pedido, ou deixe aberto à equipe.'),
+      await screen.findByText(
+        'Escolha para quem vai o pedido, ou deixe para qualquer pessoa da comunidade.',
+      ),
     ).toBeOnTheScreen()
 
     // A própria pessoa não aparece como opção.
@@ -207,5 +224,46 @@ describe('pedir substituição', () => {
         pedidosPara(servidor, 'POST', `${BASE}/atribuicoes/a1/substituicao`)[0]?.corpo,
       ).toEqual({ motivo: null, paraVinculoId: PESSOAS[2]!.vinculoId }),
     )
+    // Retorno depois de agir: o toast diz quem foi avisado, e a tela fecha.
+    await waitFor(() =>
+      expect(mostrarToast).toHaveBeenCalledWith({
+        texto: 'Pedido de substituição enviado. Avisamos a pessoa escolhida.',
+      }),
+    )
+    expect(router.back).toHaveBeenCalled()
+  })
+
+  test('para qualquer pessoa da comunidade: um toque só cria um pedido, e o toast avisa', async () => {
+    ;(useLocalSearchParams as jest.Mock).mockReturnValue({ atribuicaoId: 'a1' })
+    // Aberta direto (link ou notificação): sem tela para voltar, vai para as escalas.
+    ;(router.canGoBack as jest.Mock).mockReturnValueOnce(false)
+    let responder: () => void = () => {}
+    const { servidor } = await renderizarTela(<TelaPedirSubstituicao />, {
+      papel: 'membro',
+      rotas: {
+        ...ROTAS,
+        [`POST ${BASE}/atribuicoes/a1/substituicao`]: () =>
+          new Promise((r) => {
+            responder = () => r({ status: 200, corpo: { substituicaoId: 's3' } })
+          }),
+      },
+    })
+    const usuario = userEvent.setup()
+
+    expect(
+      await screen.findByRole('radio', { name: 'Qualquer pessoa da comunidade' }),
+    ).toBeChecked()
+    const botao = screen.getByRole('button', { name: 'Pedir substituição' })
+    await usuario.press(botao)
+    await usuario.press(botao)
+    responder()
+
+    await waitFor(() =>
+      expect(mostrarToast).toHaveBeenCalledWith({
+        texto: 'Pedido de substituição enviado. Avisamos a equipe.',
+      }),
+    )
+    expect(pedidosPara(servidor, 'POST', `${BASE}/atribuicoes/a1/substituicao`)).toHaveLength(1)
+    expect(router.replace).toHaveBeenCalledWith('/escalas')
   })
 })

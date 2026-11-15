@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ESPACO } from '@uj/tokens'
-import { router } from 'expo-router'
+
 import { useState } from 'react'
 
 import { CHAVES } from '@/estado/clienteDeConsulta'
@@ -18,6 +18,7 @@ import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
 import { Secao } from '@/ui/Secao'
 import { Tela } from '@/ui/Tela'
 import { mostrarToast } from '@/ui/Toast'
+import { voltarOu } from '@/ui/navegacao'
 
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { logoDaComunidade } from '../perfil/imagens'
@@ -47,7 +48,7 @@ export function TelaConfigurarComunidade() {
           icone="seguranca"
           titulo="Só a administração configura a comunidade"
           descricao="Se algo precisa mudar no nome, na cor ou no fuso, fale com uma pessoa administradora."
-          acao={{ titulo: 'Voltar para a Equipe', aoPressionar: () => router.back() }}
+          acao={{ titulo: 'Voltar para a Equipe', aoPressionar: () => voltarOu('/comunidade') }}
         />
       </Tela>
     )

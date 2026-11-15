@@ -124,7 +124,7 @@ export function SecaoEtapas({ evento, comunidadeId, aoVerVisaoGeral }: Props) {
         lista
         acoes={
           <View style={{ alignItems: 'flex-start' }}>
-            <Texto variante="legenda" cor="textoSuave" tabular>
+            <Texto variante="meta" cor="textoSuave" tabular>
               {`Total ${formatarDuracao(total)} de ${formatarDuracao(evento.duracaoMin)} previstos`}
             </Texto>
             {gerenciar ? (

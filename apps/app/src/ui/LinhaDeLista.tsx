@@ -194,7 +194,8 @@ export function LinhaDeLista({
           {titulo}
         </Texto>
         {descricao ? (
-          <Texto variante="legenda" cor="textoSuave" numberOfLines={linhasDaDescricao}>
+          // Data, hora, local ou o que a linha abre: informação útil, em 15 (U-09).
+          <Texto variante="meta" cor="textoSuave" numberOfLines={linhasDaDescricao}>
             {descricao}
           </Texto>
         ) : null}

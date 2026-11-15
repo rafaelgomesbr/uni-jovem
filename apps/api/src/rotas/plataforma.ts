@@ -100,7 +100,7 @@ const ERROS_DA_TRANSFERENCIA: Record<string, [string, number, string]> = {
   UJ010: [
     'destino_invalido',
     422,
-    'A conta de destino precisa existir, estar ativa e ter a verificação em duas etapas ligada.',
+    'A conta de destino precisa existir, estar ativa e ter o código extra ao entrar ligado.',
   ],
   UJ011: ['sem_transferencia', 404, 'Não há transferência de propriedade em aberto para você.'],
   UJ012: [

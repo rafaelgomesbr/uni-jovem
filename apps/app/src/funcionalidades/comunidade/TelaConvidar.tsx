@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ehPapel, NOME_DO_PAPEL, PAPEIS, podeConcederPapel, type Papel } from '@uj/dominio'
 import { ESPACO } from '@uj/tokens'
-import { router, useLocalSearchParams } from 'expo-router'
+import { useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 
 import { NOME_DO_APP } from '@/constantes'
@@ -18,6 +18,7 @@ import { AvisoDeFalha } from '@/ui/Falha'
 import { useFocoAoMudar, type NoDeTexto } from '@/ui/foco'
 import { Interruptor } from '@/ui/Interruptor'
 import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
+import { useTravaDeEnvio, voltarOu } from '@/ui/navegacao'
 import { Secao } from '@/ui/Secao'
 import { Segmentos } from '@/ui/Segmentos'
 import { Tela } from '@/ui/Tela'
@@ -61,7 +62,7 @@ export function TelaConvidar() {
           icone="seguranca"
           titulo="Convites são criados pela administração"
           descricao="Só quem administra a comunidade pode convidar pessoas. Fale com uma pessoa administradora."
-          acao={{ titulo: 'Voltar para a Equipe', aoPressionar: () => router.back() }}
+          acao={{ titulo: 'Voltar para a Equipe', aoPressionar: () => voltarOu('/comunidade') }}
         />
       </Tela>
     )
@@ -92,6 +93,7 @@ function FormularioDeConvite({ comunidade }: { comunidade: ComunidadeDoVinculo }
   const [erroDoEmail, setErroDoEmail] = useState<string | null>(null)
 
   const emailLimpo = email.trim().toLowerCase()
+  const trava = useTravaDeEnvio()
   const criar = useMutation({
     mutationFn: () =>
       api.post<ConviteCriado>(`/api/v1/c/${comunidade.id}/convites`, {
@@ -100,6 +102,8 @@ function FormularioDeConvite({ comunidade }: { comunidade: ComunidadeDoVinculo }
         ...(emailLimpo ? { email: emailLimpo, enviarPorEmail } : {}),
       }),
     onSuccess: () => consultas.invalidateQueries({ queryKey: CHAVES.convites(comunidade.id) }),
+    // Solta a trava quando a resposta chega: "Criar outro convite" volta a valer.
+    onSettled: trava.soltar,
   })
 
   // Criar e "Criar outro convite" trocam a tela inteira: o foco vai para o título novo.
@@ -113,6 +117,8 @@ function FormularioDeConvite({ comunidade }: { comunidade: ComunidadeDoVinculo }
       return
     }
     setErroDoEmail(null)
+    // Um convite por envio: o segundo toque, antes da resposta, não cria outro link.
+    if (!trava.pegar()) return
     pedirFoco()
     criar.mutate()
   }

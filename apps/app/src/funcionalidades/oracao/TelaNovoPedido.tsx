@@ -1,5 +1,4 @@
 import { VISIBILIDADE_PADRAO_DE_ORACAO, type VisibilidadeDeOracao } from '@uj/dominio'
-import { router } from 'expo-router'
 import { useState } from 'react'
 
 import { useSessao } from '@/estado/sessao'
@@ -13,6 +12,7 @@ import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
+import { useConfirmarDescarte, useTravaDeEnvio, voltarOu } from '@/ui/navegacao'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { TextoAnunciado } from '@/ui/TextoAnunciado'
@@ -72,6 +72,8 @@ function FormularioDoPedido({
   const [erro, setErro] = useState<string | null>(null)
   const contagem = useContagemDeLeitores(comunidadeId)
   const criar = useCriarPedido(comunidadeId)
+  const trava = useTravaDeEnvio()
+  const liberar = useConfirmarDescarte(!!texto.trim())
 
   async function publicar() {
     if (!texto.trim()) {
@@ -90,13 +92,16 @@ function FormularioDoPedido({
       })
       if (!ok) return
     }
+    if (!trava.pegar()) return
     criar.mutate(
       { texto: texto.trim(), visibilidade },
       {
         onSuccess: () => {
           setTexto('')
-          router.back()
+          liberar()
+          voltarOu('/oracao')
         },
+        onError: trava.soltar,
       },
     )
   }

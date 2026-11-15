@@ -14,6 +14,7 @@ jest.mock('expo-router', () => ({
     canGoBack: jest.fn(() => true),
   },
   useLocalSearchParams: jest.fn(() => ({})),
+  usePreventRemove: jest.fn(() => jest.fn()),
 }))
 
 const CRIAR = '/api/v1/plataforma/comunidades'

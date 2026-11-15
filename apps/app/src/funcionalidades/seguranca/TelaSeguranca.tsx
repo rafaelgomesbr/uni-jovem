@@ -37,8 +37,10 @@ const CHAVE_PROVEDORES = ['eu', 'provedores'] as const
 
 /**
  * Perfil, Segurança (3.6.5): Face ID deste aparelho (interruptor), contas do
- * Google e da Apple conectadas, verificação em duas etapas (cartão de
- * destaque "RECOMENDADO" quando desligada) e aparelhos conectados.
+ * Google e da Apple conectadas, o código extra ao entrar (cartão de destaque
+ * "RECOMENDADO" quando desligado) e aparelhos conectados. "Código extra ao
+ * entrar", não "duas etapas": etapa já é parte da programação no app (U-08).
+ * O nome técnico aparece uma vez, entre parênteses, para quem o conhece.
  */
 export function TelaSeguranca() {
   const { conta } = useSessao()
@@ -52,13 +54,13 @@ export function TelaSeguranca() {
       {conta.doisFatores ? null : (
         <CartaoDeDestaque
           sobrancelha="Recomendado"
-          titulo="Ligue a verificação em duas etapas"
-          descricao="Além da senha, um código do app autenticador passa a ser pedido ao entrar. Recomendado para quem administra uma comunidade."
+          titulo="Ligue o código extra ao entrar"
+          descricao="Além da senha, um código do app autenticador passa a ser pedido ao entrar (verificação em duas etapas). Recomendado para quem administra uma comunidade."
           acoes={
             <Botao
               titulo="Ligar"
               icone="seguranca"
-              rotuloAcessivel="Ligar a verificação em duas etapas"
+              rotuloAcessivel="Ligar o código extra ao entrar"
               aoPressionar={() => router.push('/ativar-2fa')}
             />
           }
@@ -67,17 +69,17 @@ export function TelaSeguranca() {
       <SecaoBiometria />
       <SecaoContasConectadas />
       {conta.doisFatores ? (
-        <Secao titulo="Verificação em duas etapas">
+        <Secao titulo="Código extra ao entrar">
           <CartaoDeVidro lista>
             <LinhaDeLista
               icone="chave"
               titulo="App autenticador"
               descricao={
                 conta.criador
-                  ? 'Ligada. Como Criador, o código é pedido nas ações da plataforma, não ao entrar.'
-                  : 'Ligada: o código do app autenticador é pedido ao entrar.'
+                  ? 'Ligado. Como Criador, o código é pedido nas ações da plataforma, não ao entrar.'
+                  : 'Ligado: o código do app autenticador é pedido ao entrar.'
               }
-              extra={<Chip texto="Ligada" tom="sucesso" />}
+              extra={<Chip texto="Ligado" tom="sucesso" />}
             />
           </CartaoDeVidro>
         </Secao>

@@ -38,11 +38,30 @@ describe('disposição dos segmentos (nenhum rótulo cortado)', () => {
     })
   })
 
-  test('quatro partes do evento em 360: compacto, com a largura de cada rótulo', () => {
+  test('quatro rótulos curtos em 360: compacto, com a largura de cada rótulo', () => {
     expect(escolherDisposicao(['Visão geral', 'Etapas', 'Equipe', 'Preparação'], 320)).toEqual({
       nivel: 'compacto',
       proporcional: true,
     })
+  })
+
+  test('as quatro partes do evento em 360: grade de duas linhas, no tipo normal', () => {
+    const partes = ['Visão geral', 'Programação', 'Quem serve', 'Preparação']
+    expect(escolherDisposicao(partes, 320)).toEqual({
+      nivel: 'normal',
+      proporcional: false,
+      grade: true,
+    })
+  })
+
+  test('fonte grande com quatro opções: a grade, se couber; senão, pílulas', () => {
+    const partes = ['Visão geral', 'Programação', 'Quem serve', 'Preparação']
+    expect(escolherDisposicao(partes, 350, 1.35, 0, true)).toEqual({
+      nivel: 'normal',
+      proporcional: false,
+      grade: true,
+    })
+    expect(escolherDisposicao(partes, 320, 2, 0, true)).toBeNull()
   })
 
   test('três rótulos longos descem para o compacto antes de virar pílulas', () => {

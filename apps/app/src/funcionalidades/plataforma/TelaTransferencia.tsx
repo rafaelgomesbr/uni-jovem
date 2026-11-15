@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ESPACO } from '@uj/tokens'
-import { router } from 'expo-router'
+
 import { useState } from 'react'
 import { View } from 'react-native'
 
@@ -19,6 +19,7 @@ import { EstadoVazio } from '@/ui/EstadoVazio'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { mostrarToast } from '@/ui/Toast'
+import { voltarOu } from '@/ui/navegacao'
 
 import { useAcaoDePlataforma } from './acaoDePlataforma'
 import { PedidoDeCodigo } from './ProvaDeSegundoFator'
@@ -202,7 +203,7 @@ export function TelaTransferencia() {
               tom={prazoPassou ? 'sucesso' : 'neutro'}
             />
           </View>
-          <Texto variante="legenda" cor="textoSuave">
+          <Texto variante="meta" cor="textoSuave">
             {`Iniciada em ${formatarDataEHora(t.criadoEm)}. Pode ser concluída a partir de ${formatarDataEHora(t.efetivaApos)}${t.aceitaEm ? `; aceita em ${formatarDataEHora(t.aceitaEm)}.` : ', depois do aceite.'}`}
           </Texto>
         </CartaoDeVidro>
@@ -221,8 +222,7 @@ export function TelaTransferencia() {
           }
         >
           <Texto variante="corpo" cor="textoSuave">
-            A conta de destino precisa existir, estar ativa e ter a verificação em duas etapas
-            ligada.
+            A conta de destino precisa existir, estar ativa e ter o código extra ao entrar ligado.
           </Texto>
           <Campo
             rotulo="E-mail da conta de destino"
@@ -241,7 +241,11 @@ export function TelaTransferencia() {
           icone="chave"
           titulo="Nenhuma transferência para você"
           descricao="Quando o Criador iniciar uma transferência para a sua conta, ela aparece aqui."
-          acao={{ titulo: 'Voltar', variante: 'secundario', aoPressionar: () => router.back() }}
+          acao={{
+            titulo: 'Voltar',
+            variante: 'secundario',
+            aoPressionar: () => voltarOu('/perfil'),
+          }}
         />
       )}
 

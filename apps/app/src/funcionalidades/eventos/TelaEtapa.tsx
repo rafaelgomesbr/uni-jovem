@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { ESPACO } from '@uj/tokens'
-import { router, useLocalSearchParams } from 'expo-router'
+import { useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 import { View } from 'react-native'
 
@@ -23,6 +23,7 @@ import { mostrarToast } from '@/ui/Toast'
 import { confirmar } from '@/utilidades/confirmar'
 import { dataDoInstante, formatarDuracao, formatarHora } from '@/utilidades/datas'
 import { parametro } from '@/utilidades/parametros'
+import { voltarOu } from '@/ui/navegacao'
 
 import { usePode } from '../comunidade/permissoes'
 import { SeletorDePessoa } from '../comunidade/SeletorDePessoa'
@@ -78,7 +79,10 @@ export function TelaEtapa() {
           icone="etapas"
           titulo="Etapa não encontrada"
           descricao="Ela pode ter sido removida por outra pessoa."
-          acao={{ titulo: 'Voltar para a programação', aoPressionar: () => router.back() }}
+          acao={{
+            titulo: 'Voltar para a programação',
+            aoPressionar: () => voltarOu('/programacoes'),
+          }}
         />
       </Tela>
     )
@@ -124,7 +128,7 @@ function EtapaEEquipe({
     onSuccess: async () => {
       mostrarToast({ texto: 'Etapa removida.' })
       await invalidar(evento.id)
-      router.back()
+      voltarOu({ pathname: '/evento/[eventoId]', params: { eventoId: evento.id } })
     },
   })
 
@@ -305,7 +309,7 @@ function Equipe({
     <>
       {remover.error ? <AvisoDeFalha erro={remover.error} titulo="A escala não mudou" /> : null}
       {atribuicoes.length ? (
-        <CartaoDeVidro sobrancelha="Equipe" lista {...(escalar ? { acoes: escalar } : {})}>
+        <CartaoDeVidro sobrancelha="Quem serve" lista {...(escalar ? { acoes: escalar } : {})}>
           <Lista>
             {atribuicoes.map((a) =>
               linhaDaPessoaEscalada(a, atribuir ? () => setEscolhida(a) : undefined),
@@ -313,7 +317,7 @@ function Equipe({
           </Lista>
         </CartaoDeVidro>
       ) : (
-        <CartaoDeVidro sobrancelha="Equipe" {...(escalar ? { acoes: escalar } : {})}>
+        <CartaoDeVidro sobrancelha="Quem serve" {...(escalar ? { acoes: escalar } : {})}>
           <Texto variante="corpo" cor="textoSuave">
             Ninguém escalado ainda.
           </Texto>

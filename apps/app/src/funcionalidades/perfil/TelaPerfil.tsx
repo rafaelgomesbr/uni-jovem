@@ -29,7 +29,7 @@ import { useOffline } from '../offline/ProvedorOffline'
 import { fotoDaConta, logoDaComunidade } from './imagens'
 
 /**
- * Segurança da conta (Face ID, contas conectadas, verificação em duas etapas,
+ * Segurança da conta (Face ID, contas conectadas, código extra ao entrar,
  * aparelhos) é uma tela própria, mantida junto da autenticação.
  */
 export const ROTA_DA_SEGURANCA = '/conta/seguranca' satisfies Href
@@ -105,6 +105,18 @@ export function TelaPerfil({ naPilha = false }: { naPilha?: boolean }) {
     <>
       <Identidade conta={conta} />
 
+      {/* Escalas e disponibilidade têm lugar fixo: antes, só um cartão do Início levava lá (U-03). */}
+      {comunidadeAtiva ? (
+        <Grupo titulo="Você na comunidade">
+          <LinhaDeLista
+            icone="escalas"
+            titulo="Minhas escalas e disponibilidade"
+            descricao="Onde você serve, pedidos de substituição e os dias em que não pode"
+            aoPressionar={() => router.push('/escalas')}
+          />
+        </Grupo>
+      ) : null}
+
       {conta.criador || transferenciaPendente ? (
         <Grupo titulo="Criador">
           {conta.criador ? (
@@ -167,14 +179,14 @@ export function TelaPerfil({ naPilha = false }: { naPilha?: boolean }) {
         <LinhaDeLista
           icone="seguranca"
           titulo="Segurança"
-          descricao="Duas etapas, Face ID e aparelhos"
+          descricao="Código extra ao entrar, Face ID e aparelhos"
           extra={
             <Chip
-              texto={conta.doisFatores ? 'Ligada' : 'Desligada'}
+              texto={conta.doisFatores ? 'Ligado' : 'Desligado'}
               tom={conta.doisFatores ? 'sucesso' : 'alerta'}
             />
           }
-          rotuloAcessivel={`Segurança. Verificação em duas etapas ${conta.doisFatores ? 'ligada' : 'desligada'}.`}
+          rotuloAcessivel={`Segurança. Código extra ao entrar ${conta.doisFatores ? 'ligado' : 'desligado'}.`}
           aoPressionar={() => router.push(ROTA_DA_SEGURANCA)}
         />
         <LinhaDeLista

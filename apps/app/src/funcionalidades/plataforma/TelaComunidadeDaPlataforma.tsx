@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { ESPACO } from '@uj/tokens'
-import { router, useLocalSearchParams } from 'expo-router'
+import { useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 import { View } from 'react-native'
 
@@ -23,6 +23,7 @@ import { Tela } from '@/ui/Tela'
 import { mostrarToast } from '@/ui/Toast'
 import { confirmar } from '@/utilidades/confirmar'
 import { formatarData } from '@/utilidades/formatos'
+import { voltarOu } from '@/ui/navegacao'
 
 import { LinkCompartilhavel } from '../comunidade/LinkCompartilhavel'
 import {
@@ -87,7 +88,7 @@ export function TelaComunidadeDaPlataforma() {
           icone="plataforma"
           titulo="Comunidade não encontrada"
           descricao="Ela pode ter sido excluída."
-          acao={{ titulo: 'Voltar para a Plataforma', aoPressionar: () => router.back() }}
+          acao={{ titulo: 'Voltar para a Plataforma', aoPressionar: () => voltarOu('/plataforma') }}
         />
       </Tela>
     )

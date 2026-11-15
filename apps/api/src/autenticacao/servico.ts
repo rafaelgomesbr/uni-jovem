@@ -363,7 +363,7 @@ async function conferirSegundoFator(
         assunto: `Alerta de segurança do ${NOME_DO_APP}`,
         corpo: [
           'Houve várias tentativas de código de verificação erradas na sua conta.',
-          `Por segurança, a verificação em duas etapas ficou bloqueada por ${BLOQUEIO_2FA_MIN} minutos.`,
+          `Por segurança, o código extra ao entrar ficou bloqueado por ${BLOQUEIO_2FA_MIN} minutos.`,
           '',
           'Se não foi você, alguém pode conhecer a sua senha: troque-a assim que puder,',
           'em Perfil > Segurança ou pela opção "Esqueci a senha".',
@@ -1190,7 +1190,7 @@ export async function iniciarTotp(
     throw new ErroDeAuth('senha_incorreta', 401, 'Senha atual incorreta.')
   }
   if (conta.totp_ativado_em) {
-    throw new ErroDeAuth('totp_ja_ativo', 409, 'A verificação em duas etapas já está ativa.')
+    throw new ErroDeAuth('totp_ja_ativo', 409, 'O código extra ao entrar já está ligado.')
   }
   const segredo = gerarSegredoTotp()
   await d.auth.query('update uj.contas set totp_segredo_cifrado = $2 where id = $1', [

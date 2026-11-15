@@ -21,6 +21,7 @@ import { Tela } from '@/ui/Tela'
 import { mostrarToast } from '@/ui/Toast'
 import { confirmar } from '@/utilidades/confirmar'
 import { parametro } from '@/utilidades/parametros'
+import { voltarOu } from '@/ui/navegacao'
 
 import { usePode } from '../comunidade/permissoes'
 import { useEvento } from '../eventos/consultas'
@@ -212,7 +213,7 @@ function ListaFiltrada({
             ? {
                 titulo: 'Voltar para a programação',
                 variante: 'secundario',
-                aoPressionar: () => router.back(),
+                aoPressionar: () => voltarOu('/programacoes'),
               }
             : { titulo: 'Mostrar todas', variante: 'secundario', aoPressionar: aoMostrarTodas }
         }

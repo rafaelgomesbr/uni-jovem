@@ -18,14 +18,14 @@ import { Radio } from '@/ui/ListaDeOpcoes'
 import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
 import { mostrarToast } from '@/ui/Toast'
+import { voltarOu } from '@/ui/navegacao'
 
 import { logoDaComunidade } from '../perfil/imagens'
 import { CHIP_DO_ESTADO_DA_COMUNIDADE, NOME_DO_ESTADO_DA_COMUNIDADE } from './nomes'
 
 /** Fecha a folha: volta para quem abriu ou, aberta por link, para o Início. */
 function fechar() {
-  if (router.canGoBack()) router.back()
-  else router.replace('/')
+  voltarOu('/')
 }
 
 /**
@@ -160,7 +160,7 @@ function OpcaoDeComunidade({
       />
       <View style={{ flex: 1, gap: ESPACO.e4 }}>
         <Texto variante="tituloItem">{comunidade.nome}</Texto>
-        <Texto variante="legenda" cor="textoSuave">
+        <Texto variante="meta" cor="textoSuave">
           {ativa ? `${papel} · em uso agora` : papel}
         </Texto>
         {comunidade.estado !== 'ativa' ? (

@@ -5,6 +5,7 @@
 import type { ResumoDoEvento } from '@/servicos/contratoDosEventos'
 import {
   dataDoInstante,
+  dataValidaOuNula,
   gradeDoMes,
   inicioDaSemana,
   instanteDeDataEHora,
@@ -16,6 +17,24 @@ import {
 } from '@/utilidades/datas'
 
 export type ModoDaAgenda = 'mes' | 'semana' | 'lista'
+
+/** Anos que a agenda abre. Fora disso, as contas de fuso do `Intl` lançam erro (M1). */
+export const ANO_MINIMO = 1900
+export const ANO_MAXIMO = 2100
+
+/**
+ * A data de `/agenda/[data]`: a data, se for real e de 1900 a 2100;
+ * `'invalida'` se veio algo e não serve (`9999-12-31`, `2026-02-30`, lixo);
+ * `null` se não veio nada (vale hoje). Antes, `9999-12-31` passava e a
+ * tela caía com `RangeError`; lixo virava hoje sem aviso.
+ */
+export function dataDaRota(texto: string | null | undefined): DataLocal | 'invalida' | null {
+  if (!texto) return null
+  const data = dataValidaOuNula(texto)
+  if (!data) return 'invalida'
+  const ano = Number(data.slice(0, 4))
+  return ano >= ANO_MINIMO && ano <= ANO_MAXIMO ? data : 'invalida'
+}
 
 /** Quantos dias a lista mostra a partir da referência. */
 export const DIAS_DA_LISTA = 60

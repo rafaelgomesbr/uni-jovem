@@ -123,7 +123,7 @@ describe('Campo: estados desenhados (2.12.2)', () => {
     return screen.getByTestId('campo-caixa')
   }
 
-  test('normal: 48, raio 14, fundo campoFundo, borda de 1 campoBorda; rótulo 13/18 600 suave', async () => {
+  test('normal: 48, raio 14, fundo campoFundo, borda de 1 campoBorda; rótulo 15/20 600 suave', async () => {
     await render(<Campo rotulo="Nome" testID="campo" value="" onChangeText={() => {}} />)
     expect(caixa()).toHaveStyle({
       minHeight: 48,
@@ -133,8 +133,8 @@ describe('Campo: estados desenhados (2.12.2)', () => {
       borderColor: C.campoBorda,
     })
     expect(screen.getByText('Nome')).toHaveStyle({
-      fontSize: 13,
-      lineHeight: 18,
+      fontSize: 15,
+      lineHeight: 20,
       color: C.textoSuave,
     })
   })

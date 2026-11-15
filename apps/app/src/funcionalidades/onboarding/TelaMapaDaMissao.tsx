@@ -18,6 +18,7 @@ import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
 import { Secao } from '@/ui/Secao'
 import { Tela } from '@/ui/Tela'
 import { useTema } from '@/ui/tema'
+import { voltarOu } from '@/ui/navegacao'
 
 import { DemonstracaoDaEtapa } from './Demonstracoes'
 import { ETAPAS_POR_PAPEL, useProgressoDaMissao, type ProgressoDaMissao } from './missao'
@@ -140,7 +141,7 @@ function Mapa({
           dica="Dá para rever quando quiser, no Perfil."
           aoPressionar={() => {
             salvar({ ...progresso, estado: 'pulado', etapa: 0 })
-            router.back()
+            voltarOu('/')
           }}
         />
       }
@@ -153,7 +154,7 @@ function Mapa({
             tamanho="grande"
             aoPressionar={() => {
               salvar({ ...progresso, estado: 'pausado', etapa: atual })
-              router.back()
+              voltarOu('/')
             }}
           />
           <Botao

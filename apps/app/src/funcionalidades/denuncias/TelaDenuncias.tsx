@@ -143,7 +143,7 @@ function ItemDaFila({ comunidadeId, denuncia: d }: { comunidadeId: string; denun
         <Chip texto={NOME_DO_MOTIVO[d.motivo]} tom="alerta" />
         {d.conteudoRetirado ? <Chip texto="Conteúdo retirado" tom="erro" /> : null}
       </View>
-      <Texto variante="legenda" cor="textoSuave">
+      <Texto variante="meta" cor="textoSuave">
         Recebida em {formatarDataEHora(d.criadoEm)}
       </Texto>
       {d.detalhe ? <Texto>{d.detalhe}</Texto> : null}

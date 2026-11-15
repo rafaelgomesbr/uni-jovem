@@ -15,7 +15,7 @@ export function useNoCartaoLista(): boolean {
 }
 
 export interface PropsDoCartaoDeVidro {
-  /** Etiqueta da seção (12/16 600, maiúsculas por estilo, coral), anunciada como cabeçalho. */
+  /** Etiqueta da seção (13/18 600, maiúsculas por estilo, coral), anunciada como cabeçalho. */
   sobrancelha?: string
   /** Título do item logo abaixo da sobrancelha, com 4 de espaço ("SUA ESCALA" e "Louvor · violão"). */
   titulo?: string

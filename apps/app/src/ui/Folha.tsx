@@ -1,16 +1,15 @@
 import { ESPACO, RITMO } from '@uj/tokens'
-import { router } from 'expo-router'
 import type { ReactNode } from 'react'
 import { ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { CabecalhoDeTela } from './CabecalhoDeTela'
+import { CabecalhoDeTela, voltar } from './CabecalhoDeTela'
 import { ProvedorDeSuperficie } from './tema'
 
 interface PropsDaFolha {
   titulo: string
   children: ReactNode
-  /** Padrão: volta (fecha a folha). Fechar existe sempre: nada só em gesto. */
+  /** Padrão: volta (fecha a folha); aberta por link, vai ao Início. Fechar existe sempre: nada só em gesto. */
   aoFechar?: () => void
 }
 
@@ -20,7 +19,7 @@ interface PropsDaFolha {
  * 24/28 e "Fechar" de 44) e o padding de 20 nas laterais, 8 em cima e a área
  * segura mais 16 embaixo.
  */
-export function Folha({ titulo, children, aoFechar = () => router.back() }: PropsDaFolha) {
+export function Folha({ titulo, children, aoFechar = voltar }: PropsDaFolha) {
   const margens = useSafeAreaInsets()
   return (
     <ProvedorDeSuperficie superficie="opaca">

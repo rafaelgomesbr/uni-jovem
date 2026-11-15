@@ -1,10 +1,10 @@
 import { ALTURA, ESPACO, RAIO } from '@uj/tokens'
-import { router } from 'expo-router'
 import type { ReactNode, Ref } from 'react'
 import { View } from 'react-native'
 
 import { BotaoIcone } from './Botao'
 import type { NoDeTexto } from './foco'
+import { voltarOu } from './navegacao'
 import { Texto } from './Texto'
 import { useTema } from './tema'
 import { soNaWeb } from './web'
@@ -44,8 +44,7 @@ export interface PropsDoCabecalhoDeTela {
 
 /** Voltar padrão: a tela anterior ou, sem histórico (link aberto direto), o Início. */
 export function voltar() {
-  if (router.canGoBack()) router.back()
-  else router.replace('/')
+  voltarOu('/')
 }
 
 /**

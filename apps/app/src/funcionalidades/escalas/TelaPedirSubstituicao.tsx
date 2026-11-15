@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { router, useLocalSearchParams } from 'expo-router'
+import { useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 
 import { useSessao } from '@/estado/sessao'
@@ -12,8 +12,10 @@ import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
+import { useTravaDeEnvio, voltarOu } from '@/ui/navegacao'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
+import { mostrarToast } from '@/ui/Toast'
 
 import { useFusoDaComunidade, useMeuVinculo } from '../comunidade/consultas'
 import { SeletorDePessoa } from '../comunidade/SeletorDePessoa'
@@ -24,7 +26,7 @@ import { useInvalidarEscalas, useMinhasEscalas } from './consultas'
 
 type Para = 'aberta' | 'pessoa'
 
-/** Rota `/escalas/substituicao/[atribuicaoId]`: aberto à equipe ou para uma pessoa. */
+/** Rota `/escalas/substituicao/[atribuicaoId]`: para qualquer pessoa da comunidade ou para uma só. */
 export function TelaPedirSubstituicao() {
   const { comunidadeAtiva } = useSessao()
   const atribuicaoId = parametro(useLocalSearchParams<{ atribuicaoId: string }>().atribuicaoId)
@@ -39,9 +41,11 @@ export function TelaPedirSubstituicao() {
 }
 
 /**
- * Pedir substituição (3.4.5): a escala em questão, a lista de opções "Aberto
- * à equipe" ou "Uma pessoa específica" (com a busca da pessoa), o motivo
- * opcional e a barra de ação com o primário "Pedir substituição".
+ * Pedir substituição (3.4.5): a escala em questão, a lista de opções
+ * "Qualquer pessoa da comunidade" ou "Uma pessoa específica" (com a busca da
+ * pessoa), o motivo opcional e a barra de ação com o primário "Pedir
+ * substituição". Depois de enviar, um toast diz que deu certo e quem foi
+ * avisado: voltar calado deixava a pessoa sem saber se o pedido saiu (U-12).
  */
 function PedirSubstituicao({
   comunidadeId,
@@ -59,6 +63,7 @@ function PedirSubstituicao({
   const [pessoa, setPessoa] = useState<string | null>(null)
   const [motivo, setMotivo] = useState('')
   const [erro, setErro] = useState<string | null>(null)
+  const trava = useTravaDeEnvio()
 
   const pedir = useMutation({
     mutationFn: () =>
@@ -67,18 +72,25 @@ function PedirSubstituicao({
         paraVinculoId: para === 'pessoa' ? pessoa : null,
       }),
     onSuccess: async () => {
+      mostrarToast({
+        texto:
+          para === 'pessoa'
+            ? 'Pedido de substituição enviado. Avisamos a pessoa escolhida.'
+            : 'Pedido de substituição enviado. Avisamos a equipe.',
+      })
       await invalidar()
-      router.back()
+      voltarOu('/escalas')
     },
+    onError: trava.soltar,
   })
 
   function enviar() {
     if (para === 'pessoa' && !pessoa) {
-      setErro('Escolha para quem vai o pedido, ou deixe aberto à equipe.')
+      setErro('Escolha para quem vai o pedido, ou deixe para qualquer pessoa da comunidade.')
       return
     }
     setErro(null)
-    pedir.mutate()
+    if (trava.pegar()) pedir.mutate()
   }
 
   return (
@@ -103,7 +115,7 @@ function PedirSubstituicao({
           <Texto variante="tituloItem">
             {escala.etapaTitulo ? `${escala.etapaTitulo} · ${escala.funcao}` : escala.funcao}
           </Texto>
-          <Texto variante="legenda" cor="textoSuave">
+          <Texto variante="meta" cor="textoSuave">
             {escala.eventoTitulo}
           </Texto>
         </CartaoDeVidro>
@@ -118,8 +130,8 @@ function PedirSubstituicao({
         opcoes={[
           {
             valor: 'aberta',
-            rotulo: 'Aberto à equipe',
-            descricao: 'Qualquer pessoa da comunidade pode assumir.',
+            rotulo: 'Qualquer pessoa da comunidade',
+            descricao: 'Quem puder primeiro assume o seu lugar.',
           },
           {
             valor: 'pessoa',

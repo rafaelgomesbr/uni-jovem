@@ -8,8 +8,15 @@ import { formatarDataPorExtenso } from '@/utilidades/datas'
 import { TelaInicio } from '../TelaInicio'
 
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), setParams: jest.fn() },
+  router: {
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    canGoBack: jest.fn(() => true),
+    setParams: jest.fn(),
+  },
   useLocalSearchParams: jest.fn(() => ({})),
+  usePreventRemove: jest.fn(() => jest.fn()),
 }))
 
 // Um sábado à frente, 19:00 UTC = 16:00 em São Paulo.

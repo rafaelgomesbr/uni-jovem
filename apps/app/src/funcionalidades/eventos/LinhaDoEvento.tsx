@@ -155,7 +155,7 @@ export function LinhaDoEvento({ evento, fuso, aoPressionar, selecionado, soHora 
     >
       <View style={{ flex: 1, gap: ESPACO.e4 }}>
         <Texto variante="tituloItem">{evento.titulo}</Texto>
-        <Texto variante="legenda" cor="textoSuave">
+        <Texto variante="meta" cor="textoSuave">
           {detalhes.join(' · ')}
         </Texto>
         <ChipDoStatus status={evento.status} />

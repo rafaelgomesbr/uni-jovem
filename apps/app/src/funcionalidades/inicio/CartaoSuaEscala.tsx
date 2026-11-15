@@ -20,7 +20,7 @@ import { useResponderEscala } from '../escalas/consultas'
 const CHIP: Partial<Record<EscalaDoInicio['estado'], { texto: string; tom: TomDoChip }>> = {
   confirmada: { texto: 'Confirmada', tom: 'sucesso' },
   recusada: { texto: 'Recusada', tom: 'erro' },
-  substituicao_pedida: { texto: 'Substituição', tom: 'info' },
+  substituicao_pedida: { texto: 'Substituição pedida', tom: 'info' },
 }
 
 function quandoCurto(iso: string, fuso: string): string {
@@ -117,7 +117,7 @@ export function CartaoSuaEscala({ escala, total, comunidadeId, fuso }: Props) {
         accessibilityLabel={`${onde}. ${escala.eventoTitulo}, ${falarQuando(escala.eventoInicio, fuso)}. Situação: ${NOME_DO_ESTADO_DA_ATRIBUICAO[escala.estado]}`}
       >
         <Texto variante="tituloItem">{onde}</Texto>
-        <Texto variante="legenda" cor="textoSuave">
+        <Texto variante="meta" cor="textoSuave">
           {escala.eventoTitulo} · {quandoCurto(escala.eventoInicio, fuso)}
         </Texto>
       </View>

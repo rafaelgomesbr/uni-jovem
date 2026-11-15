@@ -241,7 +241,7 @@ export function CartaoDoPedido({
         />
       ) : null}
       {pedido.minha && completo ? (
-        <Texto variante="legenda" cor="textoSuave">
+        <Texto variante="meta" cor="textoSuave">
           {pedido.quemVe}
         </Texto>
       ) : null}

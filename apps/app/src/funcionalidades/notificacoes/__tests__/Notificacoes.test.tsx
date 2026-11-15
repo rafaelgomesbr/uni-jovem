@@ -8,8 +8,15 @@ import { reiniciarPermissaoParaTestes } from '../permissao'
 import { TelaNotificacoes } from '../TelaNotificacoes'
 
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), setParams: jest.fn() },
+  router: {
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    canGoBack: jest.fn(() => true),
+    setParams: jest.fn(),
+  },
   useLocalSearchParams: jest.fn(() => ({})),
+  usePreventRemove: jest.fn(() => jest.fn()),
 }))
 
 const CONTA = { versiculo: { ativo: true, hora: '07:00' }, aparelhoAtual: { registrado: false } }

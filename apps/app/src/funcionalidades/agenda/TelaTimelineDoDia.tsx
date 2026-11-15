@@ -15,7 +15,6 @@ import type {
 } from '@/servicos/contratoDosEventos'
 import { AvisoDeFalha, ErroDaTela } from '@/ui/Falha'
 import {
-  dataValidaOuNula,
   formatarDataPorExtenso,
   formatarDuracao,
   formatarHora,
@@ -36,13 +35,14 @@ import { LARGURA_DA_HORA } from '@/ui/LinhaDeLista'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
+import { voltarOu } from '@/ui/navegacao'
 
 import { useFusoDaComunidade } from '../comunidade/consultas'
 import { naComunidade, useEvento, useEventosNoPeriodo } from '../eventos/consultas'
 import { NOME_DO_STATUS } from '../eventos/nomes'
 import { podeIrAoVivo } from '../eventos/regras'
 import { SemComunidade } from '../navegacao/SemComunidade'
-import { limitesParaApi } from './calendario'
+import { dataDaRota, limitesParaApi } from './calendario'
 import { TOM_DO_STATUS } from './ListaDoDia'
 import { LINHA_DO_TEMPO } from './medidas'
 
@@ -50,8 +50,7 @@ import { LINHA_DO_TEMPO } from './medidas'
 export function TelaTimelineDoDia() {
   const { comunidadeAtiva } = useSessao()
   const fuso = useFusoDaComunidade()
-  const dataDaRota = dataValidaOuNula(parametro(useLocalSearchParams<{ data: string }>().data))
-  const data = dataDaRota ?? hojeNoFuso(fuso)
+  const daRota = dataDaRota(parametro(useLocalSearchParams<{ data: string }>().data))
   if (!comunidadeAtiva) {
     return (
       <Tela pilha titulo="Linha do tempo">
@@ -59,12 +58,28 @@ export function TelaTimelineDoDia() {
       </Tela>
     )
   }
-  return <Timeline comunidadeId={comunidadeAtiva.id} data={data} fuso={fuso} />
+  if (daRota === 'invalida') {
+    return (
+      <Tela pilha titulo="Linha do tempo">
+        <EstadoVazio
+          icone="agenda"
+          titulo="Data inválida"
+          descricao="Este endereço não traz um dia que a agenda consiga abrir. Confira o link ou vá para hoje."
+          acao={{
+            titulo: 'Ir para hoje',
+            aoPressionar: () => router.setParams({ data: hojeNoFuso(fuso) }),
+          }}
+        />
+      </Tela>
+    )
+  }
+  return (
+    <Timeline comunidadeId={comunidadeAtiva.id} data={daRota ?? hojeNoFuso(fuso)} fuso={fuso} />
+  )
 }
 
 function voltarParaAAgenda() {
-  if (router.canGoBack()) router.back()
-  else router.replace('/agenda')
+  voltarOu('/agenda')
 }
 
 /** "Sábado, 15 de novembro de 2026 (hoje)". */
@@ -293,12 +308,12 @@ function Etapas({ evento, retrato }: { evento: DetalheDoEvento; retrato: Retrato
             cor="primaria"
             trilho="tonal"
           />
-          <Texto variante="legenda" cor="textoSuave" tabular>
+          <Texto variante="meta" cor="textoSuave" tabular>
             {resumo}
           </Texto>
         </View>
       ) : (
-        <Texto variante="legenda" cor="textoSuave">
+        <Texto variante="meta" cor="textoSuave">
           {resumo}
         </Texto>
       )}
@@ -383,7 +398,7 @@ function LinhaDaEtapa({
       </View>
       <View style={{ flex: 1, paddingBottom: ultima ? 0 : ESPACO.e16 }}>
         <Texto variante="tituloItem">{titulo}</Texto>
-        <Texto variante="legenda" cor="textoSuave">
+        <Texto variante="meta" cor="textoSuave">
           {detalhe}
         </Texto>
       </View>

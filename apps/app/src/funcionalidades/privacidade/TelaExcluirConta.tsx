@@ -18,6 +18,7 @@ import { Secao } from '@/ui/Secao'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
+import { voltarOu } from '@/ui/navegacao'
 
 /** TC-13.v1. */
 export const CONSEQUENCIAS_DA_EXCLUSAO = [
@@ -92,7 +93,7 @@ export function TelaExcluirConta() {
             variante="secundario"
             tamanho="grande"
             desabilitado={excluir.isPending}
-            aoPressionar={() => router.back()}
+            aoPressionar={() => voltarOu('/privacidade')}
           />
           <Botao
             titulo="Excluir minha conta"

@@ -16,6 +16,7 @@ jest.mock('expo-router', () => ({
   usePathname: jest.fn(() => '/'),
   useSegments: jest.fn(() => []),
   useGlobalSearchParams: jest.fn(() => ({})),
+  usePreventRemove: jest.fn(() => jest.fn()),
 }))
 
 const naRota = (caminho: string, segmentos: string[] = [], parametros = {}) => {

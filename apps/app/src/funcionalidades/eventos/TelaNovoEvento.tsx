@@ -15,8 +15,10 @@ import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { AvisoDeFalha } from '@/ui/Falha'
 import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
+import { useConfirmarDescarte, useTravaDeEnvio } from '@/ui/navegacao'
 import { Secao } from '@/ui/Secao'
 import { Tela } from '@/ui/Tela'
+import { confirmar } from '@/utilidades/confirmar'
 import {
   dataValidaOuNula,
   formatarDuracao,
@@ -37,6 +39,7 @@ import {
 } from './CamposDoEvento'
 import { naComunidade, useInvalidarEventos, useModelos } from './consultas'
 import { EditorDeRegra } from './EditorDeRegra'
+import { dataJaPassou } from './regras'
 import {
   LOCAL_NOVO,
   proximoSabado,
@@ -110,7 +113,7 @@ function NovoEvento({
   const escolherModelo = modeloInicial === ESCOLHER_MODELO && pode('modelo', 'ler')
   const modelos = useModelos(comunidadeId, pode('modelo', 'ler'))
   const [modelo, setModelo] = useState(modeloInicial === ESCOLHER_MODELO ? '' : modeloInicial)
-  const [rascunho, setRascunho] = useState<RascunhoDoEvento>(() => {
+  const [rascunhoInicial] = useState<RascunhoDoEvento>(() => {
     const r = rascunhoVazio()
     if (modeloInicial !== 'sabado_padrao') return { ...r, data: dataInicial ?? '' }
     // Sábado padrão: já sugere o próximo sábado às 16h (tudo editável).
@@ -122,7 +125,14 @@ function NovoEvento({
       hora: '16:00',
     }
   })
+  const [rascunho, setRascunho] = useState<RascunhoDoEvento>(rascunhoInicial)
   const [regra, setRegra] = useState(regraVazia)
+  const trava = useTravaDeEnvio()
+  // Uma programação inteira montada e um "Fechar" por engano: pergunta antes de perder (A5).
+  const liberar = useConfirmarDescarte(
+    JSON.stringify(rascunho) !== JSON.stringify(rascunhoInicial) ||
+      JSON.stringify(regra) !== JSON.stringify(regraVazia()),
+  )
   const [erros, setErros] = useState<ErrosDoRascunho>({})
   const [erroDoFim, setErroDoFim] = useState<string | null>(null)
 
@@ -201,13 +211,15 @@ function NovoEvento({
     },
     onSuccess: async (r) => {
       await invalidar()
+      liberar()
       if (r.tipo === 'serie')
         router.replace({ pathname: '/serie/[serieId]', params: { serieId: r.id } })
       else router.replace({ pathname: '/evento/[eventoId]', params: { eventoId: r.id } })
     },
+    onError: trava.soltar,
   })
 
-  function enviar(publicar: boolean) {
+  async function enviar(publicar: boolean) {
     const { erros: novos, dados } = validarRascunho(rascunho, {
       fuso,
       duracaoOpcional: !!modelo,
@@ -217,6 +229,17 @@ function NovoEvento({
     setErros(novos)
     focarPrimeiroErro(novos, refs)
     if (!dados || fimInvalido) return
+    if (publicar && dataJaPassou(dados.inicio)) {
+      const ok = await confirmar({
+        titulo: 'Esta data já passou',
+        mensagem:
+          'O início marcado é anterior a agora: confira o dia e o ano. Publicada, a programação aparece para todos da comunidade.',
+        confirmar: 'Publicar mesmo assim',
+      })
+      if (!ok) return
+    }
+    // Uma programação por envio: o segundo toque, antes da resposta, não cria outra.
+    if (!trava.pegar()) return
     salvar.mutate({ dados, publicar })
   }
 
@@ -241,7 +264,7 @@ function NovoEvento({
             }
             carregando={salvar.isPending && !salvar.variables?.publicar}
             desabilitado={salvar.isPending}
-            aoPressionar={() => enviar(false)}
+            aoPressionar={() => void enviar(false)}
           />
           <Botao
             titulo="Publicar"
@@ -253,7 +276,7 @@ function NovoEvento({
             }
             carregando={salvar.isPending && !!salvar.variables?.publicar}
             desabilitado={salvar.isPending}
-            aoPressionar={() => enviar(true)}
+            aoPressionar={() => void enviar(true)}
           />
         </BarraDeAcao>
       }

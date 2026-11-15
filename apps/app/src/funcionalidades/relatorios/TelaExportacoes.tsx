@@ -253,7 +253,7 @@ function LinhaDaExportacao({
           <Chip texto={NOME_DA_EXPORTACAO[e.tipo]} tom="neutro" />
           {e.comContatos ? <Chip texto="Com contatos" tom="alerta" /> : null}
         </View>
-        <Texto variante="legenda" cor="textoSuave">
+        <Texto variante="meta" cor="textoSuave">
           {[
             `${e.linhas} ${e.linhas === 1 ? 'linha' : 'linhas'}`,
             e.filtros.de && e.filtros.ate

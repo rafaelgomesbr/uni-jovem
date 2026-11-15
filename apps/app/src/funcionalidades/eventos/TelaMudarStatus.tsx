@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { ESPACO } from '@uj/tokens'
-import { router, useLocalSearchParams } from 'expo-router'
+import { useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 import { View } from 'react-native'
 
@@ -19,6 +19,7 @@ import { Tela } from '@/ui/Tela'
 import { mostrarToast } from '@/ui/Toast'
 import { instanteDeDataEHora, lerDataDigitada, lerHoraDigitada } from '@/utilidades/datas'
 import { parametro } from '@/utilidades/parametros'
+import { voltarOu } from '@/ui/navegacao'
 
 import { usePode } from '../comunidade/permissoes'
 import { SemComunidade } from '../navegacao/SemComunidade'
@@ -67,7 +68,9 @@ export function TelaMudarStatus() {
     onSuccess: async () => {
       await invalidar(eventoId ?? undefined)
       mostrarToast({ texto: acao === 'adiar' ? 'Evento adiado.' : 'Evento cancelado.' })
-      router.back()
+      voltarOu(
+        eventoId ? { pathname: '/evento/[eventoId]', params: { eventoId } } : '/programacoes',
+      )
     },
   })
 

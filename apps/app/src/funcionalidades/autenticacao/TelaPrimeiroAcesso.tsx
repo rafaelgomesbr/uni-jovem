@@ -137,7 +137,7 @@ export function TelaPrimeiroAcesso() {
       titulo={titulos[atual]}
       {...(atual === 1
         ? {
-            descricao: `Você vai criar a conta de quem administra a plataforma ${NOME_DO_APP}. Ela exige verificação em duas etapas.`,
+            descricao: `Você vai criar a conta de quem administra a plataforma ${NOME_DO_APP}. Ela exige o código extra ao entrar (verificação em duas etapas).`,
           }
         : {})}
       barraDeAcao={barra}

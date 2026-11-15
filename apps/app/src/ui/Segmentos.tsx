@@ -34,13 +34,14 @@ const PADDING_DO_TRILHO = ESPACO.e4
 const INTERVALO = ESPACO.e4
 
 /**
- * Tipo e padding do segmento. Com 4 opções, ou quando o rótulo não cabe no
- * normal, o compacto: `rotulo` (13) e padding de 4. Em 360 pt, 4 segmentos
- * iguais deixam 59 para o texto, e "Preparação" no `botao` pede 83.
+ * Tipo e padding do segmento. Quando o rótulo não cabe no normal, o
+ * compacto: 13 (a `legenda`, com o peso do segmento) e padding de 4. Em 360
+ * pt, 4 segmentos iguais deixam 59 para o texto, e "Preparação" no `botao`
+ * pede 83.
  */
 const NIVEIS = {
   normal: { variante: 'botao', padding: ESPACO.e8 },
-  compacto: { variante: 'rotulo', padding: ESPACO.e4 },
+  compacto: { variante: 'legenda', padding: ESPACO.e4 },
 } as const
 
 type Nivel = keyof typeof NIVEIS
@@ -53,6 +54,12 @@ export interface Disposicao {
    * não cabe na largura igual, mas a soma de todos cabe no trilho.
    */
   proporcional: boolean
+  /**
+   * Quatro opções em duas linhas de duas, de largura igual: quando nem o
+   * compacto cabe numa linha só. Melhor que pílulas roláveis, em que a opção
+   * da direita só se alcança por gesto (auditoria U-18).
+   */
+  grade?: true
 }
 
 /**
@@ -68,28 +75,41 @@ export function larguraEstimada(rotulo: string, tamanho: number): number {
   return em * tamanho
 }
 
+function larguras(rotulos: readonly string[], nivel: Nivel, escala: number): number[] {
+  const { variante, padding } = NIVEIS[nivel]
+  const papel = TIPO[variante]
+  const tamanho = papel.tamanho * Math.min(escala, papel.teto ?? escala)
+  return rotulos.map((r) => larguraEstimada(r, tamanho) + 2 * padding)
+}
+
 /**
  * Como os rótulos cabem num trilho desta largura, sem cortar nenhum: iguais,
  * depois proporcionais, no normal e depois no compacto (com 4 opções, só no
- * compacto). `null`: nem assim; vira pílulas roláveis.
+ * compacto); com 4, ainda a grade de duas linhas. `null`: nem assim; vira
+ * pílulas roláveis. `soGrade`: com fonte grande, uma linha só não serve.
  */
 export function escolherDisposicao(
   rotulos: readonly string[],
   largura: number,
   escala = 1,
   borda = 0,
+  soGrade = false,
 ): Disposicao | null {
   const n = rotulos.length
   if (n === 0) return { nivel: 'normal', proporcional: false }
   const util = largura - 2 * (PADDING_DO_TRILHO + borda) - (n - 1) * INTERVALO
-  const niveis: readonly Nivel[] = n >= 4 ? ['compacto'] : ['normal', 'compacto']
+  const niveis: readonly Nivel[] = soGrade ? [] : n >= 4 ? ['compacto'] : ['normal', 'compacto']
   for (const nivel of niveis) {
-    const { variante, padding } = NIVEIS[nivel]
-    const papel = TIPO[variante]
-    const tamanho = papel.tamanho * Math.min(escala, papel.teto ?? escala)
-    const larguras = rotulos.map((r) => larguraEstimada(r, tamanho) + 2 * padding)
-    if (Math.max(...larguras) * n <= util) return { nivel, proporcional: false }
-    if (larguras.reduce((a, b) => a + b, 0) <= util) return { nivel, proporcional: true }
+    const medidas = larguras(rotulos, nivel, escala)
+    if (Math.max(...medidas) * n <= util) return { nivel, proporcional: false }
+    if (medidas.reduce((a, b) => a + b, 0) <= util) return { nivel, proporcional: true }
+  }
+  if (n !== 4) return null
+  const celula = (largura - 2 * (PADDING_DO_TRILHO + borda) - INTERVALO) / 2
+  for (const nivel of ['normal', 'compacto'] as const) {
+    if (Math.max(...larguras(rotulos, nivel, escala)) <= celula) {
+      return { nivel, proporcional: false, grade: true }
+    }
   }
   return null
 }
@@ -117,15 +137,14 @@ export function Segmentos<T extends string>({
   const larguraDoTrilho =
     largura ?? Math.min(width - 2 * RITMO.margemDaTela, LARGURA_MAXIMA_DO_CONTEUDO)
   const borda = aumentarContraste ? 2 : 0
-  const disposicao =
-    fontScale >= 1.35
-      ? null
-      : escolherDisposicao(
-          segmentos.map((s) => s.rotulo),
-          larguraDoTrilho,
-          fontScale,
-          borda,
-        )
+  // Com fonte grande, o trilho de uma linha não comporta o texto: só a grade (ou as pílulas).
+  const disposicao = escolherDisposicao(
+    segmentos.map((s) => s.rotulo),
+    larguraDoTrilho,
+    fontScale,
+    borda,
+    fontScale >= 1.35,
+  )
 
   const conteudo =
     disposicao === null ? (
@@ -143,6 +162,7 @@ export function Segmentos<T extends string>({
         aria-label={rotulo}
         style={{
           flexDirection: 'row',
+          flexWrap: disposicao.grade ? 'wrap' : 'nowrap',
           alignSelf: 'stretch',
           minHeight: ALTURA.iconeSo,
           padding: PADDING_DO_TRILHO,
@@ -156,9 +176,12 @@ export function Segmentos<T extends string>({
         {segmentos.map((s) => {
           const marcado = s.valor === valor
           const { variante, padding } = NIVEIS[disposicao.nivel]
-          const medida: ViewStyle = disposicao.proporcional
-            ? { flexGrow: 1, flexShrink: 1, flexBasis: 'auto' }
-            : { flex: 1 }
+          // Na grade, 45% mais o intervalo: duas por linha, a sobra dividida igual.
+          const medida: ViewStyle = disposicao.grade
+            ? { flexGrow: 1, flexBasis: '45%' }
+            : disposicao.proporcional
+              ? { flexGrow: 1, flexShrink: 1, flexBasis: 'auto' }
+              : { flex: 1 }
           return (
             <Pressable
               key={s.valor}

@@ -8,8 +8,15 @@ import { BASE, FUSO, renderizarTela } from '@/testes/telas'
 import { TelaProgramacoes } from '../TelaProgramacoes'
 
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), setParams: jest.fn() },
+  router: {
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    canGoBack: jest.fn(() => true),
+    setParams: jest.fn(),
+  },
   useLocalSearchParams: jest.fn(() => ({})),
+  usePreventRemove: jest.fn(() => jest.fn()),
 }))
 
 function resumo(parcial: Partial<ResumoDoEvento>): ResumoDoEvento {
@@ -72,12 +79,15 @@ describe('programas', () => {
     expect(await screen.findByText('1 programação')).toBeOnTheScreen()
   })
 
-  test('organizador cria pelo "+": a folha oferece Sábado padrão, Em branco e modelo', async () => {
+  test('organizador cria por "Nova" (escrito): a folha oferece Sábado padrão, Em branco e modelo', async () => {
     await renderizarTela(<TelaProgramacoes />, {
       rotas: { [`GET ${BASE}/eventos`]: () => ({ status: 200, corpo: { eventos: EVENTOS } }) },
     })
     const usuario = userEvent.setup()
-    await usuario.press(await screen.findByRole('button', { name: 'Nova programação' }))
+    const nova = await screen.findByRole('button', { name: 'Nova programação' })
+    // O texto à vista, não só um "+".
+    expect(nova).toHaveTextContent('Nova')
+    await usuario.press(nova)
     expect(await screen.findByRole('button', { name: /^Sábado padrão/ })).toBeOnTheScreen()
     expect(screen.getByRole('button', { name: /^A partir de um modelo/ })).toBeOnTheScreen()
     await usuario.press(screen.getByRole('button', { name: /^Em branco/ }))

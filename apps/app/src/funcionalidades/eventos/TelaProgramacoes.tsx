@@ -5,13 +5,12 @@ import { View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
 import type { ResumoDoEvento } from '@/servicos/contratoDosEventos'
-import { BotaoIcone } from '@/ui/Botao'
+import { Botao } from '@/ui/Botao'
 import { CampoDeBusca } from '@/ui/Campo'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
 import { ErroDaTela } from '@/ui/Falha'
-import { MenuDeAcoes } from '@/ui/FolhaNaTela'
 import { LayoutDividido, useLayoutLargo } from '@/ui/LayoutDividido'
 import { Lista } from '@/ui/LinhaDeLista'
 import { LinhaDePilulas, PilulasDeFiltro } from '@/ui/PilulasDeFiltro'
@@ -32,6 +31,7 @@ import { SemComunidade } from '../navegacao/SemComunidade'
 import { TelaDoApp } from '../navegacao/TelaDoApp'
 import { useEventosNoPeriodo } from './consultas'
 import { DetalheDoEvento } from './DetalheDoEvento'
+import { FolhaNovaProgramacao } from './FolhaNovaProgramacao'
 import { linhaDoEventoNaLista } from './LinhaDoEvento'
 
 export type Periodo = 'proximos' | 'passados'
@@ -213,58 +213,31 @@ function Programacoes({ comunidadeId }: { comunidadeId: string }) {
           ))}
         </>
       )}
-      <MenuDeAcoes
-        aberto={novaAberta}
-        titulo="Nova programação"
-        aoFechar={() => setNovaAberta(false)}
-        acoes={[
-          {
-            titulo: 'Sábado padrão',
-            icone: 'modelo',
-            descricao: 'As etapas de sempre, todas editáveis',
-            chip: 'Recomendado',
-            navega: true,
-            aoPressionar: novoSabado,
-          },
-          {
-            titulo: 'Em branco',
-            icone: 'adicionar',
-            descricao: 'Você monta as etapas depois',
-            navega: true,
-            aoPressionar: () => router.push('/evento/novo'),
-          },
-          pode('modelo', 'ler') && {
-            titulo: 'A partir de um modelo',
-            icone: 'duplicar',
-            descricao: 'Os modelos da comunidade e os do app',
-            navega: true,
-            aoPressionar: () =>
-              router.push({ pathname: '/evento/novo', params: { modelo: 'escolher' } }),
-          },
-        ]}
-      />
+      <FolhaNovaProgramacao aberta={novaAberta} aoFechar={() => setNovaAberta(false)} />
     </>
   )
 
+  // Criar é a ação principal desta aba: "Nova" escrito, não só um "+" (auditoria U-06).
   const mais = podeCriar ? (
-    <BotaoIcone
+    <Botao
+      titulo="Nova"
       icone="adicionar"
-      rotulo="Nova programação"
-      circular
+      variante="secundario"
+      rotuloAcessivel="Nova programação"
       aoPressionar={() => setNovaAberta(true)}
     />
   ) : undefined
 
   if (!largo) {
     return (
-      <TelaDoApp titulo="Programas" {...(mais ? { acaoDoTitulo: mais } : {})}>
+      <TelaDoApp titulo="Programas" {...(mais ? { acaoComTexto: mais } : {})}>
         {lista}
       </TelaDoApp>
     )
   }
 
   return (
-    <TelaDoApp titulo="Programas" rolar={false} larga {...(mais ? { acaoDoTitulo: mais } : {})}>
+    <TelaDoApp titulo="Programas" rolar={false} larga {...(mais ? { acaoComTexto: mais } : {})}>
       <LayoutDividido
         rotuloDoDetalhe="Programação escolhida"
         lista={lista}

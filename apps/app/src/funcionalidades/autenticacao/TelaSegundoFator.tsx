@@ -43,7 +43,7 @@ export function TelaSegundoFator() {
     <Tela
       pilha
       aurora={1}
-      titulo="Verificação em duas etapas"
+      titulo="Código extra ao entrar"
       descricao={
         recuperacao
           ? 'Digite um dos códigos de recuperação que você guardou. Cada código vale uma vez.'

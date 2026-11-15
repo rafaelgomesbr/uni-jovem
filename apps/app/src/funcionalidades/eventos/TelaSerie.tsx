@@ -37,6 +37,7 @@ import {
   type DataLocal,
 } from '@/utilidades/datas'
 import { parametro } from '@/utilidades/parametros'
+import { voltarOu } from '@/ui/navegacao'
 
 import { usePode } from '../comunidade/permissoes'
 import { SemComunidade } from '../navegacao/SemComunidade'
@@ -122,7 +123,7 @@ function Serie({ serie, comunidadeId }: { serie: DetalheDaSerie; comunidadeId: s
             ? 'Série excluída com o rascunho dela.'
             : `Série excluída com os ${r.apagados} rascunhos dela.`,
       })
-      router.back()
+      voltarOu('/programacoes')
     },
   })
 
@@ -183,7 +184,7 @@ function Serie({ serie, comunidadeId }: { serie: DetalheDaSerie; comunidadeId: s
             }
           : {})}
       >
-        <Texto variante="legenda" cor="textoSuave">
+        <Texto variante="meta" cor="textoSuave">
           {`Desde ${formatarDataLocal(serie.inicio_em)}${serie.fim_em ? ` até ${formatarDataLocal(serie.fim_em)}` : ', sem data para acabar'}. As datas são criadas com 6 meses de antecedência.`}
         </Texto>
       </CartaoDeVidro>
@@ -440,7 +441,7 @@ function EncerrarSerie({
       await invalidar()
       mostrarToast({ texto: resumoDoEncerramento(r) })
       aoFechar()
-      router.back()
+      voltarOu('/programacoes')
     },
   })
 

@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { NOME_DO_PAPEL, PAPEIS, podeConcederPapel, type Papel } from '@uj/dominio'
 import { ESPACO } from '@uj/tokens'
-import { router, useLocalSearchParams } from 'expo-router'
+import { useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 import { View } from 'react-native'
 
@@ -29,6 +29,7 @@ import { mostrarToast } from '@/ui/Toast'
 import { abrirLink, copiarTexto } from '@/utilidades/compartilhar'
 import { confirmar } from '@/utilidades/confirmar'
 import { formatarData } from '@/utilidades/formatos'
+import { voltarOu } from '@/ui/navegacao'
 
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { fotoDoMembro } from '../perfil/imagens'
@@ -78,7 +79,7 @@ export function TelaMembro() {
           icone="comunidade"
           titulo="Pessoa não encontrada"
           descricao="Ela pode ter saído da comunidade."
-          acao={{ titulo: 'Voltar para a Equipe', aoPressionar: () => router.back() }}
+          acao={{ titulo: 'Voltar para a Equipe', aoPressionar: () => voltarOu('/comunidade') }}
         />
       </Tela>
     )

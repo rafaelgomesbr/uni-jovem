@@ -7,8 +7,15 @@ import { HospedeiroDeToast } from '@/ui/Toast'
 import { AoVivo } from '../TelaAoVivo'
 
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), setParams: jest.fn() },
+  router: {
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    canGoBack: jest.fn(() => true),
+    setParams: jest.fn(),
+  },
   useLocalSearchParams: jest.fn(() => ({})),
+  usePreventRemove: jest.fn(() => jest.fn()),
 }))
 
 const CAMINHO = `${BASE}/eventos/${EVENTO_ID}/ao-vivo`
@@ -68,6 +75,9 @@ describe('ao vivo', () => {
         versao: 3,
       }),
     )
+    // Os controles de símbolo trazem o nome escrito embaixo, não só o ícone.
+    expect(screen.getByRole('button', { name: 'Voltar etapa' })).toHaveTextContent('Voltar etapa')
+    expect(screen.getByRole('button', { name: 'Pausar' })).toHaveTextContent('Pausar')
   })
 
   test('409: a tela troca para o estado atual e avisa num toast', async () => {

@@ -121,10 +121,10 @@ export function CaixaDeMarcar({
               marginTop: ESPACO.e6,
             }}
           >
-            <View style={{ height: 18, justifyContent: 'center' }}>
+            <View style={{ height: 20, justifyContent: 'center' }}>
               <Icone nome="erroDeCampo" cor={cores.erro} tamanho={16} />
             </View>
-            <Texto variante="legenda" peso="forte" cor={corDoErro} style={{ flex: 1 }}>
+            <Texto variante="meta" peso="forte" cor={corDoErro} style={{ flex: 1 }}>
               {erro}
             </Texto>
           </View>

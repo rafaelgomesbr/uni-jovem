@@ -36,6 +36,7 @@ import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
 import { mostrarToast } from '@/ui/Toast'
+import { voltarOu } from '@/ui/navegacao'
 
 import { fotoDaConta } from './imagens'
 
@@ -80,7 +81,7 @@ function EscolhaDoAvatar({ conta }: { conta: Conta }) {
     onSuccess: async () => {
       await consultas.invalidateQueries({ queryKey: CHAVES.eu })
       mostrarToast({ texto: 'Avatar salvo' })
-      if (router.canGoBack()) router.back()
+      voltarOu('/perfil')
     },
   })
 
@@ -94,7 +95,7 @@ function EscolhaDoAvatar({ conta }: { conta: Conta }) {
             titulo="Cancelar"
             variante="secundario"
             tamanho="grande"
-            aoPressionar={() => (router.canGoBack() ? router.back() : router.replace('/perfil'))}
+            aoPressionar={() => voltarOu('/perfil')}
           />
           <Botao
             titulo="Salvar avatar"

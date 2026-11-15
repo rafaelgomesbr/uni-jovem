@@ -18,6 +18,7 @@ import { TextoAnunciado } from '@/ui/TextoAnunciado'
 import { useFusoDaComunidade } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
 import { useEventosNoPeriodo } from '../eventos/consultas'
+import { FolhaNovaProgramacao } from '../eventos/FolhaNovaProgramacao'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { TelaDoApp } from '../navegacao/TelaDoApp'
 import {
@@ -157,9 +158,20 @@ function Agenda({ comunidadeId }: { comunidadeId: string }) {
       </View>
     ) : null
 
+  // Atalho fixo para as escalas: quem pensa em calendário procura aqui (U-03).
+  const escalas = (
+    <Botao
+      titulo="Minhas escalas"
+      icone="escalas"
+      variante="secundario"
+      dica="Onde você serve e os dias em que não pode."
+      aoPressionar={() => router.push('/escalas')}
+    />
+  )
+
   if (largo && modo !== 'lista') {
     return (
-      <TelaDoApp titulo="Agenda" rolar={false} larga>
+      <TelaDoApp titulo="Agenda" rolar={false} larga acaoComTexto={escalas}>
         <LayoutDividido
           rotuloDoDetalhe="Dia escolhido"
           lista={
@@ -175,7 +187,7 @@ function Agenda({ comunidadeId }: { comunidadeId: string }) {
   }
 
   return (
-    <TelaDoApp titulo="Agenda">
+    <TelaDoApp titulo="Agenda" acaoComTexto={escalas}>
       {controles}
       {grade}
       {painelDoDia}
@@ -270,27 +282,37 @@ function VistaDeLista({
   podeCriar: boolean
   aoAvancar: () => void
 }) {
+  const [folhaAberta, setFolhaAberta] = useState(false)
   const dias = [...porDia.keys()].sort()
   if (dias.length === 0) {
     return (
-      <EstadoVazio
-        icone="agenda"
-        titulo="Nada marcado neste período"
-        descricao={
-          podeCriar
-            ? 'Crie a próxima programação para ela aparecer aqui.'
-            : 'Quando a organização marcar algo, aparece aqui. Veja também os dias seguintes.'
-        }
-        acao={
-          podeCriar
-            ? {
-                titulo: 'Nova programação',
-                icone: 'adicionar',
-                aoPressionar: () => router.push('/evento/novo'),
-              }
-            : { titulo: 'Ver o período seguinte', variante: 'secundario', aoPressionar: aoAvancar }
-        }
-      />
+      <>
+        <EstadoVazio
+          icone="agenda"
+          titulo="Nada marcado neste período"
+          descricao={
+            podeCriar
+              ? 'Crie a próxima programação para ela aparecer aqui.'
+              : 'Quando a organização marcar algo, aparece aqui. Veja também os dias seguintes.'
+          }
+          acao={
+            podeCriar
+              ? {
+                  titulo: 'Nova programação',
+                  icone: 'adicionar',
+                  aoPressionar: () => setFolhaAberta(true),
+                }
+              : {
+                  titulo: 'Ver o período seguinte',
+                  variante: 'secundario',
+                  aoPressionar: aoAvancar,
+                }
+          }
+        />
+        {podeCriar ? (
+          <FolhaNovaProgramacao aberta={folhaAberta} aoFechar={() => setFolhaAberta(false)} />
+        ) : null}
+      </>
     )
   }
   return (
