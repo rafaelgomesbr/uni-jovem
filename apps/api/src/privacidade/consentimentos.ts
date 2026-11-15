@@ -8,7 +8,9 @@ import { NOME_DO_APP } from '@uj/dominio'
 export const VERSAO_DO_TEXTO = {
   'TC-01': 1,
   'TC-02': 1,
-  'TC-03': 1,
+  // v2 (15/11/2026): o caminho para desfazer passou a ser a aba Equipe, onde
+  // fica o "Sair de {comunidade}" (a v1 dizia Perfil).
+  'TC-03': 2,
   'TC-04': 1,
 } as const
 

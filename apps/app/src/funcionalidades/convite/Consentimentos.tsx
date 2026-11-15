@@ -130,8 +130,8 @@ export function ConsentimentoDeFe({
         />
       ) : null}
       <Texto variante="legenda" cor="textoSuave">
-        Você pode desfazer isso quando quiser: em Perfil, Sair da comunidade, ou excluindo sua
-        conta.
+        Você pode desfazer isso quando quiser: na aba Equipe, em Sair de {comunidade}, ou excluindo
+        sua conta.
       </Texto>
       <Botao
         titulo="Saiba mais sobre a fé e seus dados"

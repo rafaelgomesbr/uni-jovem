@@ -1,10 +1,13 @@
 /**
  * Tarefas diárias do servidor, com o papel DONO do banco (job sem usuário):
- *   1. retenção (uj.executar_retencao): inscrições e presenças avulsas
+ *   1. retenção (uj.executar_retencao): comunidades com a carência de 30 dias
+ *      vencida apagadas (a auditoria fica sem identificação), vínculos
+ *      desativados há 12 meses virando remoção, expurgo de 2 anos da auditoria
+ *      e dos consentimentos revogados, inscrições e presenças avulsas
  *      vencidas anonimizadas, exportações vencidas, sessões, links e códigos
  *      expirados, e-mail de convites encerrados, cotas, disponibilidades
- *      antigas, notificações, idempotência offline e remoções de vínculo
- *      vencidas (efeito do art. 16);
+ *      antigas, notificações, idempotência offline, remoções de vínculo
+ *      vencidas (efeito do art. 16) e bloqueios órfãos;
  *   2. materialização das séries recorrentes (materializarTodas);
  *   3. poda do log de mudanças com mais de 90 dias, só abaixo da marca
  *      d'água (o cursor nunca perde linha que ainda não viu).

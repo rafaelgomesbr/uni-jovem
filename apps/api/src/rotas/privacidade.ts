@@ -34,6 +34,7 @@ const LEIA_ME = [
   'escalas, substituicoes, disponibilidades, inscricoes, presencas: sua participação.',
   'pedidosDeOracao: seus pedidos, com o texto decifrado. De quem orou, só a contagem.',
   'sugestoes, avisos, notasInternas, denuncias: o que você escreveu.',
+  'bloqueios: em que comunidade e quando você bloqueou alguém (sem dados da outra pessoa).',
   'sessoes, aparelhosDeNotificacao, auditoria: aparelhos conectados e registro das suas ações.',
   'Guarde este arquivo com cuidado: ele contém seus pedidos de oração sem cifragem.',
 ]
@@ -89,6 +90,15 @@ export function registrarRotasDePrivacidade(
               foto.conteudo.toString('base64')
           }
         }
+        // Bloqueios que a pessoa fez (D35): a decisão é dela; de quem foi
+        // bloqueado, nada (nem nome nem id), como no resto do arquivo.
+        tudo['bloqueios'] = (
+          await c.query(
+            `select comunidade_id as "comunidadeId", criado_em as "bloqueadoEm"
+               from uj.bloqueios where conta_id = $1 order by criado_em`,
+            [contaId],
+          )
+        ).rows
         return tudo
       } catch (e) {
         traduzirErroDoBanco(e)

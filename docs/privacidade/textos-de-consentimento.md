@@ -1,6 +1,6 @@
 # Textos de consentimento e avisos de tela
 
-> **Em uso em produção, com revisão jurídica pendente (PH-11).** Versão 0.2 deste arquivo, de 15/11/2026, conferida contra o código na mesma data. Os textos TC-01 a TC-04 vigentes são a versão 1 (`VERSAO_DO_TEXTO` em `apps/api/src/privacidade/consentimentos.ts`).
+> **Em uso em produção, com revisão jurídica pendente (PH-11).** Versão 0.2 deste arquivo, de 15/11/2026, conferida contra o código na mesma data. Versões vigentes (`VERSAO_DO_TEXTO` em `apps/api/src/privacidade/consentimentos.ts`): TC-01, TC-02 e TC-04 na versão 1; TC-03 na versão 2 (15/11/2026).
 > Textos curtos que aparecem nas telas do app e nas páginas públicas. Cada um tem um identificador com versão (`TC-nn.vN`). Mudou o texto de um consentimento, muda a versão (aqui e em `VERSAO_DO_TEXTO`), e quem aceitou a versão anterior continua registrado com ela.
 
 ## Regras que valem para todos
@@ -51,7 +51,7 @@ O convite **não** é consumido (pode ser usado por outra pessoa a quem a lidera
 
 ---
 
-## TC-03.v1: Consentimento sobre a fé, ao entrar numa comunidade
+## TC-03.v2: Consentimento sobre a fé, ao entrar numa comunidade
 
 **Onde aparece:**
 
@@ -67,7 +67,7 @@ O convite **não** é consumido (pode ser usado por outra pessoa a quem a lidera
 >
 > [ ] Concordo que a _{nome da comunidade}_ e o Uni Jovem tratem meus dados para organizar a minha participação nesta comunidade: eventos, escalas, presença, avisos, sugestões e pedidos de oração. Sei que nome e papel ficam visíveis para os membros desta comunidade, e meu e-mail e WhatsApp só para organizadores e administradores.
 >
-> Você pode desfazer isso quando quiser: em **Perfil > Sair da comunidade**, ou excluindo sua conta. [Saiba mais](/privacidade#fe)
+> Você pode desfazer isso quando quiser: na aba **Equipe**, em **Sair de _{nome da comunidade}_**, ou excluindo sua conta. [Saiba mais](/privacidade#fe)
 
 **Texto adicional, só para quem declarou 16 ou 17 anos:**
 
@@ -77,7 +77,9 @@ O convite **não** é consumido (pode ser usado por outra pessoa a quem a lidera
 
 > Sem essa concordância não conseguimos incluir você na comunidade, porque o app usa esses dados para funcionar. Se mudar de ideia, o mesmo convite continua valendo até {data}.
 
-**O que é registrado:** conta, comunidade, vínculo, `TC-03.v1`, data, forma; para 16 e 17 anos, também a confirmação da ciência do responsável.
+**O que é registrado:** conta, comunidade, vínculo, `TC-03.v2`, data, forma; para 16 e 17 anos, também a confirmação da ciência do responsável.
+
+**Histórico:** a v1 (até 15/11/2026) dizia "em Perfil > Sair da comunidade", mas o botão de sair fica na aba Equipe. Só a frase de como desfazer mudou; o que a pessoa autoriza é o mesmo. Quem aceitou a v1 continua registrado com ela.
 
 **Revogação:** sair da comunidade revoga este consentimento para aquela comunidade (ver `exclusao-de-conta.md`, caso 2).
 
@@ -194,11 +196,13 @@ Não é consentimento (não há tratamento de dado pessoal). A notificação loc
 
 ---
 
-## TC-11.v1: Câmera
+## TC-11.v2: Câmera e galeria
 
-**Onde aparece:** texto do sistema ao pedir a câmera, na primeira vez que alguém toca em "Ler QR Code". Já está em `apps/app/app.config.ts`:
+**Onde aparece:** texto do sistema ao pedir a câmera (na primeira vez que alguém toca em "Ler QR Code" ou em "Tirar foto") e a galeria (em "Escolher da galeria"). Está em `apps/app/app.config.ts` desde 15/11/2026, quando a foto de perfil e o logotipo (D33) passaram a usar a câmera e a galeria:
 
-> A câmera é usada só para ler o QR Code de presença na entrada de um evento. Nenhuma foto é tirada nem guardada.
+> A câmera lê o QR Code de presença na entrada de um evento e, quando você escolhe, tira a sua foto de perfil ou o logotipo da sua comunidade. Só a foto que você confirmar é enviada, recortada e sem a localização.
+
+> A galeria é usada quando você escolhe uma foto de perfil ou o logotipo da sua comunidade. Só a imagem escolhida é enviada, recortada e sem a localização.
 
 **Se recusar:** o check-in continua pela busca por nome com o botão "Marcar presença".
 
@@ -243,6 +247,26 @@ Não é consentimento (não há tratamento de dado pessoal). A notificação loc
 
 > Vamos gerar um arquivo com os seus dados: conta, comunidades, escalas, inscrições, presenças, seus pedidos de oração e suas sugestões. Só você pode gerar o seu. Guarde-o com cuidado: ele contém seus pedidos de oração sem cifragem.
 > [Gerar arquivo]
+
+---
+
+## TC-15.v1: Bloquear esta pessoa
+
+**Onde aparece:** junto do **Denunciar**, num pedido de oração, numa sugestão com nome ou num aviso (`apps/app/src/funcionalidades/denuncias/BotaoDenunciar.tsx`). A lista e o desbloqueio ficam em **Perfil > Pessoas bloqueadas** (rota `/bloqueados`). Não é consentimento: é um aviso de tela, sem versão registrada.
+
+> **Bloquear esta pessoa?**
+> Você deixa de ver os pedidos de oração e as sugestões desta pessoa, só nesta comunidade. Ela não é avisada, continua na comunidade e nada muda no papel de ninguém. Avisos e programação continuam aparecendo. Para desfazer: Perfil, Pessoas bloqueadas.
+> [Cancelar] [Bloquear]
+
+Depois: "Pessoa bloqueada. Ela não é avisada." [Desfazer]
+
+**Sugestão anônima:** não dá para bloquear (a tela da sugestão pode esconder a opção com `podeBloquear={false}`). A API recusa e a tela mostra: "Esta sugestão é anônima: não dá para saber quem escreveu, então não dá para bloquear. Se ela tiver um problema, use "Denunciar"."
+
+**Desbloquear:**
+
+> **Desbloquear {nome}?**
+> Os pedidos de oração e as sugestões dessa pessoa voltam a aparecer para você nesta comunidade. Ela não é avisada.
+> [Cancelar] [Desbloquear]
 
 ---
 

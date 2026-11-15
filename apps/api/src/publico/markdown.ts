@@ -84,9 +84,15 @@ function celulas(linha: string): string[] {
     .map((c) => c.trim())
 }
 
-/** Âncoras extras citadas pelos textos de consentimento (/privacidade#fe, #inscricao). */
+/**
+ * Âncoras extras citadas pelos textos de consentimento e pelo app
+ * (/privacidade#fe, #inscricao e #oracao, esta na tela de novo pedido de
+ * oração). A seção 4 da Política, "Dado sensível: sua fé (e o que você
+ * escreve na oração)", recebe #fe e #oracao.
+ */
 const APELIDOS: [RegExp, string][] = [
   [/sua-fe/, 'fe'],
+  [/escreve-na-oracao/, 'oracao'],
   [/inscricao-publica/, 'inscricao'],
 ]
 

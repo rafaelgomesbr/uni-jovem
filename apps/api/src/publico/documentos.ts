@@ -48,7 +48,7 @@ export function pacotesAndroid(ambiente: Ambiente): string[] {
 const AVISO_DE_RASCUNHO = html`<div class="cartao aviso" role="note">
   <p>
     <strong>Rascunho em revisão jurídica.</strong> Este texto ainda pode mudar e não substitui a
-    versão final. Trechos entre colchetes ainda serão completados.
+    versão final.
   </p>
 </div>`
 

@@ -185,7 +185,7 @@ describe('consentimentos versionados e idade (TC-01 a TC-03)', () => {
       },
       {
         texto_id: 'TC-03',
-        versao: 1,
+        versao: 2,
         forma: 'android',
         faixa_etaria: null,
         confirmacao_adicional: true,
@@ -730,6 +730,10 @@ describe('páginas públicas de política e suporte', () => {
     const privacidade = await app.inject({ method: 'GET', url: '/privacidade' })
     expect(privacidade.body).toContain('id="fe"')
     expect(privacidade.body).toContain('id="inscricao"')
+    // O app (novo pedido de oração) aponta para /privacidade#oracao.
+    expect(privacidade.body).toContain('id="oracao"')
+    // O aviso de rascunho não fala mais em trechos a completar: não sobrou nenhum.
+    expect(privacidade.body).not.toContain('Trechos entre colchetes')
   })
 
   it('/suporte mostra o e-mail configurado e os caminhos', async () => {

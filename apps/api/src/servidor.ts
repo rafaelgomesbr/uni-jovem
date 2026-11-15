@@ -32,6 +32,7 @@ import { registrarRotasDeNotificacoes } from './rotas/notificacoes.ts'
 import { registrarRotasDePrivacidade } from './rotas/privacidade.ts'
 import { registrarRotasDeSincronizacao } from './rotas/sincronizacao.ts'
 import { registrarRotasDeImagens } from './rotas/imagens.ts'
+import { registrarRotasDeBloqueios } from './rotas/bloqueios.ts'
 import { registrarDocumentosPublicos } from './publico/documentos.ts'
 
 export interface Recursos {
@@ -217,6 +218,7 @@ export function criarServidor(
       })
       registrarRotasDeSincronizacao(app, recursos.api)
       registrarRotasDeImagens(app, recursos.api)
+      registrarRotasDeBloqueios(app, recursos.api)
       registrarDocumentosPublicos(app, { config })
       registrarPaginasPublicas(app, {
         config,

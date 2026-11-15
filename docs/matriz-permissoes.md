@@ -90,6 +90,9 @@ da plataforma, um atributo global e não um papel de comunidade. Tudo que não e
 | denuncia | criar | Membro ou acima |
 | denuncia | ler | Administrador ou acima |
 | denuncia | resolver | Administrador ou acima |
+| bloqueio | criar | Membro ou acima |
+| bloqueio | ler_proprios | Membro ou acima, só o próprio |
+| bloqueio | desfazer | Membro ou acima, só o próprio |
 | notificacao | configurar_proprias | Membro ou acima |
 | sincronizacao | ler_mudancas | Membro ou acima |
 | sincronizacao | enviar_operacoes | Membro ou acima |

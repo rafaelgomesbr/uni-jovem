@@ -59,9 +59,12 @@ interface LinhaDoPedido {
 }
 
 // Nomes saem de pessoas_da_comunidade (uj_api não lê `contas` de terceiros).
+// Quem a pessoa bloqueou (D35) some também da lista de quem está orando; o
+// pedido dela a RLS já esconde.
 const CONSULTA = `
   with pessoas as materialized (
-    select conta_id, nome from uj.pessoas_da_comunidade() where estado = 'ativo'
+    select conta_id, nome from uj.pessoas_da_comunidade()
+     where estado = 'ativo' and not (conta_id = any (uj.contas_bloqueadas_no_contexto()))
   )
   select p.id, p.autor_conta_id as "autorContaId", p.texto_cifrado as "textoCifrado",
          p.visibilidade, a.nome as "autorNome", p.respondido_em as "respondidoEm",

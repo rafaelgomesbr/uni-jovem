@@ -4,7 +4,13 @@ import { gerarToken, hmacDeToken } from '../../src/autenticacao/cripto.ts'
 import { carregarConfig } from '../../src/config.ts'
 import { correioDesligado } from '../../src/correio/correio.ts'
 import { criarServidor } from '../../src/servidor.ts'
-import { criarComunidade, novoBanco, vincular, type BancoDeTeste } from '../apoio/banco.ts'
+import {
+  criarComunidade,
+  criarConta,
+  novoBanco,
+  vincular,
+  type BancoDeTeste,
+} from '../apoio/banco.ts'
 import { envDeTeste } from '../apoio/config.ts'
 import { emBase64, imagem } from '../apoio/imagens.ts'
 import { pessoaComSessao, type Pessoa } from '../apoio/pessoas.ts'
@@ -229,6 +235,13 @@ const CASOS: Record<string, Record<string, unknown> | undefined> = {
   'PUT /api/v1/c/:comunidadeId/logo': { imagem: PNG_PEQUENO },
   'DELETE /api/v1/c/:comunidadeId/logo': undefined,
   'GET /api/v1/c/:comunidadeId/logo': undefined,
+  // D35: bloqueio individual
+  'POST /api/v1/c/:comunidadeId/bloqueios': {
+    recursoTipo: 'aviso',
+    recursoId: '00000000-0000-4000-8000-000000000000',
+  },
+  'GET /api/v1/c/:comunidadeId/bloqueios': undefined,
+  'DELETE /api/v1/c/:comunidadeId/bloqueios/:bloqueioId': undefined,
 }
 
 interface Rota {
@@ -393,6 +406,13 @@ beforeAll(async () => {
     "insert into uj.anexos (comunidade_id, evento_id, titulo, url, criado_por) values ($1, $2, 'Link de B', 'https://exemplo.test/b', $3) returning id",
     [comB, eventoId, adminB.id],
   )
+  // D35: a admin de B bloqueou uma pessoa de B.
+  const pessoaDeB = await criarConta(b, 'Pessoa de B')
+  idsDeB['vinculoDaPessoaDeB'] = await vincular(b, pessoaDeB, comB, 'membro')
+  idsDeB['bloqueioId'] = await um(
+    'insert into uj.bloqueios (comunidade_id, conta_id, bloqueada_conta_id) values ($1, $2, $3) returning id',
+    [comB, adminB.id, pessoaDeB],
+  )
 })
 
 afterAll(async () => {
@@ -458,6 +478,7 @@ async function estadoDeB() {
             (select count(*) from uj.sync_operacoes where comunidade_id = $1) as so,
             (select count(*) from uj.andamento_comandos where comunidade_id = $1) as ac,
             (select encode(hash, 'hex') from uj.logos_comunidades where comunidade_id = $1) as lg,
+            (select json_agg(row(conta_id, bloqueada_conta_id) order by id) from uj.bloqueios where comunidade_id = $1) as bl,
             (select json_agg(encode(f.hash, 'hex') order by f.conta_id) from uj.fotos_contas f
                join uj.vinculos v on v.conta_id = f.conta_id where v.comunidade_id = $1) as fo`,
     [comB],
@@ -632,6 +653,36 @@ describe('isolamento no corpo e nos filtros (F13, F14, F18)', () => {
       headers: adminA.auth,
     })
     expect(exportado.json().presencas).toEqual([])
+  })
+
+  it('bloquear em A quem escreveu em B (aviso, pedido, sugestão ou vínculo de B): 404, nada gravado', async () => {
+    const antes = await estadoDeB()
+    const bloqueiosDeA = async () =>
+      (await b.su.query('select 1 from uj.bloqueios where conta_id = $1', [adminA.id])).rows
+    for (const corpo of [
+      { recursoTipo: 'aviso', recursoId: idsDeB['avisoId'] },
+      { recursoTipo: 'pedido_oracao', recursoId: idsDeB['pedidoId'] },
+      { recursoTipo: 'sugestao', recursoId: idsDeB['sugestaoId'] },
+      { vinculoId: idsDeB['vinculoId'] },
+      { vinculoId: idsDeB['vinculoDaPessoaDeB'] },
+    ]) {
+      const r = await app.inject({
+        method: 'POST',
+        url: `/api/v1/c/${comA}/bloqueios`,
+        headers: adminA.auth,
+        payload: corpo,
+      })
+      expect(r.statusCode, JSON.stringify(corpo)).toBe(404)
+    }
+    expect(await bloqueiosDeA()).toEqual([])
+    // A lista de A nunca traz o bloqueio feito em B.
+    const lista = await app.inject({
+      method: 'GET',
+      url: `/api/v1/c/${comA}/bloqueios`,
+      headers: adminA.auth,
+    })
+    expect(lista.json()).toEqual({ bloqueios: [] })
+    expect(await estadoDeB()).toEqual(antes)
   })
 
   it('denunciar em A um aviso de B: 404, nada gravado', async () => {

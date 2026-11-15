@@ -169,6 +169,14 @@ export const MATRIZ = {
     ler: [papel('admin')],
     resolver: [papel('admin')],
   },
+  bloqueio: {
+    // Bloquear quem escreveu algo que a pessoa vê (Apple 1.2, D35): só esconde o
+    // conteúdo dessa pessoa para quem bloqueou. Ninguém vê os bloqueios de outra
+    // pessoa, nem administradores; quem foi bloqueado não fica sabendo.
+    criar: [papel('membro')],
+    ler_proprios: [proprio('membro')],
+    desfazer: [proprio('membro')],
+  },
   notificacao: {
     // Preferências e lista das PRÓPRIAS notificações nesta comunidade.
     configurar_proprias: [papel('membro')],

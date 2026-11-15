@@ -180,6 +180,8 @@ export const ESCRITAS_POR_HORA = {
   sincronizacao: 120,
   // Foto de perfil e logotipo: cada envio decodifica e regrava uma imagem.
   imagens: 20,
+  // Bloquear e desbloquear pessoas (D35): uso normal é raro; o teto corta script.
+  bloqueios: 60,
 } as const
 
 /**

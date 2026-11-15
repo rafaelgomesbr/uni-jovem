@@ -43,6 +43,11 @@ describe('markdown das páginas de política', () => {
     expect(html).toContain('<blockquote><p>citação</p></blockquote>')
   })
 
+  it('a seção da fé ganha as âncoras #fe e #oracao citadas pelo app', () => {
+    const html = markdownParaHtml('## 4. Dado sensível: sua fé (e o que você escreve na oração)')
+    expect(html).toContain('<span id="fe"></span><span id="oracao"></span><h3')
+  })
+
   it('tira notas para o advogado, notas de implementação e o anexo', () => {
     const texto = semNotasInternas(
       'Antes [REVISÃO JURÍDICA: ver [link](x) e mais] depois **[A IMPLEMENTAR]** fim [IMPLEMENTAÇÃO: algo].',

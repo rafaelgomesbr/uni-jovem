@@ -1,7 +1,7 @@
 # Exclusão de conta, saída, remoção e anonimização
 
-> Especificação de engenharia e de produto, versão 0.2, de 15/11/2026, conferida contra o código na mesma data (migrações `0012`, `0014`, `0015`, `0016` e `0018`, `apps/api/src/rotas/privacidade.ts`, `apps/api/src/autenticacao/servico.ts`, `apps/app/src`). Os textos voltados à pessoa estão em `textos-de-consentimento.md` (TC-12, TC-13). A página pública `/excluir-conta` sai da seção 10 deste arquivo (`apps/api/src/publico/documentos.ts`) e está no ar em produção, com revisão jurídica pendente (PH-11).
-> Estado em 15/11/2026. **Existem:** excluir conta (`POST /api/v1/eu/excluir-conta`, `uj.excluir_conta` com prova de reautenticação de uso único), sair da comunidade com o efeito do art. 16 na hora (`POST /api/v1/c/:comunidadeId/sair` e `uj.efeitos_da_saida`), efeito da remoção pelo administrador depois de 30 dias (job), exportar meus dados (`GET /api/v1/eu/exportar`), "cancelar e apagar agora" da inscrição pública (`uj.apagar_inscricao_publica`), retenção diária (`uj.executar_retencao`, contêiner `tarefas`) e a página `/excluir-conta`. **Ainda não existem** os itens marcados **[A IMPLEMENTAR]**.
+> Especificação de engenharia e de produto, versão 0.2, de 15/11/2026, conferida contra o código na mesma data (migrações `0012`, `0014`, `0015`, `0016`, `0018` e `0019`, `apps/api/src/rotas/privacidade.ts`, `apps/api/src/autenticacao/servico.ts`, `apps/app/src`). Os textos voltados à pessoa estão em `textos-de-consentimento.md` (TC-12, TC-13). A página pública `/excluir-conta` sai da seção 10 deste arquivo (`apps/api/src/publico/documentos.ts`) e está no ar em produção, com revisão jurídica pendente (PH-11).
+> Estado em 15/11/2026. **Existem:** excluir conta (`POST /api/v1/eu/excluir-conta`, `uj.excluir_conta` com prova de reautenticação de uso único), sair da comunidade com o efeito do art. 16 na hora (`POST /api/v1/c/:comunidadeId/sair` e `uj.efeitos_da_saida`), efeito da remoção pelo administrador depois de 30 dias (job), exportar meus dados (`GET /api/v1/eu/exportar`), "cancelar e apagar agora" da inscrição pública (`uj.apagar_inscricao_publica`), retenção diária (`uj.executar_retencao`, contêiner `tarefas`), que desde a 0019 também apaga a comunidade ao fim da carência, expurga a auditoria e os consentimentos revogados com mais de 2 anos e transforma em remoção a desativação de 12 meses, o comando do operador para excluir a conta de outra pessoa (`apps/api/src/cli/excluir-conta.ts`) e a página `/excluir-conta`. **Ainda não existem** os itens marcados **[A IMPLEMENTAR]**.
 
 ## 1. Os casos, lado a lado
 
@@ -10,12 +10,12 @@
 | 1. Excluir conta                         | A própria pessoa (app, web ou via `/excluir-conta`)              | **Não**                                                  | Sai de tudo, apaga dados pessoais, autoria vira "Pessoa removida"                                                                 |
 | 2. Sair de comunidade                    | A própria pessoa                                                 | Só com novo convite, sem o histórico                     | Revoga o consentimento daquela comunidade; apaga oração e disponibilidade ali; histórico desligado do nome                        |
 | 3. Remoção pelo administrador            | Administrador (ou Criador em intervenção)                        | Por 30 dias, com convite dirigido; depois, como o caso 2 | Perde o acesso na hora; após 30 dias, mesmo efeito do caso 2                                                                      |
-| 4. Desativação de vínculo                | Administrador                                                    | Sim (convite dirigido, D14)                              | Perde o acesso; dados preservados e ocultos; após 12 meses, vira remoção **[A IMPLEMENTAR]**                                      |
+| 4. Desativação de vínculo                | Administrador                                                    | Sim (convite dirigido, D14)                              | Perde o acesso; dados preservados e ocultos; após 12 meses, vira remoção (job diário) e segue o caso 3                            |
 | 5. Revogação de sessão ou aparelho       | A própria pessoa; automática na troca de senha ou reuso de token | Basta entrar de novo                                     | Só desconecta; nenhum dado é apagado além da sessão                                                                               |
 | 6. Retenção e anonimização automáticas   | Job diário                                                       | Não                                                      | Inscrições públicas e presenças avulsas vencidas, e os prazos do mapa de dados; contas sem acesso há 24 meses **[A IMPLEMENTAR]** |
 | 7. Inscrição pública: cancelar ou apagar | Quem se inscreveu, pelo link                                     | Cancelar: não; apagar: não                               | Cancelar libera a vaga; apagar anonimiza na hora                                                                                  |
-| 8. Exclusão de comunidade                | Criador, com 2FA e confirmação                                   | 30 dias de carência                                      | Hoje só agenda; apagar ao fim da carência **[A IMPLEMENTAR]**                                                                     |
-| 9. Conta de menor de 16                  | Operador, ao saber                                               | Não                                                      | Igual ao caso 1, com aviso à comunidade (procedimento manual; ferramenta **[A IMPLEMENTAR]**)                                     |
+| 8. Exclusão de comunidade                | Criador, com 2FA e confirmação                                   | 30 dias de carência                                      | Ao fim da carência, o job diário apaga tudo da comunidade; a auditoria fica sem identificação até completar 2 anos                |
+| 9. Conta de menor de 16                  | Operador, ao saber                                               | Não                                                      | Igual ao caso 1, pelo comando do operador, com motivo auditado; o aviso à comunidade é manual                                     |
 
 ## 2. Caso 1: excluir conta
 
@@ -38,7 +38,7 @@ Sem período de carência: a exclusão vale na hora em que é confirmada. Decis�
 ### 2.3 O que a função faz, em ordem, numa transação
 
 1. Consome a prova; trava os vínculos e depois a linha da conta; confere `estado = 'ativa'` e as pré-condições.
-2. Para cada vínculo, `uj.desligar_vinculo(v, false)`: **pedidos de oração** e **intercessões** da pessoa naquela comunidade apagados; **disponibilidades** apagadas; **substituições** abertas canceladas e **motivos** apagados; **escalas futuras** apagadas; **inscrições** em eventos futuros canceladas (promovendo a lista de espera) e `nome` de todas as inscrições trocado por "Pessoa removida"; **músicos e palestrantes** ligados ao vínculo com `nome` "Pessoa removida" e `observacoes` e `vinculo_id` nulos; **exportações**, **notificações** e **preferências de notificação** daquela comunidade apagadas; **consentimento TC-03** revogado.
+2. Para cada vínculo, `uj.desligar_vinculo(v, false)`: **pedidos de oração** e **intercessões** da pessoa naquela comunidade apagados; **disponibilidades** apagadas; **substituições** abertas canceladas e **motivos** apagados; **escalas futuras** apagadas; **inscrições** em eventos futuros canceladas (promovendo a lista de espera) e `nome` de todas as inscrições trocado por "Pessoa removida"; **músicos e palestrantes** ligados ao vínculo com `nome` "Pessoa removida" e `observacoes` e `vinculo_id` nulos; **exportações**, **notificações** e **preferências de notificação** daquela comunidade apagadas; **bloqueios** que a pessoa fez ou recebeu naquela comunidade apagados; **consentimento TC-03** revogado.
 3. **Vínculos**: `estado = 'removido'`, `designacoes = '{}'`, `anonimizado_em = now()`.
 4. **Pedidos de oração, intercessões e exportações** que sobraram em comunidades onde o vínculo já não existia: apagados.
 5. **Convites** dirigidos ao e-mail dela: `email_destino` nulo. Convites que ela criou continuam valendo (são atos da comunidade).
@@ -72,7 +72,7 @@ O que fica no banco não identifica a pessoa por si: não há nome, contato nem 
 1. Pedidos de oração e intercessões da pessoa: apagados.
 2. Disponibilidades e escalas futuras: apagadas; substituições abertas: canceladas; motivos: apagados.
 3. Inscrições em eventos futuros: canceladas; nome nas inscrições, músicos e palestrantes: "Pessoa removida".
-4. Exportações, notificações e preferências daquela comunidade: apagadas. Consentimento TC-03 daquela comunidade: revogado.
+4. Exportações, notificações e preferências daquela comunidade: apagadas. Bloqueios que a pessoa fez ou recebeu ali: apagados. Consentimento TC-03 daquela comunidade: revogado.
 5. **Histórico desligado do nome**: o vínculo e todas as autorias naquela comunidade (eventos, séries, modelos, tarefas, checklists, notas, anexos, sugestões, avisos, conteúdos, denúncias) passam para uma conta-fantasma anonimizada criada para isso. A pessoa continua existindo; o passado dela ali é de "Pessoa removida", e um convite futuro cria um vínculo novo. A auditoria (só inserção) continua com o identificador original, sem nome. A troca de autoria não gera versão, data nem linha no log de mudanças (D29), para não revelar a autoria de sugestões anônimas e denúncias.
 6. No aparelho: a partição offline daquela comunidade é apagada. A confirmação mostra o que não foi enviado (`apps/app/src/funcionalidades/comunidade/sairDaComunidade.ts`).
 
@@ -82,15 +82,15 @@ Bloqueio: a única pessoa administradora não sai enquanto houver outras pessoas
 
 ## 4. Casos 3 e 4: remoção e desativação pelo administrador
 
-|                             | Remoção                                                                                                                                                | Desativação                                                                        |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| Acesso                      | Perde na hora                                                                                                                                          | Perde na hora                                                                      |
-| Pedidos de oração da pessoa | Ocultos de todos na hora (a política `pedidos_oracao_ler` exige vínculo ativo do autor); **apagados após 30 dias** se a remoção não for desfeita (job) | Ocultos de todos; preservados                                                      |
-| Histórico                   | Desligado do nome após 30 dias, como no caso 2 (`uj.executar_retencao`, `removido_em`)                                                                 | Preservado                                                                         |
-| Volta                       | Por convite dirigido dentro dos 30 dias, com tudo de volta; depois, como pessoa nova                                                                   | Por convite dirigido (D14), com tudo de volta                                      |
-| Prazo máximo                | 30 dias                                                                                                                                                | **12 meses**; depois, vira remoção, com aviso ao administrador **[A IMPLEMENTAR]** |
-| Auditoria                   | `vinculo.alterado` com antes e depois (papel, estado)                                                                                                  | Idem                                                                               |
-| Aparelhos                   | Na próxima sincronização, a partição daquela comunidade é apagada e o servidor rejeita operações enviadas depois da revogação                          | Idem                                                                               |
+|                             | Remoção                                                                                                                                                | Desativação                                                                            |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| Acesso                      | Perde na hora                                                                                                                                          | Perde na hora                                                                          |
+| Pedidos de oração da pessoa | Ocultos de todos na hora (a política `pedidos_oracao_ler` exige vínculo ativo do autor); **apagados após 30 dias** se a remoção não for desfeita (job) | Ocultos de todos; preservados                                                          |
+| Histórico                   | Desligado do nome após 30 dias, como no caso 2 (`uj.executar_retencao`, `removido_em`)                                                                 | Preservado                                                                             |
+| Volta                       | Por convite dirigido dentro dos 30 dias, com tudo de volta; depois, como pessoa nova                                                                   | Por convite dirigido (D14), com tudo de volta                                          |
+| Prazo máximo                | 30 dias                                                                                                                                                | **12 meses**; depois, vira remoção (job diário), registrada na auditoria da comunidade |
+| Auditoria                   | `vinculo.alterado` com antes e depois (papel, estado)                                                                                                  | Idem                                                                                   |
+| Aparelhos                   | Na próxima sincronização, a partição daquela comunidade é apagada e o servidor rejeita operações enviadas depois da revogação                          | Idem                                                                                   |
 
 A pessoa removida ou desativada continua com a conta e com os direitos de titular: em **Perfil > Privacidade e dados > Exportar meus dados** ela recebe também o que é dela nas comunidades onde não está mais ativa (enquanto o vínculo não foi desligado), e pode pedir ao encarregado que apague antes do prazo.
 
@@ -107,11 +107,16 @@ Por que 30 dias na remoção: dá tempo para desfazer um engano do administrador
 
 **Job diário** (`apps/api/src/cli/tarefas-diarias.ts`, contêiner `unijovem-prod-tarefas`, conexão do dono, relatório só com contagens; PRIV-05): executa `uj.executar_retencao()` e a poda do log de mudanças com mais de 90 dias. Hoje cobre: inscrições públicas e presenças avulsas `retencao_inscricoes_dias` após o evento (P3); exportações vencidas; sessões, links de senha, códigos de verificação e provas de 2FA e de reautenticação vencidos; e-mail de convites encerrados há 30 dias; cotas com mais de 30 dias; disponibilidades com mais de 6 meses; notificações com mais de 30 dias; idempotência offline com mais de 45 dias; remoções de vínculo com mais de 30 dias (caso 3); pedidos de oração e intercessões órfãos.
 
-Ainda faltam no job **[A IMPLEMENTAR]**:
+Desde a migração 0019 o job também faz, antes das retenções acima:
+
+- **Comunidades com a carência vencida** (`uj.excluir_comunidades_vencidas`): o caso 8.
+- **Vínculos desativados há 12 meses** (`uj.remover_desativacoes_vencidas`, pela coluna `desativado_em`): viram remoção, com `vinculo.alterado` e `motivo: desativacao_vencida` na auditoria da comunidade; 30 dias depois, se ninguém desfizer, o mesmo job aplica o efeito do caso 2. Vínculos que já estavam desativados antes da 0019 contam a partir da última alteração do vínculo (nunca antes do prazo). Não há notificação ao administrador **[A IMPLEMENTAR]**: a mudança aparece na auditoria da comunidade.
+- **Expurgo de 2 anos** (`uj.expurgar_registros_de_2_anos`): linhas da auditoria com mais de 2 anos e consentimentos revogados há mais de 2 anos. A auditoria continua só-inserção para todos, inclusive o dono do banco; a exceção vale só dentro das rotinas do job, que marcam a própria transação, e o gatilho só deixa apagar o que passou de 2 anos (ou, no caso 8, só tirar identificação).
+- **Bloqueios órfãos**: de conta anonimizada ou de quem não tem mais vínculo na comunidade (a rede de segurança do que `uj.desligar_vinculo` já apaga).
+
+Ainda falta no job **[A IMPLEMENTAR]**:
 
 - Contas sem nenhum acesso há **24 meses**: e-mail de aviso ("sua conta será excluída em 30 dias; entre no app para mantê-la"); sem acesso em 30 dias, executa o caso 1. Exceções: a conta do Criador e o único administrador de uma comunidade ativa (o aviso vai também ao Criador). A Política v0.2 deixou de prometer isto.
-- Vínculos desativados há 12 meses viram remoção (caso 4).
-- Auditoria com mais de 2 anos e consentimentos revogados há mais de 2 anos (prometidos na Política, seção 9; primeiro vencimento em 15/11/2028).
 
 **Backups.** O `pg_dump` diário (`infra/prod/backup.sh`) guarda 7 diários, 4 semanais e 3 mensais no disco do Mac, com permissão restrita; o mais antigo tem cerca de 3 meses, então declaramos "até cerca de 100 dias". Hoje **não há cifragem** dos arquivos nem cópia externa (PH-05). Os backups não são editados. Para que uma restauração não ressuscite contas excluídas:
 
@@ -127,11 +132,32 @@ Ainda faltam no job **[A IMPLEMENTAR]**:
 
 ## 8. Caso 8: exclusão de comunidade
 
-Existe: o ciclo `ativa → suspensa → arquivada → exclusao_agendada`, com 2FA recente do Criador e o nome digitado; `exclusao_agendada_para` recebe a data de 30 dias depois. **[A IMPLEMENTAR]**: gerar a exportação para o administrador antes de agendar (hoje o operador avisa a administração, que exporta pelas telas de relatório) e, ao fim da carência, apagar todas as linhas com aquele `comunidade_id` (eventos, escalas, inscrições, presenças, oração, sugestões, denúncias, avisos, conteúdos, exportações, mudanças, consentimentos, vínculos, convites e o logotipo). A auditoria fica até completar 2 anos, com `comunidade_id` e `conta_id` apenas. Contas que só tinham vínculo nessa comunidade continuam existindo, sem comunidade; a pessoa é avisada por e-mail e pode excluir a conta. Enquanto isso não existir, o Criador não agenda exclusão de comunidade.
+O ciclo é `ativa → suspensa → arquivada → exclusao_agendada`, com 2FA recente do Criador e o nome digitado; `exclusao_agendada_para` recebe a data de 30 dias depois. Durante a carência, o Criador pode voltar a comunidade para outro estado.
+
+Ao fim da carência, o job diário (`uj.excluir_comunidades_vencidas`, que chama `uj.apagar_comunidade`, migração 0019) apaga, numa transação, todas as linhas com aquele `comunidade_id`: eventos e tudo o que é deles (etapas, escalas, tarefas, materiais, checklists, notas, anexos por link, ao vivo), séries, modelos, locais, inscrições e presenças, pedidos de oração e intercessões, sugestões, avisos, conteúdos, denúncias, bloqueios, exportações (os arquivos CSV ficam no banco), notificações e preferências, idempotência offline, consentimentos (o TC-03 da comunidade e o TC-04 das inscrições públicas dela), vínculos, convites (com os códigos de verificação de e-mail ligados a eles), o logotipo, as cotas com o id da comunidade, o log de mudanças e a própria comunidade. O teste `apps/api/test/banco/rotinas-de-retencao.test.ts` confere que nenhuma tabela com `comunidade_id` guarda linha da comunidade depois.
+
+**A auditoria fica**, até completar 2 anos, só com a ação, o tipo de recurso, a data e o id da comunidade: conta, IP, detalhes e o id do recurso (salvo o da própria comunidade) são apagados, e entra uma linha `comunidade.excluida`. É a única alteração que a auditoria aceita além do expurgo de 2 anos.
+
+**As contas continuam**: são das pessoas, não da comunidade. A foto de perfil e o avatar ficam com a conta (aparecem nas outras comunidades da pessoa). Quem só tinha vínculo nessa comunidade fica sem comunidade e pode excluir a conta pelo app.
+
+**[A IMPLEMENTAR]**: gerar a exportação para o administrador antes de agendar (hoje o operador avisa a administração, que exporta pelas telas de relatório) e o e-mail às pessoas que ficam sem nenhuma comunidade (hoje manual, pelo operador).
 
 ## 9. Caso 9: conta de menor de 16 anos
 
-Ao saber (denúncia, informação da comunidade, declaração), o operador executa o caso 1 com motivo registrado na auditoria (sem nome nem idade no texto) e avisa os administradores das comunidades da pessoa. Não pedimos documento para provar idade. Hoje não há ferramenta para isso: `uj.excluir_conta` exige a prova de reautenticação da própria pessoa, então o operador precisa agir pelo banco com a conexão do dono **[A IMPLEMENTAR: comando de linha em `apps/api/src/cli` para o operador excluir uma conta com motivo auditado]**.
+Ao saber (denúncia, informação da comunidade, declaração), o operador executa o caso 1 pelo comando de linha `apps/api/src/cli/excluir-conta.ts`, com a conexão do dono do banco, no servidor:
+
+```
+DATABASE_URL_DONO=... node --import tsx apps/api/src/cli/excluir-conta.ts \
+  --email pessoa@exemplo.com --motivo menor_de_16 [--confirmar]
+```
+
+- Sem `--confirmar`, só mostra o que aconteceria (a conta e as comunidades em que ela está ativa) e não grava nada.
+- `--motivo` é obrigatório e de uma lista fechada: `menor_de_16`, `pedido_do_titular` (quem perdeu o acesso e falou com o encarregado) ou `determinacao_legal`. Nada de texto livre: a auditoria nunca guarda nome nem idade.
+- Usa a mesma função do app (`uj.excluir_conta`, com o mesmo efeito do caso 1); a prova de reautenticação de uso único, que no app vem da senha da pessoa, é gravada pelo próprio comando. Grava `plataforma.conta_excluida` na auditoria, com o código do motivo, visível no painel do Criador.
+- Recusa a conta do Criador e a única administradora de comunidade com outras pessoas (nomeie outra administradora por intervenção antes).
+- Ao terminar, lista as comunidades em que a pessoa estava ativa: o operador avisa a administração de cada uma, sem citar idade. Não sai e-mail para a pessoa.
+
+Não pedimos documento para provar idade.
 
 ## 10. Página pública `/excluir-conta` (exigência do Google Play)
 
@@ -156,12 +182,12 @@ Página renderizada no servidor, como as outras públicas: funciona sem JavaScri
 >
 > ## O que é apagado na hora
 >
-> Nome, e-mail, WhatsApp, senha, segundo fator, foto de perfil e avatar, contas do Google ou da Apple conectadas, aparelhos conectados e notificações, pedidos de oração e as suas marcações de "estou orando", disponibilidade, escalas e inscrições em eventos futuros, e as planilhas que você exportou.
+> Nome, e-mail, WhatsApp, senha, segundo fator, foto de perfil e avatar, contas do Google ou da Apple conectadas, aparelhos conectados e notificações, pedidos de oração e as suas marcações de "estou orando", disponibilidade, escalas e inscrições em eventos futuros, as pessoas que você bloqueou e as planilhas que você exportou.
 >
 > ## O que fica, sem o seu nome
 >
 > Escalas e presenças passadas, avisos, sugestões, denúncias e outros registros que você criou numa comunidade passam a aparecer como "Pessoa removida". Os números da comunidade (quantas pessoas vieram, por exemplo) continuam.
-> Registros de segurança sem seu nome (ação, data e parte do endereço IP) ficam por 2 anos. O registro dos consentimentos que você deu fica como prova, sem seus dados de contato, também por 2 anos. [IMPLEMENTAÇÃO: o expurgo de 2 anos da auditoria e dos consentimentos revogados não existe; o primeiro vencimento é em 15/11/2028]
+> Registros de segurança sem seu nome (ação, data e parte do endereço IP) ficam por 2 anos. O registro dos consentimentos que você deu fica como prova, sem seus dados de contato, também por 2 anos.
 >
 > ## Prazos
 >
@@ -185,6 +211,6 @@ Limite conhecido em 15/11/2026: sem sessão, `/app/excluir-conta` leva à tela d
 
 - `GET /api/v1/eu/exportar` (D26): gera e devolve o arquivo na hora, como anexo `meus-dados-uni-jovem.json`; nada fica guardado no servidor. Limite de 10 por conta por hora. No app: **Perfil > Privacidade e dados > Exportar meus dados > Gerar arquivo** (no celular, abre a folha de compartilhamento; na web, baixa o arquivo).
 - Formato JSON, com um campo `leiaMe` em texto explicando cada parte.
-- Contém (`uj.exportar_meus_dados`, versão de 0018, mais a rota): conta (sem hash de senha nem segredo TOTP), avatar, foto de perfil em base64, contas conectadas do Google e da Apple (provedor, e-mail informado, datas), faixa de idade, preferências, consentimentos, vínculos (inclusive desativados e removidos ainda ligados à conta), escalas, substituições, disponibilidades, inscrições, presenças, pedidos de oração **decifrados**, intercessões feitas, sugestões (inclusive as anônimas, que são dela), avisos, notas internas, denúncias que ela fez, sessões, aparelhos de notificação e as linhas de auditoria em que ela é a autora.
+- Contém (`uj.exportar_meus_dados`, versão de 0018, mais a rota): conta (sem hash de senha nem segredo TOTP), avatar, foto de perfil em base64, contas conectadas do Google e da Apple (provedor, e-mail informado, datas), faixa de idade, preferências, consentimentos, vínculos (inclusive desativados e removidos ainda ligados à conta), escalas, substituições, disponibilidades, inscrições, presenças, pedidos de oração **decifrados**, intercessões feitas, sugestões (inclusive as anônimas, que são dela), avisos, notas internas, denúncias que ela fez, bloqueios que ela fez (comunidade e data, sem dado da pessoa bloqueada), sessões, aparelhos de notificação e as linhas de auditoria em que ela é a autora.
 - Não contém: dados de outras pessoas (de quem orou pelo pedido dela, só a contagem), autoria de sugestões anônimas alheias, conteúdo de pedidos de oração de terceiros.
 - Teste (PRIV-04) em `apps/api/test/banco/privacidade.test.ts`.
