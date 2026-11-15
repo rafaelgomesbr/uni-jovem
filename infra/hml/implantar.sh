@@ -23,7 +23,7 @@ PACOTE="$(mktemp)"
 trap 'rm -f "$PACOTE"' EXIT
 git archive --format=tar HEAD \
   apps/api/src apps/api/migracoes apps/api/package.json apps/api/tsconfig.json \
-  packages/dominio tsconfig.base.json infra > "$PACOTE"
+  packages/dominio tsconfig.base.json infra docs/privacidade > "$PACOTE"
 echo "Enviando $(git rev-parse --short HEAD) para $SERVIDOR..."
 
 ssh -o BatchMode=yes "$SERVIDOR" "zsh -lc 'set -e
@@ -31,6 +31,7 @@ ssh -o BatchMode=yes "$SERVIDOR" "zsh -lc 'set -e
   rm -rf codigo.novo && mkdir codigo.novo && tar -xf - -C codigo.novo
   rm -rf codigo && mv codigo.novo codigo
   cp codigo/infra/hml/compose.yaml .
+  mkdir -p chaves && chmod 700 chaves
   sh codigo/infra/hml/gerar-env.sh \$PWD/.env
   # Configuração do Docker sem o chaveiro do macOS (travado em sessão SSH).
   mkdir -p .docker
@@ -42,7 +43,7 @@ ssh -o BatchMode=yes "$SERVIDOR" "zsh -lc 'set -e
   docker compose build api
   docker compose up -d banco
   docker compose run --rm --no-deps api node --import tsx apps/api/src/cli/migrar.ts
-  docker compose up -d api
+  docker compose up -d
   mkdir -p ~/srv/config/caddy/sites/extras/unijovem-hml
   cp codigo/infra/hml/caddy-extras.conf ~/srv/config/caddy/sites/extras/unijovem-hml/uni-jovem.conf
   sleep 5
