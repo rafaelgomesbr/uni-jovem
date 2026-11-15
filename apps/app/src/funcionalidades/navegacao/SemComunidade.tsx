@@ -43,21 +43,24 @@ export function AtalhoDaPlataforma() {
   )
 }
 
-/** Sem comunidade, para o membro (3.2.3): o acesso é por convite, e o caminho está aqui. */
+/**
+ * Sem comunidade, fora do Início (3.2.3 e ADR 0007): os dois caminhos mais
+ * comuns direto daqui; o Início ("Comece por aqui") mostra os três.
+ */
 export function SemComunidadeParaMembro() {
   return (
     <EstadoVazio
       icone="pessoas"
       titulo="Você ainda não participa de uma comunidade"
-      descricao="O acesso é por convite. Quando alguém da liderança mandar o link, abra no celular ou cole aqui."
+      descricao="Entre com o código que a liderança passou ou procure a sua comunidade pelo nome."
       acao={{
-        titulo: 'Colar link de convite',
-        icone: 'link',
-        aoPressionar: () => router.push('/entrar-com-convite'),
+        titulo: 'Tenho um código',
+        icone: 'qr',
+        aoPressionar: () => router.push('/tenho-um-codigo'),
       }}
       acaoSecundaria={{
-        titulo: 'Como conseguir um convite',
-        aoPressionar: () => router.push('/como-conseguir-convite'),
+        titulo: 'Procurar comunidade',
+        aoPressionar: () => router.push('/procurar-comunidade'),
       }}
     />
   )

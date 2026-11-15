@@ -2,28 +2,29 @@
 
 > Especificação de engenharia e de produto, versão 0.2, de 15/11/2026, conferida contra o código na mesma data (migrações `0012`, `0014`, `0015`, `0016`, `0018` e `0019`, `apps/api/src/rotas/privacidade.ts`, `apps/api/src/autenticacao/servico.ts`, `apps/app/src`). Os textos voltados à pessoa estão em `textos-de-consentimento.md` (TC-12, TC-13). A página pública `/excluir-conta` sai da seção 10 deste arquivo (`apps/api/src/publico/documentos.ts`) e está no ar em produção, com revisão jurídica pendente (PH-11).
 > Estado em 15/11/2026. **Existem:** excluir conta (`POST /api/v1/eu/excluir-conta`, `uj.excluir_conta` com prova de reautenticação de uso único), sair da comunidade com o efeito do art. 16 na hora (`POST /api/v1/c/:comunidadeId/sair` e `uj.efeitos_da_saida`), efeito da remoção pelo administrador depois de 30 dias (job), exportar meus dados (`GET /api/v1/eu/exportar`), "cancelar e apagar agora" da inscrição pública (`uj.apagar_inscricao_publica`), retenção diária (`uj.executar_retencao`, contêiner `tarefas`), que desde a 0019 também apaga a comunidade ao fim da carência, expurga a auditoria e os consentimentos revogados com mais de 2 anos e transforma em remoção a desativação de 12 meses, o comando do operador para excluir a conta de outra pessoa (`apps/api/src/cli/excluir-conta.ts`) e a página `/excluir-conta`. **Ainda não existem** os itens marcados **[A IMPLEMENTAR]**.
+> **App aberto (ADR 0007, 15/11/2026):** pedidos de entrada, denúncias de comunidade, o aceite do Termo do Administrador (TC-16) e contas criadas só com Google ou Apple (sem senha) entram nos casos abaixo. Nada disso existe no código em 15/11/2026; os itens novos estão marcados **[ADR 0007]** e são requisitos para a API.
 
 ## 1. Os casos, lado a lado
 
-| Caso                                     | Quem faz                                                         | Reversível?                                              | Efeito principal                                                                                                                  |
-| ---------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| 1. Excluir conta                         | A própria pessoa (app, web ou via `/excluir-conta`)              | **Não**                                                  | Sai de tudo, apaga dados pessoais, autoria vira "Pessoa removida"                                                                 |
-| 2. Sair de comunidade                    | A própria pessoa                                                 | Só com novo convite, sem o histórico                     | Revoga o consentimento daquela comunidade; apaga oração e disponibilidade ali; histórico desligado do nome                        |
-| 3. Remoção pelo administrador            | Administrador (ou Criador em intervenção)                        | Por 30 dias, com convite dirigido; depois, como o caso 2 | Perde o acesso na hora; após 30 dias, mesmo efeito do caso 2                                                                      |
-| 4. Desativação de vínculo                | Administrador                                                    | Sim (convite dirigido, D14)                              | Perde o acesso; dados preservados e ocultos; após 12 meses, vira remoção (job diário) e segue o caso 3                            |
-| 5. Revogação de sessão ou aparelho       | A própria pessoa; automática na troca de senha ou reuso de token | Basta entrar de novo                                     | Só desconecta; nenhum dado é apagado além da sessão                                                                               |
-| 6. Retenção e anonimização automáticas   | Job diário                                                       | Não                                                      | Inscrições públicas e presenças avulsas vencidas, e os prazos do mapa de dados; contas sem acesso há 24 meses **[A IMPLEMENTAR]** |
-| 7. Inscrição pública: cancelar ou apagar | Quem se inscreveu, pelo link                                     | Cancelar: não; apagar: não                               | Cancelar libera a vaga; apagar anonimiza na hora                                                                                  |
-| 8. Exclusão de comunidade                | Criador, com 2FA e confirmação                                   | 30 dias de carência                                      | Ao fim da carência, o job diário apaga tudo da comunidade; a auditoria fica sem identificação até completar 2 anos                |
-| 9. Conta de menor de 16                  | Operador, ao saber                                               | Não                                                      | Igual ao caso 1, pelo comando do operador, com motivo auditado; o aviso à comunidade é manual                                     |
+| Caso                                     | Quem faz                                                         | Reversível?                                                          | Efeito principal                                                                                                                  |
+| ---------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Excluir conta                         | A própria pessoa (app, web ou via `/excluir-conta`)              | **Não**                                                              | Sai de tudo, apaga dados pessoais, autoria vira "Pessoa removida"                                                                 |
+| 2. Sair de comunidade                    | A própria pessoa                                                 | Pedindo entrada de novo (convite, código ou pedido), sem o histórico | Revoga o consentimento daquela comunidade; apaga oração e disponibilidade ali; histórico desligado do nome                        |
+| 3. Remoção pelo administrador            | Administrador (ou Criador em intervenção)                        | Por 30 dias, com convite dirigido; depois, como o caso 2             | Perde o acesso na hora; após 30 dias, mesmo efeito do caso 2                                                                      |
+| 4. Desativação de vínculo                | Administrador                                                    | Sim (convite dirigido, D14)                                          | Perde o acesso; dados preservados e ocultos; após 12 meses, vira remoção (job diário) e segue o caso 3                            |
+| 5. Revogação de sessão ou aparelho       | A própria pessoa; automática na troca de senha ou reuso de token | Basta entrar de novo                                                 | Só desconecta; nenhum dado é apagado além da sessão                                                                               |
+| 6. Retenção e anonimização automáticas   | Job diário                                                       | Não                                                                  | Inscrições públicas e presenças avulsas vencidas, e os prazos do mapa de dados; contas sem acesso há 24 meses **[A IMPLEMENTAR]** |
+| 7. Inscrição pública: cancelar ou apagar | Quem se inscreveu, pelo link                                     | Cancelar: não; apagar: não                                           | Cancelar libera a vaga; apagar anonimiza na hora                                                                                  |
+| 8. Exclusão de comunidade                | Criador, com 2FA e confirmação                                   | 30 dias de carência                                                  | Ao fim da carência, o job diário apaga tudo da comunidade; a auditoria fica sem identificação até completar 2 anos                |
+| 9. Conta de menor de 16                  | Operador, ao saber                                               | Não                                                                  | Igual ao caso 1, pelo comando do operador, com motivo auditado; o aviso à comunidade é manual                                     |
 
 ## 2. Caso 1: excluir conta
 
 ### 2.1 Pré-condições (a API recusa com explicação, nunca em silêncio)
 
-- **Reautenticação:** senha sempre, e código de segundo fator se estiver ligado. Mesma mensagem genérica do login para senha errada; falha de código conta no bloqueio por conta. Limite de 5 tentativas por conta a cada 15 minutos.
+- **Reautenticação:** senha sempre, e código de segundo fator se estiver ligado. **[ADR 0007]** Conta criada só com Google ou Apple não tem senha: a reautenticação passa a ser entrar de novo com o provedor (token recente do Google ou da Apple, conferido como no login) **[A IMPLEMENTAR]**. Sem isso, essa pessoa não consegue excluir a conta pelo app, o que a Apple (diretriz 5.1.1(v)) e o Google Play exigem. Mesma mensagem genérica do login para senha errada; falha de código conta no bloqueio por conta. Limite de 5 tentativas por conta a cada 15 minutos.
 - **Criador:** recusado enquanto a pessoa for a proprietária da plataforma. Mensagem: "Você é o Criador do Uni Jovem. Transfira a propriedade antes de excluir sua conta."
-- **Única pessoa administradora** de comunidade que tem outras pessoas ativas: recusado com 409, `acao: nomear_admin` e a lista das comunidades. Mensagem: "Você é a única pessoa administradora de _{comunidades}_. Antes de excluir a conta, abra a lista de membros e nomeie outra pessoa como administradora." Se a pessoa é a única ativa da comunidade, não há a quem nomear e a exclusão segue.
+- **Única pessoa administradora** de comunidade que tem outras pessoas ativas: recusado com 409, `acao: nomear_admin` e a lista das comunidades. Mensagem: "Você é a única pessoa administradora de _{comunidades}_. Antes de excluir a conta, abra a lista de membros e nomeie outra pessoa como administradora." Se a pessoa é a única ativa da comunidade, não há a quem nomear e a exclusão segue. **[ADR 0007]** Com a criação aberta, isso vai acontecer muito (alguém cria uma comunidade, ninguém entra, a pessoa exclui a conta). Recomendação: na mesma transação, a comunidade sem nenhuma pessoa ativa passa a `exclusao_agendada`, com os 30 dias de carência do caso 8, em vez de ficar órfã **[A IMPLEMENTAR]**.
 - **Operações offline não enviadas** no aparelho: o app mostra quantas são e pede confirmação antes de descartar **[A IMPLEMENTAR]**. Hoje o fim da sessão descarta a fila e mostra a lista do que se perdeu na tela de entrada (D30).
 
 Sem período de carência: a exclusão vale na hora em que é confirmada. Decisão: o mais protetor para a pessoa é o dado sair imediatamente; o risco de exclusão por engano ou por terceiro é tratado pela reautenticação e pelo e-mail de confirmação.
@@ -47,6 +48,7 @@ Sem período de carência: a exclusão vale na hora em que é confirmada. Decis�
 8. **Conta**: `nome = 'Pessoa removida'`, `email = 'removida-{id}@anonimizada.invalid'`, `whatsapp`, `email_verificado_em`, `senha_hash`, `totp_*`, `bloqueio_2fa_ate` e `faixa_etaria` nulos, `falhas_2fa = 0`, `estado = 'anonimizada'`, `anonimizada_em = now()`. O gatilho `uj.limpar_identidade_ao_anonimizar` apaga no mesmo momento o avatar, a **foto de perfil** (`uj.fotos_contas`) e as **contas conectadas do Google e da Apple** (`uj.contas_provedores`).
 9. **Auditoria**: `conta.excluida`, com `conta_id` e sem detalhes.
 10. **Lista de exclusões**: grava `(conta_id, momento)` em `uj.exclusoes_de_conta` (só o UUID; ver seção 6).
+11. **[ADR 0007] Pedidos de entrada** da pessoa (pendentes e decididos): apagados, e o TC-03 deles revogado. **Denúncias de comunidade** que ela fez: ficam ligadas à conta anonimizada até o prazo de 2 anos. **TC-16** (Termo do Administrador): revogado com os demais consentimentos. Comunidades que ela criou: `criado_por` passa a apontar para a conta anonimizada e deixam de contar no limite de criação **[A IMPLEMENTAR]**.
 
 O que **fica**, ligado à conta anonimizada (sem nome, e-mail, telefone nem senha): escalas e presenças passadas, autoria de eventos, avisos, notas, sugestões, denúncias (com o detalhe escrito), conteúdos, tarefas e comandos do ao vivo, linhas de auditoria e consentimentos revogados. As telas mostram "Pessoa removida". As contagens e relatórios agregados não mudam.
 
@@ -73,7 +75,7 @@ O que fica no banco não identifica a pessoa por si: não há nome, contato nem 
 2. Disponibilidades e escalas futuras: apagadas; substituições abertas: canceladas; motivos: apagados.
 3. Inscrições em eventos futuros: canceladas; nome nas inscrições, músicos e palestrantes: "Pessoa removida".
 4. Exportações, notificações e preferências daquela comunidade: apagadas. Bloqueios que a pessoa fez ou recebeu ali: apagados. Consentimento TC-03 daquela comunidade: revogado.
-5. **Histórico desligado do nome**: o vínculo e todas as autorias naquela comunidade (eventos, séries, modelos, tarefas, checklists, notas, anexos, sugestões, avisos, conteúdos, denúncias) passam para uma conta-fantasma anonimizada criada para isso. A pessoa continua existindo; o passado dela ali é de "Pessoa removida", e um convite futuro cria um vínculo novo. A auditoria (só inserção) continua com o identificador original, sem nome. A troca de autoria não gera versão, data nem linha no log de mudanças (D29), para não revelar a autoria de sugestões anônimas e denúncias.
+5. **Histórico desligado do nome**: o vínculo e todas as autorias naquela comunidade (eventos, séries, modelos, tarefas, checklists, notas, anexos, sugestões, avisos, conteúdos, denúncias) passam para uma conta-fantasma anonimizada criada para isso. A pessoa continua existindo; o passado dela ali é de "Pessoa removida", e uma entrada futura (por convite, código ou pedido aceito) cria um vínculo novo. A auditoria (só inserção) continua com o identificador original, sem nome. A troca de autoria não gera versão, data nem linha no log de mudanças (D29), para não revelar a autoria de sugestões anônimas e denúncias.
 6. No aparelho: a partição offline daquela comunidade é apagada. A confirmação mostra o que não foi enviado (`apps/app/src/funcionalidades/comunidade/sairDaComunidade.ts`).
 
 Por que desligar o histórico: a base para tratar esses dados era o consentimento sobre a fé, e a pessoa acabou de revogá-lo. Depois do fim do tratamento, a LGPD (art. 16) só permite conservar o dado em hipóteses restritas, e a mais próxima aqui é "uso exclusivo do controlador, desde que anonimizado". A comunidade continua com os números.
@@ -144,7 +146,7 @@ Ao fim da carência, o job diário (`uj.excluir_comunidades_vencidas`, que chama
 
 ## 9. Caso 9: conta de menor de 16 anos
 
-Ao saber (denúncia, informação da comunidade, declaração), o operador executa o caso 1 pelo comando de linha `apps/api/src/cli/excluir-conta.ts`, com a conexão do dono do banco, no servidor:
+Ao saber (denúncia de conteúdo ou de comunidade com o motivo "Pessoa com menos de 16 anos", aviso da administração da comunidade, pedido de pai ou responsável, declaração), o operador executa o caso 1 pelo comando de linha `apps/api/src/cli/excluir-conta.ts`, com a conexão do dono do banco, no servidor:
 
 ```
 DATABASE_URL_DONO=... node --import tsx apps/api/src/cli/excluir-conta.ts \
@@ -171,18 +173,18 @@ Página renderizada no servidor, como as outras públicas: funciona sem JavaScri
 >
 > ## Pelo app
 >
-> Abra o Uni Jovem, toque em **Perfil > Privacidade e dados > Excluir minha conta** e confirme com sua senha (e com o código do app autenticador, se a verificação em duas etapas estiver ligada). A exclusão vale na hora e não pode ser desfeita.
+> Abra o Uni Jovem, toque em **Perfil > Privacidade e dados > Excluir minha conta** e confirme com sua senha (e com o código do app autenticador, se a verificação em duas etapas estiver ligada). Se você criou a conta com o Google ou com a Apple e não tem senha, confirme entrando de novo com eles. [IMPLEMENTAÇÃO: a exclusão hoje só aceita senha; a API precisa aceitar a reautenticação pelo provedor antes de o cadastro com Google ou Apple ir ao ar (ADR 0007).] A exclusão vale na hora e não pode ser desfeita.
 > Se você for a única pessoa administradora de uma comunidade que tem outros membros, o app pede que você nomeie outra pessoa como administradora antes.
 >
 > ## Pela web
 >
 > Entre em [unijovem.solerte.com.br/app](/app) com seu e-mail e senha e siga o mesmo caminho: **Perfil > Privacidade e dados > Excluir minha conta**. Se você já estiver conectado neste navegador, [este link abre direto a tela de exclusão](/app/excluir-conta).
 > Esqueceu a senha? [Recupere aqui](/app/recuperar-senha) e depois volte a esta página.
-> Perdeu o acesso ao e-mail? Escreva para [contact@solerte.com.br](mailto:contact@solerte.com.br) a partir de outro endereço, dizendo o seu nome e a sua comunidade. Vamos confirmar sua identidade com a liderança da comunidade antes de excluir.
+> Perdeu o acesso ao e-mail? Escreva para [contact@solerte.com.br](mailto:contact@solerte.com.br) a partir de outro endereço, dizendo o seu nome e, se você participa de alguma, a sua comunidade. Vamos confirmar sua identidade antes de excluir (com a liderança da comunidade, quando houver).
 >
 > ## O que é apagado na hora
 >
-> Nome, e-mail, WhatsApp, senha, segundo fator, foto de perfil e avatar, contas do Google ou da Apple conectadas, aparelhos conectados e notificações, pedidos de oração e as suas marcações de "estou orando", disponibilidade, escalas e inscrições em eventos futuros, as pessoas que você bloqueou e as planilhas que você exportou.
+> Nome, e-mail, WhatsApp, senha, segundo fator, foto de perfil e avatar, contas do Google ou da Apple conectadas, aparelhos conectados e notificações, pedidos de entrada em comunidades, pedidos de oração e as suas marcações de "estou orando", disponibilidade, escalas e inscrições em eventos futuros, as pessoas que você bloqueou e as planilhas que você exportou.
 >
 > ## O que fica, sem o seu nome
 >
@@ -195,7 +197,7 @@ Página renderizada no servidor, como as outras públicas: funciona sem JavaScri
 >
 > ## Quer apagar só uma parte?
 >
-> Sem excluir a conta, você pode apagar um pedido de oração na própria tela, sair de uma comunidade (na aba **Equipe**, toque em "Sair de" e o nome da comunidade), apagar seu WhatsApp em **Perfil > Conta** ou desconectar o Google ou a Apple em **Perfil > Segurança > Contas conectadas**. Para apagar uma sugestão ou outro dado, escreva para [contact@solerte.com.br](mailto:contact@solerte.com.br).
+> Sem excluir a conta, você pode cancelar um pedido de entrada que ainda não teve resposta, apagar um pedido de oração na própria tela, sair de uma comunidade (na aba **Equipe**, toque em "Sair de" e o nome da comunidade), apagar seu WhatsApp em **Perfil > Conta** ou desconectar o Google ou a Apple em **Perfil > Segurança > Contas conectadas**. Para apagar uma sugestão ou outro dado, escreva para [contact@solerte.com.br](mailto:contact@solerte.com.br).
 >
 > ## Fez uma inscrição pública num evento, sem conta?
 >

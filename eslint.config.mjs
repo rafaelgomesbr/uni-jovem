@@ -25,7 +25,9 @@ export default tseslint.config(
     languageOptions: {
       globals: { ...globals.node },
       parserOptions: {
-        projectService: { allowDefaultProject: ['*.mjs'] },
+        // Os scripts da API da Apple ficam fora de qualquer tsconfig; sem esta
+        // entrada o lint quebra com "not found by the project service".
+        projectService: { allowDefaultProject: ['*.mjs', 'infra/prod/asc/*.mjs'] },
         tsconfigRootDir: import.meta.dirname,
       },
     },

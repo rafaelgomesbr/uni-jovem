@@ -27,6 +27,22 @@ export const SERIE_ENCERRADA = () =>
     'Esta série foi encerrada e não recebe mais alterações. Crie uma série nova se precisar.',
   )
 
+/** Comunidade `nova` no teto de vínculos ativos (ADR 0007, gatilho UJ080). */
+export const LIMITE_DE_PARTICIPANTES = () =>
+  new ErroHttp(
+    'limite_de_participantes',
+    409,
+    'Esta comunidade chegou ao limite de 30 participantes enquanto não é verificada. Fale com a liderança dela.',
+  )
+
+/** Comunidade `nova` não tem evento público (ADR 0007, gatilho UJ081). */
+export const EVENTO_PUBLICO_INDISPONIVEL = () =>
+  new ErroHttp(
+    'evento_publico_indisponivel',
+    409,
+    'Comunidades novas ainda não podem ter evento com inscrição pública. Deixe o evento interno até a comunidade ser verificada.',
+  )
+
 /** Quando o campo não tem nome conhecido, a tela recebe só esta frase. */
 export const MENSAGEM_DADOS_INVALIDOS = 'Confira os dados e tente de novo.'
 
@@ -69,6 +85,9 @@ const ROTULO_DO_CAMPO: Record<string, string> = {
   cor: 'a cor',
   nomeAvulso: 'o nome',
   confirmacaoNome: 'o nome de confirmação',
+  cidade: 'a cidade',
+  mensagem: 'a mensagem',
+  q: 'a busca',
 }
 
 /**
@@ -154,6 +173,9 @@ export function traduzirErroDoBanco(e: unknown): never {
   if (erro.code === 'UJ070') {
     throw SERIE_ENCERRADA()
   }
+  // Rodinhas da comunidade nova (ADR 0007), conferidas por gatilho no banco.
+  if (erro.code === 'UJ080') throw LIMITE_DE_PARTICIPANTES()
+  if (erro.code === 'UJ081') throw EVENTO_PUBLICO_INDISPONIVEL()
   if (erro.code === '23503') {
     // Referência a algo de outra comunidade ou inexistente: mesmo tratamento.
     throw new ErroHttp(

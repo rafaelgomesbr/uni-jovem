@@ -84,18 +84,22 @@ export function TelaTrocarComunidade() {
           <Lista>
             <LinhaDeLista
               icone="link"
-              titulo="Entrar com um convite"
-              descricao="Cole o link que você recebeu."
-              aoPressionar={() => router.push('/entrar-com-convite')}
+              titulo="Entrar em outra comunidade"
+              descricao="Código, convite ou busca pelo nome."
+              aoPressionar={() => router.push('/comece-por-aqui')}
             />
-            {conta?.criador ? (
-              <LinhaDeLista
-                icone="adicionar"
-                titulo="Criar comunidade"
-                descricao="Só o Criador da plataforma cria comunidades."
-                aoPressionar={() => router.push('/plataforma/nova')}
-              />
-            ) : null}
+            <LinhaDeLista
+              icone="adicionar"
+              titulo="Criar comunidade"
+              descricao={
+                conta?.criador
+                  ? 'Pela Plataforma, com o convite para quem vai administrar.'
+                  : 'Você vira o administrador.'
+              }
+              aoPressionar={() =>
+                router.push(conta?.criador ? '/plataforma/nova' : '/criar-comunidade')
+              }
+            />
           </Lista>
         </CartaoDeVidro>
       </Folha>

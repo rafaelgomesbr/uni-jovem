@@ -141,7 +141,7 @@ Nada de nome de igreja, denominação, cidade, logotipo ou foto real.
 - Na semente (`apps/api/src/cli/demonstracao.ts`), Ana Ribeiro, Bruno Tavares e Carla Menezes são as contas com senha `demo.admin`, `demo.organizador` e `demo.membro` (`@unijovem.invalid`), e Diana Lopes é a segunda administradora (`demo.admin2`). Os e-mails `demo.*` não mudam: são os que os revisores das lojas usam. Conta que já existia guarda o nome antigo (a semente nunca altera conta).
 - `example.com` é domínio reservado para exemplo (RFC 2606): nenhum e-mail sai para pessoa real, mesmo por engano.
 - WhatsApp: deixar em branco nas capturas. Se alguma tela exigir, usar `+5511900000001` em diante, que não aparece em nenhuma captura escolhida.
-- Na produção, as contas de revisão (admin e membro) e o segundo admin fictício seguem [`revisao-apple.md`](revisao-apple.md), seção 5; os e-mails das contas de revisão precisam receber mensagem (domínio do dono), então **não** usam `example.com`: [PREENCHER] pelo dono.
+- Na produção, as contas de revisão (admin e membro) e o segundo admin fictício seguem [`revisao-apple.md`](revisao-apple.md), seção 5; os e-mails das contas de revisão precisam receber mensagem (domínio do dono), então **não** usam `example.com`: o dono escolhe os endereços e os guarda fora do git (`contas-revisao.txt`, no servidor, com permissão 600).
 
 ### 4.3 Eventos
 

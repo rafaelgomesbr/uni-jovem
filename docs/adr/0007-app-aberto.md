@@ -70,3 +70,36 @@ Plataforma (Criador):
 - **Pedido aprovado pelo Criador para cada comunidade:** o dono vira o gargalo de cada igreja nova.
 - **Livre total, sem limites:** porta aberta para comunidade falsa e spam, e a Apple cobra moderação (diretriz 1.2).
 - **Lista pública de todas as comunidades:** expõe quais igrejas usam o app e atrai pedidos aleatórios.
+
+## Contrato implementado na API (15/11/2026)
+
+Migração `0022_app_aberto.sql`; rotas em `apps/api/src/rotas/abertura.ts`, `autenticacao.ts`, `comunidades.ts`, `plataforma.ts`, `imagens.ts` e `privacidade.ts`. Tudo o que está acima vale como escrito; abaixo, o que a API acrescentou ou precisou fixar (decisões D47 a D53).
+
+Conta:
+
+- `POST /api/auth/cadastro/iniciar`: `aceites` é `{ termos: true, responsavelCiente?: boolean }` (TC-02; para `16_17`, `responsavelCiente: true` é obrigatório). Aceita também `plataforma?` (`web` liga o Turnstile, como a presença do cabeçalho `Origin`). Resposta 200 `{ ok: true, mensagem }`, igual para e-mail novo ou existente. Erros: 422 `menor_de_16` (nada gravado), 422 `responsavel_necessario`, 503 `cadastro_indisponivel`, 403 `verificacao_humana`, 429.
+- `POST /api/auth/cadastro/concluir`: aceita também `aparelho?` e `plataforma?` (padrão `ios`; **a web precisa mandar `plataforma: 'web'`** para o refresh ir em cookie). Erros: 410 `codigo_vencido`, 422 `codigo_invalido`, 422 `senha_fraca`, 409 `conta_existente` (só depois do código certo).
+- `POST /api/auth/provedor/:provedor` aceita `nome?` (a Apple só entrega o nome ao app). `cadastroPendente.nome` pode vir `null`.
+- `POST /api/auth/provedor/concluir-cadastro` aceita `nome?`. Erros: 410 `token_de_cadastro_invalido` (vencido ou usado), 422 `menor_de_16` (o token não é gasto), 409 `conta_existente`.
+- `POST /api/v1/eu/excluir-conta` aceita, no lugar de `senha`, `{ provedor: 'google', idToken }` ou `{ provedor: 'apple', identityToken, nonce }`: um token novo da conta do provedor ligada à conta (D50).
+
+Comunidades:
+
+- `POST /api/v1/comunidades` exige também `consentimentoFe: true` (TC-03.v3 na forma de criação) e aceita `fuso?`. Resposta: `{ id, nome, cor, cidade, verificacao, modoEntrada, encontravel, codigo, link }`. Erros: 403 `email_nao_confirmado`, 403 `idade_para_criar` (menos de 18, D48), 409 `limite_de_comunidades_novas`, 409 `limite_de_comunidades`.
+- `GET /api/v1/comunidades/busca` devolve o array, como escrito acima; 400 `busca_curta` com menos de 3 letras. Logotipo da comunidade achada: `GET /api/v1/comunidades/:idPublico/logo` (rota nova).
+- `POST /api/v1/entrada` e `POST /api/v1/comunidades/:idPublico/pedidos` exigem também `consentimentoFe: true` (TC-03.v3) e aceitam `faixaEtaria?` (só para conta que ainda não declarou) e `responsavelCiente?`. Pela busca, o pedido sempre passa pela aprovação, mesmo em `codigo_direto` (D49). Erros: 404 (código desconhecido ou só por convite), 409 `ja_participa`, `vinculo_desativado`, `so_por_convite`, `limite_de_pedidos`, `pedido_recusado_recentemente`, `limite_de_participantes`; 422 `faixa_etaria_necessaria`, `responsavel_necessario`.
+- `GET /api/v1/eu/pedidos` → `{ pedidos: [{ id, comunidade: { id?, nome, cor }, estado: 'pendente' | 'aceito' | 'nao_aprovado', criadoEm, respondidoEm }] }` (o `id` da comunidade só quando aceito e com vínculo ativo).
+- `POST /api/v1/comunidades/:idPublico/denuncias`: `motivo` em `menor_de_16`, `risco_a_menor`, `falsa`, `golpe`, `ofensiva`, `spam`, `outro`; resposta `{ id, mensagem }`.
+- `GET .../pedidos?estado=pendente|aceito|recusado|todos` → `{ pedidos: [{ id, nome, mensagem, origem, estado, criadoEm, decididoEm }] }`; o parâmetro do caminho de aceitar e recusar é `:pedidoDeEntradaId`. Aceitar → `{ estado: 'aceito', vinculoId }`; recusar → `{ estado: 'recusado' }`; mudar decisão já tomada: 409 `pedido_ja_respondido`.
+- `GET .../codigo` → `{ codigo, link, modoEntrada }`; `POST .../codigo/trocar` → `{ codigo, link }`. O link é `URL_PUBLICA/entrar/<codigo>`.
+- Detalhe da comunidade: `cidade`, `modoEntrada`, `encontravel`, `verificacao`, `idPublico`, `limites: { membrosAtivos: 30 | null, eventoPublico: boolean }`, `uso: { membrosAtivos }` e `precisaAceitarTermoDoAdmin`. Aceite do TC-16 por admin promovido depois ou versão nova: `POST /api/v1/c/:comunidadeId/termo-do-admin` `{ aceite: true }` (rota nova, D51).
+- `PATCH /api/v1/c/:comunidadeId`: `modoEntrada: 'livre'` responde 422 `modo_nao_habilitado`; `cidade: null` apaga a cidade.
+
+Notificações: tipos `pedido_de_entrada` (destino `{ tela: 'pedidos_de_entrada', comunidadeId }`) e `pedido_decidido` (destino `{ tela: 'meus_pedidos' }`). A resposta a um pedido não aprovado aparece no sino de quem pediu mesmo sem vínculo.
+
+Plataforma:
+
+- `GET /api/v1/plataforma/comunidades` → `{ comunidades: [{ id, nome, cor, cidade, estado, verificacao, exclusaoAgendadaPara, criadoEm, membrosAtivos, adminsAtivos, denunciasAbertas, criador: { nome, email } | null }], proximoCursor }`, 50 por página. Não pede o código do autenticador (D47). `criador` é nulo nas comunidades criadas pelo próprio Criador.
+- Verificar e desverificar → `{ verificacao }`. Denúncias: `GET /api/v1/plataforma/denuncias-de-comunidade?estado=aberta|procedente|improcedente|todas` → `{ denuncias: [{ id, comunidade: { id, nome }, motivo, detalhe, estado, resolucao, criadoEm, resolvidaEm }] }`, com `menor_de_16` e `risco_a_menor` abertas no topo; `POST .../:denunciaId/resolver` `{ estado: 'procedente' | 'improcedente', resolucao? }`.
+- Quem não é o Criador recebe 403 `so_criador` nessas rotas; as que destroem continuam com 403 `segundo_fator_necessario` sem a prova.
+- `POST /api/v1/plataforma/comunidades` cria a comunidade já `verificada`, com o convite do primeiro admin.

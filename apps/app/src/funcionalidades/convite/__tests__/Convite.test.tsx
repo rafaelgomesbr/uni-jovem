@@ -7,6 +7,7 @@ import { COMUNIDADE, pedidosPara, renderizarTela } from '@/testes/telas'
 import { AceitarComConta } from '../AceitarComConta'
 import { CadastroPorConvite } from '../CadastroPorConvite'
 import { TelaConvite } from '../TelaConvite'
+import { apagarTravaDeIdade } from '../travaDeIdade'
 
 jest.mock('expo-router', () => ({
   router: {
@@ -21,6 +22,9 @@ jest.mock('expo-router', () => ({
 }))
 
 const parametros = useLocalSearchParams as jest.Mock
+
+// "Menos de 16" trava o cadastro no aparelho por 24 horas (TC-01.v2): cada teste começa sem a trava.
+beforeEach(() => apagarTravaDeIdade())
 
 const TOKEN = 'c'.repeat(43)
 

@@ -47,6 +47,19 @@ export const CHAVES = {
   /** Caixa de entrada do sino (todas as comunidades da conta) e o contador; prefixo ['eu', 'caixa']. */
   paginasDaCaixa: ['eu', 'caixa', 'paginas'] as const,
   notificacoesNaoLidas: ['eu', 'caixa', 'nao-lidas'] as const,
+  /** ADR 0007: os próprios pedidos de entrada (da conta, fora de qualquer comunidade). */
+  meusPedidos: ['eu', 'pedidos'] as const,
+  /** Busca de comunidades que escolheram aparecer; o item tocado vira a "encontrada". */
+  buscaDeComunidades: (q: string, cidade: string) => ['comunidades', 'busca', q, cidade] as const,
+  comunidadeEncontrada: (idPublico: string) => ['comunidades', 'encontrada', idPublico] as const,
+  /** Pedidos pendentes da comunidade (admin e organizador). */
+  pedidosDeEntrada: (id: string) => ['c', id, 'pedidos'] as const,
+  /** Código da comunidade (admin): nunca persistido. */
+  codigoDaComunidade: (id: string) => ['c', id, 'codigo'] as const,
+  /** Lista paginada da Plataforma, por filtro; o prefixo é `plataforma`. */
+  listaDaPlataforma: (verificacao: string, busca: string) =>
+    ['plataforma', 'comunidades', verificacao, busca] as const,
+  denunciasDeComunidade: ['plataforma', 'denuncias-de-comunidade'] as const,
 }
 
 export function criarClienteDeConsulta(): QueryClient {

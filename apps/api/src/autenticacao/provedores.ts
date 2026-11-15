@@ -24,6 +24,8 @@ export interface IdentidadeDoProvedor {
   emailVerificado: boolean
   /** E-mail de retransmissão privada da Apple: nunca casa com conta. */
   retransmissaoPrivada: boolean
+  /** Nome informado no token (o Google manda; a Apple, não). Só para a conta nova. */
+  nome: string | null
   /** Fim da validade do token (s), para o controle de reuso. */
   expiraEm: number
 }
@@ -139,6 +141,10 @@ export function criarVerificadorDeProvedores(
           provedor === 'apple' &&
           (verdadeiro(payload['is_private_email']) ||
             (email?.endsWith('@privaterelay.appleid.com') ?? false)),
+        nome:
+          typeof payload['name'] === 'string' && payload['name'].trim().length > 0
+            ? payload['name'].trim().slice(0, 120)
+            : null,
         expiraEm: payload.exp!,
       }
     },

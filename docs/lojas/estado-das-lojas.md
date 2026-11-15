@@ -2,7 +2,7 @@
 
 - **Data:** 15/11/2026.
 - **Quem preencheu:** agente, no Chrome do dono (conta Apple "Rafael Gomes" e conta Google Play "Rafael Gomes", já logadas), a pedido do dono.
-- **Fonte do conteúdo:** [`metadados.md`](metadados.md), [`declaracao-de-dados.md`](declaracao-de-dados.md) (versão 2, de 15/11/2026), [`revisao-apple.md`](revisao-apple.md), [`docs/privacidade/`](../privacidade/) e `docs/DECISOES.md` (D3, D27, D31, D33).
+- **Fonte do conteúdo:** [`metadados.md`](metadados.md), [`declaracao-de-dados.md`](declaracao-de-dados.md) (versão 2, de 15/11/2026, no que foi preenchido; a versão 3, do app aberto, entra no envio do binário com a ADR 0007), [`revisao-apple.md`](revisao-apple.md), [`docs/privacidade/`](../privacidade/) e `docs/DECISOES.md` (D3, D27, D31, D33).
 - **O que não foi feito, de propósito (primeira rodada, 15/11/2026):** nenhum build anexado, nada enviado para revisão, nada publicado, nenhuma versão criada no Google Play, nenhum contrato ou termo novo aceito, nenhuma senha digitada, nenhuma chave de API criada.
 - **Segunda rodada no Google Play (15/11/2026, 16:50 a 17:25), a pedido e com autorização do dono:** gráficos da ficha, classificação IARC (termos da IARC aceitos com autorização do dono), lista de testadores e versão 1.0.0 (3) lançada no teste interno. Nada foi enviado para produção nem para teste fechado. Detalhes na seção 7.
 
@@ -88,7 +88,7 @@ URL da política: `https://unijovem.solerte.com.br/privacidade`. URL de escolhas
 ### 3.2 Google: Segurança dos dados
 
 - Coleta ou compartilha dados obrigatórios: sim. Criptografados em trânsito: sim.
-- Criação de conta: "Nome de usuário, senha e outras autenticações". OAuth não marcado, porque entrar com Google ou Apple não cria conta.
+- Criação de conta: "Nome de usuário, senha e outras autenticações". OAuth não marcado, porque entrar com Google ou Apple não criava conta. **No envio do app aberto (ADR 0007):** marcar também OAuth e o tipo "Histórico de pesquisa no app" (opcional, efêmero), conforme [`declaracao-de-dados.md`](declaracao-de-dados.md), versão 3.
 - Exclusão de conta: `https://unijovem.solerte.com.br/excluir-conta`. Exclusão de parte dos dados sem excluir a conta: sim, mesmo link.
 - Tipos (todos coletados, nenhum compartilhado, nenhum efêmero):
 
@@ -120,47 +120,68 @@ A prévia do Console mostra "Os dados não são compartilhados com terceiros".
 
 ## 5. Notas ao revisor da Apple, prontas para colar
 
-Adaptadas de [`revisao-apple.md`](revisao-apple.md), seção 2.1, ao app de 15/11/2026 (abas Início, Agenda, Programas, Equipe e Perfil; exclusão em Perfil > Privacidade e dados; denúncia e ocultação existem). Conferir cada caminho no build final antes de colar e trocar os "[a definir]".
+Versão de 15/11/2026, para o binário com o **app aberto** (ADR 0007): o revisor pode criar a própria conta, e a conta de demonstração continua, porque uma conta nova começa sem comunidade e a demo mostra o app cheio de dados. A versão anterior (entrada só por convite) está no histórico do git e vale só para um envio sem o app aberto.
+
+Antes de colar, o dono confere no build final, tocando em cada caminho:
+
+1. **Cadastro por e-mail:** se o envio de e-mail ainda estiver desligado em produção (PH-03), o cadastro por e-mail não aparece. Nesse caso, apague o trecho "or with e-mail and password (we send a 6-digit code to that address)".
+2. **Google:** "Entrar com Google" estava desligado em produção em 15/11/2026. Só cite o Google se ele estiver ligado no build enviado.
+3. **Excluir conta criada com a Apple:** a conta criada só com a Apple não tem senha; a exclusão precisa confirmar entrando de novo com a Apple (`docs/privacidade/exclusao-de-conta.md`, seção 2.1). Se isso não estiver pronto, **não envie**: a diretriz 5.1.1(v) reprova.
+4. **Credenciais:** troque os "[a definir]" à mão no App Store Connect; nunca no git.
+5. **Nomes de aba e de botão:** "Criar conta", "Criar comunidade", "Tenho um código", "Procurar comunidade" e "Denunciar comunidade" são os nomes das telas em construção em 15/11/2026; ajuste ao texto final.
 
 ```
 ABOUT THE APP
 Uni Jovem helps church youth groups organize their weekly program and special events: schedules with timed steps, volunteer rosters, tasks, sign-ups, attendance check-in, prayer requests and announcements. The interface is in Brazilian Portuguese.
 
-The app serves many independent youth groups ("communities"). Each community only sees its own data. There is no open sign-up: a community leader invites each person, and the invite defines their role (admin, organizer or member). Leaders who want a community for their group request it through the support page (https://unijovem.solerte.com.br/). Accounts are for people aged 16 or older, as stated in our terms of use, so the age rating is set to 16+.
+The app serves many independent youth groups ("communities"). Each community only sees its own data. Anyone aged 16 or older can create an account and then join a community with an invitation, with the community's code, or by sending a join request that the community's leaders approve. Any account with a confirmed e-mail can also create a community and becomes its admin, after accepting a community administrator agreement. New communities have limits until our team verifies them: at most 30 members and no public event sign-up page. Accounts are for people aged 16 or older, as stated in our terms of use, so the age rating is set to 16+.
+
+YOU CAN CREATE YOUR OWN ACCOUNT
+On the first screen, tap "Criar conta" (Create account) and use Sign in with Apple, or e-mail and password (we send a 6-digit code to that address). You will be asked for your age range and to accept the terms. A new account starts without any community: you can create one ("Criar comunidade", Create community) to see the admin tools of a new community, or use the demo accounts below to see a community already filled with data.
 
 DEMO ACCOUNTS
-We created an isolated demo community, "Comunidade Demonstração", filled with fictitious data.
+We also keep an isolated demo community, "Comunidade Demonstração", filled with fictitious data.
 1. Admin account (sees every feature): the credentials in the Sign-In fields above.
 2. Member account (to see the member view, or to test account deletion): [a definir] / [a definir]
-Neither account uses two-factor authentication. Please use the member account to test account deletion, so the admin account stays available for future reviews. If you delete the admin account, it is also fine: the community has a second admin.
+Neither account uses two-factor authentication. Please use the member account (or your own account) to test account deletion, so the admin account stays available for future reviews. If you delete the admin account, it is also fine: the community has a second admin.
 
-HOW TO SIGN IN
-Open the app, tap "Entrar" (Sign in), type the e-mail and password, and tap "Entrar". Sign in with Apple and Google are also offered, but they only open accounts that already exist (created by invitation); please use the e-mail and password above.
+HOW TO SIGN IN WITH A DEMO ACCOUNT
+Open the app, tap "Entrar" (Sign in), type the e-mail and password, and tap "Entrar".
 
 WHERE THINGS ARE (tab names in Portuguese)
 - Início (Home): upcoming events, my rosters, announcements, verse of the day.
 - Agenda (Calendar): month, week and day timeline.
 - Programas (Programs): event list. Open "Sábado padrão" to see steps, roster, tasks, checklists and attendance.
-- Equipe (Team): members, roles and invitations.
+- Equipe (Team): members, roles, invitations, join requests and the community code.
 - Perfil (Profile): personal data, notifications, connected devices, two-factor authentication, "Privacidade e dados" (privacy and data) and "Ajuda e sobre" (help, terms).
+Without a community, the app shows "Tenho um código" (I have a code), "Procurar comunidade" (Find a community) and "Criar comunidade" (Create community).
 
 ACCOUNT DELETION (Guideline 5.1.1(v))
-Perfil > "Privacidade e dados" (Privacy and data) > "Excluir conta" (Delete account). The account and its personal data are deleted; the authorship of shared records becomes "Pessoa removida" (Removed person). The same can be requested on the web at https://unijovem.solerte.com.br/excluir-conta
+Perfil > "Privacidade e dados" (Privacy and data) > "Excluir conta" (Delete account). Accounts with a password confirm with the password; accounts created with Sign in with Apple confirm by signing in with Apple again. The account and its personal data are deleted; the authorship of shared records becomes "Pessoa removida" (Removed person). The same can be requested on the web at https://unijovem.solerte.com.br/excluir-conta
 
-CAMERA
-The camera is used to scan the attendance QR code at the event entrance: Programas > "Sábado padrão" > attendance > "Ler QR com a câmera" (Scan QR with the camera). Without the camera, attendance can also be marked by searching the person's name and tapping "Marcar presença".
+CAMERA AND PHOTOS
+The camera scans the attendance QR code at the event entrance: Programas > "Sábado padrão" > attendance > "Ler QR com a câmera" (Scan QR with the camera). Without the camera, attendance can also be marked by searching the person's name and tapping "Marcar presença". The camera and the photo library are also used, only when the user chooses, for an optional profile photo or the community logo.
 
 OFFLINE BY DESIGN
 On the event page, "Preparar para usar sem internet" downloads the program, roster and attendance list. With the device offline, attendance and live steps still work and are sent when the connection returns. Editing, invitations and administration require a connection on purpose.
 
-USER CONTENT AND SAFETY
-Prayer requests have three visibility levels chosen by the author: only me (default), prayer team, or the whole community. Content shared with others can be reported in the app with "Denunciar" (Report); community admins review reports and can remove reported content and remove or deactivate members. The support page has a contact e-mail (contact@solerte.com.br).
+USER-GENERATED CONTENT AND SAFETY (Guideline 1.2)
+- Terms: every account accepts the terms of use before using the app, and every community admin accepts an administrator agreement covering data use, minimum age and moderation (https://unijovem.solerte.com.br/termos#administrador).
+- Report content: prayer requests shared with others, suggestions and announcements have "Denunciar" (Report). Community admins review reports, can remove the content and can remove or deactivate members.
+- Block: "Bloquear esta pessoa" (Block this person) hides that person's prayer requests and suggestions from the user.
+- Report a community: "Denunciar comunidade" (Report community), from a search result or inside the community, goes to our team, never to the community.
+- Our team verifies new communities, reviews community reports and can suspend or remove a community or an account.
+- Community search shows only communities that chose to appear, by name and city, and never shows members or member counts. There are no direct messages, no public profiles and no feed.
+- Prayer requests have three visibility levels chosen by the author: only me (default), prayer team, or the whole community.
+- Contact: contact@solerte.com.br, also on the support page.
 
 NO PURCHASES, NO ADS, NO TRACKING
 The app has no in-app purchases, no advertising and no tracking.
 
 The backend is our own server and is online during the review period. If anything does not work as described, please write to us through App Review and we will answer the same day.
 ```
+
+**Em português, para conferência do dono:** o texto diz que qualquer pessoa com 16 anos ou mais cria conta e entra numa comunidade por convite, código ou pedido aprovado; que qualquer conta com e-mail confirmado cria comunidade e vira admin depois de aceitar o termo; que comunidade nova tem até 30 pessoas e não publica página aberta de evento até a verificação; que o revisor pode criar a própria conta (com a Apple ou, se o e-mail estiver ligado, por e-mail) ou usar as contas de demonstração; onde excluir a conta (com senha, ou entrando de novo com a Apple); e as ferramentas de segurança: termos aceitos, denúncia de conteúdo, bloqueio, denúncia de comunidade, verificação e suspensão pela equipe, busca sem pessoas e o contato.
 
 ## 6. Divergências encontradas e recomendações
 

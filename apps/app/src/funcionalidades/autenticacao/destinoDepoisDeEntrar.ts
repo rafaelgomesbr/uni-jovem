@@ -20,6 +20,8 @@ const ROTAS_SEM_DESTINO = new Set([
   '/entrar',
   '/segundo-fator',
   '/recuperar-senha',
+  '/criar-conta',
+  '/completar-cadastro',
   '/colar-convite',
   '/convite',
   '/redefinir-senha',

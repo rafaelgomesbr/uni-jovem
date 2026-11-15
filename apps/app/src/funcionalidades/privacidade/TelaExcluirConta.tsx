@@ -20,6 +20,10 @@ import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
 import { voltarOu } from '@/ui/navegacao'
 
+import { BotaoApple, pedirCredencialDaApple } from '../autenticacao/provedores/BotaoApple'
+import { BotaoGoogle } from '../autenticacao/provedores/BotaoGoogle'
+import { useTemProvedor } from '../autenticacao/provedores/EntradaComProvedores'
+
 /** TC-13.v1. */
 export const CONSEQUENCIAS_DA_EXCLUSAO = [
   'Você sai de todas as comunidades e é desconectado de todos os aparelhos.',
@@ -34,11 +38,33 @@ interface ComunidadeSemAdmin {
 }
 
 /**
+ * Como a pessoa prova que é ela: a senha ou, para conta criada com Google ou
+ * Apple (sem senha, ADR 0007), um token novo do provedor, como no login.
+ */
+type Prova =
+  | { tipo: 'senha' }
+  | { tipo: 'google'; idToken: string }
+  | { tipo: 'apple'; identityToken: string; nonce: string }
+
+function corpoDaProva(prova: Prova, senha: string): Record<string, string> {
+  switch (prova.tipo) {
+    case 'senha':
+      return { senha }
+    case 'google':
+      return { provedor: 'google', idToken: prova.idToken }
+    case 'apple':
+      return { provedor: 'apple', identityToken: prova.identityToken, nonce: prova.nonce }
+  }
+}
+
+/**
  * Rota `/excluir-conta` (3.7.8; Apple 5.1.1(v): excluir dentro do app). "O
  * QUE ACONTECE" em linhas com o ladrilho de erro, o terciário para baixar uma
  * cópia antes, "CONFIRME QUE É VOCÊ" com Senha e Código (cada um com o próprio
  * erro) e, na barra de ação, "Cancelar" e "Excluir minha conta" (destrutivo
- * cheio). A confirmação final continua nativa.
+ * cheio). Quem entrou com Google ou Apple (conta sem senha, ADR 0007)
+ * confirma entrando de novo com o provedor, com o mesmo botão do login. A
+ * confirmação final continua nativa.
  */
 export function TelaExcluirConta() {
   const { conta, sair, trocarComunidade } = useSessao()
@@ -46,10 +72,13 @@ export function TelaExcluirConta() {
   const [codigo, setCodigo] = useState('')
   // Um erro por campo: a falta da senha aparece na senha; a do código, no código.
   const [erros, setErros] = useState<{ senha?: string; codigo?: string }>({})
+  const semSenha = conta?.temSenha === false
+  const temProvedor = useTemProvedor()
+  const [falhaDoProvedor, setFalhaDoProvedor] = useState<string | null>(null)
   const excluir = useMutation({
-    mutationFn: () =>
+    mutationFn: (prova: Prova) =>
       api.post('/api/v1/eu/excluir-conta', {
-        senha,
+        ...corpoDaProva(prova, senha),
         ...(codigo.trim() ? { codigo: codigo.trim() } : {}),
       }),
     gcTime: 0,
@@ -64,9 +93,13 @@ export function TelaExcluirConta() {
     ? ((excluir.error.extra['comunidades'] as ComunidadeSemAdmin[] | undefined) ?? [])
     : null
 
-  async function pedir() {
+  async function pedir(prova: Prova = { tipo: 'senha' }) {
     const novos: { senha?: string; codigo?: string } = {}
-    if (!senha) novos.senha = 'Digite sua senha para confirmar que é você.'
+    if (prova.tipo === 'senha' && !senha) {
+      novos.senha = semSenha
+        ? 'Sua conta não tem senha: confirme com o Google ou a Apple, logo abaixo.'
+        : 'Digite sua senha para confirmar que é você.'
+    }
     if (conta?.doisFatores && !codigo.trim()) {
       novos.codigo = 'Digite também o código do app autenticador.'
     }
@@ -78,7 +111,17 @@ export function TelaExcluirConta() {
       confirmar: 'Excluir minha conta',
       destrutivo: true,
     })
-    if (ok) excluir.mutate()
+    if (ok) excluir.mutate(prova)
+  }
+
+  async function comApple() {
+    setFalhaDoProvedor(null)
+    try {
+      const credencial = await pedirCredencialDaApple()
+      if (credencial) await pedir({ tipo: 'apple', ...credencial })
+    } catch {
+      setFalhaDoProvedor('Não foi possível falar com a Apple. Tente de novo em instantes.')
+    }
   }
 
   return (
@@ -99,7 +142,9 @@ export function TelaExcluirConta() {
             titulo="Excluir minha conta"
             variante="destrutivoCheio"
             tamanho="grande"
-            carregando={excluir.isPending}
+            carregando={excluir.isPending && excluir.variables.tipo === 'senha'}
+            desabilitado={semSenha}
+            {...(semSenha ? { motivo: 'Confirme com o Google ou a Apple, acima.' } : {})}
             aoPressionar={() => void pedir()}
           />
         </BarraDeAcao>
@@ -121,16 +166,23 @@ export function TelaExcluirConta() {
       />
 
       <CartaoDeVidro sobrancelha="Confirme que é você" opaco intervalo={ESPACO.e16}>
-        <Campo
-          rotulo="Senha"
-          senha
-          value={senha}
-          onChangeText={setSenha}
-          autoCapitalize="none"
-          autoComplete="current-password"
-          textContentType="password"
-          erro={erros.senha ?? null}
-        />
+        {semSenha ? (
+          <Texto variante="corpo">
+            Sua conta entra com o Google ou com a Apple. Para confirmar que é você, entre de novo
+            com o mesmo botão que você usa para entrar.
+          </Texto>
+        ) : (
+          <Campo
+            rotulo="Senha"
+            senha
+            value={senha}
+            onChangeText={setSenha}
+            autoCapitalize="none"
+            autoComplete="current-password"
+            textContentType="password"
+            erro={erros.senha ?? null}
+          />
+        )}
         {conta?.doisFatores ? (
           <Campo
             rotulo="Código do app autenticador"
@@ -143,6 +195,32 @@ export function TelaExcluirConta() {
             maxLength={12}
             erro={erros.codigo ?? null}
           />
+        ) : null}
+        {temProvedor ? (
+          <View style={{ gap: ESPACO.e8 }}>
+            {semSenha ? null : (
+              <Texto variante="meta" cor="textoSuave">
+                Entrou com o Google ou com a Apple? Confirme por ali, sem senha:
+              </Texto>
+            )}
+            <BotaoGoogle
+              titulo="Confirmar com o Google"
+              carregando={excluir.isPending && excluir.variables.tipo === 'google'}
+              desabilitado={excluir.isPending}
+              aoObterToken={(idToken) => void pedir({ tipo: 'google', idToken })}
+              aoFalhar={setFalhaDoProvedor}
+            />
+            <BotaoApple
+              tipo="continuar"
+              carregando={excluir.isPending && excluir.variables.tipo === 'apple'}
+              aoPressionar={() => void comApple()}
+            />
+            {falhaDoProvedor ? (
+              <Aviso tipo="erro" titulo="Não deu para confirmar" anunciar>
+                {falhaDoProvedor}
+              </Aviso>
+            ) : null}
+          </View>
         ) : null}
       </CartaoDeVidro>
 

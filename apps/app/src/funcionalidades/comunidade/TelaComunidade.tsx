@@ -1,6 +1,6 @@
 import { NOME_DO_PAPEL } from '@uj/dominio'
 import { ESPACO } from '@uj/tokens'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 import { View } from 'react-native'
 
@@ -18,17 +18,26 @@ import { AvisoDeFalha, ErroDaTela } from '@/ui/Falha'
 import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
 import { Secao } from '@/ui/Secao'
 import { Segmentos } from '@/ui/Segmentos'
+import { parametro } from '@/utilidades/parametros'
 
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { TelaDoApp } from '../navegacao/TelaDoApp'
-import { useConvites, useMembros } from './consultas'
+import { logoDaComunidade } from '../perfil/imagens'
+import { AvisoDeComunidadeNova } from './ComunidadeNova'
+import { useConvites, useDetalheDaComunidade, useMembros, usePedidosDeEntrada } from './consultas'
 import { linhaDoMembro } from './LinhaDoMembro'
 import { CHIP_DO_ESTADO_DA_COMUNIDADE, NOME_CURTO_DO_ESTADO_DA_COMUNIDADE } from './nomes'
 import { usePode } from './permissoes'
 import { useSairDaComunidade } from './sairDaComunidade'
 import { SecaoConvites } from './SecaoConvites'
+import { SecaoPedidos } from './SecaoPedidos'
 
-type Aba = 'pessoas' | 'convites'
+type Aba = 'pessoas' | 'pedidos' | 'convites'
+
+/** `/comunidade?segmento=pedidos` (toque na notificação de pedido) abre direto nos pedidos. */
+function abaDoParametro(valor: string | null): Aba | null {
+  return valor === 'pessoas' || valor === 'pedidos' || valor === 'convites' ? valor : null
+}
 
 function semAcento(texto: string): string {
   return texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
@@ -36,9 +45,11 @@ function semAcento(texto: string): string {
 
 /**
  * Aba Equipe (rota `/comunidade`, 3.6.1 e quadro 08): o papel e quantas
- * pessoas no subtítulo, o destaque "Convidar pessoas" para quem convida, os
- * segmentos Pessoas e Convites e, no fim, "Sair". Cada bloco só aparece para
- * quem pode usá-lo (mesma matriz da API, que decide de verdade).
+ * pessoas no subtítulo, a identidade da comunidade (para o admin, o caminho
+ * das Configurações), o destaque "Convidar pessoas" para quem convida, os
+ * segmentos Pessoas, Pedidos (admin e organizador, ADR 0007) e Convites e,
+ * no fim, "Sair". Cada bloco só aparece para quem pode usá-lo (mesma matriz
+ * da API, que decide de verdade).
  */
 export function TelaComunidade() {
   const { comunidadeAtiva } = useSessao()
@@ -58,7 +69,19 @@ function Equipe({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
   const membros = useMembros(comunidade.id)
   const verConvites = pode('convite', 'listar')
   const convites = useConvites(comunidade.id, verConvites)
-  const [aba, setAba] = useState<Aba>('pessoas')
+  const verPedidos = pode('pedido_entrada', 'ler')
+  const pedidos = usePedidosDeEntrada(comunidade.id, verPedidos)
+  const detalhe = useDetalheDaComunidade(comunidade.id)
+  const parametros = useLocalSearchParams<{ segmento?: string }>()
+  const segmento = abaDoParametro(parametro(parametros.segmento))
+  const [aba, setAba] = useState<Aba>(segmento ?? 'pessoas')
+  // A aba fica montada: um toque novo na notificação troca o segmento já aberto.
+  const [ultimoSegmento, setUltimoSegmento] = useState(segmento)
+  if (segmento !== ultimoSegmento) {
+    setUltimoSegmento(segmento)
+    if (segmento) setAba(segmento)
+  }
+  const configurar = pode('comunidade', 'configurar')
   const ativa = comunidade.estado === 'ativa'
   const podeConvidar = pode('convite', 'criar')
   const sair = useSairDaComunidade(comunidade)
@@ -71,6 +94,18 @@ function Equipe({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
       ? `Você é ${papel}`
       : `Você é ${papel} · ${ativos} ${ativos === 1 ? 'pessoa' : 'pessoas'}`
   const validos = convites.data?.filter((c) => c.situacao === 'valido').length ?? 0
+  const pendentes = pedidos.data?.length ?? 0
+  const segmentos = [
+    { valor: 'pessoas' as const, rotulo: 'Pessoas' },
+    ...(verPedidos
+      ? [{ valor: 'pedidos' as const, rotulo: pendentes ? `Pedidos (${pendentes})` : 'Pedidos' }]
+      : []),
+    ...(verConvites
+      ? [{ valor: 'convites' as const, rotulo: validos ? `Convites (${validos})` : 'Convites' }]
+      : []),
+  ]
+  const abaVisivel: Aba =
+    (aba === 'pedidos' && !verPedidos) || (aba === 'convites' && !verConvites) ? 'pessoas' : aba
 
   return (
     <TelaDoApp titulo="Equipe" descricao={descricao}>
@@ -85,6 +120,24 @@ function Equipe({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
           {oracao ? <Chip texto="Equipe de oração" tom="quente" /> : null}
         </View>
       ) : null}
+
+      {configurar && ativa ? (
+        <CartaoDeVidro lista>
+          <LinhaDeLista
+            avatar={{
+              nome: comunidade.nome,
+              cor: comunidade.cor,
+              dados: { foto: logoDaComunidade(comunidade) },
+            }}
+            titulo={comunidade.nome}
+            descricao="Configurações, código e quem pode entrar"
+            rotuloAcessivel={`Configurações da comunidade ${comunidade.nome}`}
+            aoPressionar={() => router.push('/configurar-comunidade')}
+          />
+        </CartaoDeVidro>
+      ) : null}
+
+      {verPedidos ? <AvisoDeComunidadeNova detalhe={detalhe.data} /> : null}
 
       {!ativa ? (
         <Aviso tipo="alerta" titulo="Comunidade sem alterações por enquanto">
@@ -110,20 +163,14 @@ function Equipe({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
         />
       ) : null}
 
-      {verConvites ? (
-        <Segmentos
-          rotulo="Equipe"
-          valor={aba}
-          aoMudar={setAba}
-          segmentos={[
-            { valor: 'pessoas', rotulo: 'Pessoas' },
-            { valor: 'convites', rotulo: validos ? `Convites (${validos})` : 'Convites' },
-          ]}
-        />
+      {segmentos.length > 1 ? (
+        <Segmentos rotulo="Equipe" valor={abaVisivel} aoMudar={setAba} segmentos={segmentos} />
       ) : null}
 
-      {aba === 'convites' && verConvites ? (
+      {abaVisivel === 'convites' ? (
         <SecaoConvites comunidade={comunidade} podeAlterar={ativa && podeConvidar} />
+      ) : abaVisivel === 'pedidos' ? (
+        <SecaoPedidos comunidade={comunidade} pedidos={pedidos} podeAlterar={ativa} />
       ) : (
         <Pessoas comunidadeId={comunidade.id} podeAlterar={ativa} membros={membros} />
       )}
@@ -131,19 +178,27 @@ function Equipe({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
       <Secao titulo="Comunidade">
         <CartaoDeVidro lista>
           <Lista>
-            {pode('comunidade', 'configurar') && ativa ? (
+            {configurar && ativa ? (
               <LinhaDeLista
                 icone="ajustes"
                 titulo="Configurações da comunidade"
-                descricao="Nome, cor e fuso horário"
+                descricao="Nome, cor, logotipo, cidade e quem pode entrar"
                 aoPressionar={() => router.push('/configurar-comunidade')}
+              />
+            ) : null}
+            {configurar && ativa ? (
+              <LinhaDeLista
+                icone="qr"
+                titulo="Código da comunidade"
+                descricao="Código, QR e envio pelo WhatsApp"
+                aoPressionar={() => router.push('/codigo-da-comunidade')}
               />
             ) : null}
             <LinhaDeLista
               icone="link"
               titulo="Entrar em outra comunidade"
-              descricao="Cole o link de um convite"
-              aoPressionar={() => router.push('/entrar-com-convite')}
+              descricao="Código, convite ou busca"
+              aoPressionar={() => router.push('/comece-por-aqui')}
             />
             {conta?.criador ? (
               <LinhaDeLista
@@ -153,12 +208,25 @@ function Equipe({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
                 aoPressionar={() => router.push('/plataforma')}
               />
             ) : null}
-            {conta?.criador ? (
+            <LinhaDeLista
+              icone="adicionar"
+              titulo="Criar comunidade"
+              rotuloAcessivel="Criar comunidade"
+              aoPressionar={() =>
+                router.push(conta?.criador ? '/plataforma/nova' : '/criar-comunidade')
+              }
+            />
+            {detalhe.data?.idPublico ? (
               <LinhaDeLista
-                icone="adicionar"
-                titulo="Criar comunidade"
-                rotuloAcessivel="Criar comunidade"
-                aoPressionar={() => router.push('/plataforma/nova')}
+                icone="denuncia"
+                titulo="Denunciar comunidade"
+                descricao="Algo errado aqui? A equipe do app olha"
+                aoPressionar={() =>
+                  router.push({
+                    pathname: '/denunciar-comunidade',
+                    params: { idPublico: detalhe.data?.idPublico ?? '', nome: comunidade.nome },
+                  })
+                }
               />
             ) : null}
           </Lista>

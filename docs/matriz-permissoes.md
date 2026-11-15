@@ -8,7 +8,7 @@ da plataforma, um atributo global e não um papel de comunidade. Tudo que não e
 
 | Recurso | Ação | Quem pode |
 | --- | --- | --- |
-| plataforma | criar_comunidade | Criador (2FA) |
+| plataforma | criar_comunidade | Criador (sem 2FA) |
 | plataforma | suspender_comunidade | Criador (2FA) |
 | plataforma | arquivar_comunidade | Criador (2FA) |
 | plataforma | excluir_comunidade | Criador (2FA) |
@@ -17,9 +17,18 @@ da plataforma, um atributo global e não um papel de comunidade. Tudo que não e
 | plataforma | transferir_propriedade | Criador (2FA) |
 | plataforma | ler_auditoria_da_plataforma | Criador (2FA) |
 | plataforma | ler_saude_da_plataforma | Criador (2FA) |
+| plataforma | ler_comunidades | Criador (sem 2FA) |
+| plataforma | verificar_comunidade | Criador (sem 2FA) |
+| plataforma | ler_denuncias_de_comunidade | Criador (sem 2FA) |
+| plataforma | resolver_denuncia_de_comunidade | Criador (sem 2FA) |
 | comunidade | ler | Membro ou acima |
 | comunidade | configurar | Administrador ou acima |
 | comunidade | trocar_logo | Administrador ou acima |
+| comunidade | ver_codigo | Administrador ou acima |
+| comunidade | trocar_codigo | Administrador ou acima |
+| comunidade | aceitar_termo_do_admin | Administrador ou acima |
+| pedido_entrada | ler | Organizador ou acima |
+| pedido_entrada | decidir | Organizador ou acima |
 | vinculo | listar | Membro ou acima |
 | vinculo | ver_contato | Organizador ou acima |
 | vinculo | alterar_papel | Administrador ou acima |

@@ -10,7 +10,9 @@ import { novoBanco, type BancoDeTeste } from '../apoio/banco.ts'
 // Tabelas com comunidade_id que, por desenho, não entram no log de mudanças.
 // `sync_operacoes` é o registro de idempotência da fila offline: anunciá-lo no
 // log faria cada envio gerar uma mudança só para quem enviou, sem utilidade.
-const SEM_LOG = new Set(['auditoria', 'mudancas', 'sync_operacoes'])
+// `denuncias_de_comunidade` (ADR 0007) é da fila da Plataforma: anunciá-la no
+// log contaria aos membros que alguém denunciou a comunidade.
+const SEM_LOG = new Set(['auditoria', 'mudancas', 'sync_operacoes', 'denuncias_de_comunidade'])
 
 let b: BancoDeTeste
 beforeAll(async () => {

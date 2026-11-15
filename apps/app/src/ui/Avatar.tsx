@@ -89,7 +89,16 @@ export function esquecerImagens(): void {
 
 registrarAoEncerrarSessao(esquecerImagens)
 
+/**
+ * Imagem que ainda está só no aparelho (o logotipo escolhido antes de a
+ * comunidade existir): vai direto para o `expo-image`, sem rede.
+ */
+function ehLocal(caminho: string): boolean {
+  return caminho.startsWith('data:image/')
+}
+
 function enderecoVersionado(foto: FotoDoAvatar): string {
+  if (ehLocal(foto.caminho)) return foto.caminho
   return `${foto.caminho}?v=${encodeURIComponent(foto.versao)}`
 }
 
@@ -108,6 +117,7 @@ async function blobDaWeb(endereco: EnderecoDaImagem): Promise<string | null> {
 
 /** Fonte da imagem para o `expo-image`, ou `null` quando não dá para baixar (sem sessão, 404). */
 async function fonteDaFoto(caminho: string, novaTentativa: boolean): Promise<ImageSource | null> {
+  if (ehLocal(caminho)) return { uri: caminho }
   const acesso = acessoDasImagens
   if (!acesso) return null
   if (Platform.OS !== 'web') {

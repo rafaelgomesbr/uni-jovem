@@ -30,11 +30,21 @@ export type DestinoDaNotificacao =
   | { tela: 'avisos' }
   | { tela: 'evento'; eventoId: string }
   | { tela: 'escalas' }
+  /** ADR 0007: novo pedido de entrada (admin e organizadores). */
+  | { tela: 'pedidos_de_entrada'; comunidadeId?: string }
+  /** ADR 0007: decisão do próprio pedido (quem pediu ainda não é da comunidade). */
+  | { tela: 'meus_pedidos' }
   | null
+
+/**
+ * Tipos da ADR 0007 que chegam pela caixa antes de entrar na lista de
+ * preferências de `@uj/dominio` (não têm interruptor próprio).
+ */
+export type TipoDeNotificacaoDeEntrada = 'pedido_de_entrada' | 'pedido_decidido'
 
 export interface NotificacaoDaCaixa {
   id: string
-  tipo: TipoDeNotificacao
+  tipo: TipoDeNotificacao | TipoDeNotificacaoDeEntrada
   titulo: string
   texto: string
   comunidade: { id: string; nome: string }
@@ -49,7 +59,9 @@ export interface PaginaDaCaixa {
   proximoCursor: string | null
 }
 
-export const ICONE_DO_TIPO: Record<TipoDeNotificacao, NomeDoIcone> = {
+export const ICONE_DO_TIPO: Readonly<
+  Record<TipoDeNotificacao | TipoDeNotificacaoDeEntrada, NomeDoIcone>
+> = {
   eventos: 'eventos',
   escalas: 'escalas',
   inscricoes: 'inscricoes',
@@ -57,12 +69,21 @@ export const ICONE_DO_TIPO: Record<TipoDeNotificacao, NomeDoIcone> = {
   substituicoes: 'trocar',
   alteracoes_importantes: 'avisoAlerta',
   avisos: 'aviso',
+  pedido_de_entrada: 'convidar',
+  pedido_decidido: 'convidar',
 }
+
+/** A lista de pedidos da Equipe (segmento "Pedidos"). */
+export const ROTA_DOS_PEDIDOS: Href = { pathname: '/comunidade', params: { segmento: 'pedidos' } }
 
 /** A rota do app que a notificação abre; `null` quando o alvo não existe mais. */
 export function rotaDoDestino(destino: DestinoDaNotificacao): Href | null {
   if (!destino) return null
   switch (destino.tela) {
+    case 'pedidos_de_entrada':
+      return ROTA_DOS_PEDIDOS
+    case 'meus_pedidos':
+      return '/comece-por-aqui'
     case 'aviso':
       return { pathname: '/avisos/[avisoId]', params: { avisoId: destino.avisoId } }
     case 'avisos':
@@ -72,6 +93,20 @@ export function rotaDoDestino(destino: DestinoDaNotificacao): Href | null {
     case 'escalas':
       return '/escalas'
   }
+}
+
+/**
+ * O destino da notificação, com o padrão dos pedidos de entrada: o pedido
+ * novo abre a lista da Equipe e a decisão abre "Meus pedidos", mesmo que a
+ * API mande sem destino.
+ */
+export function destinoDaNotificacao(
+  n: Pick<NotificacaoDaCaixa, 'tipo' | 'destino'>,
+): DestinoDaNotificacao {
+  if (n.destino) return n.destino
+  if (n.tipo === 'pedido_de_entrada') return { tela: 'pedidos_de_entrada' }
+  if (n.tipo === 'pedido_decidido') return { tela: 'meus_pedidos' }
+  return null
 }
 
 /** "3 não lidas", "1 não lida". */

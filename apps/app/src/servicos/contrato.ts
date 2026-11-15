@@ -40,6 +40,12 @@ export interface Conta {
   /** Foto de perfil (D33); ausentes em API anterior à migração 0018. */
   temFoto?: boolean
   fotoVersao?: string | null
+  /** TC-01 declarada (ADR 0007): criar comunidade pede 18 ou mais. Ausente: o app não sabe. */
+  faixaEtaria?: '18_mais' | '16_17' | null
+  /** Conta criada só com Google ou Apple não tem senha: excluir confirma pelo provedor. */
+  temSenha?: boolean
+  /** Versão dos Termos e da Política aceita pela conta (ex.: "0.3"). */
+  versaoDosTermosAceita?: string | null
 }
 
 export interface ComunidadeDoVinculo {
@@ -52,6 +58,8 @@ export interface ComunidadeDoVinculo {
   /** Logotipo (D33); ausentes em API anterior à migração 0018. */
   temLogo?: boolean
   logoVersao?: string | null
+  /** Admin que ainda não aceitou o Termo do Administrador (TC-16), ou versão nova dele. */
+  precisaAceitarTermoDoAdmin?: boolean
 }
 
 export interface RespostaEu {
@@ -67,7 +75,7 @@ export interface Aparelho {
   atual: boolean
 }
 
-export interface DetalheDaComunidade {
+export interface DetalheDaComunidade extends DetalheDaComunidadeAberta {
   id: string
   nome: string
   cor: string
@@ -159,3 +167,148 @@ export interface ComunidadeCriada {
   id: string
   conviteDoPrimeiroAdmin: { link: string; expiraEm: string }
 }
+
+// ---------------------------------------------------------------------------
+// ADR 0007: app aberto ("livre com rodinhas"). Campos novos ficam opcionais
+// quando vêm em respostas que já existiam: o app continua funcionando com uma
+// API anterior à mudança.
+// ---------------------------------------------------------------------------
+
+/**
+ * TC-02 ("Li e concordo com os Termos de Uso e a Política de Privacidade") e,
+ * para 16 e 17 anos, a ciência do responsável, que a própria opção da TC-01
+ * declara ("meu responsável legal sabe ... e concorda").
+ */
+export interface Aceites {
+  termos: boolean
+  responsavelCiente?: boolean
+}
+
+/** `POST /api/auth/provedor/:provedor` quando a conta ainda não existe (ADR 0007). */
+export interface CadastroPendente {
+  cadastroPendente: true
+  /** Vale 15 minutos e uma vez. */
+  tokenDeCadastro: string
+  nome: string
+  email: string
+}
+
+export type RespostaDoProvedor = RespostaDeEntrar | CadastroPendente
+
+export type VerificacaoDaComunidade = 'nova' | 'verificada'
+
+/** `livre` (sem código) continua não habilitado e não aparece no app. */
+export type ModoDeEntrada = 'convite' | 'codigo_com_aprovacao' | 'codigo_direto'
+
+/** Limites da comunidade `nova` e o uso atual (some quando é verificada). */
+export interface LimitesDaComunidade {
+  /** Vínculos ativos permitidos; `null` sem limite (verificada). */
+  membrosAtivos: number | null
+  /** Página pública de inscrição permitida (só verificada). */
+  eventoPublico?: boolean
+}
+
+export interface UsoDaComunidade {
+  membrosAtivos: number
+}
+
+/** Campos do detalhe da comunidade que a ADR 0007 acrescenta. */
+export interface DetalheDaComunidadeAberta {
+  idPublico?: string
+  cidade?: string | null
+  modoEntrada?: ModoDeEntrada
+  encontravel?: boolean
+  verificacao?: VerificacaoDaComunidade
+  limites?: LimitesDaComunidade
+  uso?: UsoDaComunidade
+  precisaAceitarTermoDoAdmin?: boolean
+}
+
+/** `POST /api/v1/comunidades`. */
+export interface ComunidadeCriadaPorConta {
+  id: string
+  nome?: string
+  codigo?: string
+  link?: string
+}
+
+/** Item de `GET /api/v1/comunidades/busca`: nunca traz membros nem contagem. */
+export interface ComunidadeEncontrada {
+  idPublico: string
+  nome: string
+  cidade: string | null
+  cor: string
+  temLogo: boolean
+  logoVersao: string | null
+  verificada: boolean
+  modoEntrada: ModoDeEntrada
+}
+
+/** `POST /api/v1/entrada` e `POST /api/v1/comunidades/:idPublico/pedidos`. */
+export interface ResultadoDaEntrada {
+  resultado: 'membro' | 'pedido_pendente'
+  comunidade: { id?: string; nome: string }
+}
+
+export type EstadoDoPedidoDeEntrada = 'pendente' | 'aceito' | 'nao_aprovado'
+
+/** Item de `GET /api/v1/eu/pedidos`: quem pediu nunca vê quem decidiu. */
+export interface MeuPedidoDeEntrada {
+  id: string
+  estado: EstadoDoPedidoDeEntrada
+  /** O id só vem depois de aceito. */
+  comunidade: { id?: string | null; nome: string; cor?: string; cidade?: string | null }
+  criadoEm: string
+  respondidoEm?: string | null
+}
+
+/** Item de `GET /api/v1/c/:comunidadeId/pedidos?estado=pendente` (admin e organizador). */
+export interface PedidoDeEntrada {
+  id: string
+  nome: string
+  mensagem: string | null
+  /** Por onde chegou: o código ou a busca. */
+  origem?: 'codigo' | 'busca' | string
+  criadoEm: string
+  avatar?: AvatarDaConta | null
+}
+
+/** `GET` e `POST .../codigo/trocar` (admin). */
+export interface CodigoDaComunidade {
+  codigo: string
+  link: string
+  modoEntrada?: ModoDeEntrada
+}
+
+/** Os motivos que a API aceita hoje (TC-19.v1). */
+export type MotivoDaDenunciaDeComunidade = 'falsa' | 'golpe' | 'ofensiva' | 'spam' | 'outro'
+
+/** Item de `GET /api/v1/plataforma/comunidades` com os campos da ADR 0007. */
+export interface ComunidadeDaPlataformaAberta {
+  cidade?: string | null
+  criadoEm?: string
+  /** Quem criou a comunidade (o admin criador); `null` nas criadas pela Plataforma. */
+  criador?: { nome: string; email: string | null } | null
+  denunciasAbertas?: number
+  verificacao?: VerificacaoDaComunidade
+}
+
+export interface PaginaDeComunidadesDaPlataforma {
+  comunidades: (ComunidadeDaPlataforma & ComunidadeDaPlataformaAberta)[]
+  proximoCursor?: string | null
+}
+
+/** Item de `GET /api/v1/plataforma/denuncias-de-comunidade` (padrão: só as abertas). */
+export interface DenunciaDeComunidade {
+  id: string
+  comunidade: { id: string; nome: string }
+  motivo: MotivoDaDenunciaDeComunidade | string
+  detalhe: string | null
+  estado: 'aberta' | 'procedente' | 'improcedente'
+  resolucao: string | null
+  criadoEm: string
+  resolvidaEm: string | null
+}
+
+/** `POST .../denuncias-de-comunidade/:id/resolver`. */
+export type ResolucaoDaDenuncia = 'procedente' | 'improcedente'

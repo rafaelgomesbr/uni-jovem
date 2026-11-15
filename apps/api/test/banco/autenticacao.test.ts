@@ -550,25 +550,25 @@ describe('primeiro acesso do Criador', () => {
     expect(semProva.conteudo.prova).toBeNull()
     const auth = { authorization: `Bearer ${login.json().acesso}` }
 
-    // Ação de plataforma sem prova: a recusa certa, que o app usa para pedir o código.
-    const recusada = await post('/api/v1/plataforma/comunidades', { nome: 'Sem prova' }, auth)
+    // ADR 0007 (revisa D12 e D31): criar e listar comunidades não pedem o código.
+    const semProvaCria = await post('/api/v1/plataforma/comunidades', { nome: 'Sem prova' }, auth)
+    expect(semProvaCria.statusCode).toBe(200)
+    // Ação que destrói continua pedindo: a recusa certa, que o app usa para pedir o código.
+    const recusada = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/plataforma/comunidades/${semProvaCria.json().id}/estado`,
+      headers: auth,
+      payload: { estado: 'suspensa' },
+    })
     expect(recusada.statusCode).toBe(403)
     expect(recusada.json().erro).toBe('segundo_fator_necessario')
-    const listar = await app.inject({
-      method: 'GET',
-      url: '/api/v1/plataforma/comunidades',
-      headers: auth,
-    })
-    expect(listar.statusCode).toBe(403)
-    // E o banco também não reconhece o Criador sem a prova.
-    const direto = await b
-      .comoApi(
-        { contaId: criador, prova: null },
-        "insert into uj.comunidades (nome, criado_por) values ('Não pode', $1)",
-        [criador],
-      )
-      .catch((e: Error) => e.message)
-    expect(direto).toMatch(/row-level security/)
+    // E o banco também não reconhece o poder de suspender sem a prova (a RLS filtra).
+    const direto = await b.comoApi(
+      { contaId: criador, prova: null },
+      "update uj.comunidades set estado = 'suspensa' where id = $1 returning id",
+      [semProvaCria.json().id],
+    )
+    expect(direto).toEqual([])
 
     // Step-up: o código do autenticador troca o acesso por um com prova recente.
     const sf = await post(

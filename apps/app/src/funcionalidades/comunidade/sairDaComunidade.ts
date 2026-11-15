@@ -31,7 +31,8 @@ export function useSairDaComunidade(comunidade: Pick<ComunidadeDoVinculo, 'id' |
     const naoEnviadas = await offline.naoEnviadas(comunidade.id)
     const ok = await confirmar({
       titulo: `Sair de ${comunidade.nome}?`,
-      mensagem: `Você deixa de ver a agenda e as programações desta comunidade. Para voltar, vai precisar de um convite novo.${
+      // TC-12.v2 (docs/privacidade/textos-de-consentimento.md).
+      mensagem: `${CONSEQUENCIAS_DE_SAIR.map((c) => `• ${c}`).join('\n')}${
         naoEnviadas.length
           ? `
 
@@ -46,3 +47,12 @@ ${mensagemDePendencias(naoEnviadas)}`
 
   return { pedirParaSair, saindo: sair.isPending, erro: sair.error }
 }
+
+/** TC-12.v2: o que acontece ao sair (a volta não precisa mais de convite, ADR 0007). */
+export const CONSEQUENCIAS_DE_SAIR = [
+  'Seus pedidos de oração nesta comunidade serão apagados.',
+  'Sua disponibilidade e suas escalas futuras serão retiradas.',
+  'Seu histórico aqui (presenças e escalas passadas) deixa de mostrar seu nome e passa a aparecer como "Pessoa removida".',
+  'O que estiver baixado para uso sem internet nesta comunidade será apagado deste aparelho.',
+  'Para voltar, peça para entrar de novo ou use um convite ou o código da comunidade. Você volta como pessoa nova, sem o histórico.',
+]

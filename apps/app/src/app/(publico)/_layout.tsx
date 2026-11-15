@@ -20,6 +20,8 @@ export default function LayoutPublico() {
       <Stack.Screen name="entrar" options={{ headerShown: false, title: 'Entrar' }} />
       <Stack.Screen name="segundo-fator" options={{ title: 'Verificação' }} />
       <Stack.Screen name="recuperar-senha" options={{ title: 'Recuperar senha' }} />
+      <Stack.Screen name="criar-conta" options={{ title: 'Criar conta' }} />
+      <Stack.Screen name="completar-cadastro" options={{ title: 'Falta pouco' }} />
       <Stack.Screen
         name="colar-convite"
         options={{

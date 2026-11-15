@@ -14,6 +14,7 @@ import {
 } from './autenticacao/provedores.ts'
 import { registrarRotasDeAutenticacao } from './rotas/autenticacao.ts'
 import { registrarRotasDeComunidade } from './rotas/comunidades.ts'
+import { registrarRotasDeAbertura } from './rotas/abertura.ts'
 import { registrarRotasDeEventos } from './rotas/eventos.ts'
 import { registrarRotasDeSeries } from './rotas/series.ts'
 import { registrarRotasDeEscalas } from './rotas/escalas.ts'
@@ -183,11 +184,12 @@ export function criarServidor(
     void app.register(cookie)
     void app.register(formbody, { bodyLimit: 16 * 1024 })
     app.after(() => {
+      const verificador = criarVerificadorDeProvedores(config, recursos.chavesDosProvedores)
       registrarRotasDeAutenticacao(
         app,
         { config, auth: recursos.auth, correio: recursos.correio, emSegundoPlano },
         {
-          verificador: criarVerificadorDeProvedores(config, recursos.chavesDosProvedores),
+          verificador,
           ...(recursos.fatorDeLimitePorIp === undefined
             ? {}
             : { fatorDeLimitePorIp: recursos.fatorDeLimitePorIp }),
@@ -196,6 +198,12 @@ export function criarServidor(
       registrarContextoDeComunidade(app, recursos.api)
       const deps = { config, api: recursos.api, correio: recursos.correio, emSegundoPlano }
       registrarRotasDeComunidade(app, deps)
+      registrarRotasDeAbertura(app, {
+        ...deps,
+        ...(recursos.fatorDeLimitePorIp === undefined
+          ? {}
+          : { fatorDeLimitePorIp: recursos.fatorDeLimitePorIp }),
+      })
       registrarRotasDePlataforma(app, deps)
       registrarRotasDeEventos(app, recursos.api)
       registrarRotasDeSeries(app, recursos.api)
@@ -215,6 +223,7 @@ export function criarServidor(
         auth: recursos.auth,
         correio: recursos.correio,
         emSegundoPlano,
+        verificador,
       })
       registrarRotasDeSincronizacao(app, recursos.api)
       registrarRotasDeImagens(app, recursos.api)

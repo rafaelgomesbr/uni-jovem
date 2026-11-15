@@ -45,6 +45,8 @@ function apiSemSessao(): Promise<http.Server> {
 const TELAS = [
   { caminho: '/app/entrar', seletor: 'input', minimo: 2 },
   { caminho: '/app/recuperar-senha', seletor: 'input', minimo: 1 },
+  // ADR 0007: cadastro aberto (nome e e-mail no primeiro passo).
+  { caminho: '/app/criar-conta', seletor: 'input', minimo: 2 },
 ]
 
 function exportar(destino: string) {

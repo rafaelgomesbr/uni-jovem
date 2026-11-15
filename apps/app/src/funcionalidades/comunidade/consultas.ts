@@ -1,9 +1,15 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
-import type { ConviteDaComunidade, DetalheDaComunidade, Membro } from '@/servicos/contrato'
+import type {
+  CodigoDaComunidade,
+  ConviteDaComunidade,
+  DetalheDaComunidade,
+  Membro,
+  PedidoDeEntrada,
+} from '@/servicos/contrato'
 import { fusoDoAparelho } from '@/utilidades/datas'
 
 /** Membros da comunidade. A chave leva o id da comunidade: cache nunca mistura comunidades. */
@@ -60,4 +66,51 @@ export function usePessoasAtivas(comunidadeId: string | null) {
     .filter((m) => m.estado === 'ativo')
     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
   return { ...membros, pessoas }
+}
+
+/** Pedidos pendentes (`GET /c/:id/pedidos?estado=pendente`). */
+export function usePedidosDeEntrada(comunidadeId: string | null, habilitado: boolean) {
+  return useQuery({
+    queryKey: CHAVES.pedidosDeEntrada(comunidadeId ?? ''),
+    queryFn: () =>
+      api
+        .get<{ pedidos: PedidoDeEntrada[] }>(`/api/v1/c/${comunidadeId}/pedidos?estado=pendente`)
+        .then((r) => r.pedidos),
+    enabled: comunidadeId !== null && habilitado,
+    // A mensagem do pedido é de quem pediu: sai do cache assim que a tela fecha.
+    gcTime: 0,
+  })
+}
+
+/** Aceitar cria o vínculo de membro; recusar deixa "Não aprovado" para quem pediu. */
+export function useDecidirPedido(comunidadeId: string) {
+  const consultas = useQueryClient()
+  return useMutation({
+    mutationFn: ({ pedidoId, decisao }: { pedidoId: string; decisao: 'aceitar' | 'recusar' }) =>
+      api.post(`/api/v1/c/${comunidadeId}/pedidos/${pedidoId}/${decisao}`),
+    onSuccess: () =>
+      Promise.all([
+        consultas.invalidateQueries({ queryKey: CHAVES.pedidosDeEntrada(comunidadeId) }),
+        consultas.invalidateQueries({ queryKey: CHAVES.membros(comunidadeId) }),
+        consultas.invalidateQueries({ queryKey: CHAVES.comunidade(comunidadeId) }),
+      ]),
+  })
+}
+
+/** Código da comunidade (só admin). Não fica no cache depois de sair da tela. */
+export function useCodigoDaComunidade(comunidadeId: string | null, habilitado: boolean) {
+  return useQuery({
+    queryKey: CHAVES.codigoDaComunidade(comunidadeId ?? ''),
+    queryFn: () => api.get<CodigoDaComunidade>(`/api/v1/c/${comunidadeId}/codigo`),
+    enabled: comunidadeId !== null && habilitado,
+    gcTime: 0,
+  })
+}
+
+export function useTrocarCodigo(comunidadeId: string) {
+  const consultas = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.post<CodigoDaComunidade>(`/api/v1/c/${comunidadeId}/codigo/trocar`),
+    onSuccess: (novo) => consultas.setQueryData(CHAVES.codigoDaComunidade(comunidadeId), novo),
+  })
 }

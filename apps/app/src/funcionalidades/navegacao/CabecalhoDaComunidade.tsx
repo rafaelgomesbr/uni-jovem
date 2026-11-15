@@ -40,7 +40,7 @@ function usePilula() {
   const aoPressionar = podeTrocar
     ? () => router.push('/trocar-comunidade')
     : vazia
-      ? () => router.push('/entrar-com-convite')
+      ? () => router.push('/comece-por-aqui')
       : null
   // Logotipo da comunidade (D33): sem ele, as iniciais em coral do mockup.
   const logo = comunidadeAtiva ? logoDaComunidade(comunidadeAtiva) : null

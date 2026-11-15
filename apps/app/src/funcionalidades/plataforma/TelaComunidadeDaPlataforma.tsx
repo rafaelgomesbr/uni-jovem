@@ -7,10 +7,16 @@ import { View } from 'react-native'
 import { NOME_DO_APP } from '@/constantes'
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { api } from '@/servicos/api'
-import type { ComunidadeDaPlataforma, ConviteCriado, EstadoDaComunidade } from '@/servicos/contrato'
+import type {
+  ConviteCriado,
+  DenunciaDeComunidade,
+  EstadoDaComunidade,
+  MotivoDaDenunciaDeComunidade,
+  ResolucaoDaDenuncia,
+} from '@/servicos/contrato'
 import { Avatar } from '@/ui/Avatar'
 import { Aviso } from '@/ui/Aviso'
-import { Botao, BotaoIcone } from '@/ui/Botao'
+import { Botao, BotaoIcone, ParDeBotoes } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Chip } from '@/ui/Chip'
@@ -19,20 +25,28 @@ import { EstadoVazio } from '@/ui/EstadoVazio'
 import { AvisoDeFalha, ErroDaTela } from '@/ui/Falha'
 import { depoisDeFechar, FolhaNaTela, MenuDeAcoes } from '@/ui/FolhaNaTela'
 import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
+import { Secao } from '@/ui/Secao'
 import { Tela } from '@/ui/Tela'
+import { Texto } from '@/ui/Texto'
 import { mostrarToast } from '@/ui/Toast'
 import { confirmar } from '@/utilidades/confirmar'
 import { formatarData } from '@/utilidades/formatos'
 import { voltarOu } from '@/ui/navegacao'
 
 import { LinkCompartilhavel } from '../comunidade/LinkCompartilhavel'
+import { NOME_DO_MOTIVO_DA_DENUNCIA } from '../entrada/TelaDenunciarComunidade'
 import {
   CHIP_DO_ESTADO_DA_COMUNIDADE,
   NOME_CURTO_DO_ESTADO_DA_COMUNIDADE,
   NOME_DO_ESTADO_DA_COMUNIDADE,
 } from '../comunidade/nomes'
 import { useAcaoDePlataforma } from './acaoDePlataforma'
-import { useComunidadesDaPlataforma } from './consultas'
+import {
+  atualizarNasListas,
+  useComunidadeDaPlataforma,
+  useDenunciasDeComunidade,
+  type ComunidadeNaPlataforma,
+} from './consultas'
 import {
   exigeProvaDeSegundoFator,
   PedidoDeCodigo,
@@ -51,9 +65,9 @@ interface Mudanca {
 
 export function TelaComunidadeDaPlataforma() {
   const { comunidadeId } = useLocalSearchParams<{ comunidadeId: string }>()
-  const comunidades = useComunidadesDaPlataforma()
-  const comunidade = comunidades.data?.find((c) => c.id === comunidadeId)
+  const { lista: comunidades, comunidade } = useComunidadeDaPlataforma(comunidadeId ?? '')
 
+  if (comunidade) return <CicloDeVida comunidade={comunidade} />
   if (exigeProvaDeSegundoFator(comunidades.error)) {
     return (
       <Tela pilha titulo="Comunidade">
@@ -81,28 +95,27 @@ export function TelaComunidadeDaPlataforma() {
       </Tela>
     )
   }
-  if (!comunidade) {
-    return (
-      <Tela pilha titulo="Comunidade">
-        <EstadoVazio
-          icone="plataforma"
-          titulo="Comunidade não encontrada"
-          descricao="Ela pode ter sido excluída."
-          acao={{ titulo: 'Voltar para a Plataforma', aoPressionar: () => voltarOu('/plataforma') }}
-        />
-      </Tela>
-    )
-  }
-  return <CicloDeVida comunidade={comunidade} />
+  return (
+    <Tela pilha titulo="Comunidade">
+      <EstadoVazio
+        icone="plataforma"
+        titulo="Comunidade não encontrada"
+        descricao="Ela pode ter sido excluída. Abra pela lista da Plataforma."
+        acao={{ titulo: 'Voltar para a Plataforma', aoPressionar: () => voltarOu('/plataforma') }}
+      />
+    </Tela>
+  )
 }
 
 /**
- * Comunidade da plataforma (3.6.3): a identidade, os números em cartão
- * lista e "Mais ações" numa folha (Suspender, Reativar, Nomear
+ * Comunidade da plataforma (3.6.3 e ADR 0007): a identidade, o selo e
+ * "Verificar comunidade" (sem o código do autenticador: não destrói nada e
+ * fica na auditoria), os números em cartão lista, as denúncias com
+ * "Resolver" e "Mais ações" numa folha (Suspender, Reativar, Nomear
  * administrador, Arquivar e, por último, "Agendar exclusão" em vermelho).
- * Cada ação pede confirmação e o código do autenticador.
+ * Essas ações pedem confirmação e o código do autenticador.
  */
-function CicloDeVida({ comunidade }: { comunidade: ComunidadeDaPlataforma }) {
+function CicloDeVida({ comunidade }: { comunidade: ComunidadeNaPlataforma }) {
   const consultas = useQueryClient()
   const [menu, setMenu] = useState(false)
   const [folha, setFolha] = useState<'exclusao' | 'intervencao' | null>(null)
@@ -116,6 +129,7 @@ function CicloDeVida({ comunidade }: { comunidade: ComunidadeDaPlataforma }) {
       }),
     onSuccess: async (_r, m) => {
       mostrarToast({ texto: m.feito })
+      atualizarNasListas(consultas, comunidade.id, { estado: m.estado })
       await consultas.invalidateQueries({ queryKey: CHAVES.plataforma })
     },
   })
@@ -158,6 +172,8 @@ function CicloDeVida({ comunidade }: { comunidade: ComunidadeDaPlataforma }) {
       ) : null}
       {mudar.erro ? <AvisoDeFalha erro={mudar.erro} titulo="A situação não mudou" /> : null}
 
+      <Verificacao comunidade={comunidade} />
+
       <CartaoDeVidro sobrancelha="Em números" lista>
         <Lista>
           <LinhaDeLista
@@ -177,8 +193,27 @@ function CicloDeVida({ comunidade }: { comunidade: ComunidadeDaPlataforma }) {
             titulo="Situação"
             descricao={NOME_DO_ESTADO_DA_COMUNIDADE[comunidade.estado]}
           />
+          {comunidade.cidade ? (
+            <LinhaDeLista icone="local" titulo="Cidade" descricao={comunidade.cidade} />
+          ) : null}
+          {comunidade.criador ? (
+            <LinhaDeLista
+              icone="pessoa"
+              titulo="Quem criou"
+              descricao={`${comunidade.criador.nome}${comunidade.criador.email ? ` (${comunidade.criador.email})` : ''}`}
+            />
+          ) : null}
+          {comunidade.criadoEm ? (
+            <LinhaDeLista
+              icone="calendario"
+              titulo="Criada em"
+              valor={formatarData(comunidade.criadoEm)}
+            />
+          ) : null}
         </Lista>
       </CartaoDeVidro>
+
+      <DenunciasDaComunidade comunidadeId={comunidade.id} />
 
       <Intervencao
         comunidade={comunidade}
@@ -335,7 +370,7 @@ function Intervencao({
   aberta,
   aoFechar,
 }: {
-  comunidade: ComunidadeDaPlataforma
+  comunidade: ComunidadeNaPlataforma
   aberta: boolean
   aoFechar: () => void
 }) {
@@ -429,5 +464,185 @@ function Intervencao({
       </FolhaNaTela>
       <PedidoDeCodigo prova={convidar.prova} motivo="Para intervir na comunidade" />
     </>
+  )
+}
+
+/**
+ * Selo da comunidade (ADR 0007). Verificar tira os limites da comunidade
+ * nova; remover a verificação volta os limites sem apagar nada. Nenhum dos
+ * dois pede o código do autenticador (se a API pedir, a folha do código abre).
+ */
+function Verificacao({ comunidade }: { comunidade: ComunidadeNaPlataforma }) {
+  const consultas = useQueryClient()
+  const verificada = comunidade.verificacao === 'verificada'
+  const nome = comunidade.nome
+  const mudar = useAcaoDePlataforma<unknown, 'verificar' | 'desverificar'>({
+    mutationFn: (acao) => api.post(`/api/v1/plataforma/comunidades/${comunidade.id}/${acao}`),
+    onSuccess: async (_r, acao) => {
+      mostrarToast({
+        texto: acao === 'verificar' ? `${nome} foi verificada.` : `${nome} voltou a ser nova.`,
+      })
+      atualizarNasListas(consultas, comunidade.id, {
+        verificacao: acao === 'verificar' ? 'verificada' : 'nova',
+      })
+      await consultas.invalidateQueries({ queryKey: CHAVES.plataforma })
+    },
+  })
+
+  async function remover() {
+    const ok = await confirmar({
+      titulo: `Remover a verificação de ${nome}?`,
+      mensagem:
+        'O selo some e os limites de comunidade nova voltam (até 30 pessoas). Nada é apagado.',
+      confirmar: 'Remover verificação',
+      destrutivo: true,
+    })
+    if (ok) mudar.executar('desverificar')
+  }
+
+  if (comunidade.verificacao === undefined) return null
+  return (
+    <CartaoDeVidro
+      sobrancelha="Verificação"
+      extra={
+        verificada ? (
+          <Chip texto="Verificada" tom="sucesso" icone="confirmado" />
+        ) : (
+          <Chip texto="Nova" tom="neutro" />
+        )
+      }
+      acoes={
+        <View style={{ alignItems: 'flex-start' }}>
+          {verificada ? (
+            <Botao
+              titulo="Remover verificação"
+              variante="destrutivo"
+              carregando={mudar.executando}
+              aoPressionar={() => void remover()}
+            />
+          ) : (
+            <Botao
+              titulo="Verificar comunidade"
+              icone="confirmado"
+              carregando={mudar.executando}
+              aoPressionar={() => mudar.executar('verificar')}
+            />
+          )}
+        </View>
+      }
+    >
+      <Texto variante="corpo" cor="textoSuave">
+        {verificada
+          ? 'Tem o selo "Verificada" na busca e não tem os limites de comunidade nova.'
+          : 'Comunidade nova: até 30 pessoas e sem página pública de inscrição. Verifique depois de conferir que ela existe.'}
+      </Texto>
+      {mudar.erro ? <AvisoDeFalha erro={mudar.erro} titulo="A verificação não mudou" /> : null}
+      <PedidoDeCodigo prova={mudar.prova} motivo="Para mudar a verificação" />
+    </CartaoDeVidro>
+  )
+}
+
+/** Denúncias abertas desta comunidade, da mais nova para a mais antiga, com "Resolver". */
+function DenunciasDaComunidade({ comunidadeId }: { comunidadeId: string }) {
+  const consultas = useQueryClient()
+  const denuncias = useDenunciasDeComunidade()
+  const resolver = useAcaoDePlataforma<unknown, { id: string; estado: ResolucaoDaDenuncia }>({
+    mutationFn: ({ id, estado }) =>
+      api.post(`/api/v1/plataforma/denuncias-de-comunidade/${id}/resolver`, { estado }),
+    onSuccess: async (_r, { estado }) => {
+      mostrarToast({
+        texto:
+          estado === 'procedente'
+            ? 'Denúncia resolvida: procede.'
+            : 'Denúncia resolvida: não procede.',
+      })
+      await Promise.all([
+        consultas.invalidateQueries({ queryKey: CHAVES.denunciasDeComunidade }),
+        consultas.invalidateQueries({ queryKey: CHAVES.plataforma }),
+      ])
+    },
+  })
+
+  if (denuncias.isPending) {
+    return (
+      <Esqueleto rotulo="Carregando as denúncias">
+        <CartaoDeEsqueleto />
+      </Esqueleto>
+    )
+  }
+  if (denuncias.error) {
+    return (
+      <AvisoDeFalha
+        erro={denuncias.error}
+        titulo="As denúncias não carregaram"
+        aoTentarDeNovo={() => void denuncias.refetch()}
+      />
+    )
+  }
+  const abertas = denuncias.data
+    .filter((d) => d.comunidade.id === comunidadeId && d.estado === 'aberta')
+    .sort((a, b) => b.criadoEm.localeCompare(a.criadoEm))
+  return (
+    <Secao titulo="Denúncias">
+      {abertas.length === 0 ? (
+        <Texto variante="corpo" cor="textoSuave">
+          Nenhuma denúncia aberta.
+        </Texto>
+      ) : (
+        <View style={{ gap: ESPACO.e12 }}>
+          {resolver.erro ? (
+            <AvisoDeFalha erro={resolver.erro} titulo="A denúncia não foi resolvida" />
+          ) : null}
+          {abertas.map((d: DenunciaDeComunidade) => (
+            <CartaoDeVidro
+              key={d.id}
+              opaco
+              titulo={
+                NOME_DO_MOTIVO_DA_DENUNCIA[d.motivo as MotivoDaDenunciaDeComunidade] ?? 'Denúncia'
+              }
+              acoes={
+                <View style={{ gap: ESPACO.e8 }}>
+                  <Texto variante="rotulo" cor="textoSuave">
+                    Resolver:
+                  </Texto>
+                  <ParDeBotoes>
+                    <Botao
+                      titulo="Não procede"
+                      rotuloAcessivel={`Resolver a denúncia de ${formatarData(d.criadoEm)}: não procede`}
+                      variante="secundario"
+                      carregando={
+                        resolver.executando &&
+                        resolver.variaveis?.id === d.id &&
+                        resolver.variaveis.estado === 'improcedente'
+                      }
+                      desabilitado={resolver.executando}
+                      aoPressionar={() => resolver.executar({ id: d.id, estado: 'improcedente' })}
+                    />
+                    <Botao
+                      titulo="Procede"
+                      rotuloAcessivel={`Resolver a denúncia de ${formatarData(d.criadoEm)}: procede`}
+                      variante="secundario"
+                      carregando={
+                        resolver.executando &&
+                        resolver.variaveis?.id === d.id &&
+                        resolver.variaveis.estado === 'procedente'
+                      }
+                      desabilitado={resolver.executando}
+                      aoPressionar={() => resolver.executar({ id: d.id, estado: 'procedente' })}
+                    />
+                  </ParDeBotoes>
+                </View>
+              }
+            >
+              <Texto variante="meta" cor="textoSuave">
+                {`Recebida em ${formatarData(d.criadoEm)}`}
+              </Texto>
+              {d.detalhe ? <Texto variante="corpo">{d.detalhe}</Texto> : null}
+            </CartaoDeVidro>
+          ))}
+        </View>
+      )}
+      <PedidoDeCodigo prova={resolver.prova} motivo="Para resolver a denúncia" />
+    </Secao>
   )
 }

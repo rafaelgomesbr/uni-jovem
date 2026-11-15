@@ -2,6 +2,7 @@ import { Redirect, Stack } from 'expo-router'
 
 import { useSessao } from '@/estado/sessao'
 import { useOpcoesDaPilha } from '@/funcionalidades/navegacao/opcoesDaPilha'
+import { TermoDoAdminPendente } from '@/funcionalidades/comunidade/TermoDoAdminPendente'
 import { AgendadorDoAparelho } from '@/funcionalidades/notificacoes/AgendadorDoAparelho'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { Tela } from '@/ui/Tela'
@@ -51,6 +52,17 @@ export default function LayoutAutenticado() {
           }}
         />
         <Stack.Screen name="convidar" options={{ title: 'Convidar' }} />
+        {/* ADR 0007: entrar sem convite, criar comunidade e o código da comunidade. */}
+        <Stack.Screen name="comece-por-aqui" options={{ title: 'Outra comunidade' }} />
+        <Stack.Screen name="tenho-um-codigo" options={{ title: 'Tenho um código' }} />
+        <Stack.Screen name="procurar-comunidade" options={{ title: 'Procurar comunidade' }} />
+        <Stack.Screen name="comunidade-encontrada/[idPublico]" options={{ title: 'Comunidade' }} />
+        <Stack.Screen name="denunciar-comunidade" options={{ title: 'Denunciar comunidade' }} />
+        <Stack.Screen
+          name="criar-comunidade"
+          options={{ title: 'Criar comunidade', ...telaCheia }}
+        />
+        <Stack.Screen name="codigo-da-comunidade" options={{ title: 'Código da comunidade' }} />
         <Stack.Screen name="membro/[vinculoId]" options={{ title: 'Pessoa' }} />
         <Stack.Screen name="aparelhos" options={{ title: 'Aparelhos' }} />
         <Stack.Screen name="ativar-2fa" options={{ title: 'Segurança' }} />
@@ -113,6 +125,8 @@ export default function LayoutAutenticado() {
         <Stack.Screen name="pendencias" options={{ title: 'Pendências' }} />
         <Stack.Screen name="excluir-conta" options={{ title: 'Excluir conta' }} />
       </Stack>
+      {/* TC-16 pendente (admin promovido depois ou termo novo): folha antes de administrar. */}
+      <TermoDoAdminPendente />
     </>
   )
 }

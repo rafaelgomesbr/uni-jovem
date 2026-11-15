@@ -5,6 +5,13 @@ import { z } from 'zod'
 import { decifrar } from '../autenticacao/cripto.ts'
 import { Limitador } from '../autenticacao/limitador.ts'
 import {
+  NOME_DO_PROVEDOR,
+  TokenDeProvedorRecusado,
+  TokensJaUsados,
+  type IdentidadeDoProvedor,
+  type VerificadorDeProvedores,
+} from '../autenticacao/provedores.ts'
+import {
   declararFaixaEtaria,
   ErroDeAuth,
   excluirConta,
@@ -41,9 +48,11 @@ const LEIA_ME = [
 
 export function registrarRotasDePrivacidade(
   app: FastifyInstance,
-  d: DependenciasAuth & { api: pg.Pool },
+  d: DependenciasAuth & { api: pg.Pool; verificador?: VerificadorDeProvedores },
 ): void {
   const sessao = { preHandler: app.exigirSessao }
+  // Tokens de provedor já usados para reautenticar (o mesmo não serve duas vezes).
+  const usados = new TokensJaUsados()
   const chaveDeOracao = Buffer.from(d.config.ORACAO_CHAVE, 'base64')
   // Por conta: a senha já tem o limite do login; este corta repetição na exclusão.
   const limExcluir = new Limitador(5, 15 * 60_000)
@@ -90,6 +99,12 @@ export function registrarRotasDePrivacidade(
               foto.conteudo.toString('base64')
           }
         }
+        // Pedidos de entrada e denúncias de comunidade feitos pela pessoa (ADR 0007).
+        Object.assign(
+          tudo,
+          (await c.query<{ d: Record<string, unknown> }>('select uj.meus_dados_da_abertura() as d'))
+            .rows[0]!.d,
+        )
         // Bloqueios que a pessoa fez (D35): a decisão é dela; de quem foi
         // bloqueado, nada (nem nome nem id), como no resto do arquivo.
         tudo['bloqueios'] = (
@@ -137,14 +152,59 @@ export function registrarRotasDePrivacidade(
   app.post('/api/v1/eu/excluir-conta', sessao, async (pedido, resposta) => {
     const contaId = pedido.sessao!.contaId
     if (!limExcluir.tentar(contaId)) muitas(resposta, limExcluir, contaId)
+    // Senha OU um token novo do Google ou da Apple (conta criada só pelo
+    // provedor não tem senha: Apple 5.1.1(v) e Google Play). 2FA, se ligado.
+    const token = z.string().trim().min(20).max(8000)
     const corpo = validar(
-      z.object({
-        senha: z.string().min(1).max(256),
-        codigo: z.string().trim().min(6).max(12).nullish(),
-      }),
+      z
+        .object({
+          senha: z.string().min(1).max(256).optional(),
+          codigo: z.string().trim().min(6).max(12).nullish(),
+          provedor: z.enum(['google', 'apple']).optional(),
+          idToken: token.optional(),
+          identityToken: token.optional(),
+          nonce: z.string().trim().min(16).max(128).optional(),
+        })
+        .refine(
+          (o) => o.senha !== undefined || o.provedor !== undefined,
+          'Confirme com a sua senha ou entrando de novo com Google ou Apple.',
+        ),
       pedido.body,
     )
-    await excluirConta(d, { contaId, senha: corpo.senha, codigo: corpo.codigo ?? null })
+    let identidade: IdentidadeDoProvedor | null = null
+    if (corpo.senha === undefined && corpo.provedor) {
+      const bruto = corpo.provedor === 'google' ? corpo.idToken : corpo.identityToken
+      if (!bruto || !d.verificador) {
+        throw new ErroHttp(
+          'dados_invalidos',
+          400,
+          'Confirme com a sua senha ou entrando de novo com Google ou Apple.',
+        )
+      }
+      try {
+        identidade = await d.verificador.verificar(corpo.provedor, bruto, { nonce: corpo.nonce })
+      } catch (e) {
+        if (!(e instanceof TokenDeProvedorRecusado)) throw e
+        throw new ErroDeAuth(
+          'reautenticacao_invalida',
+          401,
+          `Não conseguimos confirmar com ${NOME_DO_PROVEDOR[corpo.provedor]}. Tente de novo.`,
+        )
+      }
+      if (!usados.registrar(bruto, identidade.expiraEm)) {
+        throw new ErroDeAuth(
+          'token_ja_usado',
+          401,
+          `Esta confirmação do ${NOME_DO_PROVEDOR[corpo.provedor]} já foi usada. Tente de novo.`,
+        )
+      }
+    }
+    await excluirConta(d, {
+      contaId,
+      senha: corpo.senha ?? null,
+      codigo: corpo.codigo ?? null,
+      identidade,
+    })
     resposta.clearCookie(nomeDoCookieDeRefresh(d.config.UJ_AMBIENTE !== 'desenvolvimento'), {
       path: '/api/auth',
     })

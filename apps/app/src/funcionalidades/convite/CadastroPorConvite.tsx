@@ -23,12 +23,14 @@ import { problemaDaSenha } from '../autenticacao/politicaDeSenha'
 import { RegrasDaSenha } from '../autenticacao/RegrasDaSenha'
 import {
   AceiteDosTermos,
+  CadastroTravado,
   ConsentimentoDeFe,
   MenorDe16,
   motivoDoConsentimento,
   PerguntaDeIdade,
 } from './Consentimentos'
 import { guardarConviteEmEspera } from './conviteEmEspera'
+import { useCadastroTravado } from './travaDeIdade'
 
 type Passo = 'dados' | 'codigo' | 'senha'
 
@@ -91,6 +93,7 @@ export function CadastroPorConvite({
   const [fe, setFe] = useState(false)
   const [responsavel, setResponsavel] = useState(false)
   const adolescente = faixa === '16_17'
+  const travado = useCadastroTravado()
 
   const whatsappNormalizado = normalizarWhatsApp(whatsapp)
 
@@ -158,6 +161,18 @@ export function CadastroPorConvite({
       {conteudo}
     </Tela>
   )
+
+  if (travado) {
+    return moldura(
+      null,
+      <CadastroTravado
+        aoVoltar={() => {
+          guardarConviteEmEspera(token)
+          router.replace('/entrar')
+        }}
+      />,
+    )
+  }
 
   if (passo === 'dados') {
     const enviarDados = () => {

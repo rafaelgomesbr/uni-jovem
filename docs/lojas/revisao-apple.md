@@ -2,6 +2,7 @@
 
 - **Versão:** 1, de 14/11/2026.
 - **Decisão de base:** D3 (app **público** na App Store, entrada só por convite, comunidade e conta de demonstração para revisores).
+- **Atenção (15/11/2026):** a ADR 0007 abriu o app (cadastro sem convite, criação de comunidade, código, busca e denúncia de comunidade). As notas ao revisor válidas para o binário com o app aberto estão em [`estado-das-lojas.md`](estado-das-lojas.md), seção 5. O texto abaixo é o da entrada só por convite e continua como referência das diretrizes de risco.
 - **Diretrizes citadas:** [App Store Review Guidelines](https://developer.apple.com/app-store/review/guidelines/), lidas em 14/11/2026. A página não mostra data de atualização; releia antes de cada envio.
 
 ---
@@ -27,11 +28,11 @@ Campos do formulário:
 | Campo            | Valor                                                                                   |
 | ---------------- | --------------------------------------------------------------------------------------- |
 | Sign-in required | Yes                                                                                     |
-| User name        | [PREENCHER: e-mail da conta demo de admin]                                              |
-| Password         | [PREENCHER: senha da conta demo de admin]                                               |
+| User name        | e-mail da conta demo de admin, digitado à mão no App Store Connect (nunca no git)       |
+| Password         | senha da conta demo de admin, digitada à mão no App Store Connect (nunca no git)        |
 | Notes            | texto abaixo                                                                            |
 | Attachment       | imagem PNG do QR Code de check-in de uma inscrição da comunidade demo (seção 5, item 6) |
-| Contact          | [PREENCHER: nome, telefone e e-mail do dono para a revisão]                             |
+| Contact          | Rafael Gomes, `contact@solerte.com.br` e o telefone do dono, digitado à mão             |
 
 ### 2.1 Texto para colar (inglês)
 
@@ -46,7 +47,7 @@ The app serves many independent youth groups ("communities"). Each community onl
 DEMO ACCOUNTS
 We created an isolated demo community, "Comunidade Demonstração", filled with fictitious data.
 1. Admin account (sees every feature): the credentials in the Sign-In fields above.
-2. Member account (to see the member view, or to test account deletion): [PREENCHER: e-mail] / [PREENCHER: senha]
+2. Member account (to see the member view, or to test account deletion): [a definir] / [a definir]
 Neither account uses two-factor authentication. Please use the member account to test account deletion, so the admin account stays available for future reviews. If you delete the admin account, it is also fine: the community has a second admin.
 
 HOW TO SIGN IN

@@ -256,6 +256,31 @@ export function registrarRotasDeImagens(app: FastifyInstance, api: pg.Pool): voi
     return { temLogo: false, logoVersao: null }
   })
 
+  // Logotipo de uma comunidade que aparece na busca (ADR 0007): qualquer conta
+  // autenticada, só enquanto a comunidade estiver ativa e encontrável.
+  app.get(
+    '/api/v1/comunidades/:idPublico/logo',
+    { preHandler: app.exigirSessao },
+    async (pedido, resposta) => {
+      const idPublico = (pedido.params as { idPublico?: string }).idPublico ?? ''
+      if (!/^[0-9a-f]{32}$/.test(idPublico)) throw NAO_ENCONTRADO()
+      const linha = await emTransacao(
+        api,
+        { contaId: pedido.sessao!.contaId, comunidadeId: null },
+        async (c) =>
+          (
+            await c.query<LinhaDeImagem>(
+              `select tipo, encode(hash, 'hex') as hash, conteudo
+                 from uj.logo_da_comunidade_encontravel($1, $2)`,
+              [idPublico, etagsConhecidas(pedido)],
+            )
+          ).rows[0],
+      )
+      if (!linha) throw NAO_ENCONTRADO()
+      return responderImagem(resposta, linha)
+    },
+  )
+
   app.get(
     '/api/v1/c/:comunidadeId/logo',
     { preHandler: app.comComunidade },

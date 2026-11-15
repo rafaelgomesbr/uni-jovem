@@ -18,7 +18,7 @@ import { envDeTeste } from '../apoio/config.ts'
 import { pessoaComSessao, SENHA_PADRAO, type Pessoa } from '../apoio/pessoas.ts'
 
 /**
- * Entrar com Google e Apple (nunca cria conta), vínculos de provedor e avatar.
+ * Entrar com Google e Apple (sem conta: cadastro pendente, ADR 0007), vínculos de provedor e avatar.
  * Os JWKS de verdade são trocados por chaves locais: o token é assinado aqui,
  * e a API confere assinatura, emissor, público, validade e nonce como em produção.
  */
@@ -188,12 +188,19 @@ describe('entrar com Google', () => {
     expect(vinculos.rows).toEqual([])
   })
 
-  it('sem conta: resposta pede convite e nenhuma conta é criada', async () => {
+  it('sem conta: devolve o cadastro pendente (ADR 0007) e nenhuma conta é criada ainda', async () => {
     const antes = await contas()
-    const r = await entrarGoogle(await tokenGoogle({ email: 'ninguem@exemplo.test' }))
-    expect(r.statusCode).toBe(401)
-    expect(r.json().erro).toBe('conta_nao_encontrada')
-    expect(r.json().mensagem).toContain('convite')
+    const r = await entrarGoogle(
+      await tokenGoogle({ email: 'ninguem@exemplo.test', name: 'Ninguém Silva' }),
+    )
+    expect(r.statusCode).toBe(200)
+    expect(r.json()).toMatchObject({
+      cadastroPendente: true,
+      nome: 'Ninguém Silva',
+      email: 'ninguem@exemplo.test',
+    })
+    expect(r.json().tokenDeCadastro).toMatch(/^[\w-]{40,}$/)
+    expect(r.json().acesso).toBeUndefined()
     expect(await contas()).toBe(antes)
   })
 
@@ -221,7 +228,7 @@ describe('entrar com Google', () => {
     expect(r.json().segundoFator).toBe(false)
     const plataforma = await app.inject({
       method: 'GET',
-      url: '/api/v1/plataforma/comunidades',
+      url: '/api/v1/plataforma/saude',
       headers: { authorization: `Bearer ${r.json().acesso}` },
     })
     expect(plataforma.statusCode).toBe(403)

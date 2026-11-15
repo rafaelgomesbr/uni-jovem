@@ -1,6 +1,9 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type pg from 'pg'
 import { z } from 'zod'
+import { permite, type Acao } from '@uj/dominio'
+import { gerarToken, hmacDeToken } from '../autenticacao/cripto.ts'
+import { doisFatoresRecente } from '../autenticacao/jwt.ts'
 import { emTransacao } from '../banco/contexto.ts'
 import { ErroHttp, NAO_ENCONTRADO, traduzirErroDoBanco, validar } from '../http.ts'
 import { email as campoEmail } from './autenticacao.ts'
@@ -51,6 +54,7 @@ interface SaudeDoBanco {
 const DESCRICAO_DA_COTA: Record<string, string> = {
   'email:convite': 'E-mails de convite no dia (todas as comunidades)',
   'email:recuperacao': 'E-mails de recuperação de senha no dia',
+  'email:cadastro': 'E-mails de cadastro de conta no dia',
   'email:convite_por_convite': 'Reenvios de um mesmo convite no dia',
   push_por_pessoa: 'Notificações por pessoa e comunidade no dia',
   push_critico_por_pessoa: 'Notificações importantes (cancelamento, substituição) por pessoa',
@@ -96,6 +100,26 @@ function comoCriador<T>(
   return emTransacao(api, { contaId: s.contaId, comunidadeId, prova: s.prova }, trabalho)
 }
 
+/** Página da lista de comunidades da Plataforma. */
+const PAGINA_DA_PLATAFORMA = 50
+
+const SO_CRIADOR = () =>
+  new ErroHttp('so_criador', 403, 'Só o Criador do Uni Jovem pode fazer isto.')
+
+/** Cursor opaco da lista (o mesmo formato da caixa de notificações, D42). */
+function escreverCursor(micros: string, id: string): string {
+  return Buffer.from(`${micros}:${id}`, 'utf8').toString('base64url')
+}
+
+function lerCursor(cursor: string): { micros: string; id: string } {
+  const texto = Buffer.from(cursor, 'base64url').toString('utf8')
+  const partes = /^(\d{1,19}):([0-9a-f-]{36})$/.exec(texto)
+  if (!partes || !z.uuid().safeParse(partes[2]).success) {
+    throw new ErroHttp('cursor_invalido', 400, 'A lista mudou. Abra as comunidades de novo.')
+  }
+  return { micros: partes[1]!, id: partes[2]! }
+}
+
 const ERROS_DA_TRANSFERENCIA: Record<string, [string, number, string]> = {
   UJ010: [
     'destino_invalido',
@@ -126,16 +150,201 @@ export function registrarRotasDePlataforma(app: FastifyInstance, d: Dependencias
     },
   }
 
-  app.get('/api/v1/plataforma/comunidades', criador, async (pedido) =>
-    comoCriador(api, pedido, null, async (c) => {
-      const { rows } = await c.query(
-        `select id, nome, cor, estado, exclusao_agendada_para as "exclusaoAgendadaPara",
-                membros_ativos as "membrosAtivos", admins_ativos as "adminsAtivos",
-                criado_em as "criadoEm"
-           from uj.resumo_das_comunidades()`,
+  /**
+   * Ações de plataforma que não destroem nada (ADR 0007, revisa D12 e D31):
+   * basta a conta ser a proprietária, conferido no banco; o código do
+   * autenticador não é pedido. Cada ação passa pela matriz (`permite`).
+   */
+  const criadorSemProva = (acao: Acao<'plataforma'>) => ({
+    preHandler: async (pedido: FastifyRequest) => {
+      await app.exigirSessao(pedido)
+      const s = pedido.sessao!
+      const ehCriador = await emTransacao(
+        api,
+        { contaId: s.contaId, comunidadeId: null },
+        async (c) =>
+          (await c.query<{ ok: boolean }>('select uj.eh_criador() as ok')).rows[0]?.ok === true,
       )
-      return { comunidades: rows }
-    }),
+      const ator = {
+        papel: null,
+        designacoes: [],
+        proprietarioComDoisFatores: ehCriador && s.prova !== null && doisFatoresRecente(s),
+        criador: ehCriador,
+      }
+      if (!permite(ator, 'plataforma', acao)) throw SO_CRIADOR()
+    },
+  })
+
+  /**
+   * Lista da Plataforma (ADR 0007): filtro de verificação, busca por nome ou
+   * cidade e cursor opaco. Quem criou aparece com nome e e-mail (o admin que
+   * abriu a comunidade); nunca os demais membros nem conteúdo.
+   */
+  app.get('/api/v1/plataforma/comunidades', criadorSemProva('ler_comunidades'), async (pedido) => {
+    const q = validar(
+      z.object({
+        verificacao: z.enum(['nova', 'verificada', 'todas']).default('todas'),
+        busca: z.string().trim().max(80).optional(),
+        cursor: z.string().max(200).optional(),
+      }),
+      pedido.query ?? {},
+    )
+    const depois = q.cursor ? lerCursor(q.cursor) : null
+    return comoCriador(api, pedido, null, async (c) => {
+      const { rows } = await c.query<{
+        id: string
+        nome: string
+        cor: string
+        cidade: string | null
+        estado: string
+        verificacao: string
+        exclusao_agendada_para: Date | null
+        criado_em: Date
+        micros: string
+        membros_ativos: number
+        admins_ativos: number
+        denuncias_abertas: number
+        criador_nome: string | null
+        criador_email: string | null
+      }>('select * from uj.comunidades_da_plataforma($1, $2, $3, $4, $5)', [
+        q.verificacao === 'todas' ? null : q.verificacao,
+        q.busca || null,
+        depois?.micros ?? null,
+        depois?.id ?? null,
+        PAGINA_DA_PLATAFORMA + 1,
+      ])
+      const pagina = rows.slice(0, PAGINA_DA_PLATAFORMA)
+      const ultima = pagina.at(-1)
+      return {
+        comunidades: pagina.map((r) => ({
+          id: r.id,
+          nome: r.nome,
+          cor: r.cor,
+          cidade: r.cidade,
+          estado: r.estado,
+          verificacao: r.verificacao,
+          exclusaoAgendadaPara: r.exclusao_agendada_para,
+          criadoEm: r.criado_em,
+          membrosAtivos: r.membros_ativos,
+          adminsAtivos: r.admins_ativos,
+          denunciasAbertas: r.denuncias_abertas,
+          criador:
+            r.criador_nome === null ? null : { nome: r.criador_nome, email: r.criador_email },
+        })),
+        proximoCursor:
+          rows.length > PAGINA_DA_PLATAFORMA && ultima
+            ? escreverCursor(ultima.micros, ultima.id)
+            : null,
+      }
+    })
+  })
+
+  // Verificar tira as rodinhas; desverificar devolve, sem apagar nada. Auditados.
+  for (const [acao, verificada] of [
+    ['verificar', true],
+    ['desverificar', false],
+  ] as const) {
+    app.post(
+      `/api/v1/plataforma/comunidades/:comunidadeId/${acao}`,
+      criadorSemProva('verificar_comunidade'),
+      async (pedido) => {
+        const id = idDoCaminho(pedido, 'comunidadeId')
+        return comoCriador(api, pedido, id, async (c) => {
+          const { rows } = await c.query<{ v: string | null }>(
+            'select uj.definir_verificacao($1, $2) as v',
+            [id, verificada],
+          )
+          const verificacao = rows[0]?.v ?? null
+          if (verificacao === null) throw NAO_ENCONTRADO()
+          await auditar(
+            c,
+            pedido,
+            verificada ? 'plataforma.comunidade_verificada' : 'plataforma.comunidade_desverificada',
+            { tipo: 'comunidade', id },
+            {},
+            id,
+          )
+          return { verificacao }
+        })
+      },
+    )
+  }
+
+  // ---------------------------------------------------------------- denúncias de comunidade
+
+  app.get(
+    '/api/v1/plataforma/denuncias-de-comunidade',
+    criadorSemProva('ler_denuncias_de_comunidade'),
+    async (pedido) => {
+      const q = validar(
+        z.object({
+          estado: z.enum(['aberta', 'procedente', 'improcedente', 'todas']).default('aberta'),
+        }),
+        pedido.query ?? {},
+      )
+      return comoCriador(api, pedido, null, async (c) => {
+        const { rows } = await c.query<{
+          id: string
+          comunidade_id: string
+          comunidade_nome: string
+          motivo: string
+          detalhe: string | null
+          estado: string
+          resolucao: string | null
+          criado_em: Date
+          resolvida_em: Date | null
+        }>('select * from uj.denuncias_de_comunidade_da_plataforma($1)', [
+          q.estado === 'todas' ? null : q.estado,
+        ])
+        return {
+          denuncias: rows.map((r) => ({
+            id: r.id,
+            comunidade: { id: r.comunidade_id, nome: r.comunidade_nome },
+            motivo: r.motivo,
+            detalhe: r.detalhe,
+            estado: r.estado,
+            resolucao: r.resolucao,
+            criadoEm: r.criado_em,
+            resolvidaEm: r.resolvida_em,
+          })),
+        }
+      })
+    },
+  )
+
+  app.post(
+    '/api/v1/plataforma/denuncias-de-comunidade/:denunciaId/resolver',
+    criadorSemProva('resolver_denuncia_de_comunidade'),
+    async (pedido) => {
+      const denunciaId = idDoCaminho(pedido, 'denunciaId')
+      const corpo = validar(
+        z.object({
+          estado: z.enum(['procedente', 'improcedente'], {
+            error: 'Escolha se a denúncia procede ou não.',
+          }),
+          resolucao: z.string().trim().max(500).nullish(),
+        }),
+        pedido.body,
+      )
+      return comoCriador(api, pedido, null, async (c) => {
+        const { rows } = await c.query<{ c: string | null }>(
+          'select uj.resolver_denuncia_de_comunidade($1, $2, $3) as c',
+          [denunciaId, corpo.estado, corpo.resolucao ?? null],
+        )
+        const comunidadeId = rows[0]?.c ?? null
+        if (comunidadeId === null) throw NAO_ENCONTRADO()
+        // Na auditoria da plataforma (sem comunidade: a administração dela não vê).
+        await auditar(
+          c,
+          pedido,
+          'plataforma.denuncia_de_comunidade_resolvida',
+          { tipo: 'denuncia_de_comunidade', id: denunciaId },
+          { estado: corpo.estado },
+          null,
+        )
+        return { ok: true }
+      })
+    },
   )
 
   /**
@@ -184,52 +393,64 @@ export function registrarRotasDePlataforma(app: FastifyInstance, d: Dependencias
     })
   })
 
-  app.post('/api/v1/plataforma/comunidades', criador, async (pedido) => {
-    const corpo = validar(
-      z.object({
-        nome: z.string().trim().min(2).max(80),
-        cor: z
-          .string()
-          .regex(/^#[0-9A-Fa-f]{6}$/)
-          .optional(),
-        // Fuso IANA da comunidade (horários dos eventos); sem valor, o padrão P1.
-        fuso: fusoValido.optional(),
-        emailDoAdmin: campoEmail.nullish(),
-      }),
-      pedido.body,
-    )
-    const s = pedido.sessao!
-    const criada = await comoCriador(api, pedido, null, async (c) => {
-      try {
-        const { rows } = await c.query<{ id: string }>(
-          `insert into uj.comunidades (nome, cor, fuso, criado_por)
-           values ($1, coalesce($2, '#5B4BDB'), $3, $4) returning id`,
-          [corpo.nome, corpo.cor ?? null, corpo.fuso ?? FUSO_PADRAO, s.contaId],
-        )
-        const id = rows[0]!.id
-        // O convite do primeiro admin nasce no contexto da nova comunidade.
-        await c.query("select set_config('app.comunidade_id', $1, true)", [id])
-        const convite = await criarConvite(c, d.config, {
-          comunidadeId: id,
-          papel: 'admin',
-          email: corpo.emailDoAdmin?.trim().toLowerCase() ?? null,
-          validadeDias: VALIDADE_MAXIMA_CONVITE_DIAS,
-          criadoPor: s.contaId,
-        })
-        await auditar(c, pedido, 'plataforma.comunidade_criada', { tipo: 'comunidade', id }, {}, id)
-        return { id, token: convite.token, expiraEm: convite.expiraEm }
-      } catch (e) {
-        traduzirErroDoBanco(e)
+  // ADR 0007: criar comunidade pela Plataforma não pede o código do autenticador.
+  // Nasce verificada (quem cria é o próprio Criador), com o convite do primeiro admin.
+  app.post(
+    '/api/v1/plataforma/comunidades',
+    criadorSemProva('criar_comunidade'),
+    async (pedido) => {
+      const corpo = validar(
+        z.object({
+          nome: z.string().trim().min(2).max(80),
+          cor: z
+            .string()
+            .regex(/^#[0-9A-Fa-f]{6}$/)
+            .optional(),
+          // Fuso IANA da comunidade (horários dos eventos); sem valor, o padrão P1.
+          fuso: fusoValido.optional(),
+          emailDoAdmin: campoEmail.nullish(),
+        }),
+        pedido.body,
+      )
+      const token = gerarToken()
+      const criada = await comoCriador(api, pedido, null, async (c) => {
+        try {
+          const { rows } = await c.query<{ comunidade_id: string; expira_em: Date }>(
+            'select comunidade_id, expira_em from uj.criar_comunidade_pela_plataforma($1, $2, $3, $4, $5, $6)',
+            [
+              corpo.nome,
+              corpo.cor ?? '#5B4BDB',
+              corpo.fuso ?? FUSO_PADRAO,
+              corpo.emailDoAdmin?.trim().toLowerCase() ?? null,
+              hmacDeToken(token, d.config.CONVITE_SEGREDO),
+              VALIDADE_MAXIMA_CONVITE_DIAS,
+            ],
+          )
+          const id = rows[0]!.comunidade_id
+          // A auditoria nasce no contexto da nova comunidade.
+          await c.query("select set_config('app.comunidade_id', $1, true)", [id])
+          await auditar(
+            c,
+            pedido,
+            'plataforma.comunidade_criada',
+            { tipo: 'comunidade', id },
+            {},
+            id,
+          )
+          return { id, expiraEm: rows[0]!.expira_em }
+        } catch (e) {
+          traduzirErroDoBanco(e)
+        }
+      })
+      return {
+        id: criada.id,
+        conviteDoPrimeiroAdmin: {
+          link: linkDoConvite(d.config, token),
+          expiraEm: criada.expiraEm,
+        },
       }
-    })
-    return {
-      id: criada.id,
-      conviteDoPrimeiroAdmin: {
-        link: linkDoConvite(d.config, criada.token),
-        expiraEm: criada.expiraEm,
-      },
-    }
-  })
+    },
+  )
 
   app.patch('/api/v1/plataforma/comunidades/:comunidadeId/estado', criador, async (pedido) => {
     const id = idDoCaminho(pedido, 'comunidadeId')

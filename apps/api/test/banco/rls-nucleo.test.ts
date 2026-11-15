@@ -502,36 +502,48 @@ describe('papéis e vínculos', () => {
 })
 
 describe('Criador e prova de 2FA', () => {
-  it('sem a prova, o Criador não tem poder de plataforma', async () => {
+  it('sem a prova, o Criador cria comunidade (ADR 0007), mas não suspende nem intervém', async () => {
+    // Sem RETURNING: ler comunidade alheia continua pedindo vínculo ou a prova.
+    await b.comoApi(
+      { contaId: criador },
+      "insert into uj.comunidades (nome, criado_por) values ('Sem prova', $1)",
+      [criador],
+    )
+    const criada = await b.su.query(
+      "select verificacao from uj.comunidades where nome = 'Sem prova' and criado_por = $1",
+      [criador],
+    )
+    expect(criada.rows).toEqual([{ verificacao: 'verificada' }])
+    // Suspender: a RLS não deixa o Criador sem a prova tocar a comunidade.
+    expect(
+      await b.comoApi(
+        { contaId: criador },
+        "update uj.comunidades set estado = 'suspensa' where id = $1 returning id",
+        [comA],
+      ),
+    ).toEqual([])
+    // Intervenção (nomear admin): também não.
     const msg = await erroDe(
       b.comoApi(
-        { contaId: criador },
-        "insert into uj.comunidades (nome, criado_por) values ('Sem prova', $1)",
-        [criador],
+        { contaId: criador, comunidadeId: comB },
+        "insert into uj.vinculos (conta_id, comunidade_id, papel) values ($1, $2, 'admin')",
+        [adminA, comB],
       ),
     )
     expect(msg).toMatch(/row-level security/)
   })
 
   it('prova de outra conta ou inventada não vale', async () => {
-    const msg = await erroDe(
+    const suspender = (prova: string) =>
       b.comoApi(
-        { contaId: criador, prova: 'inventada' },
-        "insert into uj.comunidades (nome, criado_por) values ('Prova falsa', $1)",
-        [criador],
-      ),
-    )
-    expect(msg).toMatch(/row-level security/)
+        { contaId: criador, prova },
+        "update uj.comunidades set estado = 'suspensa' where id = $1 returning id",
+        [comA],
+      )
+    expect(await suspender('inventada')).toEqual([])
     // Forjar app.conta_id como o Criador, com a prova de outra pessoa, também não.
     const provaDeOutro = await concederProva(b, adminA)
-    const msg2 = await erroDe(
-      b.comoApi(
-        { contaId: criador, prova: provaDeOutro },
-        "insert into uj.comunidades (nome, criado_por) values ('Prova alheia', $1)",
-        [criador],
-      ),
-    )
-    expect(msg2).toMatch(/row-level security/)
+    expect(await suspender(provaDeOutro)).toEqual([])
   })
 
   it('com a prova, o Criador cria comunidade', async () => {
@@ -668,7 +680,7 @@ describe('ciclo de vida da comunidade', () => {
     expect(msg).toMatch(/exclusivo do proprietario/)
   })
 
-  it('só o proprietário (com prova) cria comunidade', async () => {
+  it('conta comum não insere comunidade direto (só pela função de criação)', async () => {
     const msg = await erroDe(
       b.comoApi(
         { contaId: adminA },
@@ -679,11 +691,20 @@ describe('ciclo de vida da comunidade', () => {
     expect(msg).toMatch(/row-level security/)
   })
 
-  it('modo de entrada diferente de convite não está habilitado nesta versão', async () => {
+  it('modo de entrada `livre` continua não habilitado; os da ADR 0007 sim', async () => {
     const msg = await erroDe(
       b.su.query("update uj.comunidades set modo_entrada = 'livre' where id = $1", [comA]),
     )
     expect(msg).toMatch(/nao habilitado/)
+    // 'solicitacao' saiu do enum (virou codigo_com_aprovacao).
+    const msg2 = await erroDe(
+      b.su.query("update uj.comunidades set modo_entrada = 'solicitacao' where id = $1", [comA]),
+    )
+    // O gatilho recusa antes da restrição: 'solicitacao' saiu dos modos.
+    expect(msg2).toMatch(/nao habilitado|check constraint/)
+    for (const modo of ['codigo_com_aprovacao', 'codigo_direto', 'convite']) {
+      await b.su.query('update uj.comunidades set modo_entrada = $2 where id = $1', [comA, modo])
+    }
   })
 
   it('fuso inexistente é recusado', async () => {

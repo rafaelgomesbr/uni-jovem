@@ -48,22 +48,17 @@ describe('Plataforma do Criador', () => {
     expect(await screen.findByLabelText('Código do app autenticador')).toBeOnTheScreen()
   })
 
-  test('step-up: a ação recebe 403, pede o código e repete o mesmo pedido', async () => {
-    let tentativas = 0
+  test('criar comunidade não pede o código do autenticador (ADR 0007)', async () => {
     const { servidor } = await renderizarTela(<TelaNovaComunidade />, {
       rotas: {
         'GET /api/v1/eu': euCriador(),
-        [`POST ${CRIAR}`]: () =>
-          ++tentativas === 1
-            ? PEDE_CODIGO
-            : {
-                status: 200,
-                corpo: {
-                  id: '99999999-9999-4999-8999-000000000001',
-                  conviteDoPrimeiroAdmin: { link: LINK, expiraEm: '2026-11-21T12:00:00.000Z' },
-                },
-              },
-        [`POST ${PROVAR}`]: () => ({ status: 200, corpo: { acesso: 'acesso-com-prova' } }),
+        [`POST ${CRIAR}`]: () => ({
+          status: 200,
+          corpo: {
+            id: '99999999-9999-4999-8999-000000000001',
+            conviteDoPrimeiroAdmin: { link: LINK, expiraEm: '2026-11-21T12:00:00.000Z' },
+          },
+        }),
       },
     })
 
@@ -75,24 +70,16 @@ describe('Plataforma do Criador', () => {
     )
     await fireEvent.press(screen.getByRole('button', { name: 'Criar a comunidade Jovens Norte' }))
 
-    // O pedido do código abre por cima; nada foi criado ainda.
-    const codigo = await screen.findByLabelText('Código do app autenticador')
-    expect(pedidosPara(servidor, 'POST', CRIAR)).toHaveLength(1)
-    await fireEvent.changeText(codigo, '123456')
-    await fireEvent.press(screen.getByRole('button', { name: 'Confirmar' }))
-
     expect(await screen.findByRole('button', { name: 'Copiar link' })).toBeOnTheScreen()
     expect(screen.getByRole('button', { name: 'Compartilhar' })).toBeOnTheScreen()
-    expect(pedidosPara(servidor, 'POST', PROVAR)[0]?.corpo).toEqual({ codigo: '123456' })
+    expect(screen.queryByLabelText('Código do app autenticador')).toBeNull()
+    expect(pedidosPara(servidor, 'POST', PROVAR)).toHaveLength(0)
     const criacoes = pedidosPara(servidor, 'POST', CRIAR)
-    expect(criacoes).toHaveLength(2)
-    // O mesmo pedido, agora com o token que carrega a prova.
-    expect(criacoes[1]?.corpo).toEqual(criacoes[0]?.corpo)
-    expect(criacoes[1]?.corpo).toMatchObject({
+    expect(criacoes).toHaveLength(1)
+    expect(criacoes[0]?.corpo).toMatchObject({
       nome: 'Jovens Norte',
       emailDoAdmin: 'lider@exemplo.com',
     })
-    expect(criacoes[1]?.cabecalhos.authorization).toBe('Bearer acesso-com-prova')
   })
 
   test('"Eu serei o administrador" prende o convite ao meu e-mail e abre o aceite', async () => {

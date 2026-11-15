@@ -169,7 +169,7 @@ describe('consentimentos versionados e idade (TC-01 a TC-03)', () => {
     expect(rows).toEqual([
       {
         texto_id: 'TC-01',
-        versao: 1,
+        versao: 2,
         forma: 'android',
         faixa_etaria: '16_17',
         confirmacao_adicional: null,
@@ -177,7 +177,7 @@ describe('consentimentos versionados e idade (TC-01 a TC-03)', () => {
       },
       {
         texto_id: 'TC-02',
-        versao: 1,
+        versao: 2,
         forma: 'android',
         faixa_etaria: null,
         confirmacao_adicional: null,
@@ -185,7 +185,7 @@ describe('consentimentos versionados e idade (TC-01 a TC-03)', () => {
       },
       {
         texto_id: 'TC-03',
-        versao: 2,
+        versao: 3,
         forma: 'android',
         faixa_etaria: null,
         confirmacao_adicional: true,
@@ -750,7 +750,7 @@ describe('páginas públicas de política e suporte', () => {
     expect(aasa.headers['content-type']).toContain('application/json')
     expect(aasa.json().applinks.details[0]).toEqual({
       appIDs: ['8DVJ2U5ZKX.com.solerte.unijovem.hml'],
-      components: [{ '/': '/convite*' }, { '/': '/app/*' }],
+      components: [{ '/': '/convite*' }, { '/': '/entrar/*' }, { '/': '/app/*' }],
     })
     expect(aasa.json().webcredentials).toEqual({ apps: ['8DVJ2U5ZKX.com.solerte.unijovem.hml'] })
     const links = await app.inject({ method: 'GET', url: '/.well-known/assetlinks.json' })

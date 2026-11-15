@@ -209,11 +209,16 @@ describe('comunidade suspensa', () => {
 })
 
 describe('plataforma (Criador)', () => {
-  it('sem prova de 2FA, nenhuma rota de plataforma responde', async () => {
-    for (const p of [admin, membro]) {
+  it('quem não é o Criador não usa a Plataforma (403), com ou sem 2FA', async () => {
+    const comDoisFatores = await pessoaComSessao(b, app, config, 'Admin com 2FA', {
+      doisFatores: true,
+    })
+    for (const p of [admin, membro, comDoisFatores]) {
       const r = await req('GET', '/api/v1/plataforma/comunidades', p)
       expect(r.statusCode).toBe(403)
-      expect(r.json().erro).toBe('segundo_fator_necessario')
+      expect(r.json().erro).toBe('so_criador')
+      const s = await req('GET', '/api/v1/plataforma/saude', p)
+      expect(s.statusCode).toBe(403)
     }
   })
 
@@ -236,7 +241,12 @@ describe('plataforma (Criador)', () => {
       nome: 'Jovens Norte',
       membrosAtivos: 0,
     })
-    // O resumo não traz nomes de pessoas.
+    // Criada pelo Criador: já verificada e sem "quem criou" (o Criador não é o admin).
+    expect(resumo.find((c: { id: string }) => c.id === r.json().id)).toMatchObject({
+      verificacao: 'verificada',
+      criador: null,
+    })
+    // O resumo não traz nomes de membros.
     expect(JSON.stringify(resumo)).not.toContain('Admin')
   })
 

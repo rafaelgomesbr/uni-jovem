@@ -52,7 +52,9 @@ export function redigirObjeto(valor: unknown, profundidade = 0): unknown {
 
 export function caminhoSemConsulta(url: string | undefined): string {
   const caminho = (url ?? '').split('?')[0]!.split('#')[0]!
-  return redigir(caminho)
+  // O código da comunidade (ADR 0007) tem 8 caracteres: curto demais para a
+  // redação de tokens, e dá entrada na comunidade. Sai do registro.
+  return redigir(caminho.replace(/^(\/(?:app\/)?entrar\/)[^/]+/i, '$1[codigo]'))
 }
 
 interface PedidoDoLog {

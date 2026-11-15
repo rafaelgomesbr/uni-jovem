@@ -119,12 +119,12 @@ Consequências práticas para o Uni Jovem:
 O dono revisa e ajusta com o que de fato aconteceu no teste; nada aqui pode ser enviado antes de ser verdade.
 
 - **Como foi recrutar testadores:** fácil. Os testadores são membros e líderes de um grupo de jovens que já usava o processo em papel e planilha; foram convidados pessoalmente.
-- **Os testadores usaram todas as funções?** [PREENCHER com o que o roteiro do G11 registrou: programação, escalas, presença por QR, uso sem internet, pedidos de oração.]
+- **Os testadores usaram todas as funções?** (o dono responde com o que o roteiro do G11 registrou: programação, escalas, presença por QR, uso sem internet, pedidos de oração.)
 - **O uso no teste se parece com o uso esperado em produção?** Sim: o público de produção é o mesmo tipo de grupo, com uso concentrado no dia do evento semanal.
-- **Resumo do retorno e como foi colhido:** [PREENCHER: canal usado e principais pontos.]
+- **Resumo do retorno e como foi colhido:** (o dono responde com o canal usado e os principais pontos.)
 - **Público-alvo e proposta de valor:** lideranças e membros de grupos de jovens de igreja, a partir de 13 anos; organiza programação, escalas, presença e oração num lugar só, com entrada só por convite e funcionamento sem internet no dia do evento.
 - **Instalações estimadas no primeiro ano:** menos de 1.000 (cenários 1 e 2 de `docs/custos.md`).
-- **Mudanças feitas a partir do teste e por que está pronto:** [PREENCHER com as correções reais e as evidências do `docs/STATUS.md`.]
+- **Mudanças feitas a partir do teste e por que está pronto:** (o dono responde com as correções reais e as evidências do `docs/STATUS.md`.)
 
 ---
 

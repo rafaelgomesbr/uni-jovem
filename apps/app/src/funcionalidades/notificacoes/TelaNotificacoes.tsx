@@ -61,10 +61,9 @@ export function TelaNotificacoes() {
             titulo="Nenhuma comunidade ainda"
             descricao="Quando você entrar numa comunidade, escolha aqui o que ela pode avisar."
             acao={{
-              titulo: 'Colar link de convite',
-              icone: 'link',
+              titulo: 'Entrar numa comunidade',
               variante: 'secundario',
-              aoPressionar: () => router.push('/entrar-com-convite'),
+              aoPressionar: () => router.push('/comece-por-aqui'),
             }}
           />
         ) : (

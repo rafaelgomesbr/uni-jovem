@@ -36,8 +36,9 @@ type Pedido =
  * Entrar (3.1.1 e quadro 05): Aurora total, marca a 40 da área segura,
  * cartão "ENTRAR" com e-mail, senha, "Esqueci a senha" e o primário largo
  * (com o Face ID como só ícone de 48 ao lado, se há sessão guardada neste
- * aparelho), e embaixo Google e Apple em fundo branco. Nenhum caminho cria
- * conta: a conta nasce do convite.
+ * aparelho), e embaixo Google e Apple em fundo branco. Conta aberta (ADR
+ * 0007): "Criar conta" leva ao cadastro por e-mail, e Google ou Apple com um
+ * e-mail novo levam a "Falta pouco" (idade e aceites).
  */
 export function TelaEntrar() {
   const sessao = useSessao()
@@ -72,6 +73,7 @@ export function TelaEntrar() {
     onSuccess: (resultado) => {
       // 'pronto': o guarda do grupo público leva para o Início sozinho.
       if (resultado === 'segundo_fator') router.push('/segundo-fator')
+      if (resultado === 'cadastro_pendente') router.push('/completar-cadastro')
     },
   })
   const emAndamento = entrar.isPending ? entrar.variables.tipo : null
@@ -191,10 +193,18 @@ export function TelaEntrar() {
         </View>
       ) : null}
 
-      <View style={{ alignItems: 'flex-start' }}>
-        <Texto variante="legenda" cor="textoSuave">
-          A conta é criada por convite.
+      <View style={{ alignItems: 'flex-start', gap: ESPACO.e8 }}>
+        <Texto variante="corpo" cor="textoSuave">
+          Ainda não tem conta? Crie a sua em poucos passos.
         </Texto>
+        <Botao
+          titulo="Criar conta"
+          variante="secundario"
+          tamanho="grande"
+          larguraTotal
+          desabilitado={emAndamento !== null}
+          aoPressionar={() => router.push('/criar-conta')}
+        />
         <Botao
           titulo="Tenho um link de convite"
           variante="terciario"

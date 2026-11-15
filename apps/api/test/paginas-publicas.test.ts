@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import Fastify from 'fastify'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { carregarConfig, type Config } from '../src/config.ts'
+import { caminhoSemConsulta } from '../src/log.ts'
 import {
   conferirPaginasPublicas,
   marcadoresPendentes,
@@ -173,5 +174,73 @@ describe('página inicial e "não encontrado" (M3)', () => {
     const refletido = await app.inject({ method: 'GET', url: '/%3Cscript%3Ealert(1)%3C/script%3E' })
     expect(refletido.body).not.toContain('<script>')
     await app.close()
+  })
+})
+
+const NL = String.fromCharCode(10)
+
+describe('app aberto nas páginas públicas (ADR 0007)', () => {
+  it('/ não diz mais "só por convite"; /suporte explica criar e denunciar comunidade', async () => {
+    const app = servidorDasPaginas(producao, pastaCompleta)
+    const inicio = await app.inject({ method: 'GET', url: '/' })
+    expect(inicio.body).not.toMatch(/só por convite/i)
+    expect(inicio.body).toContain('Crie sua conta')
+    const suporte = await app.inject({ method: 'GET', url: '/suporte' })
+    expect(suporte.body).toContain('Como criar uma comunidade')
+    expect(suporte.body).toContain('Como denunciar uma comunidade')
+    expect(suporte.body).toContain('href="/termos#administrador"')
+  })
+
+  it('/termos anexa o Termo do Administrador em #administrador, sem notas internas', async () => {
+    const pasta = await mkdtemp(join(tmpdir(), 'uj-docs-termo-'))
+    try {
+      await writeFile(
+        join(pasta, 'termos-de-uso.md'),
+        '# Termos de Uso' + NL + NL + '## 1. Uso' + NL + NL + 'Texto.' + NL,
+      )
+      const app = servidorDasPaginas(producao, pasta)
+      // Sem o arquivo do termo: a página continua respondendo.
+      const sem = await app.inject({ method: 'GET', url: '/termos' })
+      expect(sem.statusCode).toBe(200)
+      expect(sem.body).not.toContain('id="administrador"')
+      await writeFile(
+        join(pasta, 'termo-do-administrador.md'),
+        [
+          '# Termo do Administrador da Comunidade',
+          '',
+          '> Cabeçalho interno do rascunho.',
+          '',
+          '## A1. Para quem vale',
+          '',
+          'Texto do termo. [REVISÃO JURÍDICA: dúvida para o advogado.]',
+          '',
+        ].join(NL),
+      )
+      const com = await app.inject({ method: 'GET', url: '/termos' })
+      expect(com.statusCode).toBe(200)
+      expect(com.body).toContain('id="administrador"')
+      expect(com.body).toContain('A1. Para quem vale')
+      expect(com.body).not.toContain('REVISÃO JURÍDICA')
+    } finally {
+      await rm(pasta, { recursive: true, force: true })
+    }
+  })
+
+  it('/termos com os documentos reais: o termo aparece, sem revisão jurídica nem anexo', async () => {
+    const app = servidorDasPaginas(producao)
+    const r = await app.inject({ method: 'GET', url: '/termos' })
+    expect(r.statusCode).toBe(200)
+    expect(r.body).toContain('id="administrador"')
+    expect(r.body).not.toContain('REVISÃO JURÍDICA')
+    expect(r.body).not.toContain('Anexo')
+  })
+
+  it('links universais incluem /entrar/*; o log não guarda o código da comunidade', async () => {
+    const app = servidorDasPaginas(producao, pastaCompleta)
+    const aasa = await app.inject({ method: 'GET', url: '/.well-known/apple-app-site-association' })
+    expect(JSON.stringify(aasa.json())).toContain('/entrar/*')
+    expect(caminhoSemConsulta('/entrar/ABCD2345?x=1')).toBe('/entrar/[codigo]')
+    expect(caminhoSemConsulta('/app/entrar/ABCD2345')).toBe('/app/entrar/[codigo]')
+    expect(caminhoSemConsulta('/api/v1/entrada')).toBe('/api/v1/entrada')
   })
 })

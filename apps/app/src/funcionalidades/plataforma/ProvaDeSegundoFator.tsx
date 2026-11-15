@@ -15,7 +15,11 @@ import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
 import { AvisoDeFalha } from '@/ui/Falha'
 import { useTema } from '@/ui/tema'
 
-/** A API pede prova recente de 2FA antes de ações de plataforma (D12, D31). */
+/**
+ * A API pede prova recente de 2FA antes de ações de plataforma que destroem ou
+ * intervêm (D12, D31, revistos pela ADR 0007): suspender, arquivar, excluir,
+ * intervir e transferir. Criar, verificar e desverificar comunidade não pedem.
+ */
 export function exigeProvaDeSegundoFator(erro: unknown): boolean {
   return ehErroDaApi(erro, 'segundo_fator_necessario')
 }
@@ -23,7 +27,7 @@ export function exigeProvaDeSegundoFator(erro: unknown): boolean {
 interface PropsDaProva {
   aoConfirmar: () => void
   aoCancelar?: () => void
-  /** Para que é o código (ex.: "Para criar a comunidade"). */
+  /** Para que é o código (ex.: "Para suspender a comunidade"). */
   motivo?: string
 }
 

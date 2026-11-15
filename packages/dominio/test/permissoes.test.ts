@@ -16,11 +16,12 @@ import {
 /**
  * Especificação escrita À PARTE da implementação, célula a célula.
  * Notação: A = Administrador ou acima, O = Organizador ou acima, M = Membro ou
- * acima, "X:p" = só o próprio registro, "|" = qualquer uma, C = Criador com 2FA.
+ * acima, "X:p" = só o próprio registro, "|" = qualquer uma, C = Criador com 2FA,
+ * K = Criador com ou sem 2FA (ADR 0007: ações que não destroem nada).
  * Se alguém acrescentar ação na matriz sem acrescentar aqui, o teste reprova.
  */
 const ESPERADO: Record<string, string> = {
-  'plataforma.criar_comunidade': 'C',
+  'plataforma.criar_comunidade': 'K',
   'plataforma.suspender_comunidade': 'C',
   'plataforma.arquivar_comunidade': 'C',
   'plataforma.excluir_comunidade': 'C',
@@ -29,9 +30,18 @@ const ESPERADO: Record<string, string> = {
   'plataforma.transferir_propriedade': 'C',
   'plataforma.ler_auditoria_da_plataforma': 'C',
   'plataforma.ler_saude_da_plataforma': 'C',
+  'plataforma.ler_comunidades': 'K',
+  'plataforma.verificar_comunidade': 'K',
+  'plataforma.ler_denuncias_de_comunidade': 'K',
+  'plataforma.resolver_denuncia_de_comunidade': 'K',
   'comunidade.ler': 'M',
   'comunidade.configurar': 'A',
   'comunidade.trocar_logo': 'A',
+  'comunidade.ver_codigo': 'A',
+  'comunidade.trocar_codigo': 'A',
+  'comunidade.aceitar_termo_do_admin': 'A',
+  'pedido_entrada.ler': 'O',
+  'pedido_entrada.decidir': 'O',
   'vinculo.listar': 'M',
   'vinculo.ver_contato': 'O',
   'vinculo.alterar_papel': 'A',
@@ -113,9 +123,19 @@ const ESPERADO: Record<string, string> = {
 const NIVEL_LETRA: Record<string, number> = { M: 10, O: 20, A: 30 }
 const NIVEL_PAPEL: Record<Papel, number> = { membro: 10, organizador: 20, admin: 30 }
 
-function esperado(regra: string, papel: Papel | null, proprio: boolean, criador: boolean): boolean {
+/** Situação da conta perante a plataforma: comum, Criador sem 2FA recente, Criador com 2FA. */
+type Plataforma = 'comum' | 'criador_sem_2fa' | 'criador_com_2fa'
+const PLATAFORMAS: Plataforma[] = ['comum', 'criador_sem_2fa', 'criador_com_2fa']
+
+function esperado(
+  regra: string,
+  papel: Papel | null,
+  proprio: boolean,
+  plataforma: Plataforma,
+): boolean {
   return regra.split('|').some((parte) => {
-    if (parte === 'C') return criador
+    if (parte === 'C') return plataforma === 'criador_com_2fa'
+    if (parte === 'K') return plataforma !== 'comum'
     const [letra, escopo] = parte.split(':')
     if (papel === null) return false
     const nivelOk = NIVEL_PAPEL[papel] >= NIVEL_LETRA[letra!]!
@@ -139,18 +159,50 @@ describe('matriz de permissões', () => {
       const [recurso, acao] = chave.split('.') as [Recurso, string]
       for (const papel of PAPEIS_TESTADOS) {
         for (const proprio of [false, true]) {
-          for (const criador of [false, true]) {
-            const ator: Ator = { papel, designacoes: [], proprietarioComDoisFatores: criador }
+          for (const plataforma of PLATAFORMAS) {
+            const ator: Ator = {
+              papel,
+              designacoes: [],
+              proprietarioComDoisFatores: plataforma === 'criador_com_2fa',
+              criador: plataforma !== 'comum',
+            }
             const obtido = permite(ator, recurso, acao as Acao<typeof recurso>, { proprio })
-            expect(obtido, `${chave} papel=${papel} proprio=${proprio} criador=${criador}`).toBe(
-              esperado(regra, papel, proprio, criador),
+            expect(obtido, `${chave} papel=${papel} proprio=${proprio} ${plataforma}`).toBe(
+              esperado(regra, papel, proprio, plataforma),
             )
             celulas++
           }
         }
       }
     }
-    expect(celulas).toBe(Object.keys(ESPERADO).length * 16)
+    expect(celulas).toBe(Object.keys(ESPERADO).length * 24)
+  })
+
+  it('ator sem o campo `criador` (como o app monta) não ganha ação de plataforma', () => {
+    const comum: Ator = { papel: 'admin', designacoes: [], proprietarioComDoisFatores: false }
+    expect(permite(comum, 'plataforma', 'criar_comunidade')).toBe(false)
+    expect(permite(comum, 'plataforma', 'verificar_comunidade')).toBe(false)
+  })
+
+  it('o Criador sem 2FA recente cria e verifica, mas não suspende, exclui nem intervém', () => {
+    const semProva: Ator = {
+      papel: null,
+      designacoes: [],
+      proprietarioComDoisFatores: false,
+      criador: true,
+    }
+    expect(permite(semProva, 'plataforma', 'criar_comunidade')).toBe(true)
+    expect(permite(semProva, 'plataforma', 'verificar_comunidade')).toBe(true)
+    for (const acao of [
+      'suspender_comunidade',
+      'arquivar_comunidade',
+      'excluir_comunidade',
+      'intervir_em_vinculo',
+      'nomear_admin',
+      'transferir_propriedade',
+    ] as const) {
+      expect(permite(semProva, 'plataforma', acao), acao).toBe(false)
+    }
   })
 
   it('ação inexistente é negada', () => {

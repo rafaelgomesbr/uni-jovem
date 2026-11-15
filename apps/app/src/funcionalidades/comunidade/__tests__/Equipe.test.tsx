@@ -1,5 +1,5 @@
 import { fireEvent, screen, userEvent, waitFor } from '@testing-library/react-native'
-import { useLocalSearchParams } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 
 import { BASE, PESSOAS, pedidosPara, renderizarTela, respostaEu } from '@/testes/telas'
 import { mostrarToast } from '@/ui/Toast'
@@ -58,11 +58,12 @@ describe('aba Equipe', () => {
     expect((await screen.findAllByRole('button', { name: 'Criar comunidade' })).length).toBe(1)
   })
 
-  test('o membro não vê "Criar comunidade" nem convites', async () => {
+  test('o membro não vê convites; "Criar comunidade" abre a criação aberta (ADR 0007)', async () => {
     await renderizarTela(<TelaComunidade />, { papel: 'membro' })
     expect(await screen.findByText('Você é Membro · 3 pessoas')).toBeOnTheScreen()
     expect(screen.getByText('Bruno Lima')).toBeOnTheScreen()
-    expect(screen.queryByRole('button', { name: 'Criar comunidade' })).toBeNull()
+    await userEvent.setup().press(screen.getByRole('button', { name: 'Criar comunidade' }))
+    expect(router.push).toHaveBeenCalledWith('/criar-comunidade')
     // Membro não convida nem vê a lista de convites.
     expect(screen.queryByRole('button', { name: /^Criar convite/ })).toBeNull()
     expect(screen.queryByRole('radio', { name: /^Convites/ })).toBeNull()

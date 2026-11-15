@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
+import { cadastroSemConviteHabilitado, POLITICAS } from '@uj/dominio'
 import { verificarAcesso, type ConteudoDoAcesso } from '../autenticacao/jwt.ts'
 import { ipInteiro, Limitador, truncarIp } from '../autenticacao/limitador.ts'
 import {
@@ -14,6 +15,12 @@ import {
   entrarComProvedor,
   listarProvedores,
 } from '../autenticacao/servicoDeProvedores.ts'
+import {
+  concluirCadastro,
+  concluirCadastroPorProvedor,
+  iniciarCadastro,
+} from '../autenticacao/servicoDeCadastro.ts'
+import { verificarTurnstile } from '../publico/apoio.ts'
 import {
   aceitarConviteComConta,
   concluirCadastroPorConvite,
@@ -100,7 +107,26 @@ export const faixaEtaria = z.enum(['menos_16', '16_17', '18_mais'], {
   error: 'Informe a sua faixa de idade.',
 })
 /** Caixa marcada de verdade (nunca pré-marcada no app): só `true` passa. */
-const marcado = (mensagem: string) => z.literal(true, { error: mensagem })
+export const marcado = (mensagem: string) => z.literal(true, { error: mensagem })
+
+/**
+ * Aceites do cadastro aberto (ADR 0007): Termos de Uso e Política de
+ * Privacidade (TC-02) e, para 16 e 17 anos, a ciência do responsável (TC-01).
+ */
+const aceites = z.object(
+  {
+    termos: marcado(MENSAGEM_SEM_TERMOS),
+    responsavelCiente: z.boolean().optional(),
+  },
+  { error: MENSAGEM_SEM_TERMOS },
+)
+
+const CADASTRO_NAO_HABILITADO = () =>
+  new ErroHttp(
+    'cadastro_nao_habilitado',
+    403,
+    'A criação de conta está fechada: peça um convite a quem administra a sua comunidade.',
+  )
 
 /**
  * Limites por finalidade (ADR 0003). Contra força bruta de código, o limite
@@ -131,6 +157,12 @@ function criarLimitadores(fatorIp = 1) {
     renovarIp: new Limitador(600 * fatorIp, 15 * min),
     provedorIp: new Limitador(30 * fatorIp, 15 * min),
     conectarIp: new Limitador(20 * fatorIp, 15 * min),
+    // Cadastro aberto (ADR 0007): cada início manda um e-mail (cota do Resend).
+    cadastroIniciarIp: new Limitador(20 * fatorIp, 60 * min),
+    cadastroIniciarEmail: new Limitador(5, 60 * min),
+    cadastroConcluirIp: new Limitador(60 * fatorIp, 60 * min),
+    cadastroConcluirEmail: new Limitador(20, 60 * min),
+    cadastroProvedorIp: new Limitador(30 * fatorIp, 15 * min),
   }
 }
 
@@ -470,10 +502,14 @@ export function registrarRotasDeAutenticacao(
   if (opcoes.verificador) {
     const dp = { ...d, verificador: opcoes.verificador, usados: new TokensJaUsados() }
 
-    // Nunca cria conta: sem conta existente, a resposta pede um convite.
+    // Sem conta (ADR 0007): devolve o cadastro pendente; a conta só nasce em
+    // /api/auth/provedor/concluir-cadastro, depois da idade e dos aceites.
     app.post('/api/auth/provedor/:provedor', async (pedido, resposta) => {
       const provedor = provedorDoCaminho(pedido)
-      const base = validar(z.object({ aparelho, plataforma }), pedido.body)
+      const base = validar(
+        z.object({ aparelho, plataforma, nome: z.string().trim().max(120).nullish() }),
+        pedido.body,
+      )
       const { token: bruto, nonce: n } = tokenDoCorpo(provedor, pedido.body)
       limitar(lim.provedorIp, ip(pedido), resposta)
       const r = await entrarComProvedor(dp, {
@@ -482,7 +518,10 @@ export function registrarRotasDeAutenticacao(
         nonce: n,
         aparelho: base.aparelho ?? null,
         plataforma: base.plataforma,
+        nome: base.nome ?? null,
+        cadastroAberto: cadastroSemConviteHabilitado(POLITICAS.conta),
       })
+      if ('cadastroPendente' in r) return r
       if (r.segundoFator) return { segundoFator: true, desafio: r.desafio }
       return responderSessao(r, base.plataforma, resposta)
     })
@@ -518,6 +557,96 @@ export function registrarRotasDeAutenticacao(
       return { ok: true }
     })
   }
+
+  // ---------------------------------------------------------------- cadastro aberto (ADR 0007)
+
+  app.post('/api/auth/cadastro/iniciar', async (pedido, resposta) => {
+    if (!cadastroSemConviteHabilitado(POLITICAS.conta)) throw CADASTRO_NAO_HABILITADO()
+    const corpo = validar(
+      z.object({
+        nome,
+        email,
+        faixaEtaria,
+        aceites,
+        turnstile: z.string().trim().max(4096).optional(),
+        plataforma: plataforma.optional(),
+      }),
+      pedido.body,
+    )
+    limitar(lim.cadastroIniciarIp, ip(pedido), resposta)
+    limitar(lim.cadastroIniciarEmail, normalizarEmail(corpo.email), resposta)
+    // Na web, o desafio anti-robô das páginas públicas (Turnstile). O app
+    // nativo não tem como mostrar o desafio: lá valem os limites acima.
+    const naWeb = corpo.plataforma === 'web' || pedido.headers.origin !== undefined
+    if (
+      naWeb &&
+      !(await verificarTurnstile(d.config.TURNSTILE_SEGREDO, corpo.turnstile, pedido.ip))
+    ) {
+      throw new ErroHttp(
+        'verificacao_humana',
+        403,
+        'Não conseguimos confirmar que você não é um robô. Recarregue a página e tente de novo.',
+      )
+    }
+    await iniciarCadastro(d, {
+      nome: corpo.nome,
+      email: corpo.email,
+      faixaEtaria: corpo.faixaEtaria,
+      aceites: corpo.aceites,
+    })
+    return {
+      ok: true,
+      mensagem:
+        'Enviamos um código de 6 números para o seu e-mail. Ele vale por 10 minutos. Confira também a caixa de spam.',
+    }
+  })
+
+  app.post('/api/auth/cadastro/concluir', async (pedido, resposta) => {
+    if (!cadastroSemConviteHabilitado(POLITICAS.conta)) throw CADASTRO_NAO_HABILITADO()
+    const corpo = validar(
+      z.object({
+        email,
+        codigo: z
+          .string()
+          .trim()
+          .regex(/^\d{6}$/, 'O código tem 6 números.'),
+        senha,
+        aparelho,
+        plataforma: plataforma.default('ios'),
+      }),
+      pedido.body,
+    )
+    limitar(lim.cadastroConcluirIp, ip(pedido), resposta)
+    limitar(lim.cadastroConcluirEmail, normalizarEmail(corpo.email), resposta)
+    const sessao = await concluirCadastro(d, {
+      email: corpo.email,
+      codigo: corpo.codigo,
+      senha: corpo.senha,
+      aparelho: corpo.aparelho ?? null,
+      plataforma: corpo.plataforma,
+    })
+    return responderSessao(sessao, corpo.plataforma, resposta)
+  })
+
+  const tokenDeCadastro = tokenDeLink(
+    'O tempo para concluir o cadastro acabou. Entre de novo com Google ou Apple.',
+  )
+
+  app.post('/api/auth/provedor/concluir-cadastro', async (pedido, resposta) => {
+    if (!cadastroSemConviteHabilitado(POLITICAS.conta)) throw CADASTRO_NAO_HABILITADO()
+    const corpo = validar(
+      z.object({ tokenDeCadastro, faixaEtaria, aceites, nome: nome.nullish() }),
+      pedido.body,
+    )
+    limitar(lim.cadastroProvedorIp, ip(pedido), resposta)
+    const { sessao, plataforma: plat } = await concluirCadastroPorProvedor(d, {
+      tokenDeCadastro: corpo.tokenDeCadastro,
+      faixaEtaria: corpo.faixaEtaria,
+      aceites: corpo.aceites,
+      nome: corpo.nome ?? null,
+    })
+    return responderSessao(sessao, plat, resposta)
+  })
 
   // ---------------------------------------------------------------- primeiro acesso do Criador
 

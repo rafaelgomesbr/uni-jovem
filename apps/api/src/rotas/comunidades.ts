@@ -1,9 +1,17 @@
 import type { FastifyInstance } from 'fastify'
 import type pg from 'pg'
 import { z } from 'zod'
-import { podeConcederPapel, PAPEIS, NOME_DO_APP } from '@uj/dominio'
+import {
+  LIMITES_DA_COMUNIDADE_NOVA,
+  modoDeEntradaHabilitado,
+  MODOS_DE_ENTRADA,
+  NOME_DO_APP,
+  PAPEIS,
+  podeConcederPapel,
+} from '@uj/dominio'
 import { ehCorDoAvatar, ehIconeDoAvatar } from '@uj/tokens'
 import { gerarToken, hmacDeToken } from '../autenticacao/cripto.ts'
+import { sortearCodigo } from '../autenticacao/codigoDaComunidade.ts'
 import type { Config } from '../config.ts'
 import type { Correio } from '../correio/correio.ts'
 import { ErroHttp, NAO_ENCONTRADO, SEM_PERMISSAO, traduzirErroDoBanco, validar } from '../http.ts'
@@ -15,6 +23,7 @@ import {
 import { auditar, exigir, idDoCaminho, naComunidade } from './contexto.ts'
 import { emTransacao } from '../banco/contexto.ts'
 import { versaoDoHash } from '../imagens/processar.ts'
+import { VERSAO_DO_TEXTO } from '../privacidade/consentimentos.ts'
 
 export interface DependenciasComunidades {
   config: Config
@@ -237,13 +246,37 @@ export function registrarRotasDeComunidade(app: FastifyInstance, d: Dependencias
         `select c.id, c.nome, c.cor, c.fuso, c.estado,
                 c.validade_offline_dias as "validadeOfflineDias",
                 c.retencao_inscricoes_dias as "retencaoInscricoesDias", c.versao,
-                l.hash is not null as "temLogo", left(encode(l.hash, 'hex'), 16) as "logoVersao"
+                l.hash is not null as "temLogo", left(encode(l.hash, 'hex'), 16) as "logoVersao",
+                c.cidade, c.modo_entrada as "modoEntrada", c.encontravel, c.verificacao,
+                c.id_publico as "idPublico",
+                (select count(*)::int from uj.vinculos v
+                  where v.comunidade_id = c.id and v.estado = 'ativo') as "membrosAtivos"
            from uj.comunidades c left join uj.logos_comunidades l on l.comunidade_id = c.id
           where c.id = $1`,
         [pedido.comunidade!.id],
       )
       if (!rows[0]) throw NAO_ENCONTRADO()
-      return { ...rows[0], meuPapel: pedido.comunidade!.papel }
+      // TC-16 (ADR 0007): admin promovido depois, ou versão nova do termo.
+      const termo = await c.query<{ precisa: boolean }>(
+        'select uj.precisa_aceitar_termo_do_admin($1) as precisa',
+        [VERSAO_DO_TEXTO['TC-16']],
+      )
+      const { membrosAtivos, ...comunidade } = rows[0] as Record<string, unknown> & {
+        membrosAtivos: number
+        verificacao: string
+      }
+      const nova = comunidade.verificacao === 'nova'
+      return {
+        ...comunidade,
+        // Rodinhas (ADR 0007): somem quando a comunidade é verificada.
+        limites: {
+          membrosAtivos: nova ? LIMITES_DA_COMUNIDADE_NOVA.vinculosAtivos : null,
+          eventoPublico: !nova,
+        },
+        uso: { membrosAtivos },
+        precisaAceitarTermoDoAdmin: termo.rows[0]?.precisa === true,
+        meuPapel: pedido.comunidade!.papel,
+      }
     })
   })
 
@@ -256,16 +289,45 @@ export function registrarRotasDeComunidade(app: FastifyInstance, d: Dependencias
         fuso: fusoValido.optional(),
         validadeOfflineDias: z.number().int().min(3).max(30).optional(),
         retencaoInscricoesDias: z.number().int().min(30).max(365).optional(),
+        // ADR 0007: como se entra, aparecer na busca e a cidade (null apaga).
+        modoEntrada: z.enum(MODOS_DE_ENTRADA, { error: 'Escolha um modo de entrada.' }).optional(),
+        encontravel: z.boolean().optional(),
+        cidade: z
+          .string()
+          .trim()
+          .min(2, 'Confira a cidade: tem poucos caracteres.')
+          .max(80)
+          .nullable()
+          .optional(),
       }),
       pedido.body,
     )
+    if (corpo.modoEntrada !== undefined && !modoDeEntradaHabilitado(corpo.modoEntrada)) {
+      throw new ErroHttp(
+        'modo_nao_habilitado',
+        422,
+        'Este modo de entrada ainda não está disponível. Escolha convite ou código.',
+      )
+    }
+    // Quem passa a entrar por código ganha um código, se ainda não tinha.
+    const codigo = sortearCodigo(d.config.CONVITE_SEGREDO)
     return naComunidade(api, pedido, async (c) => {
       try {
         const { rows } = await c.query<{ versao: number }>(
           `update uj.comunidades set
               nome = coalesce($2, nome), cor = coalesce($3, cor), fuso = coalesce($4, fuso),
               validade_offline_dias = coalesce($5, validade_offline_dias),
-              retencao_inscricoes_dias = coalesce($6, retencao_inscricoes_dias)
+              retencao_inscricoes_dias = coalesce($6, retencao_inscricoes_dias),
+              modo_entrada = coalesce($7, modo_entrada),
+              encontravel = coalesce($8, encontravel),
+              cidade = case when $9::boolean then $10 else cidade end,
+              codigo_semente = case when coalesce($7, modo_entrada) <> 'convite'
+                                    then coalesce(codigo_semente, $11) else codigo_semente end,
+              codigo_hmac = case when coalesce($7, modo_entrada) <> 'convite'
+                                 then coalesce(codigo_hmac, $12) else codigo_hmac end,
+              codigo_gerado_em = case when coalesce($7, modo_entrada) <> 'convite'
+                                      then coalesce(codigo_gerado_em, now())
+                                      else codigo_gerado_em end
             where id = $1 returning versao`,
           [
             pedido.comunidade!.id,
@@ -274,6 +336,12 @@ export function registrarRotasDeComunidade(app: FastifyInstance, d: Dependencias
             corpo.fuso ?? null,
             corpo.validadeOfflineDias ?? null,
             corpo.retencaoInscricoesDias ?? null,
+            corpo.modoEntrada ?? null,
+            corpo.encontravel ?? null,
+            corpo.cidade !== undefined,
+            corpo.cidade ?? null,
+            codigo.semente,
+            codigo.hmac,
           ],
         )
         if (!rows[0]) throw SEM_PERMISSAO()

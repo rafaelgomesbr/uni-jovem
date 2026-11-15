@@ -26,6 +26,7 @@ import { Segmentos } from '@/ui/Segmentos'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { mostrarToast } from '@/ui/Toast'
+import { useTravaDeEnvio } from '@/ui/navegacao'
 import { copiarTexto } from '@/utilidades/compartilhar'
 
 import { FUSO_PADRAO, nomeDoFuso, opcoesDeFuso } from '../comunidade/fusos'
@@ -33,8 +34,6 @@ import { LinkCompartilhavel } from '../comunidade/LinkCompartilhavel'
 import { COR_PADRAO, SeletorDeCor, type CorDaComunidade } from '../comunidade/SeletorDeCor'
 import { lerTokenDoConvite } from '../comunidade/TelaEntrarComConvite'
 import { AceitarComConta } from '../convite/AceitarComConta'
-import { useAcaoDePlataforma } from './acaoDePlataforma'
-import { PedidoDeCodigo } from './ProvaDeSegundoFator'
 
 type QuemAdministra = 'eu' | 'outra'
 
@@ -66,16 +65,25 @@ export function TelaNovaComunidade() {
   const [emailDoAdmin, setEmailDoAdmin] = useState('')
   const [erroDoNome, setErroDoNome] = useState<string | null>(null)
   const [erroDoEmail, setErroDoEmail] = useState<string | null>(null)
+  const trava = useTravaDeEnvio()
 
-  const criar = useAcaoDePlataforma<ComunidadeCriada, Pedido>({
-    mutationFn: (p) =>
+  // ADR 0007 (revisa D12 e D31): criar comunidade não pede o código do autenticador.
+  const criacao = useMutation({
+    mutationFn: (p: Pedido) =>
       api.post<ComunidadeCriada>('/api/v1/plataforma/comunidades', {
         nome: p.nome,
         cor: p.cor,
         ...(p.emailDoAdmin ? { emailDoAdmin: p.emailDoAdmin } : {}),
       }),
     onSuccess: () => consultas.invalidateQueries({ queryKey: CHAVES.plataforma }),
+    onSettled: () => trava.soltar(),
   })
+  const criar = {
+    dados: criacao.data,
+    variaveis: criacao.variables,
+    executando: criacao.isPending,
+    erro: criacao.error,
+  }
 
   const { alvo: tituloRef, pedirFoco } = useFocoAoMudar<NoDeTexto>(
     criar.dados ? 'criada' : 'formulario',
@@ -115,8 +123,9 @@ export function TelaNovaComunidade() {
     setErroDoNome(nomeOk ? null : 'O nome precisa ter pelo menos 2 letras.')
     setErroDoEmail(emailOk ? null : 'Confira o e-mail: ele precisa ter o formato nome@exemplo.com.')
     if (!nomeOk || !emailOk || !conta) return
+    if (!trava.pegar()) return
     pedirFoco()
-    criar.executar({
+    criacao.mutate({
       nome: nomeLimpo,
       cor,
       fuso,
@@ -220,8 +229,6 @@ export function TelaNovaComunidade() {
           {`Fuso: ${nomeDoFuso(FUSO_PADRAO)}. Quem administrar ajusta em Equipe, Configurações.`}
         </Texto>
       )}
-
-      <PedidoDeCodigo prova={criar.prova} motivo="Para criar a comunidade" />
     </Tela>
   )
 }

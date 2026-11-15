@@ -1,39 +1,73 @@
 import { ESPACO } from '@uj/tokens'
 import { router } from 'expo-router'
+import { useEffect, useState } from 'react'
 import { View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
-import type { ComunidadeDaPlataforma } from '@/servicos/contrato'
-import { BotaoIcone } from '@/ui/Botao'
+import { Botao, BotaoIcone } from '@/ui/Botao'
+import { CampoDeBusca } from '@/ui/Campo'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Chip } from '@/ui/Chip'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
-import { ErroDaTela } from '@/ui/Falha'
+import { AvisoDeFalha, ErroDaTela } from '@/ui/Falha'
 import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
-import { Numeros } from '@/ui/Numeros'
+import { PilulasDeFiltro } from '@/ui/PilulasDeFiltro'
 import { Secao } from '@/ui/Secao'
 import { Tela } from '@/ui/Tela'
+import { formatarData } from '@/utilidades/formatos'
 
 import {
   CHIP_DO_ESTADO_DA_COMUNIDADE,
   NOME_CURTO_DO_ESTADO_DA_COMUNIDADE,
 } from '../comunidade/nomes'
-import { useComunidadesDaPlataforma } from './consultas'
+import {
+  useListaDaPlataforma,
+  type ComunidadeNaPlataforma,
+  type FiltroDaPlataforma,
+} from './consultas'
 import { exigeProvaDeSegundoFator, ProvaDeSegundoFator } from './ProvaDeSegundoFator'
+
+/** Espera de digitação antes de buscar na API. */
+const ESPERA_DA_BUSCA_MS = 400
+
+const FILTROS = [
+  { valor: 'nova' as const, rotulo: 'Novas' },
+  { valor: 'verificada' as const, rotulo: 'Verificadas' },
+  { valor: 'todas' as const, rotulo: 'Todas' },
+]
 
 function pessoas(n: number): string {
   return `${n} ${n === 1 ? 'pessoa' : 'pessoas'}`
 }
 
+function denuncias(n: number): string {
+  return `${n} ${n === 1 ? 'denúncia' : 'denúncias'}`
+}
+
+/** O texto que a pessoa digitou, só depois de uma pausa (sincroniza com um temporizador). */
+function useValorComPausa(valor: string, ms: number): string {
+  const [atrasado, setAtrasado] = useState(valor)
+  useEffect(() => {
+    const t = setTimeout(() => setAtrasado(valor), ms)
+    return () => clearTimeout(t)
+  }, [valor, ms])
+  return atrasado
+}
+
 /**
- * Plataforma do Criador (3.6.3): "VISÃO GERAL" com três números, o cartão
- * lista "COMUNIDADES" e o "+" no cabeçalho para criar. Quando a API pede a
- * prova do segundo fator, o destaque é o pedido do código.
+ * Plataforma do Criador (3.6.3 e ADR 0007): as pílulas "Novas",
+ * "Verificadas" e "Todas", a busca por nome ou cidade, a lista paginada e o
+ * "+" no cabeçalho para criar. Cada linha: nome, cidade, quem criou, pessoas,
+ * denúncias abertas e a data. Quando a API pede a prova do segundo fator, o
+ * destaque é o pedido do código.
  */
 export function TelaPlataforma() {
   const { conta } = useSessao()
-  const comunidades = useComunidadesDaPlataforma()
+  const [filtro, setFiltro] = useState<FiltroDaPlataforma>('nova')
+  const [busca, setBusca] = useState('')
+  const termo = useValorComPausa(busca.trim(), ESPERA_DA_BUSCA_MS)
+  const lista = useListaDaPlataforma(filtro, termo)
 
   if (!conta?.criador) {
     return (
@@ -48,7 +82,7 @@ export function TelaPlataforma() {
     )
   }
 
-  const lista = comunidades.data ?? []
+  const comunidades = lista.data?.pages.flatMap((p) => p.comunidades) ?? []
   return (
     <Tela
       pilha
@@ -63,58 +97,55 @@ export function TelaPlataforma() {
         />
       }
     >
-      {exigeProvaDeSegundoFator(comunidades.error) ? (
+      <PilulasDeFiltro
+        rotulo="Mostrar comunidades"
+        pilulas={FILTROS}
+        selecionadas={[filtro]}
+        aoMudar={([v]) => {
+          if (v) setFiltro(v)
+        }}
+        sangrar
+      />
+      <CampoDeBusca rotulo="Buscar por nome ou cidade" valor={busca} aoMudar={setBusca} />
+
+      {exigeProvaDeSegundoFator(lista.error) ? (
         <ProvaDeSegundoFator
           motivo="Para ver as comunidades da plataforma"
-          aoConfirmar={() => void comunidades.refetch()}
+          aoConfirmar={() => void lista.refetch()}
         />
-      ) : comunidades.isPending ? (
+      ) : lista.isPending ? (
         <Esqueleto rotulo="Carregando as comunidades">
           <CartaoDeEsqueleto />
           <CartaoDeEsqueleto />
         </Esqueleto>
-      ) : comunidades.error ? (
+      ) : lista.error && comunidades.length === 0 ? (
         <ErroDaTela
-          erro={comunidades.error}
+          erro={lista.error}
           titulo="As comunidades não abriram"
-          aoTentarDeNovo={() => void comunidades.refetch()}
+          aoTentarDeNovo={() => void lista.refetch()}
         />
+      ) : comunidades.length === 0 ? (
+        <Vazio filtro={filtro} buscando={termo.length > 0} aoLimpar={() => setBusca('')} />
       ) : (
-        <>
-          <CartaoDeVidro sobrancelha="Visão geral">
-            <Numeros
-              itens={[
-                { numero: lista.length, rotulo: lista.length === 1 ? 'comunidade' : 'comunidades' },
-                {
-                  numero: lista.reduce((s, c) => s + c.membrosAtivos, 0),
-                  rotulo: 'pessoas ativas',
-                },
-                {
-                  numero: lista.filter((c) => c.adminsAtivos === 0).length,
-                  rotulo: 'sem administrador',
-                },
-              ]}
-            />
+        <Secao titulo="Comunidades">
+          <CartaoDeVidro lista>
+            <Lista>{comunidades.map(linhaDaComunidade)}</Lista>
           </CartaoDeVidro>
-          {lista.length === 0 ? (
-            <EstadoVazio
-              icone="plataforma"
-              titulo="Nenhuma comunidade ainda"
-              descricao="Crie a primeira e entre como administrador, ou mande o convite para quem vai cuidar dela."
-              acao={{
-                titulo: 'Criar a primeira comunidade',
-                icone: 'adicionar',
-                aoPressionar: () => router.push('/plataforma/nova'),
-              }}
-            />
-          ) : (
-            <Secao titulo="Comunidades">
-              <CartaoDeVidro lista>
-                <Lista>{lista.map(linhaDaComunidade)}</Lista>
-              </CartaoDeVidro>
-            </Secao>
-          )}
-        </>
+          {lista.isFetchNextPageError ? (
+            <AvisoDeFalha erro={lista.error} titulo="As próximas não carregaram" />
+          ) : null}
+          {lista.hasNextPage ? (
+            <View style={{ marginTop: ESPACO.e12 }}>
+              <Botao
+                titulo="Mostrar mais"
+                variante="secundario"
+                larguraTotal
+                carregando={lista.isFetchingNextPage}
+                aoPressionar={() => void lista.fetchNextPage()}
+              />
+            </View>
+          ) : null}
+        </Secao>
       )}
 
       <Secao titulo="Propriedade">
@@ -131,23 +162,93 @@ export function TelaPlataforma() {
   )
 }
 
-/** Comunidade: avatar de 40 na cor dela, nome, quantas pessoas e os chips de situação. */
-function linhaDaComunidade(c: ComunidadeDaPlataforma) {
+function Vazio({
+  filtro,
+  buscando,
+  aoLimpar,
+}: {
+  filtro: FiltroDaPlataforma
+  buscando: boolean
+  aoLimpar: () => void
+}) {
+  if (buscando) {
+    return (
+      <EstadoVazio
+        icone="buscar"
+        titulo="Nenhuma comunidade com esse nome"
+        descricao="Confira a grafia ou busque pela cidade."
+        acao={{ titulo: 'Limpar a busca', variante: 'secundario', aoPressionar: aoLimpar }}
+      />
+    )
+  }
+  if (filtro === 'nova') {
+    return (
+      <EstadoVazio
+        icone="confirmado"
+        titulo="Nenhuma comunidade esperando verificação"
+        descricao="Quando alguém criar uma comunidade, ela aparece aqui até você verificar."
+        acao={{
+          titulo: 'Criar comunidade',
+          icone: 'adicionar',
+          variante: 'secundario',
+          aoPressionar: () => router.push('/plataforma/nova'),
+        }}
+      />
+    )
+  }
+  return (
+    <EstadoVazio
+      icone="plataforma"
+      titulo={
+        filtro === 'verificada' ? 'Nenhuma comunidade verificada' : 'Nenhuma comunidade ainda'
+      }
+      descricao="Crie uma comunidade e entre como administrador, ou mande o convite para quem vai cuidar dela."
+      acao={{
+        titulo: 'Criar comunidade',
+        icone: 'adicionar',
+        aoPressionar: () => router.push('/plataforma/nova'),
+      }}
+    />
+  )
+}
+
+/**
+ * Comunidade: avatar na cor dela, nome, "cidade · pessoas · criada em" e
+ * quem criou; à direita, os chips (Verificada, denúncias, situação).
+ */
+function linhaDaComunidade(c: ComunidadeNaPlataforma) {
   const estado = NOME_CURTO_DO_ESTADO_DA_COMUNIDADE[c.estado]
-  const semAdmin = c.adminsAtivos === 0
+  const ativa = c.estado === 'ativa'
+  const verificada = c.verificacao === 'verificada'
+  const abertas = c.denunciasAbertas ?? 0
+  const primeira = [
+    c.cidade,
+    pessoas(c.membrosAtivos),
+    c.criadoEm ? `criada em ${formatarData(c.criadoEm)}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+  const quem = c.criador
+    ? `Por ${c.criador.nome}${c.criador.email ? ` (${c.criador.email})` : ''}`
+    : null
+  const descricao = quem ? `${primeira}\n${quem}` : primeira
   return (
     <LinhaDeLista
       key={c.id}
       avatar={{ nome: c.nome, cor: c.cor }}
       titulo={c.nome}
-      descricao={pessoas(c.membrosAtivos)}
+      descricao={descricao}
+      linhasDaDescricao={3}
       extra={
         <View style={{ alignItems: 'flex-end', gap: ESPACO.e4 }}>
-          <Chip texto={estado} tom={CHIP_DO_ESTADO_DA_COMUNIDADE[c.estado].tom} />
-          {semAdmin ? <Chip texto="Sem admin" tom="alerta" /> : null}
+          {verificada ? <Chip texto="Verificada" tom="sucesso" icone="confirmado" /> : null}
+          {c.verificacao === 'nova' ? <Chip texto="Nova" tom="neutro" /> : null}
+          {abertas > 0 ? <Chip texto={denuncias(abertas)} tom="alerta" icone="denuncia" /> : null}
+          {c.adminsAtivos === 0 ? <Chip texto="Sem admin" tom="alerta" /> : null}
+          {ativa ? null : <Chip texto={estado} tom={CHIP_DO_ESTADO_DA_COMUNIDADE[c.estado].tom} />}
         </View>
       }
-      rotuloAcessivel={`${c.nome}. ${estado}. ${pessoas(c.membrosAtivos)}.${semAdmin ? ' Sem administrador.' : ''} Abrir`}
+      rotuloAcessivel={`${c.nome}. ${descricao.replace('\n', '. ')}.${verificada ? ' Verificada.' : c.verificacao === 'nova' ? ' Nova.' : ''}${abertas ? ` ${denuncias(abertas)} abertas.` : ''}${ativa ? '' : ` ${estado}.`} Abrir`}
       aoPressionar={() =>
         router.push({ pathname: '/plataforma/[comunidadeId]', params: { comunidadeId: c.id } })
       }

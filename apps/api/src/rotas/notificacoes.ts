@@ -45,9 +45,18 @@ export type DestinoDaNotificacao =
   | { tela: 'avisos' }
   | { tela: 'evento'; eventoId: string }
   | { tela: 'escalas' }
+  | { tela: 'pedidos_de_entrada'; comunidadeId: string }
+  | { tela: 'meus_pedidos' }
   | null
 
-function destinoDe(recursoTipo: string, alvo: string | null): DestinoDaNotificacao {
+function destinoDe(l: LinhaDaCaixa): DestinoDaNotificacao {
+  // Pedidos de entrada (ADR 0007): quem decide abre a fila da comunidade;
+  // quem pediu (mesmo sem vínculo, se não foi aprovado) abre "Meus pedidos".
+  if (l.tipo === 'pedido_de_entrada') {
+    return { tela: 'pedidos_de_entrada', comunidadeId: l.comunidade_id }
+  }
+  if (l.tipo === 'pedido_decidido') return { tela: 'meus_pedidos' }
+  const { recurso_tipo: recursoTipo, alvo } = l
   switch (recursoTipo) {
     case 'aviso':
       return alvo ? { tela: 'aviso', avisoId: alvo } : { tela: 'avisos' }
@@ -74,7 +83,7 @@ function itemDaCaixa(l: LinhaDaCaixa) {
     titulo: l.titulo,
     texto: l.corpo,
     comunidade: { id: l.comunidade_id, nome: l.comunidade_nome },
-    destino: destinoDe(l.recurso_tipo, l.alvo),
+    destino: destinoDe(l),
     lida: l.lida_em !== null,
     lidaEm: l.lida_em,
     criadoEm: l.criado_em,
@@ -221,10 +230,10 @@ export function registrarRotasDeNotificacoes(app: FastifyInstance, api: pg.Pool)
       const { rows } = await c.query<LinhaDaCaixa>(
         `select n.id, n.tipo, n.recurso_tipo, n.titulo, n.corpo, n.lida_em, n.criado_em,
                 (extract(epoch from n.criado_em) * 1000000)::bigint::text as micros,
-                c.id as comunidade_id, c.nome as comunidade_nome,
+                n.comunidade_id,
+                uj.nome_da_comunidade_da_notificacao(n.id) as comunidade_nome,
                 uj.alvo_da_notificacao(n.id) as alvo
            from uj.notificacoes n
-           join uj.comunidades c on c.id = n.comunidade_id
           where $1::bigint is null
              or (n.criado_em, n.id) < (timestamptz 'epoch' + $1::bigint * interval '1 microsecond',
                                        $2::uuid)

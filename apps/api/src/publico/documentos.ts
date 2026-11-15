@@ -168,7 +168,7 @@ export function registrarDocumentosPublicos(
   }
 
   // Página inicial do domínio: quem chega pelo navegador (ou pela revisão das
-  // lojas) vê o que é o app, que a entrada é por convite e os links legais.
+  // lojas) vê o que é o app, como entrar (ADR 0007: conta aberta) e os links legais.
   app.get('/', async (_pedido, resposta) =>
     responder(
       resposta,
@@ -182,8 +182,9 @@ export function registrarDocumentosPublicos(
           <div class="cartao">
             <h2>Como entrar</h2>
             <p>
-              A entrada é só por convite. Peça o link à liderança da sua comunidade e abra-o no
-              celular ou no computador.
+              Crie sua conta com e-mail, Google ou Apple (16 anos ou mais). Depois, entre na sua
+              comunidade com o código que a liderança passar, peça para entrar pela busca ou crie
+              uma comunidade nova.
             </p>
             <p><a class="botao" href="/app">Abrir o ${NOME_DO_APP} na web</a></p>
           </div>
@@ -213,13 +214,25 @@ export function registrarDocumentosPublicos(
       const md = lerDocumento(pasta, arquivo)
       if (!md) return indisponivel(resposta, padrao)
       const { titulo, corpo } = corpoDoDocumento(md)
+      // `/termos#administrador`: o Termo do Administrador da Comunidade (TC-16,
+      // ADR 0007) vem logo depois dos Termos de Uso. Opcional: sem o arquivo, a
+      // página continua com os Termos.
+      const termoDoAdmin =
+        caminho === '/termos' ? lerDocumento(pasta, 'termo-do-administrador.md') : null
+      const anexo = termoDoAdmin ? corpoDoDocumento(termoDoAdmin) : null
       return responder(
         resposta,
         200,
         pagina(
           html`<h1>${titulo || padrao}</h1>
             ${AVISO_DE_RASCUNHO}
-            <div class="documento">${new Seguro(markdownParaHtml(corpo))}</div>`,
+            <div class="documento">${new Seguro(markdownParaHtml(corpo))}</div>
+            ${
+              anexo
+                ? html`<h2 id="administrador">${anexo.titulo || 'Termo do Administrador'}</h2>
+                    <div class="documento">${new Seguro(markdownParaHtml(anexo.corpo))}</div>`
+                : ''
+            }`,
           {
             titulo: `${titulo || padrao}`,
             descricao: `${padrao} do ${NOME_DO_APP} (rascunho em revisão).`,
@@ -273,6 +286,22 @@ export function registrarDocumentosPublicos(
             Conte o que aconteceu, em qual aparelho e, se puder, o horário. Nunca envie a sua senha
             nem o código do autenticador: a equipe do ${NOME_DO_APP} não pede essas informações.
           </p>
+          <h2>Como criar uma comunidade</h2>
+          <p>
+            Qualquer pessoa com 18 anos ou mais e com o e-mail confirmado cria uma comunidade no
+            app, em "Criar comunidade", e passa a administrá-la depois de aceitar o
+            <a href="/termos#administrador">Termo do Administrador</a>. A comunidade nova tem até 30
+            pessoas e não publica página aberta de evento até ser verificada pela equipe do
+            ${NOME_DO_APP}.
+          </p>
+          <h2>Como denunciar uma comunidade</h2>
+          <p>
+            Viu uma comunidade falsa, um golpe, conteúdo ofensivo, alguém com menos de 16 anos ou
+            risco a um menor? No app, abra a comunidade (pela busca ou pela aba Equipe, se você
+            participa dela) e toque em "Denunciar comunidade". A denúncia vai para a equipe do
+            ${NOME_DO_APP}, não para a liderança da comunidade. Em caso de risco imediato, procure
+            também as autoridades.
+          </p>
           <h2>Esqueceu a senha?</h2>
           <p>
             Na tela de entrada do app, toque em "Esqueci a senha" e siga o link enviado ao seu
@@ -308,7 +337,7 @@ export function registrarDocumentosPublicos(
         details: [
           {
             appIDs: appIds,
-            components: [{ '/': '/convite*' }, { '/': '/app/*' }],
+            components: [{ '/': '/convite*' }, { '/': '/entrar/*' }, { '/': '/app/*' }],
           },
         ],
       },
@@ -317,7 +346,9 @@ export function registrarDocumentosPublicos(
   )
 
   // App Links do Android. Sem impressão configurada, a lista vai vazia (nenhum
-  // app é verificado, o link abre no navegador).
+  // app é verificado, o link abre no navegador). O assetlinks vale para o
+  // domínio inteiro: os caminhos (/convite, /entrar/*, /app/*) ficam no
+  // intent-filter do app (o formato do assetlinks não tem caminho).
   app.get('/.well-known/assetlinks.json', async (_pedido, resposta) => {
     const impressoes = o.config.ANDROID_SHA256_IMPRESSOES
     return resposta.header('Content-Type', 'application/json').send(

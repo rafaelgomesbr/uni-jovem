@@ -18,6 +18,7 @@ import {
   senhaConfere,
 } from './cripto.ts'
 import { emitirAcesso, emitirDesafio, verificarDesafio } from './jwt.ts'
+import type { IdentidadeDoProvedor } from './provedores.ts'
 import { MENSAGEM_DO_PROBLEMA, problemasDaSenha } from './senha.ts'
 import {
   MENSAGEM_MENOR_DE_16,
@@ -68,8 +69,8 @@ export const DURACAO_SESSAO_DIAS = 90
 /** Teto absoluto de uma família de sessões (o aparelho), mesmo usada todo dia. */
 export const VIDA_MAXIMA_DA_FAMILIA_DIAS = 365
 const VALIDADE_RECUPERACAO_MIN = 30
-const VALIDADE_CODIGO_MIN = 10
-const TENTATIVAS_CODIGO = 5
+export const VALIDADE_CODIGO_MIN = 10
+export const TENTATIVAS_CODIGO = 5
 const VALIDADE_PROVA_MIN = 10
 /** Falhas de segundo fator por conta antes do bloqueio, e a duração do bloqueio. */
 export const FALHAS_2FA_ANTES_DO_BLOQUEIO = 5
@@ -92,7 +93,7 @@ export function versaoDaSenha(senhaHash: string): string {
   return createHash('sha256').update(senhaHash).digest('base64url').slice(0, 16)
 }
 
-function exigirSenhaBoa(senha: string, dados: { nome?: string; email?: string }): void {
+export function exigirSenhaBoa(senha: string, dados: { nome?: string; email?: string }): void {
   const problemas = problemasDaSenha(senha, dados)
   if (problemas.length > 0) {
     throw new ErroDeAuth(
@@ -139,9 +140,12 @@ export async function auditar(
  * Cada finalidade tem a sua função no banco, com o limite lá: o papel não
  * escolhe chave nem limite (uj.consumir_cota não é executável pelo app).
  */
-async function cotaDeEmail(
+export async function cotaDeEmail(
   c: pg.PoolClient | pg.Pool,
-  sql: 'select uj.cota_email_recuperacao() as ok' | 'select uj.cota_email_convite($1) as ok',
+  sql:
+    | 'select uj.cota_email_recuperacao() as ok'
+    | 'select uj.cota_email_convite($1) as ok'
+    | 'select uj.cota_email_cadastro() as ok',
   params: unknown[] = [],
 ) {
   const { rows } = await c.query<{ ok: boolean }>(sql, params)
@@ -542,7 +546,11 @@ export function pedirRecuperacao(d: DependenciasAuth, email: string): void {
       const token = gerarToken()
       const conta = await emTx(d.auth, async (c) => {
         const { rows } = await c.query<{ id: string; email: string }>(
-          "select id, email from uj.contas where email = $1 and estado = 'ativa' and senha_hash is not null",
+          // Conta criada por Google ou Apple (sem senha) também cria a primeira
+          // senha por aqui. O Criador sem senha só pelo primeiro acesso.
+          `select id, email from uj.contas
+            where email = $1 and estado = 'ativa'
+              and (senha_hash is not null or not plataforma_proprietario)`,
           [normalizarEmail(email)],
         )
         const a = rows[0]
@@ -655,6 +663,8 @@ const MENSAGEM_DO_CONVITE: Record<string, string> = {
   UJ003: 'Você já participa desta comunidade.',
   UJ004: 'Sua conta não está ativa.',
   UJ005: 'Este e-mail já tem conta. Entre com ela para aceitar o convite.',
+  UJ080:
+    'Esta comunidade chegou ao limite de 30 participantes enquanto não é verificada. Fale com quem convidou você.',
 }
 const CODIGO_DO_CONVITE: Record<string, string> = {
   UJ001: 'convite_indisponivel',
@@ -662,6 +672,7 @@ const CODIGO_DO_CONVITE: Record<string, string> = {
   UJ003: 'ja_participa',
   UJ004: 'conta_inativa',
   UJ005: 'conta_existente',
+  UJ080: 'limite_de_participantes',
 }
 
 function traduzirErroDeConvite(e: unknown): never {
@@ -1037,6 +1048,44 @@ export async function reautenticar(
 }
 
 /**
+ * Reautenticação por Google ou Apple (conta criada só pelo provedor não tem
+ * senha). O token novo, já conferido no provedor, precisa ser da conta do
+ * provedor LIGADA a esta conta; com o 2FA ligado, o código também vale.
+ */
+export async function reautenticarPorProvedor(
+  d: DependenciasAuth,
+  pedido: { contaId: string; identidade: IdentidadeDoProvedor; codigo: string | null },
+): Promise<void> {
+  const conta = (
+    await d.auth.query<{ totp_ativado_em: Date | null }>(
+      `select a.totp_ativado_em from uj.contas a
+         join uj.contas_provedores p on p.conta_id = a.id
+        where a.id = $1 and a.estado = 'ativa' and p.provedor = $2 and p.sub = $3
+          and p.desconectado_em is null`,
+      [pedido.contaId, pedido.identidade.provedor, pedido.identidade.sub],
+    )
+  ).rows[0]
+  if (!conta) {
+    throw new ErroDeAuth(
+      'reautenticacao_invalida',
+      401,
+      'Esta não é a conta Google ou Apple ligada à sua conta. Entre com a conta certa ou use a senha.',
+    )
+  }
+  if (!conta.totp_ativado_em) return
+  if (!pedido.codigo) {
+    throw new ErroDeAuth(
+      'segundo_fator_necessario',
+      401,
+      'Informe o código do seu autenticador para continuar.',
+    )
+  }
+  const codigo = pedido.codigo
+  const r = await emTx(d.auth, (c) => conferirSegundoFator(d, c, pedido.contaId, codigo))
+  lancarSeNaoOk(r)
+}
+
+/**
  * Prova de que a reautenticação acabou de acontecer, de uso único e válida por
  * poucos minutos. Só o hash fica no banco; `uj.excluir_conta` exige e consome a
  * prova, então a função não age só com um id de conta (padrão das provas de 2FA).
@@ -1096,9 +1145,27 @@ async function comunidadesSemOutroAdmin(
  */
 export async function excluirConta(
   d: DependenciasAuth,
-  pedido: { contaId: string; senha: string; codigo: string | null },
+  pedido: {
+    contaId: string
+    senha: string | null
+    codigo: string | null
+    /** Reautenticação por Google ou Apple: identidade já conferida no provedor. */
+    identidade?: IdentidadeDoProvedor | null
+  },
 ): Promise<void> {
-  await reautenticar(d, pedido)
+  if (pedido.identidade) {
+    await reautenticarPorProvedor(d, {
+      contaId: pedido.contaId,
+      identidade: pedido.identidade,
+      codigo: pedido.codigo,
+    })
+  } else {
+    await reautenticar(d, {
+      contaId: pedido.contaId,
+      senha: pedido.senha ?? '',
+      codigo: pedido.codigo,
+    })
+  }
   const unicas = await comunidadesSemOutroAdmin(d, pedido.contaId)
   if (unicas.length > 0) throw new ErroUnicoAdmin(unicas)
   const prova = await gravarProvaDeReautenticacao(d, pedido.contaId)

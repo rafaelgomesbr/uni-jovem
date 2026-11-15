@@ -17,11 +17,15 @@ import {
   type Plataforma,
   type ResultadoDeEntrada,
 } from './servico.ts'
+import { abrirCadastroPorProvedor, type CadastroPendente } from './servicoDeCadastro.ts'
 
 /**
- * Entrar e conectar com Google ou Apple. Regras (pedido do dono, 14/11/2026):
+ * Entrar e conectar com Google ou Apple. Regras (pedido do dono, 14/11/2026,
+ * revistas pela ADR 0007 em 15/11/2026):
  *
- * - Nunca cria conta: a entrada continua só por convite.
+ * - Sem conta para esta identidade e sem conta com o e-mail informado, a
+ *   resposta é um CADASTRO PENDENTE (token de 15 minutos): a conta só nasce
+ *   depois da idade e dos aceites (`concluirCadastroPorProvedor`).
  * - A conta é achada pelo vínculo do provedor (`sub`) ou, na primeira vez,
  *   pelo e-mail VERIFICADO pelo provedor igual ao da conta. O e-mail de
  *   retransmissão privada da Apple nunca casa: aí só o vínculo prévio vale.
@@ -39,10 +43,9 @@ const SEM_CONTA = (provedor: Provedor) =>
   new ErroDeAuth(
     'conta_nao_encontrada',
     401,
-    `Não encontramos uma conta do ${NOME_DO_APP} ligada a esta conta ${NOME_DO_PROVEDOR[provedor]}. ` +
-      'A conta é criada por convite: peça o link a quem administra a sua comunidade. ' +
-      `Se você já tem conta, entre com e-mail e senha e conecte a conta ${NOME_DO_PROVEDOR[provedor]} ` +
-      'em Perfil, Segurança.',
+    `Já existe uma conta do ${NOME_DO_APP} com este e-mail, mas ela não está ligada a esta conta ` +
+      `${NOME_DO_PROVEDOR[provedor]}. Entre com e-mail e senha (ou use "Esqueci a senha") e conecte ` +
+      `a conta ${NOME_DO_PROVEDOR[provedor]} em Perfil, Segurança.`,
   )
 
 function recusa(provedor: Provedor, e: TokenDeProvedorRecusado): ErroDeAuth {
@@ -92,6 +95,11 @@ interface LinhaDaConta {
   plataforma_proprietario: boolean
 }
 
+/** Conta que pode entrar: ativa e com senha ou criada pelo provedor (sem senha). */
+function podeEntrar(conta: LinhaDaConta): boolean {
+  return conta.estado === 'ativa' && (conta.senha_hash !== null || !conta.plataforma_proprietario)
+}
+
 export async function entrarComProvedor(
   d: DependenciasDeProvedores,
   pedido: {
@@ -100,11 +108,15 @@ export async function entrarComProvedor(
     nonce?: string | undefined
     aparelho: string | null
     plataforma: Plataforma
+    /** Nome que a Apple entrega só ao app, na primeira vez (para o cadastro). */
+    nome?: string | null | undefined
+    /** `PoliticaDeConta` permite criar conta sem convite (ADR 0007)? */
+    cadastroAberto: boolean
   },
-): Promise<ResultadoDeEntrada> {
+): Promise<ResultadoDeEntrada | CadastroPendente> {
   const id = await identidade(d, pedido.provedor, pedido.token, pedido.nonce)
 
-  const conta = await emTx(d.auth, async (c) => {
+  const conta = await emTx(d.auth, async (c): Promise<LinhaDaConta | 'cadastro' | null> => {
     const porSub = (
       await c.query<LinhaDaConta & { vinculo_id: string; desconectado: boolean }>(
         `select p.id as vinculo_id, p.desconectado_em is not null as desconectado,
@@ -125,7 +137,12 @@ export async function entrarComProvedor(
 
     // Primeira vez com este provedor: só pelo e-mail verificado, e só se a
     // conta nunca teve (nem desconectou) um vínculo com ele.
-    if (!id.email || !id.emailVerificado || id.retransmissaoPrivada) return null
+    // Nenhuma conta com este e-mail: é gente nova (ADR 0007). O cadastro
+    // pendente ainda confere que o provedor verificou o e-mail.
+    if (!id.email) return 'cadastro'
+    const comEsteEmail = await c.query('select 1 from uj.contas where email = $1', [id.email])
+    if (comEsteEmail.rows.length === 0) return 'cadastro'
+    if (!id.emailVerificado || id.retransmissaoPrivada) return null
     const porEmail = (
       await c.query<LinhaDaConta>(
         `select a.id, a.senha_hash, a.estado, a.totp_ativado_em, a.plataforma_proprietario
@@ -137,7 +154,7 @@ export async function entrarComProvedor(
         [id.email, id.provedor],
       )
     ).rows[0]
-    if (!porEmail || porEmail.estado !== 'ativa' || !porEmail.senha_hash) return null
+    if (!porEmail || !podeEntrar(porEmail)) return null
     await c.query(
       `insert into uj.contas_provedores (conta_id, provedor, sub, email_informado, ultimo_uso_em)
        values ($1, $2, $3, $4, now())`,
@@ -150,8 +167,18 @@ export async function entrarComProvedor(
     return porEmail
   })
 
-  if (!conta || conta.estado !== 'ativa' || !conta.senha_hash) throw SEM_CONTA(pedido.provedor)
-  return concluirEntrada(d, { ...conta, senha_hash: conta.senha_hash }, pedido)
+  if (conta === 'cadastro') {
+    if (!pedido.cadastroAberto) throw SEM_CONTA(pedido.provedor)
+    return abrirCadastroPorProvedor(d, id, {
+      nome: pedido.nome ?? id.nome,
+      aparelho: pedido.aparelho,
+      plataforma: pedido.plataforma,
+    })
+  }
+  if (!conta || !podeEntrar(conta)) throw SEM_CONTA(pedido.provedor)
+  // Conta sem senha (criada pelo provedor) não liga o 2FA (pede a senha atual),
+  // então o desafio, que usa a versão da senha, nunca é emitido para ela.
+  return concluirEntrada(d, { ...conta, senha_hash: conta.senha_hash ?? '' }, pedido)
 }
 
 // ------------------------------------------------------------ contas conectadas (logado)
@@ -243,6 +270,22 @@ export async function desconectarProvedor(
   pedido: { contaId: string; provedor: Provedor },
 ): Promise<void> {
   await emTx(d.auth, async (c) => {
+    // Conta criada pelo provedor, sem senha: desconectar o único acesso
+    // deixaria a pessoa trancada fora.
+    const outros = await c.query<{ sem_senha: boolean; outros: number }>(
+      `select a.senha_hash is null as sem_senha,
+              (select count(*)::int from uj.contas_provedores p
+                where p.conta_id = a.id and p.provedor <> $2 and p.desconectado_em is null) as outros
+         from uj.contas a where a.id = $1`,
+      [pedido.contaId, pedido.provedor],
+    )
+    if (outros.rows[0]?.sem_senha && outros.rows[0].outros === 0) {
+      throw new ErroDeAuth(
+        'unico_acesso',
+        409,
+        'Esta é a única forma de entrar na sua conta. Crie uma senha em "Esqueci a senha" antes de desconectar.',
+      )
+    }
     const r = await c.query(
       `update uj.contas_provedores set desconectado_em = now(), email_informado = null
         where conta_id = $1 and provedor = $2 and desconectado_em is null`,

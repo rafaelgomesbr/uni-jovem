@@ -19,6 +19,7 @@ import { mostrarToast } from '@/ui/Toast'
 
 import {
   ICONE_DO_TIPO,
+  destinoDaNotificacao,
   rotaDoDestino,
   textoDeNaoLidas,
   useCaixaDeNotificacoes,
@@ -76,9 +77,15 @@ function useAbrirNotificacao() {
   const marcar = useMarcarComoLida()
   return async (n: NotificacaoDaCaixa) => {
     if (!n.lida) marcar.mutate(n.id)
-    const rota = rotaDoDestino(n.destino)
+    const destino = destinoDaNotificacao(n)
+    const rota = rotaDoDestino(destino)
     if (!rota) {
       mostrarToast({ texto: 'Esse item não está mais disponível.', tipo: 'info' })
+      return
+    }
+    // A decisão de um pedido é da conta: quem pediu pode ainda não ser da comunidade.
+    if (destino?.tela === 'meus_pedidos') {
+      router.push(rota)
       return
     }
     if (n.comunidade.id !== comunidadeAtiva?.id) {

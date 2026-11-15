@@ -1,12 +1,14 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ESPACO } from '@uj/tokens'
-
+import { router } from 'expo-router'
 import { useState } from 'react'
 
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
-import type { ComunidadeDoVinculo, DetalheDaComunidade } from '@/servicos/contrato'
+import type { ComunidadeDoVinculo, DetalheDaComunidade, ModoDeEntrada } from '@/servicos/contrato'
+import { NOME_DO_APP } from '@/constantes'
+import { Aviso } from '@/ui/Aviso'
 import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
@@ -14,21 +16,29 @@ import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
 import { AvisoDeFalha, ErroDaTela } from '@/ui/Falha'
+import { Interruptor } from '@/ui/Interruptor'
+import { LinhaDeLista } from '@/ui/LinhaDeLista'
 import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
 import { Secao } from '@/ui/Secao'
 import { Tela } from '@/ui/Tela'
+import { Texto } from '@/ui/Texto'
 import { mostrarToast } from '@/ui/Toast'
-import { voltarOu } from '@/ui/navegacao'
+import { useConfirmarDescarte, useTravaDeEnvio, voltarOu } from '@/ui/navegacao'
 
+import { MODOS_DE_ENTRADA } from '../entrada/consultas'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { logoDaComunidade } from '../perfil/imagens'
+import { AvisoDeComunidadeNova } from './ComunidadeNova'
 import { useDetalheDaComunidade } from './consultas'
 import { opcoesDeFuso } from './fusos'
 import { EditorDoLogotipo, IdentidadeDaComunidade } from './Identidade'
 import { usePode } from './permissoes'
 import { COR_PADRAO, ehCorDaLista, SeletorDeCor, type CorDaComunidade } from './SeletorDeCor'
 
-/** Nome, cor e fuso da comunidade ativa (só para quem pode configurar). */
+/**
+ * Configurações da comunidade ativa (só admin): logotipo, nome, cidade, cor,
+ * quem pode entrar (ADR 0007), "Aparecer na busca" e o fuso.
+ */
 export function TelaConfigurarComunidade() {
   const { comunidadeAtiva } = useSessao()
   const pode = usePode()
@@ -47,7 +57,7 @@ export function TelaConfigurarComunidade() {
         <EstadoVazio
           icone="seguranca"
           titulo="Só a administração configura a comunidade"
-          descricao="Se algo precisa mudar no nome, na cor ou no fuso, fale com uma pessoa administradora."
+          descricao="Se algo precisa mudar no nome, na cor, na entrada ou no fuso, fale com uma pessoa administradora."
           acao={{ titulo: 'Voltar para a Equipe', aoPressionar: () => voltarOu('/comunidade') }}
         />
       </Tela>
@@ -91,18 +101,31 @@ function Formulario({
     ehCorDaLista(detalhe.cor) ? detalhe.cor : COR_PADRAO,
   )
   const [fuso, setFuso] = useState(detalhe.fuso)
+  const [cidade, setCidade] = useState(detalhe.cidade ?? '')
+  const [modo, setModo] = useState<ModoDeEntrada | null>(detalhe.modoEntrada ?? null)
+  const [encontravel, setEncontravel] = useState(detalhe.encontravel ?? false)
   const [erroDoNome, setErroDoNome] = useState<string | null>(null)
+  const trava = useTravaDeEnvio()
 
   const nomeLimpo = nome.trim()
+  const cidadeLimpa = cidade.trim()
   const mudancas = {
     ...(nomeLimpo !== detalhe.nome ? { nome: nomeLimpo } : {}),
     ...(cor !== detalhe.cor ? { cor } : {}),
     ...(fuso !== detalhe.fuso ? { fuso } : {}),
+    ...(cidadeLimpa !== (detalhe.cidade ?? '') ? { cidade: cidadeLimpa || null } : {}),
+    ...(modo !== null && modo !== detalhe.modoEntrada ? { modoEntrada: modo } : {}),
+    ...(detalhe.encontravel !== undefined && encontravel !== detalhe.encontravel
+      ? { encontravel }
+      : {}),
   }
   const mudou = Object.keys(mudancas).length > 0
+  // Sem o "Descartar?" depois de salvar: o detalhe volta com os valores novos.
+  useConfirmarDescarte(mudou)
 
   const salvar = useMutation({
     mutationFn: () => api.patch(`/api/v1/c/${detalhe.id}`, mudancas),
+    onSettled: () => trava.soltar(),
     onSuccess: async () => {
       mostrarToast({ texto: 'Configurações salvas.' })
       await Promise.all([
@@ -119,6 +142,7 @@ function Formulario({
       return
     }
     setErroDoNome(null)
+    if (!trava.pegar()) return
     salvar.mutate()
   }
 
@@ -153,7 +177,8 @@ function Formulario({
           ...(comunidade.logoVersao !== undefined ? { logoVersao: comunidade.logoVersao } : {}),
         }}
       />
-      <CartaoDeVidro opaco>
+      <AvisoDeComunidadeNova detalhe={detalhe} />
+      <CartaoDeVidro opaco intervalo={ESPACO.e16}>
         <Campo
           rotulo="Nome da comunidade"
           value={nome}
@@ -161,6 +186,48 @@ function Formulario({
           erro={erroDoNome}
           autoCapitalize="words"
           maxLength={80}
+        />
+        <Campo
+          rotulo="Cidade"
+          opcional
+          exemplo="Campinas"
+          ajuda="Aparece na busca, junto do nome."
+          value={cidade}
+          onChangeText={setCidade}
+          autoCapitalize="words"
+          maxLength={80}
+        />
+      </CartaoDeVidro>
+      {detalhe.modoEntrada !== undefined ? (
+        <Secao titulo="Quem pode entrar">
+          <ListaDeOpcoes
+            rotulo="Modo de entrada"
+            valor={modo}
+            aoMudar={setModo}
+            opcoes={MODOS_DE_ENTRADA}
+          />
+        </Secao>
+      ) : null}
+      {detalhe.encontravel !== undefined ? (
+        <CartaoDeVidro opaco intervalo={ESPACO.e8}>
+          <Interruptor rotulo="Aparecer na busca" ligado={encontravel} aoMudar={setEncontravel} />
+          {/* TC-18.v1, palavra por palavra. */}
+          <Texto variante="meta" cor="textoSuave">
+            {`Ligado, quem tem conta no ${NOME_DO_APP} encontra esta comunidade pelo nome e pela cidade, e vê nome, cidade, cor, logotipo e se ela é verificada. Ninguém vê, pela busca, quem participa nem quantas pessoas há. Quem encontrar pode pedir para entrar, e você ou os organizadores decidem.`}
+          </Texto>
+          {encontravel && !cidadeLimpa ? (
+            <Aviso tipo="alerta" titulo="Falta a cidade">
+              Informe a cidade para as pessoas acharem a comunidade certa.
+            </Aviso>
+          ) : null}
+        </CartaoDeVidro>
+      ) : null}
+      <CartaoDeVidro lista>
+        <LinhaDeLista
+          icone="qr"
+          titulo="Código da comunidade"
+          descricao="O código, o QR e o envio pelo WhatsApp"
+          aoPressionar={() => router.push('/codigo-da-comunidade')}
         />
       </CartaoDeVidro>
       <Secao titulo="Cor">

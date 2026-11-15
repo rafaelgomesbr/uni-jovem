@@ -23,14 +23,21 @@ export type Exigencia =
   | { tipo: 'designacao'; designacao: Designacao }
   /** Ação de plataforma: só o proprietário, com 2FA recente. */
   | { tipo: 'proprietario' }
+  /**
+   * Ação de plataforma que não destrói nada (ADR 0007): só o proprietário,
+   * sem pedir o código do autenticador. Auditada.
+   */
+  | { tipo: 'criador' }
 
 const papel = (minimo: Papel): Exigencia => ({ tipo: 'papel', minimo })
 const proprio = (minimo: Papel = 'membro'): Exigencia => ({ tipo: 'proprio', minimo })
 const proprietario: Exigencia = { tipo: 'proprietario' }
+const criador: Exigencia = { tipo: 'criador' }
 
 export const MATRIZ = {
   plataforma: {
-    criar_comunidade: [proprietario],
+    // ADR 0007 (revisa D12 e D31): criar comunidade não pede o código do autenticador.
+    criar_comunidade: [criador],
     suspender_comunidade: [proprietario],
     arquivar_comunidade: [proprietario],
     excluir_comunidade: [proprietario],
@@ -40,12 +47,29 @@ export const MATRIZ = {
     ler_auditoria_da_plataforma: [proprietario],
     // Painel de saúde: só números agregados, sem conteúdo nem pessoa.
     ler_saude_da_plataforma: [proprietario],
+    // ADR 0007: lista de comunidades, verificar e desverificar, denúncias de
+    // comunidade. Não destroem nada e ficam na auditoria.
+    ler_comunidades: [criador],
+    verificar_comunidade: [criador],
+    ler_denuncias_de_comunidade: [criador],
+    resolver_denuncia_de_comunidade: [criador],
   },
   comunidade: {
     ler: [papel('membro')],
     configurar: [papel('admin')],
     // Enviar ou remover o logotipo (D33). Ver o logotipo é `ler`.
     trocar_logo: [papel('admin')],
+    // Código de entrada da comunidade (ADR 0007): ver, com QR e link, e trocar.
+    ver_codigo: [papel('admin')],
+    trocar_codigo: [papel('admin')],
+    // Aceite do termo do administrador (TC-16) por quem foi promovido depois
+    // da criação, ou a cada versão nova do termo.
+    aceitar_termo_do_admin: [papel('admin')],
+  },
+  pedido_entrada: {
+    // Pedidos de quem quer entrar (código com aprovação ou busca).
+    ler: [papel('organizador')],
+    decidir: [papel('organizador')],
   },
   vinculo: {
     listar: [papel('membro')],
@@ -197,6 +221,11 @@ export interface Ator {
   designacoes: readonly Designacao[]
   /** Proprietário da plataforma, com 2FA recente já conferido pela API. */
   proprietarioComDoisFatores: boolean
+  /**
+   * Proprietário da plataforma, mesmo sem o 2FA recente (conferido no banco
+   * pela API). Sem o campo, vale `proprietarioComDoisFatores`.
+   */
+  criador?: boolean
 }
 
 export interface Alvo {
@@ -208,6 +237,8 @@ function atende(exigencia: Exigencia, ator: Ator, alvo: Alvo | undefined): boole
   switch (exigencia.tipo) {
     case 'proprietario':
       return ator.proprietarioComDoisFatores
+    case 'criador':
+      return ator.criador === true || ator.proprietarioComDoisFatores
     case 'designacao':
       return ator.papel !== null && ator.designacoes.includes(exigencia.designacao)
     case 'papel':
@@ -272,6 +303,8 @@ function descrever(e: Exigencia): string {
   switch (e.tipo) {
     case 'proprietario':
       return 'Criador (2FA)'
+    case 'criador':
+      return 'Criador (sem 2FA)'
     case 'designacao':
       return 'equipe de oração'
     case 'papel':

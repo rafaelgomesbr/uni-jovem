@@ -275,6 +275,18 @@ describe('exclusão de comunidade ao fim da carência', () => {
       'insert into uj.bloqueios (comunidade_id, conta_id, bloqueada_conta_id) values ($1, $2, $3)',
       [x, membro.id, admin.id],
     )
+    // ADR 0007: pedido de entrada e denúncia de comunidade também saem.
+    await b.su.query(
+      `insert into uj.pedidos_de_entrada (comunidade_id, conta_id, origem, mensagem,
+                                          consentimento_versao, consentimento_forma)
+       values ($1, $2, 'codigo', 'Quero entrar', 3, 'ios')`,
+      [x, admin.id],
+    )
+    await b.su.query(
+      `insert into uj.denuncias_de_comunidade (comunidade_id, denunciante_conta_id, motivo)
+       values ($1, $2, 'spam')`,
+      [x, membro.id],
+    )
     // Auditoria da comunidade com tudo que identifica: conta, IP e detalhe livre.
     await b.su.query(
       `insert into uj.auditoria (conta_id, comunidade_id, acao, recurso_tipo, recurso_id, detalhes, ip_truncado)

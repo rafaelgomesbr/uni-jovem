@@ -225,16 +225,23 @@ describe('Início sem comunidade', () => {
     expect(screen.getByText('Versículo do dia')).toBeOnTheScreen()
   })
 
-  test('membro: estado vazio com ação para colar o convite e a explicação', async () => {
-    await renderizarTela(<TelaInicio />, { rotas: { 'GET /api/v1/eu': eu(false) } })
+  test('conta sem comunidade: "Comece por aqui" com os três caminhos (ADR 0007)', async () => {
+    await renderizarTela(<TelaInicio />, {
+      rotas: {
+        'GET /api/v1/eu': eu(false),
+        'GET /api/v1/eu/pedidos': () => ({ status: 200, corpo: { pedidos: [] } }),
+      },
+    })
 
-    expect(await screen.findByText('Você ainda não participa de uma comunidade')).toBeOnTheScreen()
+    expect(await screen.findByText('Comece por aqui')).toBeOnTheScreen()
     const usuario = userEvent.setup()
-    await usuario.press(screen.getByRole('button', { name: 'Colar link de convite' }))
-    expect(router.push).toHaveBeenCalledWith('/entrar-com-convite')
-    await usuario.press(screen.getByRole('button', { name: 'Como conseguir um convite' }))
-    expect(router.push).toHaveBeenCalledWith('/como-conseguir-convite')
-    expect(screen.queryByRole('button', { name: 'Criar comunidade' })).toBeNull()
+    await usuario.press(screen.getByRole('button', { name: 'Usar código ou convite' }))
+    expect(router.push).toHaveBeenCalledWith('/tenho-um-codigo')
+    await usuario.press(screen.getByRole('button', { name: 'Criar comunidade' }))
+    expect(router.push).toHaveBeenCalledWith('/criar-comunidade')
+    // Sem pedidos, a seção "Meus pedidos" não aparece.
+    expect(screen.queryByText('Meus pedidos')).toBeNull()
+    expect(screen.getByText('Versículo do dia')).toBeOnTheScreen()
   })
 
   test('várias comunidades e nenhuma escolhida: a lista escolhe direto', async () => {

@@ -19,15 +19,16 @@ import { useFusoDaComunidade } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
 import { naComunidade } from '../eventos/consultas'
 import { useMudancaNoEvento } from '../eventos/mutacoes'
+import { ComecePorAqui } from '../entrada/ComecePorAqui'
 import {
   AtalhoDaPlataforma,
   EscolherComunidade,
   PrimeirosPassosDoCriador,
-  SemComunidadeParaMembro,
 } from '../navegacao/SemComunidade'
 import { TelaDoApp } from '../navegacao/TelaDoApp'
 import { EventosPreparados } from '../offline/EventosPreparados'
 import { CartaoDaMissao, useMissaoPendente } from '../onboarding/CartaoDaMissao'
+import { AvisoDosTermos } from '../privacidade/AvisoDosTermos'
 import { CartaoDoVersiculo } from '../versiculo/CartaoDoVersiculo'
 import { AvisosDoInicio } from './AvisosDoInicio'
 import { CartaoDoProximoEvento } from './CartaoDoProximoEvento'
@@ -54,14 +55,28 @@ export function useInicio(comunidadeId: string | null) {
 
 /**
  * Início (seção 3.2), nas quatro variações: com dados (fiel ao mockup), sem
- * comunidade para o Criador, sem comunidade para o membro e com várias
- * comunidades sem nenhuma escolhida. A saudação é o título, sem "!".
+ * comunidade para o Criador, sem comunidade para a conta ("Comece por aqui",
+ * ADR 0007) e com várias comunidades sem nenhuma escolhida. A saudação é o
+ * título, sem "!".
  */
 export function TelaInicio() {
   const { conta, comunidadeAtiva, comunidades } = useSessao()
   const nome = primeiroNome(conta?.nome)
+  // Conta sem comunidade (ADR 0007): "Comece por aqui", com os três caminhos.
+  if (!comunidadeAtiva && comunidades.length === 0 && !conta?.criador) {
+    return (
+      <TelaDoApp
+        titulo="Comece por aqui"
+        descricao={`${nome ? `${saudacao()}, ${nome}. ` : ''}Para usar o app, entre numa comunidade ou crie a sua.`}
+      >
+        <AvisoDosTermos />
+        <ComecePorAqui />
+      </TelaDoApp>
+    )
+  }
   return (
     <TelaDoApp titulo={nome ? `${saudacao()}, ${nome}` : saudacao()}>
+      <AvisoDosTermos />
       {comunidadeAtiva ? (
         <Inicio comunidadeId={comunidadeAtiva.id} nomeDaComunidade={comunidadeAtiva.nome} />
       ) : comunidades.length > 0 ? (
@@ -75,12 +90,7 @@ export function TelaInicio() {
           <CartaoDoVersiculo />
           <AtalhoDaPlataforma />
         </>
-      ) : (
-        <>
-          <SemComunidadeParaMembro />
-          <CartaoDoVersiculo />
-        </>
-      )}
+      ) : null}
     </TelaDoApp>
   )
 }

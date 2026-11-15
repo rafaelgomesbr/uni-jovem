@@ -242,6 +242,13 @@ const CASOS: Record<string, Record<string, unknown> | undefined> = {
   },
   'GET /api/v1/c/:comunidadeId/bloqueios': undefined,
   'DELETE /api/v1/c/:comunidadeId/bloqueios/:bloqueioId': undefined,
+  // ADR 0007: código da comunidade, termo do administrador e pedidos de entrada
+  'GET /api/v1/c/:comunidadeId/codigo': undefined,
+  'POST /api/v1/c/:comunidadeId/codigo/trocar': undefined,
+  'POST /api/v1/c/:comunidadeId/termo-do-admin': { aceite: true },
+  'GET /api/v1/c/:comunidadeId/pedidos': undefined,
+  'POST /api/v1/c/:comunidadeId/pedidos/:pedidoDeEntradaId/aceitar': undefined,
+  'POST /api/v1/c/:comunidadeId/pedidos/:pedidoDeEntradaId/recusar': undefined,
 }
 
 interface Rota {
@@ -413,6 +420,21 @@ beforeAll(async () => {
     'insert into uj.bloqueios (comunidade_id, conta_id, bloqueada_conta_id) values ($1, $2, $3) returning id',
     [comB, adminB.id, pessoaDeB],
   )
+  // ADR 0007: B tem código e um pedido de entrada pendente de alguém de fora.
+  await b.su.query(
+    `update uj.comunidades set modo_entrada = 'codigo_com_aprovacao',
+            codigo_semente = decode(md5('b'), 'hex'), codigo_hmac = sha256('b'::bytea),
+            codigo_gerado_em = now()
+      where id = $1`,
+    [comB],
+  )
+  const deFora = await criarConta(b, 'Quem pede para entrar em B')
+  idsDeB['pedidoDeEntradaId'] = await um(
+    `insert into uj.pedidos_de_entrada (comunidade_id, conta_id, origem, mensagem,
+                                        consentimento_versao, consentimento_forma)
+     values ($1, $2, 'busca', 'Mensagem para B', 3, 'ios') returning id`,
+    [comB, deFora],
+  )
 })
 
 afterAll(async () => {
@@ -479,6 +501,9 @@ async function estadoDeB() {
             (select count(*) from uj.andamento_comandos where comunidade_id = $1) as ac,
             (select encode(hash, 'hex') from uj.logos_comunidades where comunidade_id = $1) as lg,
             (select json_agg(row(conta_id, bloqueada_conta_id) order by id) from uj.bloqueios where comunidade_id = $1) as bl,
+            (select json_agg(row(estado, mensagem, decidido_por) order by id) from uj.pedidos_de_entrada where comunidade_id = $1) as pe,
+            (select row(encode(codigo_hmac, 'hex'), modo_entrada, encontravel, cidade, verificacao)::text from uj.comunidades where id = $1) as cod,
+            (select count(*) from uj.consentimentos where comunidade_id = $1) as cs,
             (select json_agg(encode(f.hash, 'hex') order by f.conta_id) from uj.fotos_contas f
                join uj.vinculos v on v.conta_id = f.conta_id where v.comunidade_id = $1) as fo`,
     [comB],
@@ -527,7 +552,7 @@ describe('isolamento entre comunidades', () => {
     }
   })
 
-  it('rotas de plataforma recusam quem não é Criador com 2FA (403)', async () => {
+  it('rotas de plataforma recusam quem não é o Criador (403)', async () => {
     const plataforma = app.rotas().filter((r) => r.url.startsWith('/api/v1/plataforma'))
     expect(plataforma.length).toBeGreaterThan(0)
     for (const r of plataforma) {

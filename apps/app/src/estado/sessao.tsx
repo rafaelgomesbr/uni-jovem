@@ -35,13 +35,17 @@ import {
 } from '@/servicos/armazenamentoDoRefresh'
 import { consultarBiometria, SEM_BIOMETRIA, type Biometria } from '@/servicos/biometria'
 import type {
+  Aceites,
+  CadastroPendente,
   ComunidadeDoVinculo,
   Conta,
   Provedor,
   RespostaDeEntrar,
+  RespostaDoProvedor,
   RespostaEu,
   SessaoAberta,
 } from '@/servicos/contrato'
+import type { FaixaEtaria } from '@/servicos/contratoDosModulos'
 import { ErroDaApi, MENSAGEM_MUITA_GENTE, SemConexao } from '@/servicos/erros'
 
 import {
@@ -56,7 +60,18 @@ import { apagarContaSalva, gravarContaSalva, lerContaSalva } from './contaSalva'
 import { gravarPreferenciaLocal, lerPreferenciaLocal } from './preferenciaLocal'
 
 export type EstadoDaSessao = 'carregando' | 'anonimo' | 'autenticado'
-export type ResultadoDeEntrar = 'pronto' | 'segundo_fator'
+/**
+ * `cadastro_pendente`: Google ou Apple com um e-mail sem conta (ADR 0007). A
+ * tela "Falta pouco" pede a idade e os aceites e conclui o cadastro.
+ */
+export type ResultadoDeEntrar = 'pronto' | 'segundo_fator' | 'cadastro_pendente'
+
+/** O que a tela de completar o cadastro mostra; o token fica só em memória. */
+export interface CadastroComProvedor {
+  provedor: Provedor
+  nome: string
+  email: string
+}
 
 /** O que o app recebeu do provedor: o ID token (e, na Apple, o nonce cru). */
 export type CredencialDoProvedor = { idToken: string } | { identityToken: string; nonce: string }
@@ -100,12 +115,19 @@ export interface Sessao {
   temSegundoFatorPendente: boolean
   biometria: SituacaoDaBiometria
   entrar(dados: { email: string; senha: string }): Promise<ResultadoDeEntrar>
-  /** Google ou Apple: nunca cria conta; segue o 2FA de quem ligou, como a senha. */
+  /**
+   * Google ou Apple: entra, segue o 2FA de quem ligou ou, com um e-mail sem
+   * conta, devolve `cadastro_pendente` (ADR 0007).
+   */
   entrarComProvedor(
     provedor: Provedor,
     credencial: CredencialDoProvedor,
   ): Promise<ResultadoDeEntrar>
   confirmarSegundoFator(codigo: string): Promise<void>
+  /** Cadastro iniciado pelo Google ou pela Apple, esperando idade e aceites. */
+  cadastroPendente: CadastroComProvedor | null
+  concluirCadastroComProvedor(dados: { faixaEtaria: FaixaEtaria; aceites: Aceites }): Promise<void>
+  descartarCadastroPendente(): void
   /** Para fluxos que já recebem a sessão pronta (convite, primeiro acesso). */
   abrirSessao(sessao: SessaoAberta): Promise<void>
   /** Abre a sessão trancada pedindo a biometria de novo. */
@@ -142,6 +164,7 @@ export function ProvedorDeSessao({
   const [fase, setFase] = useState<Fase>('iniciando')
   const [falhaAoIniciar, setFalhaAoIniciar] = useState<Error | null>(null)
   const [desafio, setDesafio] = useState<string | null>(null)
+  const [pendente, setPendente] = useState<(CadastroComProvedor & { token: string }) | null>(null)
   const [preferida, setPreferida] = useState<string | null>(null)
   const [aparelho, setAparelho] = useState<Biometria>(SEM_BIOMETRIA)
   const [ligada, setLigada] = useState(false)
@@ -173,6 +196,7 @@ export function ProvedorDeSessao({
       await apagarContaSalva()
       consultas.clear()
       setDesafio(null)
+      setPendente(null)
       setPreferida(null)
       // O cofre foi apagado junto com o refresh: a biometria recomeça desligada.
       setLigada(false)
@@ -309,7 +333,19 @@ export function ProvedorDeSessao({
     setOferecer(true)
   }
 
-  async function concluirEntrada(resposta: RespostaDeEntrar): Promise<ResultadoDeEntrar> {
+  async function concluirEntrada(
+    resposta: RespostaDeEntrar | CadastroPendente,
+    provedor?: Provedor,
+  ): Promise<ResultadoDeEntrar> {
+    if ('cadastroPendente' in resposta) {
+      setPendente({
+        provedor: provedor ?? 'google',
+        token: resposta.tokenDeCadastro,
+        nome: resposta.nome,
+        email: resposta.email,
+      })
+      return 'cadastro_pendente'
+    }
     if (resposta.segundoFator) {
       setDesafio(resposta.desafio)
       return 'segundo_fator'
@@ -353,12 +389,41 @@ export function ProvedorDeSessao({
       return concluirEntrada(resposta)
     },
     async entrarComProvedor(provedor, credencial) {
-      const resposta = await cliente.post<RespostaDeEntrar>(
+      const resposta = await cliente.post<RespostaDoProvedor>(
         `/api/auth/provedor/${provedor}`,
         { ...credencial, plataforma: plataformaAtual(), aparelho: nomeDoAparelho() },
         { autenticado: false },
       )
-      return concluirEntrada(resposta)
+      return concluirEntrada(resposta, provedor)
+    },
+    cadastroPendente: pendente
+      ? { provedor: pendente.provedor, nome: pendente.nome, email: pendente.email }
+      : null,
+    async concluirCadastroComProvedor({ faixaEtaria, aceites }) {
+      if (!pendente) {
+        throw new ErroDaApi(
+          400,
+          'sem_cadastro_pendente',
+          'Comece de novo pelo botão do Google ou da Apple.',
+        )
+      }
+      const sessao = await cliente.post<SessaoAberta>(
+        '/api/auth/provedor/concluir-cadastro',
+        {
+          tokenDeCadastro: pendente.token,
+          faixaEtaria,
+          aceites,
+          plataforma: plataformaAtual(),
+          aparelho: nomeDoAparelho(),
+        },
+        { autenticado: false },
+      )
+      setPendente(null)
+      await talvezOferecerBiometria()
+      await abrirSessao(sessao)
+    },
+    descartarCadastroPendente() {
+      setPendente(null)
     },
     async confirmarSegundoFator(codigo) {
       if (!desafio) {

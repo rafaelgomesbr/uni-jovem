@@ -7,11 +7,13 @@ import type { FaixaEtaria } from '@/servicos/contratoDosModulos'
 import { Aviso } from '@/ui/Aviso'
 import { Botao } from '@/ui/Botao'
 import { CaixaDeMarcar } from '@/ui/CaixaDeMarcar'
+import { EstadoVazio } from '@/ui/EstadoVazio'
 import type { NoDeView } from '@/ui/foco'
 import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
 import { Texto } from '@/ui/Texto'
 
 import { abrirDocumento } from '../privacidade/TelaPrivacidade'
+import { marcarMenorDe16, MENSAGEM_DA_TRAVA } from './travaDeIdade'
 
 /**
  * Textos de consentimento do convite (docs/privacidade/textos-de-consentimento.md,
@@ -28,9 +30,13 @@ export const OPCOES_DE_IDADE: { valor: FaixaEtaria; rotulo: string }[] = [
   { valor: 'menos_16', rotulo: 'Tenho menos de 16 anos.' },
 ]
 
-export const MENSAGEM_MENOR_DE_16 = `Que bom que você quer participar! Para ter uma conta no ${NOME_DO_APP} é preciso ter 16 anos ou mais. Fale com a liderança da sua comunidade: ela pode inscrever você nos eventos com a ajuda do seu responsável.`
+/** TC-01.v2: menos de 16 anos (todos os caminhos de cadastro). */
+export const MENSAGEM_MENOR_DE_16 = `Que bom que você quer participar! Para ter uma conta no ${NOME_DO_APP} é preciso ter 16 anos ou mais. Se o seu grupo tiver um evento com inscrição aberta, seu pai, sua mãe ou seu responsável pode inscrever você pela página do evento.`
 
-/** TC-01: escolha única (lista de opções), nenhuma opção pré-selecionada. */
+/**
+ * TC-01.v2: escolha única (lista de opções), nenhuma opção pré-selecionada.
+ * Escolher "menos de 16" trava o cadastro neste aparelho por 24 horas.
+ */
 export function PerguntaDeIdade({
   valor,
   aoMudar,
@@ -44,10 +50,14 @@ export function PerguntaDeIdade({
         rotulo="Quantos anos você tem?"
         opcoes={OPCOES_DE_IDADE}
         valor={valor}
-        aoMudar={aoMudar}
+        aoMudar={(v) => {
+          if (v === 'menos_16') void marcarMenorDe16()
+          aoMudar(v)
+        }}
       />
-      <Texto variante="legenda" cor="textoSuave">
-        Não pedimos sua data de nascimento. Guardamos só a sua resposta.
+      <Texto variante="meta" cor="textoSuave">
+        Não pedimos sua data de nascimento nem documento. Guardamos só a sua resposta. Responda a
+        verdade: conta de quem tem menos de 16 anos é encerrada.
       </Texto>
     </View>
   )
@@ -59,6 +69,21 @@ export function MenorDe16() {
     <Aviso tipo="info" titulo="Ainda não dá para criar a conta" anunciar>
       {MENSAGEM_MENOR_DE_16}
     </Aviso>
+  )
+}
+
+/**
+ * Trava de 24 horas (TC-01.v2): no lugar do cadastro, a mensagem e a volta
+ * para Entrar. Nenhum dado é pedido nem gravado.
+ */
+export function CadastroTravado({ aoVoltar }: { aoVoltar: () => void }) {
+  return (
+    <EstadoVazio
+      icone="perfil"
+      titulo="Ainda não dá para criar a conta"
+      descricao={MENSAGEM_DA_TRAVA}
+      acao={{ titulo: 'Voltar', variante: 'secundario', aoPressionar: aoVoltar }}
+    />
   )
 }
 
