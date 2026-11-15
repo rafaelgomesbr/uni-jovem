@@ -1,44 +1,36 @@
 # Status do projeto
 
-Atualizado em 14/11/2026, à noite.
+Atualizado em 15/11/2026, de madrugada.
 
 ## Onde estamos
 
-O dono pediu o app inteiro, sem pausas, até rodar no iPhone dele. O trabalho segue em paralelo (agentes por área, sem branch e sem worktree), e cada leva só entra na `release` depois da verificação.
+O dono pediu o app inteiro, sem pausas, até rodar no iPhone dele e com as duas lojas prontas para submeter. O trabalho segue em paralelo, com agentes divididos por área, sem branch e sem worktree. Cada leva só entra na `release` depois do `npm run verificar` verde.
 
-| Fase                            | Estado em 14/11/2026                                                                                                                                                                                                             |
-| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| F0 Fundação                     | concluída; repositório público no GitHub (`rafaelgomesbr/uni-jovem`, D24)                                                                                                                                                        |
-| F1 Identidade                   | direção A (Aurora) confirmada pelo dono; ícone e splash próprios                                                                                                                                                                 |
-| F2 a F4                         | concluídas (banco com RLS, autenticação, comunidades, convites, suíte de isolamento)                                                                                                                                             |
-| F5 Casca do app                 | concluída; telas dos módulos em construção                                                                                                                                                                                       |
-| F6 Homologação no Mac           | stack `unijovem-hml` no ar dentro do Mac (banco + API, 10 migrações, comunidade de demonstração); **o domínio público aguarda o site no painel do servidor (PH-04)**; build do iPhone aguarda o `eas credentials -p ios` do dono |
-| F7 a F12                        | API concluída e testada; telas no app em construção                                                                                                                                                                              |
-| F13 Offline                     | API de sincronização em construção; camada local do app depois                                                                                                                                                                   |
-| F14 Notificações e versículo    | 366 versículos da Bíblia Livre com atribuição (`packages/conteudo`); Firebase e chave APNs prontos (D21, D22); API de push em construção                                                                                         |
-| F15 Oração, sugestões, conteúdo | API concluída e testada (oração cifrada, invisível para admin e Criador quando "Somente eu"); telas pendentes                                                                                                                    |
-| F16 Relatórios                  | API concluída e testada (agregados e CSV com validade de 24 h); telas pendentes                                                                                                                                                  |
-| F17 Onboarding                  | não iniciada                                                                                                                                                                                                                     |
-| F18 Privacidade                 | rascunhos em `docs/privacidade/` (para revisão jurídica); código (exportar, excluir conta, consentimento, logs) em construção                                                                                                    |
-| F19 Lojas                       | app criado no Play Console pelo dono; identificadores na Apple; material das lojas em construção; nada enviado                                                                                                                   |
-| F20 QA e entrega                | não iniciada                                                                                                                                                                                                                     |
+| Frente                | Estado em 15/11/2026                                                                                                                                                                                                                                                                |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F0 a F18 (produto)    | API e telas de todos os módulos feitas e testadas (comunidades, convites, eventos, séries, escalas, ao vivo, inscrições, offline, notificações, versículo, oração, sugestões, conteúdos, relatórios, onboarding, privacidade). Foto e logotipo: API pronta (D33), app em construção |
+| Redesign Aurora (D32) | D0 (tokens e componentes) e D1 (casca, Início, entrada, Perfil) commitados em `e1d5ec9`. D2 a D4 (demais telas) em construção; D5 (QA visual sobre os quadros) depois                                                                                                               |
+| Homologação           | `https://unijovem-hml.solerte.com.br` no ar (API, web em `/app`, instalação ad hoc em `/instalar`, push APNs); migrações 0016 a 0018 a aplicar na próxima implantação                                                                                                               |
+| Produção (D34)        | Autorizada pelo dono em 15/11/2026. Stack pronto em `infra/prod`. **Ainda não subiu:** falta o site `unijovem-prod` no painel (PH-04) e a impressão do certificado Android, que nasce no primeiro build Android de produção                                                         |
+| Páginas legais        | `docs/privacidade/` conferido contra o código: zero `[PREENCHER`; contato e encarregado Rafael Gomes, `contact@solerte.com.br`. Restam promessas com marcador (rotinas de 2 anos, exclusão de comunidade ao fim da carência, bloqueio individual) e a revisão jurídica (PH-11)      |
+| Lojas                 | Play Console: app criado pelo dono. App Store Connect e fichas sendo preenchidos por agente no navegador. Arte do Play pronta (`docs/lojas/arte`). Faltam prints (depois do redesign), builds de produção e as aprovações do dono para cada envio (PH-10)                           |
 
 ## Evidência da última verificação
 
-- `npx vitest run` em 14/11/2026: **27 arquivos, 268 testes passando** (API contra Postgres 17 real, domínio, conteúdo).
-- Homologação: `docker exec caddy wget -qO- http://unijovem-hml-api:3000/api/saude` responde `{"ok":true,"ambiente":"homologacao"}`; migrações 0001 a 0010 aplicadas por `apps/api/src/cli/migrar.ts`.
-- Nada aberto em simulador nem em aparelho ainda; nada publicado em loja.
+- `npm run verificar` em 15/11/2026, antes dos commits `4fef10f` e `e1d5ec9`: Prettier sem diferenças, ESLint sem problemas, tipos sem erro, **41 arquivos e 446 testes da API e dos pacotes** (Postgres 17 real) e **37 suítes e 210 testes do app**, todos passando.
+- Os testes que leem a marca d'água do log de mudanças rodam num Postgres próprio e em sequência (`vitest.config.ts`, projeto `banco-marca-dagua`), porque a marca vale para o cluster inteiro.
+- Nada publicado em loja.
 
 ## Próximo passo
 
-1. Juntar as telas das F7 a F12, verificar e fazer o commit; exportar a web para `/app` na homologação.
-2. API das F13, F14 e F18 (em construção), depois as telas de oração, sugestões, conteúdos, avisos, relatórios, notificações, versículo, privacidade e onboarding (F17), e a camada offline do app.
-3. Assim que o dono criar o site no painel e rodar `eas credentials -p ios`: primeiro acesso do Criador na homologação e build `homologacao` instalado no iPhone por link.
-4. F19 (material das lojas) e F20 (QA integrado, revisão de segurança e acessibilidade, relatório final).
+1. Implantar a homologação (migrações 0016 a 0018).
+2. Build Android de produção no EAS, para obter a impressão da chave; com ela e o site do painel, subir a produção, criar o Criador e as contas de revisão.
+3. Redesign D2 a D4, foto e logotipo no app, bloqueio de usuário (diretriz 1.2 da Apple) e as rotinas que as páginas legais prometem.
+4. D5: capturas sobre os quadros, prints das lojas, build final e instalação no iPhone do dono.
 
 ## Como retomar
 
 1. Leia [`../CLAUDE.md`](../CLAUDE.md) e este arquivo; confira `git branch --show-current` (deve ser `release`).
 2. `npm install`, `npm run preparar`, `npm run verificar`.
-3. Homologação: [`../infra/hml/LEIA-ME.md`](../infra/hml/LEIA-ME.md) (`bash infra/hml/implantar.sh`).
+3. Homologação: [`../infra/hml/LEIA-ME.md`](../infra/hml/LEIA-ME.md). Produção: [`../infra/prod/LEIA-ME.md`](../infra/prod/LEIA-ME.md).
 4. Pendências do dono: [`PENDENCIAS-HUMANAS.md`](PENDENCIAS-HUMANAS.md); decisões: [`DECISOES.md`](DECISOES.md); requisitos e evidências: [`rastreabilidade.md`](rastreabilidade.md).

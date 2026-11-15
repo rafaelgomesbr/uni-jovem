@@ -1,0 +1,90 @@
+# Produção do Uni Jovem no Mac mini. Stack próprio (`unijovem-prod`): banco
+# e API separados do dc360 e dos outros sites. Só a API entra na rede `edge`,
+# onde o Caddy compartilhado a alcança; o banco fica numa rede interna.
+#
+# O .env (segredos gerados no próprio servidor, permissão 600) fica ao lado
+# deste arquivo e nunca vai para o git. Ver infra/prod/LEIA-ME.md.
+name: unijovem-prod
+
+x-padrao: &padrao
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: { max-size: '10m', max-file: '3' }
+  security_opt: ['no-new-privileges:true']
+
+services:
+  banco:
+    <<: *padrao
+    image: postgres:17-alpine
+    container_name: unijovem-prod-banco
+    environment:
+      POSTGRES_PASSWORD: ${UJ_SENHA_SUPER}
+      UJ_SENHA_DONO: ${UJ_SENHA_DONO}
+      UJ_SENHA_API: ${UJ_SENHA_API}
+      UJ_SENHA_AUTH: ${UJ_SENHA_AUTH}
+    volumes:
+      - banco:/var/lib/postgresql/data
+      - ./codigo/infra/banco/papeis.sql:/papeis.sql:ro
+      - ./codigo/infra/banco/iniciar-papeis.sh:/docker-entrypoint-initdb.d/10-papeis.sh:ro
+    networks: [interna]
+    mem_limit: 384m
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d unijovem']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    <<: *padrao
+    build:
+      context: ./codigo
+      dockerfile: infra/hml/Dockerfile.api
+    image: unijovem-api:prod
+    container_name: unijovem-prod-api
+    env_file: .env
+    environment:
+      HOST: 0.0.0.0
+      PORTA: '3000'
+    # Chaves de push (FCM e APNs) em arquivos ao lado do .env, permissão 600,
+    # fora do git. No .env: FCM_CONTA_SERVICO_ARQUIVO=/run/uj-chaves/<arquivo>.
+    volumes:
+      - ./chaves:/run/uj-chaves:ro
+    depends_on:
+      banco: { condition: service_healthy }
+    networks: [interna, edge]
+    mem_limit: 384m
+    read_only: true
+    tmpfs: [/tmp]
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3000/api/saude >/dev/null || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Tarefas diárias (retenção, séries, poda do log de mudanças): a mesma imagem
+  # da API, só na rede interna, uma rodada na subida e depois a cada 24 h. O
+  # relatório (só contagens) fica no log do contêiner.
+  tarefas:
+    <<: *padrao
+    image: unijovem-api:prod
+    pull_policy: never
+    container_name: unijovem-prod-tarefas
+    env_file: .env
+    depends_on:
+      banco: { condition: service_healthy }
+      api: { condition: service_started }
+    networks: [interna]
+    mem_limit: 192m
+    read_only: true
+    tmpfs: [/tmp]
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - 'while true; do node --import tsx apps/api/src/cli/tarefas-diarias.ts; sleep 86400; done'
+
+volumes:
+  banco: { name: unijovem_prod_banco }
+
+networks:
+  interna: { name: unijovem_prod_interna, internal: true }
+  edge: { name: server_edge, external: true }
