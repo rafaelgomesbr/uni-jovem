@@ -50,3 +50,12 @@ O Mac tem 8 GB de memória e o disco tinha cerca de 13 GB livres em 14/11/2026, 
 ## Web interna
 
 `bash infra/hml/publicar-web.sh` exporta o app para a web e publica em `~/srv/sites/unijovem-hml-web` (servido em `/app`). Recusa rodar com mudança não commitada em `apps/app`.
+
+## App no iPhone (ad hoc, sem cota do EAS)
+
+1. Uma vez: o certificado de distribuição e o perfil ad hoc baixados do EAS (`eas credentials`, opção credentials.json) ficam em `~/srv/builds/assinatura` (700), num chaveiro só de build com senha aleatória gerada no Mac. O chaveiro de login do Mac não é usado.
+2. Código: `git archive HEAD` para `~/srv/builds/uni-jovem`, `npm ci` e `npx expo prebuild --platform ios --clean` com `UJ_VARIANTE=homologacao`.
+3. `zsh ~/srv/builds/assinar-ios.sh` (cópia de `infra/hml/assinar-ios.sh`): archive sem assinatura, assinatura pelo SHA-1 com o chaveiro de build (acrescentado à lista de busca só durante a assinatura e removido no fim), `.ipa` em `~/srv/builds/saida-ios`.
+4. `bash infra/hml/publicar-ipa.sh <ipa no Mac> <versão>` publica em `https://unijovem-hml.solerte.com.br/instalar`.
+
+Primeiro `.ipa` publicado em 14/11/2026 (commit f7aa4f8 do app).
