@@ -66,6 +66,12 @@ export interface ClienteDaApi {
   /** Esquece acesso e refresh deste aparelho. */
   encerrarSessao(): Promise<void>
   temAcesso(): boolean
+  /**
+   * Baixa uma imagem protegida (foto de perfil, logotipo) e devolve uma `data:`
+   * URI. O token de acesso fica aqui dentro: quem desenha recebe só a imagem.
+   * `null` sem sessão, sem permissão (404) ou sem rede.
+   */
+  baixarImagem(caminho: string): Promise<string | null>
   /** Avisa quando a API encerrou a sessão (refresh inválido, aparelho revogado). */
   aoPerderSessao(ouvinte: () => void): () => void
 }
@@ -88,6 +94,30 @@ function interpretar(texto: string): unknown {
 
 async function lerCorpo(resposta: Response): Promise<unknown> {
   return interpretar(await resposta.text())
+}
+
+const BASE64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+
+/** Base64 puro, sem depender de FileReader ou btoa (que variam entre celular, web e testes). */
+export function emBase64(bytes: Uint8Array): string {
+  let saida = ''
+  for (let i = 0; i < bytes.length; i += 3) {
+    const a = bytes[i]!
+    const b = bytes[i + 1]
+    const c = bytes[i + 2]
+    saida += BASE64[a >> 2]
+    saida += BASE64[((a & 3) << 4) | ((b ?? 0) >> 4)]
+    saida += b === undefined ? '=' : BASE64[((b & 15) << 2) | ((c ?? 0) >> 6)]
+    saida += c === undefined ? '=' : BASE64[c & 63]
+  }
+  return saida
+}
+
+/** Bytes da imagem como `data:` URI (o expo-image e o navegador desenham direto). */
+async function comoDataUri(resposta: Response): Promise<string> {
+  const tipo = resposta.headers.get('content-type')?.split(';')[0] ?? 'image/webp'
+  const bytes = new Uint8Array(await resposta.arrayBuffer())
+  return `data:${tipo};base64,${emBase64(bytes)}`
 }
 
 function erroDoCorpo(status: number, corpo: unknown): ErroDaApi {
@@ -221,8 +251,33 @@ export function criarClienteDaApi(opcoes: OpcoesDoCliente): ClienteDaApi {
     }
   }
 
+  async function baixarImagem(caminho: string): Promise<string | null> {
+    if (!acesso && !(await renovar().catch(() => false))) return null
+    for (let tentativa = 0; tentativa < 2; tentativa++) {
+      const acessoUsado = acesso
+      const resposta = await chamar(caminho, {
+        method: 'GET',
+        headers: {
+          accept: 'image/*',
+          ...(acessoUsado ? { authorization: `Bearer ${acessoUsado}` } : {}),
+        },
+      }).catch(() => null)
+      if (!resposta) return null
+      if (resposta.status === 401 && tentativa === 0) {
+        // Acesso vencido: renova uma vez (ou usa o que outro pedido já renovou).
+        if (acesso && acesso !== acessoUsado) continue
+        if (await renovar().catch(() => false)) continue
+        return null
+      }
+      if (!resposta.ok) return null
+      return comoDataUri(resposta).catch(() => null)
+    }
+    return null
+  }
+
   return {
     pedir,
+    baixarImagem,
     get: (caminho, extra) => pedir(caminho, extra?.sinal ? { sinal: extra.sinal } : {}),
     post: (caminho, corpo, extra) =>
       pedir(caminho, { ...extra, metodo: 'POST', corpo: corpo ?? {} }),

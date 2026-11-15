@@ -68,6 +68,9 @@ export function definirAcessoDasImagens(acesso: AcessoDasImagens | null): void {
  */
 const blobsDaWeb = new Map<string, Promise<string | null>>()
 
+/** No celular, a imagem já baixada (data URI) por endereço versionado, só em memória. */
+const imagensNoAparelho = new Map<string, Promise<EnderecoDaImagem | null>>()
+
 /** Esquece as imagens baixadas (troca de conta, saída): nada de foto alheia depois de sair. */
 export function esquecerImagens(): void {
   if (Platform.OS === 'web') {
@@ -76,6 +79,7 @@ export function esquecerImagens(): void {
     }
   }
   blobsDaWeb.clear()
+  imagensNoAparelho.clear()
   try {
     void Image.clearMemoryCache().catch(() => false)
   } catch {
@@ -107,8 +111,16 @@ async function fonteDaFoto(caminho: string, novaTentativa: boolean): Promise<Ima
   const acesso = acessoDasImagens
   if (!acesso) return null
   if (Platform.OS !== 'web') {
-    const endereco = await acesso(caminho).catch(() => null)
-    // `memory`: a foto de outra pessoa não fica gravada no disco do aparelho.
+    // Uma descarga por endereço versionado, só em memória: a foto de outra
+    // pessoa não fica gravada no disco do aparelho.
+    if (novaTentativa) imagensNoAparelho.delete(caminho)
+    let pedido = imagensNoAparelho.get(caminho)
+    if (!pedido) {
+      pedido = acesso(caminho).catch(() => null)
+      imagensNoAparelho.set(caminho, pedido)
+    }
+    const endereco = await pedido
+    if (!endereco) imagensNoAparelho.delete(caminho)
     return endereco ? { uri: endereco.url, headers: endereco.cabecalhos } : null
   }
   if (novaTentativa) blobsDaWeb.delete(caminho)

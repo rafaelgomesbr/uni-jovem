@@ -48,6 +48,8 @@ import {
   aoEncerrarSessao as ganchosDeEncerramento,
   type GanchoDeEncerramento,
 } from './aoEncerrarSessao'
+import { definirAcessoDasImagens } from '@/ui/Avatar'
+
 import { CHAVES } from './clienteDeConsulta'
 import { gravarComunidadeAtiva, lerComunidadeAtiva } from './comunidadeAtivaSalva'
 import { apagarContaSalva, gravarContaSalva, lerContaSalva } from './contaSalva'
@@ -262,6 +264,16 @@ export function ProvedorDeSessao({
     void encerrarLocalmente()
   })
   useEffect(() => cliente.aoPerderSessao(() => aoPerder()), [cliente])
+
+  // Foto de perfil e logotipo (D33): o avatar pede a imagem ao cliente da API,
+  // que baixa com a sessão e devolve só os bytes (o token não sai do cliente).
+  useEffect(() => {
+    definirAcessoDasImagens(async (caminho) => {
+      const uri = await cliente.baixarImagem(caminho)
+      return uri ? { url: uri, cabecalhos: {} } : null
+    })
+    return () => definirAcessoDasImagens(null)
+  }, [cliente])
 
   async function abrirSessao(sessao: SessaoAberta): Promise<void> {
     await cliente.abrirSessao(sessao)

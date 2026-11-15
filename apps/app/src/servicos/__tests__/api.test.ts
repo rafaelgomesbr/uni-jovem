@@ -1,6 +1,6 @@
 import { armazenamentoEmMemoria, esperar, servidorFalso } from '@/testes/dubles'
 
-import { criarClienteDaApi } from '../api'
+import { criarClienteDaApi, emBase64 } from '../api'
 import { ErroDaApi, SemConexao } from '../erros'
 
 const EXPIRADO = {
@@ -161,4 +161,78 @@ describe('cliente da API', () => {
     expect(cliente.temAcesso()).toBe(true)
     expect(armazenamento.valor()).toBe('refresh-1')
   })
+})
+
+describe('baixarImagem (foto de perfil e logotipo, D33)', () => {
+  test('baixa com a sessão, renova se o acesso venceu e devolve só a imagem, sem o token', async () => {
+    const pedidos: { url: string; autorizacao: string | null }[] = []
+    const fetchFalso = (async (url: string, init?: RequestInit) => {
+      const cabecalhos = new Headers(init?.headers)
+      pedidos.push({ url, autorizacao: cabecalhos.get('authorization') })
+      if (url.endsWith('/api/auth/renovar')) {
+        return new Response(
+          JSON.stringify({ segundoFator: false, acesso: 'novo', refresh: 'r2' }),
+          { status: 200 },
+        )
+      }
+      if (cabecalhos.get('authorization') !== 'Bearer novo') {
+        return new Response(
+          JSON.stringify({ erro: 'acesso_expirado', mensagem: 'Entre para continuar.' }),
+          { status: 401 },
+        )
+      }
+      return new Response(new Uint8Array([82, 73, 70, 70]), {
+        status: 200,
+        headers: { 'content-type': 'image/webp' },
+      })
+    }) as unknown as typeof fetch
+    const cliente = criarClienteDaApi({
+      baseUrl: 'https://api.exemplo',
+      plataforma: 'ios',
+      armazenamento: armazenamentoEmMemoria('r1'),
+      fetch: fetchFalso,
+    })
+    await cliente.abrirSessao({ segundoFator: false, acesso: 'velho' })
+
+    const imagem = await cliente.baixarImagem('/api/v1/eu/foto?v=1')
+
+    expect(imagem).toBe('data:image/webp;base64,UklGRg==')
+    expect(imagem).not.toContain('novo')
+    expect(pedidos.map((p) => p.url)).toEqual([
+      'https://api.exemplo/api/v1/eu/foto?v=1',
+      'https://api.exemplo/api/auth/renovar',
+      'https://api.exemplo/api/v1/eu/foto?v=1',
+    ])
+  })
+
+  test('sem sessão ou sem permissão, devolve null (o avatar mostra as iniciais)', async () => {
+    const fetchFalso = (async () =>
+      new Response(JSON.stringify({ erro: 'nao_encontrado', mensagem: 'Não encontrado.' }), {
+        status: 404,
+      })) as unknown as typeof fetch
+    const cliente = criarClienteDaApi({
+      baseUrl: '',
+      plataforma: 'ios',
+      armazenamento: armazenamentoEmMemoria(null),
+      fetch: fetchFalso,
+    })
+    expect(await cliente.baixarImagem('/api/v1/c/x/logo')).toBeNull()
+    await cliente.abrirSessao({ segundoFator: false, acesso: 'a' })
+    expect(await cliente.baixarImagem('/api/v1/c/x/logo')).toBeNull()
+  })
+})
+
+test('emBase64 segue os vetores da RFC 4648', () => {
+  const vetores: [string, string][] = [
+    ['', ''],
+    ['f', 'Zg=='],
+    ['fo', 'Zm8='],
+    ['foo', 'Zm9v'],
+    ['foob', 'Zm9vYg=='],
+    ['fooba', 'Zm9vYmE='],
+    ['foobar', 'Zm9vYmFy'],
+  ]
+  for (const [texto, esperado] of vetores) {
+    expect(emBase64(Uint8Array.from(texto, (c) => c.charCodeAt(0)))).toBe(esperado)
+  }
 })
