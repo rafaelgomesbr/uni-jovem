@@ -97,8 +97,22 @@ export const TELAS: Tela[] = [
   { arquivo: '10-convidar', abrir: (p) => irPara(p, '/convidar') },
 ]
 
+/**
+ * Nome da comunidade nas capturas (docs/lojas/capturas.md, seção 4.1). Troca
+ * pela tela de Configurações, só no banco local da prévia.
+ */
+async function renomearComunidade(page: Page, nome: string) {
+  await irPara(page, '/configurar-comunidade')
+  const campo = page.getByLabel('Nome da comunidade', { exact: true })
+  if ((await campo.inputValue()) === nome) return
+  await campo.fill(nome)
+  await page.getByRole('button', { name: /^Salvar/ }).click()
+  await assentar(page)
+}
+
 async function principal() {
   const email = process.env['UJ_CAPTURAS_EMAIL'] ?? 'demo.admin@unijovem.invalid'
+  const comunidade = process.env['UJ_CAPTURAS_COMUNIDADE'] ?? 'Jovens Esperança'
   const navegador = await chromium.launch()
   try {
     for (const aparelho of APARELHOS) {
@@ -115,10 +129,17 @@ async function principal() {
         timezoneId: 'America/Sao_Paulo',
       })
       const page = await contexto.newPage()
+      // Erro de execução na web derruba a captura: tela em branco não vai para loja.
+      const errosDaPagina: string[] = []
+      page.on('pageerror', (e) => errosDaPagina.push(e.message))
       await entrar(page, email)
+      await renomearComunidade(page, comunidade)
       for (const tela of TELAS) {
         try {
           await tela.abrir(page)
+          if (errosDaPagina.length > 0) {
+            throw new Error(`erro na página: ${errosDaPagina.splice(0).join(' | ')}`)
+          }
           await page.screenshot({ path: join(pasta, `${tela.arquivo}.png`) })
           console.log(`${aparelho.nome}/${tela.arquivo}.png`)
         } catch (e) {

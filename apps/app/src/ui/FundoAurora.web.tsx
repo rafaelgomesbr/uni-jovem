@@ -1,4 +1,4 @@
-import { useGeometriaDaAurora, type PropsDaAurora } from './FundoAurora'
+import { useGeometriaDaAurora, type PropsDaAurora } from './geometriaDaAurora'
 
 /** Web: as mesmas auroras em CSS puro (o react-native-web não desenha `backgroundImage`). */
 export function FundoAurora({ intensidade = 1 }: PropsDaAurora) {
