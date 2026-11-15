@@ -42,6 +42,8 @@ EMAIL_MODO=desligado
 # pelas de um widget real antes de abrir a página pública a terceiros.
 TURNSTILE_SEGREDO=1x0000000000000000000000000000000AA
 TURNSTILE_CHAVE_DO_SITE=1x00000000000000000000AA
+# Entrar com Google (IDs de cliente iOS e web do projeto uni-jovem; não são segredo).
+GOOGLE_CLIENT_IDS=457514327131-jgjuasb7a9nq7mqv3pcf857thsqnt526.apps.googleusercontent.com,457514327131-i7mraor79i6h8tjbr360jfmv1o6mmmfc.apps.googleusercontent.com
 EOF
 chmod 600 "$DESTINO"
 echo "$DESTINO criado com permissão 600."

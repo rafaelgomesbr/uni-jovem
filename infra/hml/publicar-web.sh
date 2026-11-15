@@ -12,7 +12,9 @@ if [ -n "$(git status --porcelain -- .)" ]; then
   exit 1
 fi
 rm -rf dist
-EXPO_NO_TELEMETRY=1 UJ_VARIANTE=homologacao npx expo export --platform web --output-dir dist
+# Entrar com Google na web: o ID de cliente web (público) entra no pacote.
+EXPO_NO_TELEMETRY=1 UJ_VARIANTE=homologacao EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=457514327131-i7mraor79i6h8tjbr360jfmv1o6mmmfc.apps.googleusercontent.com \
+  npx expo export --platform web --output-dir dist
 tar -cf - -C dist . | ssh -o BatchMode=yes "$SERVIDOR" '
   set -e
   rm -rf ~/srv/sites/unijovem-hml-web.novo && mkdir -p ~/srv/sites/unijovem-hml-web.novo

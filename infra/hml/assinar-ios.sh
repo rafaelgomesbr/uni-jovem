@@ -12,7 +12,7 @@ set -eu
 export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
 export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
-export UJ_VARIANTE=homologacao EXPO_PUBLIC_API_URL=https://unijovem-hml.solerte.com.br EXPO_NO_TELEMETRY=1
+export UJ_VARIANTE=homologacao EXPO_PUBLIC_API_URL=https://unijovem-hml.solerte.com.br EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=457514327131-jgjuasb7a9nq7mqv3pcf857thsqnt526.apps.googleusercontent.com EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=457514327131-i7mraor79i6h8tjbr360jfmv1o6mmmfc.apps.googleusercontent.com EXPO_NO_TELEMETRY=1
 A=~/srv/builds/assinatura
 KC=$A/uj-build.keychain-db
 PERFIL=$A/hml.mobileprovision
