@@ -80,6 +80,8 @@ cd ~/srv/apps/unijovem-prod
     -e UJ_SEMEAR_EM_PRODUCAO=sim api node --import tsx apps/api/src/cli/semear.ts > contas-revisao.txt )
 ```
 
+**Rodar de novo** (por exemplo, para acrescentar o conteúdo novo da demonstração ou as semanas seguintes) **nunca** grava em `contas-revisao.txt`: o `>` sobrescreveria as senhas dos revisores, que não são mostradas de novo. Use outro arquivo, como `> enriquecimento-demo.txt`, também com `umask 077`. A semente cifra os pedidos de oração com a `ORACAO_CHAVE` do `.env`, que já chega ao contêiner `api`. Contas criadas só como figurantes ficam sem senha.
+
 O dono lê o arquivo (`cat ~/srv/apps/unijovem-prod/contas-revisao.txt`) e cola o e-mail e a senha nos campos de acesso para revisão:
 
 - na Apple: _App Review Information > Sign-in required_;

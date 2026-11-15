@@ -275,6 +275,8 @@ async function semear(amb: AmbienteDaPrevia): Promise<void> {
     ...process.env,
     DATABASE_URL_DONO: amb.urlDoDono,
     UJ_AMBIENTE: 'desenvolvimento',
+    // A semente cifra os pedidos de oração com a mesma chave que a API usa para lê-los.
+    ORACAO_CHAVE: amb.daApi['ORACAO_CHAVE'] ?? '',
   })
   if (r.codigo !== 0) {
     throw new ErroDaPrevia('A semente de dados fictícios falhou.', r.erros.trim())
