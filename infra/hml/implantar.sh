@@ -43,6 +43,9 @@ ssh -o BatchMode=yes "$SERVIDOR" "zsh -lc 'set -e
   docker compose build api
   docker compose up -d --wait banco
   docker compose run --rm --no-deps api node --import tsx apps/api/src/cli/migrar.ts
+  # As tarefas dormem num laço de shell e demoram a parar: sem isso, a
+  # recriação esbarra na remoção ainda em curso ("removal already in progress").
+  docker compose rm -sf tarefas
   docker compose up -d
   mkdir -p ~/srv/config/caddy/sites/extras/unijovem-hml
   cp codigo/infra/hml/caddy-extras.conf ~/srv/config/caddy/sites/extras/unijovem-hml/uni-jovem.conf
