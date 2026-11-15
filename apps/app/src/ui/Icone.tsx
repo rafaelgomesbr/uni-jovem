@@ -1,5 +1,6 @@
 import { SymbolView } from 'expo-symbols'
 import type { ColorValue } from 'react-native'
+import { IconeDeTraco, TRACOS, type NomeDoTraco } from './IconeDeTraco'
 
 /**
  * Catálogo de ícones: SF Symbols no iOS, Material Symbols no Android e na web
@@ -105,6 +106,10 @@ interface PropsDoIcone {
 }
 
 export function Icone({ nome, cor, tamanho = 22 }: PropsDoIcone) {
+  // Os ícones que aparecem no mockup aprovado usam o desenho exato dele.
+  if (nome in TRACOS) {
+    return <IconeDeTraco nome={nome as NomeDoTraco} cor={cor} tamanho={tamanho} />
+  }
   return (
     <SymbolView
       name={ICONES[nome]}
