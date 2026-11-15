@@ -58,7 +58,7 @@ O que **fica**, ligado à conta anonimizada (sem nome, e-mail, telefone nem senh
 ### 2.4 Depois da transação
 
 - **E-mail de confirmação** ao endereço antigo, guardado só em memória até o envio: "Sua conta no Uni Jovem foi excluída. Se não foi você, responda a este e-mail." Sem nome de comunidade. Serve de alarme se alguém excluiu a conta com a senha roubada.
-- **Aparelhos**: na próxima chamada recebem 401, e o app apaga refresh, comunidade ativa e partições offline. Aparelho que não se conectar mais: os dados offline vencem em até 14 dias (ou o prazo da comunidade, até 30). Limite L01.
+- **Aparelhos**: na próxima chamada recebem 401, e o app apaga refresh, comunidade ativa e partições offline. Aparelho que não se conectar mais: os dados offline vencem em até 7 dias (ou o prazo da comunidade, até 30). Limite L01.
 - **Registros técnicos**: vencem em 30 dias.
 - **Resend**: o e-mail fica no histórico dele até 30 dias (plano gratuito; reconfirmar).
 - **Backups**: não são editados; vencem em até cerca de 100 dias (seção 6).

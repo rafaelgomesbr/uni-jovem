@@ -84,7 +84,7 @@ Organizadores podem registrar o nome de músicos, palestrantes e de quem chegou 
 
 - O token que mantém você conectado fica no cofre do sistema (Keychain no iPhone, Keystore no Android). Na web, fica num cookie protegido que o JavaScript da página não consegue ler. **Sua senha nunca é guardada no aparelho.**
 - A comunidade que você abriu por último.
-- Quando um organizador prepara um evento para uso sem internet: a programação, a escala, os checklists e a lista de inscritos (com nome e telefone mascarado), num banco local **cifrado**, que vence em até 14 dias sem contato com o servidor (o prazo pode ser ajustado pela comunidade entre 3 e 30 dias) e é apagado ao sair da conta ou da comunidade. [IMPLEMENTAÇÃO: o modo offline é da fase F13 e ainda não existe]
+- Quando um organizador prepara um evento para uso sem internet: a programação, a escala, os checklists e a lista de inscritos (com nome e telefone mascarado), num banco local **cifrado**, que vence em até 7 dias sem contato com o servidor (o prazo pode ser ajustado pela comunidade entre 3 e 30 dias) e é apagado ao sair da conta ou da comunidade. [IMPLEMENTAÇÃO: o modo offline é da fase F13 e ainda não existe]
 - Os versículos do dia já agendados como notificação local. Isso acontece só no aparelho: nada sobre o versículo é enviado ao servidor.
 - **Pedidos de oração nunca ficam guardados no aparelho para uso offline.**
 
@@ -207,7 +207,7 @@ Os limites, ditos com honestidade:
 
 1. **A cifragem dos pedidos de oração não é de ponta a ponta.** Quem administra o servidor e guarda a chave tem capacidade técnica de decifrar. Hoje essa pessoa é o operador da plataforma, que também é o Criador. A garantia de que "o Criador não lê" vale para o app e suas telas, não contra quem controla a infraestrutura. Por isso pedimos que você escreva só o necessário.
 2. **A Cloudflare vê o tráfego.** A conexão segura (HTTPS) termina na Cloudflare, que repassa a requisição ao servidor por um túnel cifrado. Na passagem, o conteúdo das requisições, inclusive o texto de um pedido de oração que você está enviando, fica acessível à infraestrutura da Cloudflare.
-3. **Aparelho sem internet não recebe revogação.** Se você sair de uma comunidade ou for removido enquanto um aparelho com o evento preparado está offline, o que já foi baixado continua legível nele até a próxima conexão ou até vencer (no máximo 14 dias, ou o prazo da comunidade, até 30).
+3. **Aparelho sem internet não recebe revogação.** Se você sair de uma comunidade ou for removido enquanto um aparelho com o evento preparado está offline, o que já foi baixado continua legível nele até a próxima conexão ou até vencer (no máximo 7 dias, ou o prazo da comunidade, até 30).
 4. **Planilhas baixadas saem do nosso controle.** Uma exportação feita por um administrador fica 24 horas no servidor, mas a cópia baixada fica no aparelho dele; a comunidade é responsável por ela.
 5. **O servidor é doméstico**, sem garantia de disponibilidade contínua.
 

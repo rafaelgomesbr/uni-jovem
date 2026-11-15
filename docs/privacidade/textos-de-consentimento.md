@@ -192,7 +192,7 @@ O convite **não** é consumido (pode ser usado por outra pessoa a quem a lidera
 
 **Onde aparece:** Perfil > Versículo do dia (e na missão de boas-vindas).
 
-> O versículo do dia é agendado no seu aparelho. Nada sobre ele é enviado ao servidor. Você pode desligar ou mudar o horário quando quiser.
+> O versículo do dia é agendado no seu aparelho e funciona sem internet. O servidor guarda só se ele está ligado e o horário escolhido, para valer em todos os seus aparelhos. Você pode desligar ou mudar o horário quando quiser.
 
 Não é consentimento (não há tratamento de dado pessoal). A notificação local depende da permissão de notificações do sistema; se ela estiver negada, o versículo aparece no Início.
 
