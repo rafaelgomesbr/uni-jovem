@@ -54,7 +54,7 @@ ssh -o BatchMode=yes "$SERVIDOR" "zsh -lc 'set -e
   [ -f .docker/config.json ] || printf %s \"{\\\"currentContext\\\":\\\"colima\\\"}\" > .docker/config.json
   export DOCKER_CONFIG=\$PWD/.docker
   docker compose build api
-  docker compose up -d banco
+  docker compose up -d --wait banco
   docker compose run --rm --no-deps api node --import tsx apps/api/src/cli/migrar.ts
   docker compose up -d
   mkdir -p ~/srv/config/caddy/sites/extras/unijovem-prod
