@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react'
 import { criarClienteDeConsulta, ligarGerentesDoReactQuery } from '@/estado/clienteDeConsulta'
 import { ProvedorDeSessao, useSessao } from '@/estado/sessao'
 import { AvisoDeErro } from '@/ui/AvisoDeErro'
+import { DialogoDeConfirmacao } from '@/ui/DialogoDeConfirmacao'
 import { EstilosDaWeb } from '@/ui/EstilosDaWeb'
 import { useOpcoesDaPilha } from '@/funcionalidades/navegacao/opcoesDaPilha'
 import { ProvedorOffline } from '@/funcionalidades/offline/ProvedorOffline'
@@ -81,14 +82,13 @@ function Navegacao({ fontesProntas }: { fontesProntas: boolean }) {
       <Stack screenOptions={{ ...opcoesDaPilha, headerShown: false }}>
         <Stack.Screen name="(autenticado)" />
         <Stack.Screen name="(publico)" />
-        <Stack.Screen name="convite" options={{ headerShown: true, title: 'Convite' }} />
-        <Stack.Screen name="redefinir-senha" options={{ headerShown: true, title: 'Senha nova' }} />
-        <Stack.Screen
-          name="primeiro-acesso"
-          options={{ headerShown: true, title: 'Primeiro acesso' }}
-        />
-        <Stack.Screen name="+not-found" options={{ headerShown: true, title: 'Não encontrado' }} />
+        <Stack.Screen name="convite" options={{ title: 'Convite' }} />
+        <Stack.Screen name="redefinir-senha" options={{ title: 'Senha nova' }} />
+        <Stack.Screen name="primeiro-acesso" options={{ title: 'Primeiro acesso' }} />
+        <Stack.Screen name="+not-found" options={{ title: 'Não encontrado' }} />
       </Stack>
+      {/* Confirmações da web (no celular, o diálogo é o do sistema). */}
+      <DialogoDeConfirmacao />
     </ThemeProvider>
   )
 }

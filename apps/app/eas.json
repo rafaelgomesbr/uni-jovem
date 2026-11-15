@@ -11,7 +11,9 @@
       "distribution": "internal",
       "env": {
         "UJ_VARIANTE": "desenvolvimento",
-        "EXPO_PUBLIC_API_URL": "https://unijovem-hml.solerte.com.br"
+        "EXPO_PUBLIC_API_URL": "https://unijovem-hml.solerte.com.br",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "457514327131-jgjuasb7a9nq7mqv3pcf857thsqnt526.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "457514327131-i7mraor79i6h8tjbr360jfmv1o6mmmfc.apps.googleusercontent.com"
       }
     },
     "homologacao": {
@@ -20,7 +22,9 @@
       "android": { "buildType": "apk" },
       "env": {
         "UJ_VARIANTE": "homologacao",
-        "EXPO_PUBLIC_API_URL": "https://unijovem-hml.solerte.com.br"
+        "EXPO_PUBLIC_API_URL": "https://unijovem-hml.solerte.com.br",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "457514327131-jgjuasb7a9nq7mqv3pcf857thsqnt526.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "457514327131-i7mraor79i6h8tjbr360jfmv1o6mmmfc.apps.googleusercontent.com"
       }
     },
     "producao": {

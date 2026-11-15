@@ -1,13 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
-import { ESPACO } from '@uj/tokens'
+import { ESPACO, RAIO } from '@uj/tokens'
 import { router } from 'expo-router'
-import { View } from 'react-native'
+import { Pressable, View } from 'react-native'
 
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
 import type { RespostaDoInicio, TarefaDoInicio } from '@/servicos/contratoDosEventos'
-import { formatarDataLocal, dataDoInstante } from '@/utilidades/datas'
+import { formatarDataLocal, formatarQuando, dataDoInstante } from '@/utilidades/datas'
 import { primeiroNome } from '@/utilidades/formatos'
 import { Aviso } from '@/ui/Aviso'
 import { AvisoDeErro } from '@/ui/AvisoDeErro'
@@ -16,7 +16,11 @@ import { CaixaDeMarcar } from '@/ui/CaixaDeMarcar'
 import { Carregando } from '@/ui/Carregando'
 import { Cartao } from '@/ui/Cartao'
 import { EstadoVazio } from '@/ui/EstadoVazio'
+import { Icone } from '@/ui/Icone'
+import { Linha, Lista } from '@/ui/Linha'
+import { ALVO } from '@/ui/medidas'
 import { Texto } from '@/ui/Texto'
+import { useTema } from '@/ui/tema'
 
 import { useFusoDaComunidade } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
@@ -28,7 +32,9 @@ import { EventosPreparados } from '../offline/EventosPreparados'
 import { useEstaOnline } from '../offline/ProvedorOffline'
 import { CartaoDaMissao } from '../onboarding/CartaoDaMissao'
 import { CartaoDoVersiculo } from '../versiculo/CartaoDoVersiculo'
+import { useGruposDoMais } from '../navegacao/mais'
 import { AvisosDoInicio } from './AvisosDoInicio'
+import { CartaoDoProximoEvento } from './CartaoDoProximoEvento'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { TelaDoApp } from '../navegacao/TelaDoApp'
 
@@ -51,7 +57,7 @@ export function TelaInicio() {
   const { conta, comunidadeAtiva } = useSessao()
   const nome = primeiroNome(conta?.nome)
   return (
-    <TelaDoApp titulo={nome ? `${saudacao()}, ${nome}!` : `${saudacao()}!`}>
+    <TelaDoApp titulo={nome ? `${saudacao()}, ${nome}` : saudacao()}>
       {comunidadeAtiva ? (
         <Inicio comunidadeId={comunidadeAtiva.id} nomeDaComunidade={comunidadeAtiva.nome} />
       ) : (
@@ -95,15 +101,87 @@ function Inicio({
     )
   }
   const d = inicio.data
+  const [proximo, ...outros] = d.proximosEventos
+  const [escala, ...outrasEscalas] = d.minhasEscalas
+  const comInscricao = d.proximosEventos.filter((e) => e.status === 'publicado')
+  const minhasEtapas = proximo
+    ? d.minhasEscalas
+        .filter((e) => e.eventoId === proximo.id && e.etapaTitulo)
+        .map((e) => e.etapaTitulo!)
+    : []
 
   return (
     <>
-      <Texto cor="textoSuave">Isto é o que está acontecendo em {nomeDaComunidade}.</Texto>
       {online ? null : <EventosPreparados />}
 
-      <AvisosDoInicio avisos={d.avisos ?? []} podePublicar={pode('aviso', 'publicar')} />
+      <CartaoDoVersiculo />
 
-      <CartaoDaMissao />
+      {proximo ? (
+        <CartaoDoProximoEvento
+          evento={proximo}
+          comunidadeId={comunidadeId}
+          fuso={fuso}
+          minhasEtapas={minhasEtapas}
+        />
+      ) : (
+        <Cartao titulo="Próximo encontro">
+          <EstadoVazio
+            icone="eventos"
+            titulo="Nenhum evento marcado"
+            descricao={
+              podeCriar
+                ? 'Monte o próximo encontro; o Sábado padrão já vem com as etapas de sempre.'
+                : 'Quando a organização publicar o próximo encontro, ele aparece aqui.'
+            }
+            acao={
+              podeCriar
+                ? {
+                    titulo: 'Novo Sábado padrão',
+                    icone: 'adicionar',
+                    variante: 'primario',
+                    aoPressionar: () =>
+                      router.push({
+                        pathname: '/evento/novo',
+                        params: { modelo: 'sabado_padrao' },
+                      }),
+                  }
+                : {
+                    titulo: 'Ver a agenda',
+                    icone: 'agenda',
+                    aoPressionar: () => router.push('/agenda'),
+                  }
+            }
+          />
+        </Cartao>
+      )}
+
+      <Cartao titulo="Sua escala">
+        {escala ? (
+          <>
+            <CartaoDaEscala escala={escala} comunidadeId={comunidadeId} fuso={fuso} />
+            {outrasEscalas.length ? (
+              <Botao
+                titulo={`Ver todas as escalas (${d.minhasEscalas.length})`}
+                variante="terciario"
+                larguraTotal={false}
+                style={{ marginLeft: -ESPACO.x3 }}
+                aoPressionar={() => router.push('/escalas')}
+              />
+            ) : null}
+          </>
+        ) : (
+          <EstadoVazio
+            icone="escalas"
+            titulo="Nenhuma escala para você"
+            descricao="Conte à organização em quais dias você pode ajudar; quando escalarem você, a escala aparece aqui para confirmar."
+            acao={{
+              titulo: 'Informar minha disponibilidade',
+              icone: 'agenda',
+              aoPressionar: () => router.push('/escalas'),
+            }}
+          />
+        )}
+      </Cartao>
 
       {d.substituicoesAbertas > 0 ? (
         <Aviso tipo="info" titulo="Alguém precisa de substituição">
@@ -123,37 +201,25 @@ function Inicio({
         </Aviso>
       ) : null}
 
-      <Cartao titulo="Próximos eventos" icone="eventos">
-        {d.proximosEventos.length === 0 ? (
-          <EstadoVazio
-            icone="eventos"
-            titulo="Nenhum evento marcado"
-            descricao={
-              podeCriar
-                ? 'Monte o próximo encontro; o Sábado padrão já vem com as etapas de sempre.'
-                : 'Quando a organização publicar o próximo encontro, ele aparece aqui.'
-            }
-            acao={
-              podeCriar
-                ? {
-                    titulo: 'Novo Sábado padrão',
-                    icone: 'adicionar',
-                    aoPressionar: () =>
-                      router.push({
-                        pathname: '/evento/novo',
-                        params: { modelo: 'sabado_padrao' },
-                      }),
-                  }
-                : {
-                    titulo: 'Ver a agenda',
-                    icone: 'agenda',
-                    aoPressionar: () => router.push('/agenda'),
-                  }
-            }
-          />
-        ) : (
+      <AvisosDoInicio avisos={d.avisos ?? []} podePublicar={pode('aviso', 'publicar')} />
+
+      <AtalhosDosModulos />
+
+      {outros.length ? (
+        <Cartao
+          titulo="Depois"
+          acao={
+            <Botao
+              titulo="Agenda"
+              variante="terciario"
+              larguraTotal={false}
+              rotuloAcessivel="Agenda: ver a agenda completa"
+              aoPressionar={() => router.push('/agenda')}
+            />
+          }
+        >
           <View style={{ gap: ESPACO.x2 }}>
-            {d.proximosEventos.map((e) => (
+            {outros.map((e) => (
               <LinhaDoEvento
                 key={e.id}
                 evento={e}
@@ -163,46 +229,11 @@ function Inicio({
                 }
               />
             ))}
-            <Botao
-              titulo="Ver a agenda completa"
-              variante="discreto"
-              larguraTotal={false}
-              aoPressionar={() => router.push('/agenda')}
-            />
           </View>
-        )}
-      </Cartao>
+        </Cartao>
+      ) : null}
 
-      <CartaoDoVersiculo />
-
-      <Cartao titulo="Minhas escalas" icone="escalas">
-        {d.minhasEscalas.length === 0 ? (
-          <EstadoVazio
-            icone="escalas"
-            titulo="Nenhuma escala para você"
-            descricao="Conte à organização em quais dias você pode ajudar; quando escalarem você, a escala aparece aqui para confirmar."
-            acao={{
-              titulo: 'Informar minha disponibilidade',
-              icone: 'agenda',
-              aoPressionar: () => router.push('/escalas'),
-            }}
-          />
-        ) : (
-          <View style={{ gap: ESPACO.x2 }}>
-            {d.minhasEscalas.map((e) => (
-              <CartaoDaEscala key={e.id} escala={e} comunidadeId={comunidadeId} fuso={fuso} />
-            ))}
-            <Botao
-              titulo="Ver todas as escalas"
-              variante="discreto"
-              larguraTotal={false}
-              aoPressionar={() => router.push('/escalas')}
-            />
-          </View>
-        )}
-      </Cartao>
-
-      <Cartao titulo="Minhas tarefas" icone="tarefas">
+      <Cartao titulo="Minhas tarefas">
         {d.minhasTarefas.length === 0 ? (
           <EstadoVazio
             icone="tarefas"
@@ -223,26 +254,32 @@ function Inicio({
         )}
       </Cartao>
 
-      <Cartao titulo="Inscrições" icone="inscricoes">
-        {d.proximosEventos.filter((e) => e.status === 'publicado').length === 0 ? (
-          <Texto variante="apoio" cor="textoSuave">
-            Nenhum evento com inscrição aberta agora.
-          </Texto>
+      <Cartao titulo="Inscrições abertas">
+        {comInscricao.length === 0 ? (
+          <EstadoVazio
+            icone="inscricoes"
+            titulo="Nenhuma inscrição aberta"
+            descricao="Quando um evento abrir inscrições, ele aparece aqui."
+            acao={{
+              titulo: 'Ver a agenda',
+              icone: 'agenda',
+              aoPressionar: () => router.push('/agenda'),
+            }}
+          />
         ) : (
-          <View style={{ gap: ESPACO.x2 }}>
+          <>
             <Texto variante="apoio" cor="textoSuave">
               {pode('inscricao', 'ler_lista')
                 ? 'Acompanhe as inscrições e faça o check-in dos próximos eventos.'
                 : 'Abra um evento para se inscrever e ver o seu código de entrada.'}
             </Texto>
-            {d.proximosEventos
-              .filter((e) => e.status === 'publicado')
-              .map((e) => (
-                <Botao
+            <Lista recuo={0}>
+              {comInscricao.map((e) => (
+                <Linha
                   key={e.id}
-                  titulo={e.titulo}
                   icone="inscricoes"
-                  variante="secundario"
+                  titulo={e.titulo}
+                  descricao={formatarQuando(e.inicio, fuso)}
                   rotuloAcessivel={
                     pode('inscricao', 'ler_lista')
                       ? `Inscrições de ${e.titulo}`
@@ -258,10 +295,56 @@ function Inicio({
                   }
                 />
               ))}
-          </View>
+            </Lista>
+          </>
         )}
       </Cartao>
+
+      <CartaoDaMissao />
     </>
+  )
+}
+
+/**
+ * Atalhos dos módulos da comunidade (avisos, oração, sugestões, conteúdos e,
+ * para a organização, relatórios): ladrilhos de vidro em duas colunas. Os
+ * mesmos módulos estão no Perfil e, na web larga, na barra lateral.
+ */
+function AtalhosDosModulos() {
+  const { cores } = useTema()
+  const itens = useGruposDoMais().flatMap((g) => g.itens)
+  return (
+    <Cartao titulo="Na comunidade">
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>
+        {itens.map((i) => (
+          <Pressable
+            key={i.rotulo}
+            accessibilityRole="button"
+            accessibilityLabel={`${i.rotulo}. ${i.descricao}`}
+            onPress={() => router.push(i.href)}
+            style={({ pressed }) => ({
+              flexGrow: 1,
+              flexBasis: '45%',
+              minHeight: Math.max(ALVO, 56),
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: ESPACO.x3,
+              paddingHorizontal: ESPACO.x3,
+              paddingVertical: ESPACO.x3,
+              borderRadius: RAIO.medio,
+              borderWidth: 1,
+              borderColor: cores.cartaoVidroBorda,
+              backgroundColor: pressed ? cores.superficieRealce : cores.cartaoVidro,
+            })}
+          >
+            <Icone nome={i.icone} cor={cores.destaque} tamanho={20} />
+            <Texto variante="corpoForte" style={{ flexShrink: 1, fontSize: 15 }}>
+              {i.rotulo}
+            </Texto>
+          </Pressable>
+        ))}
+      </View>
+    </Cartao>
   )
 }
 

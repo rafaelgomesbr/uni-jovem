@@ -11,8 +11,10 @@ import { Aviso } from '@/ui/Aviso'
 import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { Botao } from '@/ui/Botao'
 import { CodigoQR } from '@/ui/CodigoQR'
+import { useFocoAoMudar } from '@/ui/foco'
 import { Selo } from '@/ui/Selo'
 import { Texto } from '@/ui/Texto'
+import { soNaWeb } from '@/ui/web'
 
 import { useMeuVinculo } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
@@ -91,9 +93,14 @@ export function MinhaInscricao({ evento, comunidadeId }: Props) {
     },
   })
 
-  if (!pode('inscricao', 'inscrever_se', { proprio: true })) return null
   const motivo = motivoSemInscricao(evento)
   const ativa = minha && minha.estado !== 'cancelada' ? minha : null
+  // Inscrever e cancelar trocam o bloco (o botão tocado some): o foco vai para o bloco novo.
+  const { alvo: focoRef, pedirFoco } = useFocoAoMudar(
+    ativa ? 'ativa' : intencao?.estado === 'pendente' ? 'pendente' : 'livre',
+  )
+
+  if (!pode('inscricao', 'inscrever_se', { proprio: true })) return null
 
   async function pedirCancelamento(id: string) {
     const ok = await confirmar({
@@ -103,16 +110,20 @@ export function MinhaInscricao({ evento, comunidadeId }: Props) {
       confirmar: 'Cancelar inscrição',
       destrutivo: true,
     })
-    if (ok) cancelar.mutate(id)
+    if (!ok) return
+    pedirFoco()
+    cancelar.mutate(id)
   }
 
   if (ativa) {
     return (
       <View style={{ gap: ESPACO.x3 }}>
-        <Selo
-          texto={`Sua inscrição: ${NOME_DO_ESTADO_DA_INSCRICAO[ativa.estado]}`}
-          cor={COR_DO_ESTADO_DA_INSCRICAO[ativa.estado]}
-        />
+        <View ref={focoRef} accessible {...soNaWeb({ tabIndex: -1 })}>
+          <Selo
+            texto={`Sua inscrição: ${NOME_DO_ESTADO_DA_INSCRICAO[ativa.estado]}`}
+            cor={COR_DO_ESTADO_DA_INSCRICAO[ativa.estado]}
+          />
+        </View>
         {ativa.estado === 'espera' ? (
           <Texto variante="apoio">
             Você está na lista de espera. Se abrir uma vaga, sua inscrição é confirmada sozinha.
@@ -142,7 +153,9 @@ export function MinhaInscricao({ evento, comunidadeId }: Props) {
   if (intencao?.estado === 'pendente') {
     return (
       <View style={{ gap: ESPACO.x2 }}>
-        <Selo texto="Pendente: vaga não garantida" cor="alerta" />
+        <View ref={focoRef} accessible {...soNaWeb({ tabIndex: -1 })}>
+          <Selo texto="Pendente: vaga não garantida" cor="alerta" />
+        </View>
         <Texto variante="apoio">
           Sua inscrição foi anotada neste aparelho, sem internet. A vaga só fica garantida quando o
           servidor confirmar, assim que a conexão voltar.
@@ -166,13 +179,17 @@ export function MinhaInscricao({ evento, comunidadeId }: Props) {
         </Texto>
       ) : null}
       <Botao
+        ref={focoRef}
         titulo="Inscrever-me"
         icone="inscricoes"
         carregando={inscrever.isPending}
         desabilitado={motivo !== null}
         {...(motivo ? { motivo: EXPLICACAO_SEM_INSCRICAO[motivo] } : {})}
         dica="Se você já se inscreveu, mostra a sua inscrição sem duplicar."
-        aoPressionar={() => inscrever.mutate()}
+        aoPressionar={() => {
+          pedirFoco()
+          inscrever.mutate()
+        }}
       />
     </View>
   )

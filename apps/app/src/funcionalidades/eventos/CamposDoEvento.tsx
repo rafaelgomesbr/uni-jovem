@@ -70,7 +70,8 @@ export function CamposDoEvento({
           maxLength={60}
         />
         <View
-          accessibilityLabel="Sugestões de categoria"
+          role="group"
+          aria-label="Sugestões de categoria"
           style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}
         >
           {sugestoes.map((c) => (
@@ -102,6 +103,7 @@ export function CamposDoEvento({
             erro={erros.data ?? null}
             ajuda="Formato DD/MM/AAAA."
             exemplo="15/11/2026"
+            formato="data"
             keyboardType="numbers-and-punctuation"
             maxLength={10}
           />
@@ -118,6 +120,7 @@ export function CamposDoEvento({
           erro={erros.hora ?? null}
           ajuda="Formato HH:MM, no horário da comunidade."
           exemplo="16:00"
+          formato="hora"
           keyboardType="numbers-and-punctuation"
           maxLength={5}
         />
@@ -232,6 +235,7 @@ export function CamposDoEvento({
                 erro={erros.inscricaoData ?? null}
                 ajuda="Em branco, as inscrições ficam abertas até o início."
                 exemplo="14/11/2026"
+                formato="data"
                 keyboardType="numbers-and-punctuation"
                 maxLength={10}
               />
@@ -242,6 +246,7 @@ export function CamposDoEvento({
                 erro={erros.inscricaoHora ?? null}
                 ajuda="Em branco, vale até 23:59 do dia escolhido."
                 exemplo="23:59"
+                formato="hora"
                 keyboardType="numbers-and-punctuation"
                 maxLength={5}
               />

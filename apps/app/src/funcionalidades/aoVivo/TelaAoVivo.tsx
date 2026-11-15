@@ -1,8 +1,7 @@
 import { ESPACO, RAIO, TIPO } from '@uj/tokens'
 import { useKeepAwake } from 'expo-keep-awake'
 import { useLocalSearchParams } from 'expo-router'
-import { useEffect } from 'react'
-import { AccessibilityInfo, View } from 'react-native'
+import { View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
 import type { ComandoDoAoVivo, RetratoAoVivo } from '@/servicos/contratoDosEventos'
@@ -25,6 +24,7 @@ import { Selo } from '@/ui/Selo'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
+import { useAnunciar } from '@/ui/useAnunciar'
 
 import { useFusoDaComunidade } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
@@ -166,11 +166,9 @@ function Painel({ r, conexao, aviso, comandar, enviando, erro }: PropsDoPainel) 
   // Avisa o leitor de tela quando a etapa muda (o resto da tela não é lido sozinho).
   const idAtual = t.atual?.id
   const tituloAtual = t.atual?.titulo
-  useEffect(() => {
-    if (idAtual) AccessibilityInfo.announceForAccessibility(`Agora: ${tituloAtual}`)
-    else if (r.situacao === 'encerrado')
-      AccessibilityInfo.announceForAccessibility('Evento encerrado')
-  }, [idAtual, tituloAtual, r.situacao])
+  useAnunciar(
+    idAtual ? `Agora: ${tituloAtual}` : r.situacao === 'encerrado' ? 'Evento encerrado' : null,
+  )
 
   async function executar(controle: ControleDoAoVivo) {
     if (controle === 'encerrar') {
@@ -195,6 +193,16 @@ function Painel({ r, conexao, aviso, comandar, enviando, erro }: PropsDoPainel) 
     })
     if (ok) comandar('assumir', outroConduz)
   }
+
+  // Perder e recuperar a conexão muda o que a tela mostra: o leitor de tela fica sabendo.
+  useAnunciar(
+    conexao === 'ao_vivo'
+      ? 'Conexão de volta. Atualizando em tempo real.'
+      : local
+        ? 'Sem conexão. Mostrando o andamento guardado neste aparelho.'
+        : 'Sem conexão. Tentando de novo.',
+    { soMudancas: true },
+  )
 
   const borda = { borderWidth: 2, borderColor: cores.texto, borderRadius: RAIO.grande }
   const estourou = t.restanteMs !== null && t.restanteMs < 0
@@ -436,8 +444,11 @@ function Cronometro({ rotulo, valor, falado }: { rotulo: string; valor: string; 
   return (
     <View accessible accessibilityLabel={falado} style={{ gap: ESPACO.x1 }}>
       <Texto variante="rotulo">{rotulo.toUpperCase()}</Texto>
+      {/* O número já é enorme: crescer mais com a fonte do sistema o empurraria para fora. */}
       <Texto
         variante="tituloGrande"
+        maxFontSizeMultiplier={1.5}
+        accessibilityRole="text"
         style={{
           fontSize: TIPO.tituloGrande.tamanho * 1.6,
           lineHeight: TIPO.tituloGrande.altura * 1.6,

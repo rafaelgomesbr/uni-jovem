@@ -3,12 +3,13 @@ import { duracaoTotal } from '@uj/dominio'
 import { ESPACO, RAIO } from '@uj/tokens'
 import { router } from 'expo-router'
 import { useState } from 'react'
-import { AccessibilityInfo, View } from 'react-native'
+import { View } from 'react-native'
 
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { api } from '@/servicos/api'
 import type { DetalheDoEvento } from '@/servicos/contratoDosEventos'
 import { formatarDuracao, formatarHora } from '@/utilidades/datas'
+import { anunciar } from '@/ui/anunciar'
 import { Aviso } from '@/ui/Aviso'
 import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { Botao } from '@/ui/Botao'
@@ -66,9 +67,7 @@ export function SecaoEtapas({ evento, comunidadeId }: Props) {
       para,
     )
     reordenar.mutate(ids)
-    AccessibilityInfo.announceForAccessibility(
-      `${etapa.titulo} agora é a etapa ${para + 1} de ${ids.length}.`,
-    )
+    anunciar(`${etapa.titulo} agora é a etapa ${para + 1} de ${ids.length}.`)
   }
 
   const total = duracaoTotal(evento.etapas)

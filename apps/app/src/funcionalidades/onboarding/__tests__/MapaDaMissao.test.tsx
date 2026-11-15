@@ -24,7 +24,7 @@ const INICIO = {
 async function usarAsDemonstracoes() {
   for (const nome of [/exemplo/i, /^Subir /, /^Descer /]) {
     for (const b of screen.queryAllByRole('button', { name: nome })) {
-      if (!b.props.accessibilityState?.disabled) await fireEvent.press(b)
+      if (!b.props['aria-disabled']) await fireEvent.press(b)
     }
   }
   for (const r of screen.queryAllByRole('radio')) await fireEvent.press(r)

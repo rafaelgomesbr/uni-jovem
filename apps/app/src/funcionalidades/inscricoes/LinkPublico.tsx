@@ -7,6 +7,7 @@ import { compartilharTexto, copiarTexto } from '@/utilidades/compartilhar'
 import { Botao } from '@/ui/Botao'
 import { Cartao } from '@/ui/Cartao'
 import { Texto } from '@/ui/Texto'
+import { TextoAnunciado } from '@/ui/TextoAnunciado'
 import { useTema } from '@/ui/tema'
 
 interface Props {
@@ -61,11 +62,7 @@ export function LinkPublico({ idPublico, titulo }: Props) {
           setAviso(ok ? 'Link copiado.' : 'Não foi possível copiar. Selecione o link acima.')
         }}
       />
-      {aviso ? (
-        <Texto variante="apoio" accessibilityLiveRegion="polite">
-          {aviso}
-        </Texto>
-      ) : null}
+      {aviso ? <TextoAnunciado variante="apoio">{aviso}</TextoAnunciado> : null}
     </Cartao>
   )
 }

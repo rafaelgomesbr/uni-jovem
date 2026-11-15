@@ -1,14 +1,15 @@
 import { useMutation } from '@tanstack/react-query'
-import { ESPACO, RAIO } from '@uj/tokens'
+import { ESPACO } from '@uj/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
-import { View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
 import type { ListaDeCheckin, Presenca } from '@/servicos/contratoDosEventos'
 import { SemConexao } from '@/servicos/erros'
 import { parametro } from '@/utilidades/parametros'
 import { Aviso } from '@/ui/Aviso'
+import { Avatar } from '@/ui/Avatar'
 import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
@@ -18,6 +19,7 @@ import { EstadoVazio } from '@/ui/EstadoVazio'
 import { Selo } from '@/ui/Selo'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
+import { TextoAnunciado } from '@/ui/TextoAnunciado'
 import { useTema } from '@/ui/tema'
 
 import { usePode } from '../comunidade/permissoes'
@@ -180,9 +182,12 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
 
   return (
     <Tela cabecalhoNativo titulo="Check-in">
-      <Texto accessibilityLiveRegion="polite" variante="corpoForte">
-        {presentes === 1 ? '1 presença registrada' : `${presentes} presenças registradas`}
-      </Texto>
+      {/* Contador grande com algarismos tabulares: o número não "dança" ao mudar. */}
+      <Cartao titulo="Presenças">
+        <TextoAnunciado soMudancas variante="tituloGrande" tabular accessibilityRole="text">
+          {presentes === 1 ? '1 presença registrada' : `${presentes} presenças registradas`}
+        </TextoAnunciado>
+      </Cartao>
       {aviso ? (
         <Aviso tipo="sucesso" anunciar>
           {aviso}
@@ -272,14 +277,17 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
                 <View
                   key={p.chave}
                   style={{
-                    gap: ESPACO.x2,
-                    padding: ESPACO.x3,
-                    borderRadius: RAIO.medio,
-                    borderWidth: p.presente ? 2 : 1,
-                    borderColor: p.presente ? cores.sucesso : cores.borda,
+                    flexDirection: 'row',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    gap: ESPACO.x3,
+                    paddingVertical: ESPACO.x3,
+                    borderTopWidth: StyleSheet.hairlineWidth,
+                    borderTopColor: cores.cartaoVidroBorda,
                   }}
                 >
-                  <View style={{ gap: 2 }}>
+                  <Avatar nome={p.nome} tamanho="M" decorativo />
+                  <View style={{ flex: 1, minWidth: 160, gap: 2 }}>
                     <Texto variante="corpoForte">{p.nome}</Texto>
                     <Texto variante="apoio" cor="textoSuave">
                       {p.detalhe}
@@ -291,7 +299,7 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
                       titulo="Desfazer presença"
                       variante="secundario"
                       larguraTotal={false}
-                      rotuloAcessivel={`Desfazer a presença de ${p.nome}`}
+                      rotuloAcessivel={`Desfazer presença: ${p.nome}`}
                       desabilitado={usarLocal || !presenca}
                       motivo={
                         usarLocal
@@ -315,7 +323,7 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
                       titulo="Marcar presença"
                       icone="confirmado"
                       larguraTotal={false}
-                      rotuloAcessivel={`Marcar presença de ${p.nome}`}
+                      rotuloAcessivel={`Marcar presença: ${p.nome}`}
                       carregando={
                         (marcar.isPending && marcar.variables?.nome === p.nome) ||
                         (marcarLocal.isPending && marcarLocal.variables?.nome === p.nome)

@@ -49,6 +49,25 @@ const TEXTO_CAMERA =
   'A câmera é usada só para ler o QR Code de presença na entrada de um evento. ' +
   'Nenhuma foto é tirada nem guardada.'
 
+const TEXTO_FACE_ID =
+  'O Face ID protege a sua sessão no Uni Jovem: com ele ligado, o app só abre a sua conta ' +
+  'depois de confirmar que é você. Nenhuma imagem do seu rosto sai do aparelho.'
+
+/**
+ * Entrar com Google no celular devolve a pessoa ao app por um esquema de URL:
+ * no iOS, o reverso do cliente iOS ("com.googleusercontent.apps.<id>"); no
+ * Android, o pacote do app (padrão do expo-auth-session). Só entram quando o
+ * ID de cliente existe no ambiente do build.
+ */
+const CLIENTE_GOOGLE_IOS = process.env['EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID']
+const CLIENTE_GOOGLE_ANDROID = process.env['EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID']
+const ESQUEMA = VARIANTE === 'producao' ? 'unijovem' : 'unijovem-hml'
+const ESQUEMAS = [
+  ESQUEMA,
+  ...(CLIENTE_GOOGLE_IOS ? [CLIENTE_GOOGLE_IOS.split('.').reverse().join('.')] : []),
+  ...(CLIENTE_GOOGLE_ANDROID ? [IDENTIFICADOR[VARIANTE]] : []),
+]
+
 /** Versão vista pelas pessoas; o número de build fica com o EAS (`appVersionSource: remote`). */
 const VERSAO = '1.0.0'
 
@@ -62,15 +81,21 @@ const config: ExpoConfig = {
   version: VERSAO,
   orientation: 'portrait',
   icon: './assets/images/icon.png',
-  scheme: VARIANTE === 'producao' ? 'unijovem' : 'unijovem-hml',
+  scheme: ESQUEMAS.length > 1 ? ESQUEMAS : ESQUEMA,
   userInterfaceStyle: 'automatic',
   ios: {
     bundleIdentifier: IDENTIFICADOR[VARIANTE],
     supportsTablet: false,
     associatedDomains: [`applinks:${DOMINIO[VARIANTE]}`],
+    // Entrar com a Apple (diretriz 4.8 da App Store, já que há login social).
+    // O App ID precisa da capacidade "Sign in with Apple" no portal da Apple.
+    usesAppleSignIn: true,
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
       NSCameraUsageDescription: TEXTO_CAMERA,
+      // Textos do sistema (botões nativos, folhas, Face ID) em português.
+      CFBundleDevelopmentRegion: 'pt-BR',
+      CFBundleLocalizations: ['pt-BR'],
     },
   },
   android: {
@@ -108,6 +133,8 @@ const config: ExpoConfig = {
     ],
   },
   web: {
+    // O leitor de tela da web lê em português (atributo lang do documento).
+    lang: 'pt-BR',
     output: 'single',
     favicon: './assets/images/favicon.png',
   },
@@ -125,7 +152,11 @@ const config: ExpoConfig = {
       'expo-camera',
       { cameraPermission: TEXTO_CAMERA, microphonePermission: false, recordAudioAndroid: false },
     ],
-    ['expo-secure-store', { faceIDPermission: false }],
+    // Face ID: o cofre da sessão (SecureStore com requireAuthentication) e a
+    // confirmação ao ligar (LocalAuthentication) usam o mesmo texto.
+    ['expo-secure-store', { faceIDPermission: TEXTO_FACE_ID }],
+    ['expo-local-authentication', { faceIDPermission: TEXTO_FACE_ID }],
+    'expo-apple-authentication',
     ['expo-sqlite', { useSQLCipher: true }],
     // Versículo local e push nativo (F14). Sem alarme exato (bloqueado acima):
     // o versículo pode chegar com alguns minutos de diferença, sem justificativa à loja.

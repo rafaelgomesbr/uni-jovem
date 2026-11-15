@@ -56,6 +56,7 @@ export function TelaPrimeiroAcesso() {
           icone="link"
           titulo="Link incompleto"
           descricao="Abra de novo o link gerado no servidor. Ele vale por 30 minutos e só pode ser usado uma vez."
+          acao={{ titulo: 'Ir para entrar', aoPressionar: () => router.replace('/entrar') }}
         />
       </Tela>
     )

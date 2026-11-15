@@ -88,6 +88,7 @@ export function CamposDoAviso({
         rotulo="Mostrar até (opcional)"
         ajuda="Depois deste dia o aviso sai do ar sozinho. Em branco: fica até você despublicar."
         exemplo="30/11/2026"
+        formato="data"
         value={valores.ate}
         onChangeText={(ate) => aoMudar({ ...valores, ate })}
         erro={erros.ate ?? null}

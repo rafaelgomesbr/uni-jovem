@@ -1,13 +1,19 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { NOME_DO_PAPEL, PAPEIS, podeConcederPapel, type Papel } from '@uj/dominio'
+import { ESPACO } from '@uj/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
+import { View } from 'react-native'
 
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
-import type { EstadoDoVinculo, Membro } from '@/servicos/contrato'
+import type { ComunidadeDoVinculo, Membro } from '@/servicos/contrato'
+import { ehErroDaApi } from '@/servicos/erros'
 import { confirmar } from '@/utilidades/confirmar'
+import { formatarData } from '@/utilidades/formatos'
+import { Avatar } from '@/ui/Avatar'
+import { Aviso } from '@/ui/Aviso'
 import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { Botao } from '@/ui/Botao'
 import { CaixaDeMarcar } from '@/ui/CaixaDeMarcar'
@@ -15,18 +21,19 @@ import { Carregando } from '@/ui/Carregando'
 import { Cartao } from '@/ui/Cartao'
 import { EstadoVazio } from '@/ui/EstadoVazio'
 import { GrupoDeOpcoes } from '@/ui/GrupoDeOpcoes'
-import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
+import { TextoAnunciado } from '@/ui/TextoAnunciado'
 
+import { SemComunidade } from '../navegacao/SemComunidade'
 import { useMembros } from './consultas'
-import { NOME_DO_ESTADO_DO_VINCULO } from './nomes'
+import {
+  CHIP_DO_ESTADO_DO_VINCULO,
+  DESCRICAO_DO_PAPEL,
+  CHIP_DO_PAPEL,
+  NOME_DO_ESTADO_DO_VINCULO,
+} from './nomes'
 import { usePode } from './permissoes'
-
-const DESCRICAO_DO_ESTADO: Readonly<Record<EstadoDoVinculo, string>> = {
-  ativo: 'Participa normalmente.',
-  desativado: 'Perde o acesso, mas pode ser reativado depois.',
-  removido: 'Sai da comunidade. Para voltar, precisa de um convite novo.',
-}
+import { CabecalhoDeTela, Chip, Chips, TelaPropria } from './visual'
 
 export function TelaMembro() {
   const { vinculoId } = useLocalSearchParams<{ vinculoId: string }>()
@@ -34,137 +41,252 @@ export function TelaMembro() {
   const membros = useMembros(comunidadeAtiva?.id ?? null)
   const membro = membros.data?.find((m) => m.vinculoId === vinculoId)
 
-  if (!comunidadeAtiva) return <Tela cabecalhoNativo>{null}</Tela>
+  if (!comunidadeAtiva) {
+    return (
+      <TelaPropria>
+        <SemComunidade oQue="as pessoas" />
+      </TelaPropria>
+    )
+  }
   if (membros.isPending) {
     return (
-      <Tela cabecalhoNativo>
-        <Carregando />
-      </Tela>
+      <TelaPropria>
+        <Carregando texto="Carregando a pessoa" />
+      </TelaPropria>
     )
   }
   if (membros.error) {
     return (
-      <Tela cabecalhoNativo>
+      <TelaPropria>
         <AvisoDeErro erro={membros.error} aoTentarDeNovo={() => void membros.refetch()} />
-      </Tela>
+      </TelaPropria>
     )
   }
   if (!membro) {
     return (
-      <Tela cabecalhoNativo>
-        <EstadoVazio
-          icone="comunidade"
-          titulo="Pessoa não encontrada"
-          descricao="Ela pode ter saído da comunidade."
-          acao={{ titulo: 'Voltar', aoPressionar: () => router.back() }}
-        />
-      </Tela>
+      <TelaPropria>
+        <Cartao>
+          <EstadoVazio
+            icone="comunidade"
+            titulo="Pessoa não encontrada"
+            descricao="Ela pode ter saído da comunidade."
+            acao={{ titulo: 'Voltar para a Equipe', aoPressionar: () => router.back() }}
+          />
+        </Cartao>
+      </TelaPropria>
     )
   }
-  return (
-    <EditarMembro
-      membro={membro}
-      comunidadeId={comunidadeAtiva.id}
-      comunidade={comunidadeAtiva.nome}
-      meuPapel={comunidadeAtiva.papel}
-    />
-  )
+  return <EditarMembro membro={membro} comunidade={comunidadeAtiva} />
 }
 
-interface PropsDaEdicao {
-  membro: Membro
-  comunidadeId: string
-  comunidade: string
-  meuPapel: Papel
+interface Alteracao {
+  corpo: { papel?: Papel; estado?: Membro['estado']; equipeDeOracao?: boolean }
+  /** O que aparece (e é anunciado) quando dá certo. */
+  feito: string
 }
 
-function EditarMembro({ membro, comunidadeId, comunidade, meuPapel }: PropsDaEdicao) {
+function EditarMembro({ membro, comunidade }: { membro: Membro; comunidade: ComunidadeDoVinculo }) {
   const pode = usePode()
+  const { conta } = useSessao()
   const consultas = useQueryClient()
   const [papel, setPapel] = useState<Papel>(membro.papel)
-  const [estado, setEstado] = useState<EstadoDoVinculo>(membro.estado)
-  const [oracao, setOracao] = useState(membro.designacoes.includes('equipe_oracao'))
+  const [feito, setFeito] = useState<string | null>(null)
+  const nome = membro.nome
+  const ehVoce = membro.contaId === conta?.id
 
-  const mudou =
-    papel !== membro.papel ||
-    estado !== membro.estado ||
-    oracao !== membro.designacoes.includes('equipe_oracao')
-
-  const salvar = useMutation({
-    mutationFn: () =>
-      api.patch(`/api/v1/c/${comunidadeId}/membros/${membro.vinculoId}`, {
-        ...(papel !== membro.papel ? { papel } : {}),
-        ...(estado !== membro.estado ? { estado } : {}),
-        ...(oracao !== membro.designacoes.includes('equipe_oracao')
-          ? { equipeDeOracao: oracao }
-          : {}),
-      }),
-    onSuccess: async () => {
-      await consultas.invalidateQueries({ queryKey: CHAVES.membros(comunidadeId) })
-      router.back()
+  const alterar = useMutation({
+    mutationFn: (a: Alteracao) =>
+      api.patch(`/api/v1/c/${comunidade.id}/membros/${membro.vinculoId}`, a.corpo),
+    onMutate: () => setFeito(null),
+    onSuccess: async (_r, a) => {
+      setFeito(a.feito)
+      await consultas.invalidateQueries({ queryKey: CHAVES.membros(comunidade.id) })
     },
   })
 
-  async function confirmarESalvar() {
-    if (estado === 'removido' && membro.estado !== 'removido') {
-      const ok = await confirmar({
-        titulo: `Remover ${membro.nome} de ${comunidade}?`,
-        mensagem: 'A pessoa perde o acesso. Para voltar, vai precisar de um convite novo.',
-        confirmar: `Remover de ${comunidade}`,
-        destrutivo: true,
-      })
-      if (!ok) return
-    }
-    salvar.mutate()
+  async function pedir(
+    a: Alteracao,
+    titulo: string,
+    mensagem: string,
+    rotulo: string,
+    destrutivo: boolean,
+  ) {
+    const ok = await confirmar({ titulo, mensagem, confirmar: rotulo, destrutivo })
+    if (ok) alterar.mutate(a)
   }
 
+  // Só os papéis que eu posso conceder; se o papel atual dela está acima, nem mostro.
+  const podeMudarPapel =
+    pode('vinculo', 'alterar_papel') && !ehVoce && podeConcederPapel(comunidade.papel, membro.papel)
+  const papeisPossiveis = PAPEIS.filter((p) => podeConcederPapel(comunidade.papel, p))
+  const contato = pode('vinculo', 'ver_contato')
+    ? [membro.email, membro.whatsapp].filter((c): c is string => Boolean(c))
+    : []
+  const ultimoAdmin = ehErroDaApi(alterar.error, 'ultimo_admin')
+
   return (
-    <Tela cabecalhoNativo titulo={membro.nome} descricao={`Em ${comunidade}`}>
-      <Cartao>
-        {pode('vinculo', 'alterar_papel') ? (
+    <TelaPropria>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.x4 }}>
+        <Avatar nome={nome} avatar={membro.avatar ?? null} tamanho="G" decorativo />
+        <View style={{ flex: 1 }}>
+          <CabecalhoDeTela sobrancelha={comunidade.nome} titulo={nome} />
+        </View>
+      </View>
+      <Chips>
+        <Chip
+          texto={NOME_DO_PAPEL[membro.papel]}
+          icone={CHIP_DO_PAPEL[membro.papel].icone}
+          tom={CHIP_DO_PAPEL[membro.papel].tom}
+        />
+        <Chip
+          texto={NOME_DO_ESTADO_DO_VINCULO[membro.estado]}
+          icone={CHIP_DO_ESTADO_DO_VINCULO[membro.estado].icone}
+          tom={CHIP_DO_ESTADO_DO_VINCULO[membro.estado].tom}
+        />
+        {membro.designacoes.includes('equipe_oracao') ? (
+          <Chip texto="Equipe de oração" icone="oracao" />
+        ) : null}
+      </Chips>
+      <Texto variante="apoio" cor="textoSuave">
+        Na comunidade desde {formatarData(membro.desde)}.
+        {contato.length ? ` Contato: ${contato.join(' · ')}` : ''}
+      </Texto>
+
+      {feito ? (
+        <Aviso tipo="sucesso" anunciar>
+          {feito}
+        </Aviso>
+      ) : null}
+      {ultimoAdmin ? (
+        <Aviso tipo="alerta" titulo="A comunidade precisa de um administrador" anunciar>
+          {`${nome} é a única pessoa administradora ativa de ${comunidade.nome}. Antes de mudar o papel ou tirar essa pessoa, torne outra pessoa administradora.`}
+        </Aviso>
+      ) : alterar.error ? (
+        <AvisoDeErro erro={alterar.error} />
+      ) : null}
+
+      {podeMudarPapel && membro.estado === 'ativo' ? (
+        <Cartao titulo="Papel" icone="chave" descricao="Você só concede papéis até o seu nível.">
           <GrupoDeOpcoes
-            rotulo="Papel"
+            rotulo={`Papel de ${nome}`}
             valor={papel}
             aoMudar={setPapel}
-            opcoes={PAPEIS.map((p) => ({
+            opcoes={papeisPossiveis.map((p) => ({
               valor: p,
               rotulo: NOME_DO_PAPEL[p],
-              desabilitada: !podeConcederPapel(meuPapel, p),
+              descricao: DESCRICAO_DO_PAPEL[p],
             }))}
           />
-        ) : null}
-        {pode('vinculo', 'desativar') ? (
-          <GrupoDeOpcoes
-            rotulo="Situação"
-            valor={estado}
-            aoMudar={setEstado}
-            opcoes={(['ativo', 'desativado', 'removido'] as const).map((e) => ({
-              valor: e,
-              rotulo: NOME_DO_ESTADO_DO_VINCULO[e],
-              descricao: DESCRICAO_DO_ESTADO[e],
-            }))}
+          <Botao
+            titulo="Salvar papel"
+            desabilitado={papel === membro.papel}
+            motivo="Escolha um papel diferente do atual."
+            carregando={alterar.isPending && alterar.variables?.corpo.papel !== undefined}
+            aoPressionar={() =>
+              void pedir(
+                { corpo: { papel }, feito: `${nome} agora é ${NOME_DO_PAPEL[papel]}.` },
+                `Mudar o papel de ${nome}?`,
+                `${nome} passa de ${NOME_DO_PAPEL[membro.papel]} para ${NOME_DO_PAPEL[papel]} em ${comunidade.nome}.`,
+                `Tornar ${NOME_DO_PAPEL[papel]}`,
+                false,
+              )
+            }
           />
-        ) : null}
-        {pode('vinculo', 'designar_equipe_oracao') ? (
+        </Cartao>
+      ) : null}
+
+      {pode('vinculo', 'designar_equipe_oracao') && membro.estado === 'ativo' ? (
+        <Cartao titulo="Equipe de oração" icone="oracao">
           <CaixaDeMarcar
-            rotulo="Equipe de oração"
-            descricao="Vê os pedidos de oração enviados para a equipe."
-            marcada={oracao}
-            aoMudar={setOracao}
+            rotulo="Faz parte da equipe de oração"
+            descricao="Vê os pedidos enviados para a equipe. Pedidos de 'Somente eu' continuam só da pessoa."
+            marcada={membro.designacoes.includes('equipe_oracao')}
+            aoMudar={(marcada) =>
+              alterar.mutate({
+                corpo: { equipeDeOracao: marcada },
+                feito: marcada
+                  ? `${nome} entrou na equipe de oração.`
+                  : `${nome} saiu da equipe de oração.`,
+              })
+            }
           />
-        ) : null}
-        {salvar.error ? <AvisoDeErro erro={salvar.error} /> : null}
-        <Botao
-          titulo={`Salvar alterações em ${comunidade}`}
-          aoPressionar={() => void confirmarESalvar()}
-          carregando={salvar.isPending}
-          desabilitado={!mudou}
-          motivo="Nada foi alterado ainda."
-        />
-        <Texto variante="apoio" cor="textoSuave">
-          A comunidade sempre precisa de pelo menos uma pessoa administradora ativa.
-        </Texto>
-      </Cartao>
-    </Tela>
+        </Cartao>
+      ) : null}
+
+      {pode('vinculo', 'desativar') ? (
+        <Cartao titulo="Situação" icone="pessoa">
+          {membro.estado === 'ativo' ? (
+            <>
+              <Texto variante="apoio" cor="textoSuave">
+                Desativar tira o acesso, mas dá para reativar depois.
+              </Texto>
+              <Botao
+                titulo={`Desativar ${nome}`}
+                icone="pausar"
+                variante="secundario"
+                carregando={alterar.isPending && alterar.variables?.corpo.estado === 'desativado'}
+                aoPressionar={() =>
+                  void pedir(
+                    { corpo: { estado: 'desativado' }, feito: `${nome} foi desativado.` },
+                    `Desativar ${nome}?`,
+                    `${nome} perde o acesso a ${comunidade.nome} até ser reativado.`,
+                    'Desativar',
+                    true,
+                  )
+                }
+              />
+            </>
+          ) : (
+            <>
+              <Texto variante="apoio" cor="textoSuave">
+                {membro.estado === 'desativado'
+                  ? 'Reativar devolve o acesso com o mesmo papel.'
+                  : 'Pessoa removida. Se a reativação for recusada, mande um convite novo.'}
+              </Texto>
+              <Botao
+                titulo={`Reativar ${nome}`}
+                icone="repetir"
+                carregando={alterar.isPending && alterar.variables?.corpo.estado === 'ativo'}
+                aoPressionar={() =>
+                  void pedir(
+                    { corpo: { estado: 'ativo' }, feito: `${nome} foi reativado.` },
+                    `Reativar ${nome}?`,
+                    `${nome} volta a ter acesso a ${comunidade.nome} como ${NOME_DO_PAPEL[membro.papel]}.`,
+                    'Reativar',
+                    false,
+                  )
+                }
+              />
+            </>
+          )}
+          {pode('vinculo', 'remover') && membro.estado !== 'removido' ? (
+            <Botao
+              titulo={`Remover ${nome} da comunidade`}
+              icone="excluir"
+              variante="perigo"
+              carregando={alterar.isPending && alterar.variables?.corpo.estado === 'removido'}
+              aoPressionar={() =>
+                void pedir(
+                  { corpo: { estado: 'removido' }, feito: `${nome} foi removido.` },
+                  `Remover ${nome} de ${comunidade.nome}?`,
+                  'A pessoa perde o acesso. Para voltar, vai precisar de um convite novo.',
+                  'Remover',
+                  true,
+                )
+              }
+            />
+          ) : null}
+        </Cartao>
+      ) : null}
+
+      {feito ? (
+        <TextoAnunciado variante="apoio" cor="textoSuave">
+          As mudanças já valem para {nome}.
+        </TextoAnunciado>
+      ) : null}
+      <Texto variante="legenda" cor="textoSuave">
+        A comunidade sempre precisa de pelo menos uma pessoa administradora ativa.
+      </Texto>
+    </TelaPropria>
   )
 }

@@ -12,6 +12,7 @@ import { dataDoInstante, formatarDuracao, formatarHora } from '@/utilidades/data
 import { parametro } from '@/utilidades/parametros'
 import { Aviso } from '@/ui/Aviso'
 import { AvisoDeErro } from '@/ui/AvisoDeErro'
+import { Avatar } from '@/ui/Avatar'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
 import { Carregando } from '@/ui/Carregando'
@@ -275,6 +276,7 @@ function Equipe({
           {atribuicoes.map((a) => (
             <View key={a.id} style={{ gap: ESPACO.x1 }}>
               <Linha
+                inicio={<Avatar nome={a.nome} tamanho="P" decorativo />}
                 titulo={a.nome}
                 descricao={a.funcao}
                 extra={
@@ -290,7 +292,7 @@ function Equipe({
                   variante="discreto"
                   icone="excluir"
                   larguraTotal={false}
-                  rotuloAcessivel={`Tirar ${a.nome} (${a.funcao}) da escala`}
+                  rotuloAcessivel={`Tirar da escala: ${a.nome} (${a.funcao})`}
                   aoPressionar={() => void pedirRemocao(a.id, a.nome)}
                 />
               ) : null}

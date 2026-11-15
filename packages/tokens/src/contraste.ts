@@ -24,3 +24,28 @@ export function contraste(a: string, b: string): number {
 
 /** Mínimos WCAG: texto normal 4,5:1; texto grande e elementos de interface 3:1. */
 export const MINIMO = { texto: 4.5, textoGrande: 3, interface: 3 } as const
+
+/**
+ * Cor translúcida (`rgba(r,g,b,a)`) composta sobre um fundo opaco: é o que o
+ * olho vê no vidro. Serve para conferir o texto sobre o vidro.
+ */
+export function comporCor(rgba: string, fundo: string): string {
+  const m = /^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)$/.exec(rgba)
+  if (!m) throw new Error(`cor translúcida inválida: ${rgba}`)
+  const [r, g, b, a] = [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4])]
+  const h = fundo.replace('#', '')
+  const base = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16))
+  const canalComposto = (frente: number, i: number) =>
+    Math.round(frente * a + base[i]! * (1 - a))
+      .toString(16)
+      .padStart(2, '0')
+  return `#${canalComposto(r, 0)}${canalComposto(g, 1)}${canalComposto(b, 2)}`.toUpperCase()
+}
+
+const BRANCO = '#FFFFFF'
+const QUASE_PRETO = '#12102A'
+
+/** Branco ou quase preto, o que contrastar mais sobre `fundo` (ícone sobre a cor da comunidade). */
+export function corSobre(fundo: string): string {
+  return contraste(BRANCO, fundo) >= contraste(QUASE_PRETO, fundo) ? BRANCO : QUASE_PRETO
+}

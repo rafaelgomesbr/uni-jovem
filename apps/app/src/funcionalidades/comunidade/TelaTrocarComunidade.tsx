@@ -1,53 +1,148 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { NOME_DO_PAPEL } from '@uj/dominio'
+import { ESPACO, RAIO, RITMO } from '@uj/tokens'
 import { router } from 'expo-router'
+import { Pressable, View } from 'react-native'
 
+import { CHAVES } from '@/estado/clienteDeConsulta'
 import { useSessao } from '@/estado/sessao'
+import type { ComunidadeDoVinculo } from '@/servicos/contrato'
+import { usePreferenciasDeAcessibilidade } from '@/ui/acessibilidade'
+import { Botao } from '@/ui/Botao'
 import { Cartao } from '@/ui/Cartao'
 import { EstadoVazio } from '@/ui/EstadoVazio'
-import { GrupoDeOpcoes } from '@/ui/GrupoDeOpcoes'
-import { Tela } from '@/ui/Tela'
+import { Icone } from '@/ui/Icone'
+import { Texto } from '@/ui/Texto'
+import { useTema } from '@/ui/tema'
 
-import { NOME_DO_ESTADO_DA_COMUNIDADE } from './nomes'
+import { MarcaDaComunidade } from './Identidade'
+import { CHIP_DO_ESTADO_DA_COMUNIDADE, CHIP_DO_PAPEL, NOME_DO_ESTADO_DA_COMUNIDADE } from './nomes'
+import { CabecalhoDeTela, Chip, Chips, TelaPropria } from './visual'
 
-/** Seletor explícito da comunidade ativa. */
+/** Seletor explícito da comunidade ativa, com a identidade e o papel em cada uma. */
 export function TelaTrocarComunidade() {
-  const { comunidades, comunidadeAtiva, trocarComunidade } = useSessao()
+  const { comunidades, comunidadeAtiva, trocarComunidade, conta } = useSessao()
+  const consultas = useQueryClient()
+
+  async function escolher(id: string) {
+    await trocarComunidade(id)
+    if (router.canGoBack()) router.back()
+    else router.replace('/')
+  }
 
   return (
-    <Tela
-      cabecalhoNativo
-      titulo="Trocar de comunidade"
-      descricao="O que você vê e faz no app vale para a comunidade escolhida."
-    >
-      <Cartao>
-        {comunidades.length === 0 ? (
+    <TelaPropria>
+      <CabecalhoDeTela
+        sobrancelha="Suas comunidades"
+        titulo="Trocar de comunidade"
+        descricao="O que você vê e faz no app vale para a comunidade escolhida."
+      />
+      {comunidades.length === 0 ? (
+        <Cartao>
           <EstadoVazio
             icone="comunidade"
-            titulo="Nenhuma comunidade"
+            titulo="Nenhuma comunidade ainda"
             descricao="Quando você aceitar um convite, a comunidade aparece aqui."
-          />
-        ) : (
-          <GrupoDeOpcoes
-            rotulo="Suas comunidades"
-            valor={comunidadeAtiva?.id ?? null}
-            opcoes={comunidades.map((c) => ({
-              valor: c.id,
-              rotulo: c.nome,
-              descricao: [
-                NOME_DO_PAPEL[c.papel],
-                c.estado !== 'ativa' ? NOME_DO_ESTADO_DA_COMUNIDADE[c.estado] : null,
-              ]
-                .filter(Boolean)
-                .join(' · '),
-            }))}
-            aoMudar={async (id) => {
-              await trocarComunidade(id)
-              if (router.canGoBack()) router.back()
-              else router.replace('/')
+            acao={{
+              titulo: 'Verificar de novo',
+              icone: 'sincronizar',
+              aoPressionar: () => void consultas.invalidateQueries({ queryKey: CHAVES.eu }),
             }}
           />
-        )}
-      </Cartao>
-    </Tela>
+        </Cartao>
+      ) : (
+        <View
+          accessibilityRole="radiogroup"
+          aria-label="Suas comunidades"
+          style={{ gap: ESPACO.x3 }}
+        >
+          {comunidades.map((c) => (
+            <OpcaoDeComunidade
+              key={c.id}
+              comunidade={c}
+              ativa={c.id === comunidadeAtiva?.id}
+              aoEscolher={() => void escolher(c.id)}
+            />
+          ))}
+        </View>
+      )}
+      <Botao
+        titulo="Entrar com um convite"
+        icone="link"
+        variante="secundario"
+        aoPressionar={() => router.push('/entrar-com-convite')}
+      />
+      {conta?.criador ? (
+        <Botao
+          titulo="Criar comunidade"
+          icone="adicionar"
+          variante="terciario"
+          aoPressionar={() => router.push('/plataforma/nova')}
+        />
+      ) : null}
+    </TelaPropria>
+  )
+}
+
+function OpcaoDeComunidade({
+  comunidade,
+  ativa,
+  aoEscolher,
+}: {
+  comunidade: ComunidadeDoVinculo
+  ativa: boolean
+  aoEscolher: () => void
+}) {
+  const { cores, elevacao } = useTema()
+  const { aumentarContraste } = usePreferenciasDeAcessibilidade()
+  const papel = NOME_DO_PAPEL[comunidade.papel]
+  const estado = NOME_DO_ESTADO_DA_COMUNIDADE[comunidade.estado]
+  return (
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityState={{ checked: ativa }}
+      aria-checked={ativa}
+      accessibilityLabel={`${comunidade.nome}. Seu papel: ${papel}.${
+        comunidade.estado !== 'ativa' ? ` ${estado}.` : ''
+      }${ativa ? ' Comunidade ativa agora.' : ''}`}
+      onPress={aoEscolher}
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: ESPACO.x3,
+        padding: RITMO.dentroDoCartao,
+        borderRadius: RAIO.grande,
+        backgroundColor: pressed || ativa ? cores.superficieRealce : cores.superficie,
+        // Escolhida: contorno grosso na cor de destaque, marca e texto (nunca só cor).
+        borderWidth: ativa || aumentarContraste ? 2 : 1,
+        borderColor: ativa ? cores.destaque : aumentarContraste ? cores.texto : cores.bordaSuave,
+        boxShadow: aumentarContraste ? elevacao.nenhuma : elevacao.cartao,
+      })}
+    >
+      <MarcaDaComunidade cor={comunidade.cor} tamanho={48} />
+      <View style={{ flex: 1, gap: ESPACO.x1 }}>
+        <Texto variante="subtitulo">{comunidade.nome}</Texto>
+        <Chips>
+          <Chip
+            texto={papel}
+            icone={CHIP_DO_PAPEL[comunidade.papel].icone}
+            tom={CHIP_DO_PAPEL[comunidade.papel].tom}
+          />
+          {comunidade.estado !== 'ativa' ? (
+            <Chip
+              texto={estado}
+              icone={CHIP_DO_ESTADO_DA_COMUNIDADE[comunidade.estado].icone}
+              tom={CHIP_DO_ESTADO_DA_COMUNIDADE[comunidade.estado].tom}
+            />
+          ) : null}
+          {ativa ? <Chip texto="Ativa agora" icone="confirmado" tom="destaque" /> : null}
+        </Chips>
+      </View>
+      <Icone
+        nome={ativa ? 'confirmado' : 'pendente'}
+        cor={ativa ? cores.destaque : cores.textoSuave}
+        tamanho={24}
+      />
+    </Pressable>
   )
 }

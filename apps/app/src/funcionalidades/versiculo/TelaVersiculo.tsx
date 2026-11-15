@@ -14,6 +14,7 @@ import { Cartao } from '@/ui/Cartao'
 import { Linha } from '@/ui/Linha'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
+import { TextoAnunciado } from '@/ui/TextoAnunciado'
 
 import { usePreferenciasDaConta, useSalvarVersiculo } from '../notificacoes/consultas'
 import { PermissaoDoSistema } from '../notificacoes/PermissaoDoSistema'
@@ -83,6 +84,7 @@ function Preferencia({ ativo, hora }: { ativo: boolean; hora: string }) {
         <Campo
           rotulo="Horário"
           exemplo="07:00"
+          formato="hora"
           ajuda="No fuso do aparelho. Se você viajar, o app reagenda sozinho."
           value={texto}
           onChangeText={setTexto}
@@ -93,9 +95,9 @@ function Preferencia({ ativo, hora }: { ativo: boolean; hora: string }) {
         />
         {salvar.error ? <AvisoDeErro erro={salvar.error} /> : null}
         {salvar.isSuccess ? (
-          <Texto variante="apoio" cor="sucesso" accessibilityLiveRegion="polite">
+          <TextoAnunciado variante="apoio" cor="sucesso">
             Preferência salva.
-          </Texto>
+          </TextoAnunciado>
         ) : null}
         <Botao
           titulo="Salvar horário"

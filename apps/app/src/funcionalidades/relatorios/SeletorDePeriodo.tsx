@@ -6,7 +6,7 @@ import { formatarDataLocal, lerDataDigitada, somarDias, type DataLocal } from '@
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
 import { Segmentos } from '@/ui/Segmentos'
-import { Texto } from '@/ui/Texto'
+import { TextoAnunciado } from '@/ui/TextoAnunciado'
 
 export type Atalho = '30' | '90' | '365' | 'outro'
 
@@ -81,6 +81,7 @@ export function SeletorDePeriodo({
           <Campo
             rotulo="De"
             exemplo="01/09/2026"
+            formato="data"
             value={de}
             onChangeText={setDe}
             inputMode="numeric"
@@ -88,6 +89,7 @@ export function SeletorDePeriodo({
           <Campo
             rotulo="Até"
             exemplo="30/11/2026"
+            formato="data"
             value={ate}
             onChangeText={setAte}
             erro={erro}
@@ -96,9 +98,9 @@ export function SeletorDePeriodo({
           <Botao titulo="Aplicar datas" variante="secundario" aoPressionar={aplicar} />
         </View>
       ) : null}
-      <Texto variante="apoio" cor="textoSuave" accessibilityLiveRegion="polite">
+      <TextoAnunciado soMudancas variante="apoio" cor="textoSuave">
         De {formatarDataLocal(periodo.de)} a {formatarDataLocal(periodo.ate)}
-      </Texto>
+      </TextoAnunciado>
     </View>
   )
 }

@@ -34,7 +34,7 @@ function BotaoDeOrdem({
       accessibilityRole="button"
       accessibilityLabel={rotulo}
       accessibilityHint={dica}
-      accessibilityState={{ disabled: inativo }}
+      aria-disabled={inativo}
       disabled={inativo}
       onPress={aoPressionar}
       style={({ pressed }) => ({

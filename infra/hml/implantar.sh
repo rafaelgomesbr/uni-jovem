@@ -23,7 +23,7 @@ PACOTE="$(mktemp)"
 trap 'rm -f "$PACOTE"' EXIT
 git archive --format=tar HEAD \
   apps/api/src apps/api/migracoes apps/api/package.json apps/api/tsconfig.json \
-  packages/dominio tsconfig.base.json infra docs/privacidade > "$PACOTE"
+  packages/dominio packages/tokens tsconfig.base.json infra docs/privacidade > "$PACOTE"
 echo "Enviando $(git rev-parse --short HEAD) para $SERVIDOR..."
 
 ssh -o BatchMode=yes "$SERVIDOR" "zsh -lc 'set -e

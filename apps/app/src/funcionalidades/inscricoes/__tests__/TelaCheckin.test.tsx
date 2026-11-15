@@ -85,7 +85,7 @@ describe('check-in sem câmera', () => {
     expect(screen.queryByText('Carla Dias')).toBeNull()
     await userEvent
       .setup()
-      .press(screen.getByRole('button', { name: 'Marcar presença de Daniela Prado' }))
+      .press(screen.getByRole('button', { name: 'Marcar presença: Daniela Prado' }))
 
     await waitFor(() =>
       expect(pedidosPara(servidor, 'POST', `${CAMINHO}/presencas`)[0]?.corpo).toMatchObject({
@@ -108,7 +108,7 @@ describe('check-in sem câmera', () => {
     expect(await screen.findAllByText('Bruno Lima')).toHaveLength(1)
     await userEvent
       .setup()
-      .press(screen.getByRole('button', { name: 'Marcar presença de Carla Dias' }))
+      .press(screen.getByRole('button', { name: 'Marcar presença: Carla Dias' }))
     await waitFor(() =>
       expect(pedidosPara(servidor, 'POST', `${CAMINHO}/presencas`)[0]?.corpo).toMatchObject({
         vinculoId: PESSOAS[2]!.vinculoId,
@@ -123,7 +123,7 @@ describe('check-in sem câmera', () => {
 
     await userEvent
       .setup()
-      .press(await screen.findByRole('button', { name: 'Desfazer a presença de Bruno Lima' }))
+      .press(await screen.findByRole('button', { name: 'Desfazer presença: Bruno Lima' }))
 
     await waitFor(() =>
       expect(pedidosPara(servidor, 'DELETE', `${CAMINHO}/presencas/pres-bruno`)).toHaveLength(1),

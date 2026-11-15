@@ -33,6 +33,20 @@ interface PropsDaLinha {
   soHora?: boolean
 }
 
+/** O que o leitor de tela diz de um evento (lista, cartão de destaque do Início). */
+export function rotuloFaladoDoEvento(evento: EventoDaLinha, fuso: string): string {
+  return [
+    evento.titulo,
+    NOME_DO_STATUS[evento.status],
+    falarQuando(evento.inicio, fuso),
+    `duração de ${formatarDuracao(evento.duracaoMin)}`,
+    evento.localNome ? `local: ${evento.localNome}` : null,
+    evento.serieId ? 'faz parte de uma série' : null,
+  ]
+    .filter(Boolean)
+    .join(', ')
+}
+
 /** Evento numa lista: título, quando, onde e situação, num só alvo de toque. */
 export function LinhaDoEvento({ evento, fuso, aoPressionar, selecionado, soHora }: PropsDaLinha) {
   const { cores } = useTema()
@@ -44,15 +58,7 @@ export function LinhaDoEvento({ evento, fuso, aoPressionar, selecionado, soHora 
     evento.localNome ?? null,
     evento.serieId ? 'Repete' : null,
   ].filter(Boolean)
-  const falado = [
-    evento.titulo,
-    NOME_DO_STATUS[evento.status],
-    falarQuando(evento.inicio, fuso),
-    `duração de ${formatarDuracao(evento.duracaoMin)}`,
-    evento.localNome ? `local: ${evento.localNome}` : null,
-    evento.serieId ? 'faz parte de uma série' : null,
-    selecionado ? 'aberto ao lado' : null,
-  ]
+  const falado = [rotuloFaladoDoEvento(evento, fuso), selecionado ? 'aberto ao lado' : null]
     .filter(Boolean)
     .join(', ')
 
@@ -60,19 +66,22 @@ export function LinhaDoEvento({ evento, fuso, aoPressionar, selecionado, soHora 
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={falado}
-      accessibilityState={{ selected: !!selecionado }}
+      aria-selected={!!selecionado}
       onPress={aoPressionar}
       style={({ pressed }) => ({
         minHeight: ALVO,
         flexDirection: 'row',
         alignItems: 'center',
         gap: ESPACO.x3,
-        padding: ESPACO.x3,
-        borderRadius: RAIO.medio,
+        padding: ESPACO.x4,
+        borderRadius: RAIO.grande - 4,
         borderWidth: selecionado ? 2 : aumentarContraste ? 2 : 1,
-        borderColor: selecionado ? cores.destaque : aumentarContraste ? cores.texto : cores.borda,
-        backgroundColor: selecionado ? cores.superficieElevada : cores.superficie,
-        opacity: pressed ? 0.8 : 1,
+        borderColor: selecionado
+          ? cores.destaque
+          : aumentarContraste
+            ? cores.texto
+            : cores.cartaoVidroBorda,
+        backgroundColor: selecionado || pressed ? cores.superficieRealce : cores.cartaoVidro,
       })}
     >
       <View style={{ flex: 1, gap: ESPACO.x1 }}>

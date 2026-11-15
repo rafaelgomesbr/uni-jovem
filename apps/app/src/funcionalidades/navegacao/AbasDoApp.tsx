@@ -1,41 +1,27 @@
-import { NativeTabs } from 'expo-router/native-tabs'
-import { Platform } from 'react-native'
+import { TabList, TabSlot, Tabs } from 'expo-router/ui'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { FAMILIA } from '@/ui/fontes'
-import { ICONES } from '@/ui/Icone'
+import { ContextoDaBarraDeAbas } from '@/ui/Tela'
 import { useTema } from '@/ui/tema'
 
-import { ABAS } from './abas'
+import { espacoDaBarra, itensDaBarraFlutuante, propsDaBarraFlutuante } from './BarraDeAbas'
 
 /**
- * Abas nativas no iOS e no Android. No iOS 26 a barra já vem com o vidro do
- * sistema (que respeita Reduzir transparência sozinho); por isso não há cor
- * de fundo no iOS. No Android, superfície opaca do tema.
+ * Abas do celular: a barra flutuante do mockup (não a barra nativa do
+ * sistema), igual no iOS e no Android. As telas reservam o espaço dela no fim
+ * da rolagem pelo `ContextoDaBarraDeAbas`.
  */
 export function AbasDoApp() {
   const { cores } = useTema()
+  const margens = useSafeAreaInsets()
   return (
-    <NativeTabs
-      tintColor={cores.destaque}
-      iconColor={{ default: cores.textoSuave, selected: cores.destaque }}
-      labelStyle={{
-        default: { color: cores.textoSuave, fontFamily: FAMILIA.textoForte },
-        selected: { color: cores.destaque, fontFamily: FAMILIA.textoForte },
-      }}
-      {...(Platform.OS === 'android'
-        ? { backgroundColor: cores.superficie, indicatorColor: cores.superficieElevada }
-        : {})}
-    >
-      {ABAS.map((aba) => {
-        // No celular a quinta aba é "Mais" (Perfil e os demais módulos).
-        const { rotulo, icone } = aba.compacta ?? aba
-        return (
-          <NativeTabs.Trigger key={aba.rota} name={aba.rota}>
-            <NativeTabs.Trigger.Label>{rotulo}</NativeTabs.Trigger.Label>
-            <NativeTabs.Trigger.Icon sf={ICONES[icone].ios} md={ICONES[icone].android} />
-          </NativeTabs.Trigger>
-        )
-      })}
-    </NativeTabs>
+    <ContextoDaBarraDeAbas.Provider value={espacoDaBarra(margens.bottom)}>
+      <Tabs style={{ flex: 1, backgroundColor: cores.fundo }}>
+        <TabSlot key="conteudo" style={{ flex: 1 }} />
+        <TabList key="abas" {...propsDaBarraFlutuante(margens.bottom)}>
+          {itensDaBarraFlutuante()}
+        </TabList>
+      </Tabs>
+    </ContextoDaBarraDeAbas.Provider>
   )
 }

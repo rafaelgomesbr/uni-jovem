@@ -17,6 +17,7 @@ import { EstadoVazio } from '@/ui/EstadoVazio'
 import { Linha } from '@/ui/Linha'
 import { Selo } from '@/ui/Selo'
 import { Texto } from '@/ui/Texto'
+import { TextoAnunciado } from '@/ui/TextoAnunciado'
 
 import { usePode } from '../comunidade/permissoes'
 import { TelaDaComunidade } from '../navegacao/TelaDaComunidade'
@@ -196,9 +197,9 @@ function Formulario({ comunidadeId, local }: { comunidadeId: string; local: Loca
         />
         {salvar.error ? <AvisoDeErro erro={salvar.error} /> : null}
         {salvar.isSuccess ? (
-          <Texto variante="apoio" cor="sucesso" accessibilityLiveRegion="polite">
+          <TextoAnunciado variante="apoio" cor="sucesso">
             Local salvo.
-          </Texto>
+          </TextoAnunciado>
         ) : null}
         <Botao titulo="Salvar" carregando={salvar.isPending} aoPressionar={enviar} />
       </Cartao>

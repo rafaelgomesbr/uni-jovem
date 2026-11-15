@@ -254,7 +254,8 @@ function Etapas({ evento, retrato }: { evento: DetalheDoEvento; retrato: Retrato
               .join(', ')}
             style={{ flexDirection: 'row', gap: ESPACO.x3 }}
           >
-            <Texto variante="rotulo" style={{ width: 48, paddingTop: 2 }}>
+            {/* Largura mínima, não fixa: com fonte grande, a hora cresce sem cortar. */}
+            <Texto variante="rotulo" tabular style={{ minWidth: 48, paddingTop: 2 }}>
               {inicio}
             </Texto>
             <View style={{ alignItems: 'center' }}>

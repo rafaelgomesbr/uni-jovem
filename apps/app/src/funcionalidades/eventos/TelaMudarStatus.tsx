@@ -136,6 +136,7 @@ export function TelaMudarStatus() {
               erro={erros.data ?? null}
               ajuda="Em branco, fica sem data nova por enquanto."
               exemplo="22/11/2026"
+              formato="data"
               keyboardType="numbers-and-punctuation"
               maxLength={10}
             />
@@ -145,6 +146,7 @@ export function TelaMudarStatus() {
               onChangeText={setHora}
               erro={erros.hora ?? null}
               exemplo="16:00"
+              formato="hora"
               keyboardType="numbers-and-punctuation"
               maxLength={5}
             />

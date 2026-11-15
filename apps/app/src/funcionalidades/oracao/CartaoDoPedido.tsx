@@ -2,9 +2,11 @@ import { ESPACO } from '@uj/tokens'
 import { router } from 'expo-router'
 import { View } from 'react-native'
 
+import { useSessao } from '@/estado/sessao'
 import type { PedidoDeOracao } from '@/servicos/contratoDosModulos'
 import { confirmar } from '@/utilidades/confirmar'
 import { formatarData } from '@/utilidades/formatos'
+import { Avatar, PilhaDeAvatares } from '@/ui/Avatar'
 import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { Botao } from '@/ui/Botao'
 import { Cartao } from '@/ui/Cartao'
@@ -34,6 +36,7 @@ export function CartaoDoPedido({
   const orar = useEstouOrando(comunidadeId)
   const respondido = useMarcarRespondido(comunidadeId)
   const excluir = useExcluirPedido(comunidadeId)
+  const { conta } = useSessao()
   const autor = pedido.minha ? 'Seu pedido' : `Pedido de ${pedido.autorNome ?? 'uma pessoa'}`
   const erro = orar.error ?? respondido.error ?? excluir.error
 
@@ -49,25 +52,39 @@ export function CartaoDoPedido({
 
   return (
     <Cartao>
-      <View style={{ gap: ESPACO.x1 }}>
-        <Texto variante="corpoForte">{autor}</Texto>
-        <Texto variante="apoio" cor="textoSuave">
-          {formatarData(pedido.criadoEm)}
-        </Texto>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.x3 }}>
+        <Avatar
+          nome={pedido.minha ? (conta?.nome ?? 'Você') : (pedido.autorNome ?? 'Uma pessoa')}
+          {...(pedido.minha ? { avatar: conta?.avatar ?? null } : {})}
+          tamanho="M"
+          decorativo
+        />
+        <View style={{ flex: 1, gap: 2 }}>
+          <Texto variante="corpoForte">{autor}</Texto>
+          <Texto variante="apoio" cor="textoSuave" style={{ fontSize: 13 }}>
+            {formatarData(pedido.criadoEm)}
+          </Texto>
+        </View>
       </View>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>
         <Selo texto={`Quem vê: ${NOME_DA_VISIBILIDADE[pedido.visibilidade]}`} cor="destaque" />
         {pedido.respondidoEm ? <Selo texto="Respondido" cor="sucesso" /> : null}
       </View>
-      <Texto>{pedido.texto ?? 'Não foi possível mostrar o texto deste pedido.'}</Texto>
+      <Texto variante="leitura">
+        {pedido.texto ?? 'Não foi possível mostrar o texto deste pedido.'}
+      </Texto>
       {pedido.minha ? (
         <Texto variante="apoio" cor="textoSuave">
           {pedido.quemVe}
         </Texto>
       ) : null}
-      <Texto variante="apoio" cor="textoSuave">
-        {orandoTexto(pedido)}
-      </Texto>
+      {/* Quem está orando: avatares (decorativos) e a frase que diz quantos. */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.x2 }}>
+        <PilhaDeAvatares nomes={pedido.orando.pessoas} />
+        <Texto variante="apoio" cor="textoSuave" style={{ flex: 1 }}>
+          {orandoTexto(pedido)}
+        </Texto>
+      </View>
       {erro ? <AvisoDeErro erro={erro} /> : null}
       <View style={{ gap: ESPACO.x2 }}>
         <Botao

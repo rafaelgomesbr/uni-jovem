@@ -1,11 +1,11 @@
 import { useNetInfo } from '@react-native-community/netinfo'
 import { ESPACO, RAIO } from '@uj/tokens'
-import { useEffect } from 'react'
-import { AccessibilityInfo, View } from 'react-native'
+import { View } from 'react-native'
 
 import { Icone } from './Icone'
 import { Texto } from './Texto'
 import { useTema } from './tema'
+import { useAnunciar } from './useAnunciar'
 
 /** Selo discreto "Sem conexão". Só aparece quando a rede caiu de fato. */
 export function IndicadorDeConexao() {
@@ -14,16 +14,13 @@ export function IndicadorDeConexao() {
   const semConexao = isConnected === false
 
   // Avisa o leitor de tela na mudança: o selo visual sozinho não é anunciado.
-  useEffect(() => {
-    if (semConexao) AccessibilityInfo.announceForAccessibility('Sem conexão com a internet')
-  }, [semConexao])
+  useAnunciar(semConexao ? 'Sem conexão com a internet' : null)
 
   if (!semConexao) return null
   return (
     <View
       accessible
       accessibilityRole="text"
-      accessibilityLiveRegion="polite"
       accessibilityLabel="Sem conexão com a internet. O que depende da rede fica indisponível."
       style={{
         flexDirection: 'row',

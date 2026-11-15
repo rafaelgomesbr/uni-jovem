@@ -1,4 +1,5 @@
 import { ATRIBUICAO, versiculoDoDia } from '@uj/conteudo'
+import { ESPACO } from '@uj/tokens'
 import { router } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { AppState } from 'react-native'
@@ -21,23 +22,30 @@ export function useHoje(): Date {
   return hoje
 }
 
+/** Sigla da tradução, como no mockup ("Referência · BLIVRE"). */
+const SIGLA = /\(([^)]+)\)/.exec(ATRIBUICAO.traducao)?.[1] ?? ATRIBUICAO.traducao
+
 /** Versículo do dia (o mesmo para todos na mesma data, sem depender de comunidade). */
 export function CartaoDoVersiculo({ comAtalho = true }: { comAtalho?: boolean }) {
   const v = versiculoDoDia(useHoje())
   return (
-    <Cartao titulo="Versículo do dia" icone="versiculo">
-      <Texto selectable>{v.texto}</Texto>
-      <Texto variante="corpoForte">{v.referencia}</Texto>
-      <Texto variante="apoio" cor="textoSuave">
-        {ATRIBUICAO.traducao}
+    <Cartao titulo="Versículo do dia">
+      {/* Mockup: texto de leitura de 17 pt e a referência com a sigla da tradução. */}
+      <Texto variante="leitura" selectable style={{ marginTop: -ESPACO.x1 }}>
+        {v.texto}
+      </Texto>
+      <Texto variante="apoio" cor="textoSuave" style={{ fontSize: 13 }}>
+        {v.referencia} · {SIGLA}
       </Texto>
       {comAtalho ? (
         <Botao
           titulo="Horário e notificação"
           icone="sino"
-          variante="discreto"
+          variante="terciario"
           larguraTotal={false}
+          rotuloAcessivel={`Horário e notificação do versículo. Tradução: ${ATRIBUICAO.traducao}`}
           aoPressionar={() => router.push('/versiculo')}
+          style={{ marginLeft: -ESPACO.x3 }}
         />
       ) : null}
     </Cartao>

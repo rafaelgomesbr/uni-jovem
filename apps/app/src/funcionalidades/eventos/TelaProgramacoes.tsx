@@ -15,7 +15,7 @@ import { Cartao } from '@/ui/Cartao'
 import { EstadoVazio } from '@/ui/EstadoVazio'
 import { LayoutDividido, useLayoutLargo } from '@/ui/LayoutDividido'
 import { Segmentos } from '@/ui/Segmentos'
-import { Texto } from '@/ui/Texto'
+import { TextoAnunciado } from '@/ui/TextoAnunciado'
 
 import { useFusoDaComunidade } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
@@ -194,9 +194,9 @@ function Programacoes({ comunidadeId }: { comunidadeId: string }) {
         </Cartao>
       ) : (
         <View style={{ gap: ESPACO.x2 }}>
-          <Texto variante="apoio" cor="textoSuave" accessibilityLiveRegion="polite">
+          <TextoAnunciado soMudancas variante="apoio" cor="textoSuave">
             {filtrados.length === 1 ? '1 programação' : `${filtrados.length} programações`}
-          </Texto>
+          </TextoAnunciado>
           {filtrados.map((e) => (
             <LinhaDoEvento
               key={e.id}

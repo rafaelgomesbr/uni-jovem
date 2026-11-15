@@ -147,6 +147,7 @@ export function EditorDeRegra({
             erro={erroDoFim ?? null}
             ajuda="Em branco, repete sem data para acabar. As datas são criadas com 6 meses de antecedência."
             exemplo="20/12/2026"
+            formato="data"
             keyboardType="numbers-and-punctuation"
             maxLength={10}
           />

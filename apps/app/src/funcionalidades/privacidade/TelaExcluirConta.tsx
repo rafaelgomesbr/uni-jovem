@@ -34,7 +34,8 @@ export function TelaExcluirConta() {
   const { conta, sair, trocarComunidade } = useSessao()
   const [senha, setSenha] = useState('')
   const [codigo, setCodigo] = useState('')
-  const [erro, setErro] = useState<string | null>(null)
+  // Um erro por campo: a falta da senha aparece na senha; a do código, no código.
+  const [erros, setErros] = useState<{ senha?: string; codigo?: string }>({})
   const excluir = useMutation({
     mutationFn: () =>
       api.post('/api/v1/eu/excluir-conta', {
@@ -54,15 +55,13 @@ export function TelaExcluirConta() {
     : null
 
   async function pedir() {
-    if (!senha) {
-      setErro('Digite sua senha para confirmar que é você.')
-      return
-    }
+    const novos: { senha?: string; codigo?: string } = {}
+    if (!senha) novos.senha = 'Digite sua senha para confirmar que é você.'
     if (conta?.doisFatores && !codigo.trim()) {
-      setErro('Digite também o código do app autenticador.')
-      return
+      novos.codigo = 'Digite também o código do app autenticador.'
     }
-    setErro(null)
+    setErros(novos)
+    if (novos.senha || novos.codigo) return
     const ok = await confirmar({
       titulo: 'Excluir sua conta?',
       mensagem: `Isso não pode ser desfeito.\n\n${CONSEQUENCIAS_DA_EXCLUSAO.join('\n')}`,
@@ -74,14 +73,21 @@ export function TelaExcluirConta() {
 
   return (
     <Tela cabecalhoNativo titulo="Excluir sua conta?" descricao="Isso não pode ser desfeito.">
-      <Cartao>
-        {CONSEQUENCIAS_DA_EXCLUSAO.map((t) => (
-          <Texto key={t}>{`• ${t}`}</Texto>
-        ))}
+      <Cartao titulo="O que acontece" icone="info">
+        <View style={{ gap: ESPACO.x2 }}>
+          {CONSEQUENCIAS_DA_EXCLUSAO.map((t) => (
+            <View key={t} style={{ flexDirection: 'row', gap: ESPACO.x2 }}>
+              <Texto aria-hidden accessibilityElementsHidden importantForAccessibility="no">
+                •
+              </Texto>
+              <Texto style={{ flex: 1 }}>{t}</Texto>
+            </View>
+          ))}
+        </View>
         <Botao
           titulo="Antes, baixe uma cópia dos seus dados"
           icone="baixar"
-          variante="discreto"
+          variante="terciario"
           larguraTotal={false}
           aoPressionar={() => router.push('/privacidade')}
         />
@@ -96,7 +102,7 @@ export function TelaExcluirConta() {
           autoCapitalize="none"
           autoComplete="current-password"
           textContentType="password"
-          erro={!conta?.doisFatores ? erro : null}
+          erro={erros.senha ?? null}
         />
         {conta?.doisFatores ? (
           <Campo
@@ -108,7 +114,7 @@ export function TelaExcluirConta() {
             autoComplete="one-time-code"
             textContentType="oneTimeCode"
             maxLength={12}
-            erro={erro}
+            erro={erros.codigo ?? null}
           />
         ) : null}
         {unicoAdmin ? (
@@ -138,7 +144,7 @@ export function TelaExcluirConta() {
           carregando={excluir.isPending}
           aoPressionar={() => void pedir()}
         />
-        <Botao titulo="Cancelar" variante="discreto" aoPressionar={() => router.back()} />
+        <Botao titulo="Cancelar" variante="terciario" aoPressionar={() => router.back()} />
       </Cartao>
     </Tela>
   )

@@ -21,6 +21,7 @@ import { EstadoVazio } from '@/ui/EstadoVazio'
 import { LayoutDividido, useLayoutLargo } from '@/ui/LayoutDividido'
 import { Segmentos } from '@/ui/Segmentos'
 import { Texto } from '@/ui/Texto'
+import { TextoAnunciado } from '@/ui/TextoAnunciado'
 
 import { useFusoDaComunidade } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
@@ -124,22 +125,17 @@ function Agenda({ comunidadeId }: { comunidadeId: string }) {
           icone="voltar"
           variante="secundario"
           larguraTotal={false}
-          rotuloAcessivel={`${nomeDoPasso} anterior`}
+          rotuloAcessivel={`Anterior: ${nomeDoPasso.toLowerCase()} anterior`}
           aoPressionar={() => mover(-1)}
         />
-        <Texto
-          variante="subtitulo"
-          centralizado
-          style={{ flex: 1 }}
-          accessibilityLiveRegion="polite"
-        >
+        <TextoAnunciado soMudancas variante="subtitulo" centralizado style={{ flex: 1 }}>
           {titulo}
-        </Texto>
+        </TextoAnunciado>
         <Botao
           titulo="Próximo"
           variante="secundario"
           larguraTotal={false}
-          rotuloAcessivel={`${nomeDoPasso} seguinte`}
+          rotuloAcessivel={`Próximo: ${nomeDoPasso.toLowerCase()} seguinte`}
           aoPressionar={() => mover(1)}
         />
       </View>
@@ -286,7 +282,7 @@ function VistaDaSemana({
                   icone="relogio"
                   variante="discreto"
                   larguraTotal={false}
-                  rotuloAcessivel={`Linha do tempo de ${formatarDataPorExtenso(dia)}`}
+                  rotuloAcessivel={`Linha do tempo: ${formatarDataPorExtenso(dia)}`}
                   aoPressionar={() => abrirDia(dia)}
                 />
               </View>

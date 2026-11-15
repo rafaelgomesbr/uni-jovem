@@ -9,6 +9,7 @@ import { CaixaDeMarcar } from '@/ui/CaixaDeMarcar'
 import { GrupoDeOpcoes } from '@/ui/GrupoDeOpcoes'
 import { Selo } from '@/ui/Selo'
 import { Texto } from '@/ui/Texto'
+import { TextoAnunciado } from '@/ui/TextoAnunciado'
 
 import { explicarVisibilidade, NOME_DA_VISIBILIDADE } from '../oracao/visibilidade'
 import type { Demonstracao } from './missao'
@@ -82,13 +83,13 @@ function DemoEscala() {
   return (
     <Exemplo>
       <Texto>Louvor · integrante · Sábado de exemplo</Texto>
-      <Texto variante="apoio" accessibilityLiveRegion="polite">
+      <TextoAnunciado soMudancas variante="apoio">
         {resposta === 'pendente'
           ? 'Aguardando a sua resposta.'
           : resposta === 'confirmada'
             ? 'Confirmada. Na vida real, a organização vê na hora.'
             : 'Recusada. Na vida real, a organização procura outra pessoa.'}
-      </Texto>
+      </TextoAnunciado>
       <Botao
         titulo="Confirmar a escala de exemplo"
         variante="secundario"
@@ -117,9 +118,9 @@ function DemoOracao() {
           rotulo: NOME_DA_VISIBILIDADE[valor],
         }))}
       />
-      <Texto variante="apoio" accessibilityLiveRegion="polite">
+      <TextoAnunciado soMudancas variante="apoio">
         {explicarVisibilidade(v, 'comunidade de exemplo', contagem)}
-      </Texto>
+      </TextoAnunciado>
     </Exemplo>
   )
 }
@@ -130,9 +131,9 @@ function DemoAoVivo() {
   return (
     <Exemplo>
       <Texto variante="rotulo">AGORA</Texto>
-      <Texto variante="titulo" accessibilityLiveRegion="polite">
+      <TextoAnunciado soMudancas variante="titulo">
         {etapas[atual]}
-      </Texto>
+      </TextoAnunciado>
       <Texto variante="apoio">
         Etapa {atual + 1} de {etapas.length}
         {atual + 1 < etapas.length ? `. Depois: ${etapas[atual + 1]}` : '. É a última.'}

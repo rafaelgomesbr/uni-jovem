@@ -18,7 +18,8 @@ export function RegrasDaSenha({ senha, nome, email }: PropsDasRegras) {
   const { cores } = useTema()
   const regras = avaliarSenha(senha, { nome, email })
   return (
-    <View accessibilityLabel="Regras da senha" style={{ gap: ESPACO.x1 }}>
+    // Sem rótulo no contêiner (View sem papel não tem nome): o título visível abre a lista.
+    <View style={{ gap: ESPACO.x1 }}>
       <Texto variante="corpoForte">Sua senha precisa ter:</Texto>
       {regras.map((regra) => {
         const ok = regra.atendida === true

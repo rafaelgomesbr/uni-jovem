@@ -22,7 +22,8 @@ export default function LayoutAutenticado() {
     <>
       {/* Versículo local e token de push, sempre em dia com a conta (sem interface). */}
       <AgendadorDoAparelho />
-      <Stack screenOptions={{ ...opcoesDaPilha, headerShown: true }}>
+      {/* Sem cabeçalho nativo: cada tela tem o próprio topo sobre a aurora (Voltar em pílula). */}
+      <Stack screenOptions={{ ...opcoesDaPilha, headerShown: false }}>
         <Stack.Screen name="(abas)" options={{ headerShown: false, title: 'Início' }} />
         <Stack.Screen
           name="trocar-comunidade"
@@ -62,6 +63,7 @@ export default function LayoutAutenticado() {
           options={{ title: 'Substituição', presentation: 'modal' }}
         />
         <Stack.Screen name="conta" options={{ title: 'Perfil' }} />
+        <Stack.Screen name="conta/seguranca" options={{ title: 'Segurança' }} />
         <Stack.Screen name="oracao/index" options={{ title: 'Oração' }} />
         <Stack.Screen name="oracao/novo" options={{ title: 'Novo pedido' }} />
         <Stack.Screen name="oracao/[pedidoId]" options={{ title: 'Pedido de oração' }} />

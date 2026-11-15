@@ -147,6 +147,7 @@ function NovaTarefa({ evento, comunidadeId }: Props) {
             erro={erros.prazo ?? null}
             ajuda="Dia no formato DD/MM/AAAA."
             exemplo="14/11/2026"
+            formato="data"
             keyboardType="numbers-and-punctuation"
             maxLength={10}
           />

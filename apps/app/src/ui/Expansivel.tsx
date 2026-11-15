@@ -1,8 +1,10 @@
 import { ESPACO } from '@uj/tokens'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { View } from 'react-native'
 
+import { Aparecer } from './Aparecer'
 import { Botao } from './Botao'
+import { focar, type NoDeView } from './foco'
 import type { NomeDoIcone } from './Icone'
 
 interface PropsDoExpansivel {
@@ -17,7 +19,9 @@ interface PropsDoExpansivel {
 
 /**
  * Formulário curto que só aparece quando pedido, para a tela não virar um
- * paredão de campos. O botão informa se está aberto (estado `expanded`).
+ * paredão de campos. O botão que abre continua na tela (com `aria-expanded`),
+ * então o foco nunca se perde; ao fechar pelo fim do formulário, o foco
+ * volta para ele.
  */
 export function Expansivel({
   titulo,
@@ -27,22 +31,35 @@ export function Expansivel({
   motivo,
 }: PropsDoExpansivel) {
   const [aberto, setAberto] = useState(false)
-  if (!aberto) {
-    return (
-      <Botao
-        titulo={titulo}
-        icone={icone}
-        variante="secundario"
-        aoPressionar={() => setAberto(true)}
-        desabilitado={desabilitado}
-        {...(motivo ? { motivo } : {})}
-      />
-    )
+  // Conta os fechamentos pelo fim do formulário: cada um devolve o foco ao botão.
+  const [fechamentos, setFechamentos] = useState(0)
+  const botao = useRef<NoDeView>(null)
+  useEffect(() => {
+    if (fechamentos > 0) focar(botao)
+  }, [fechamentos])
+  function fechar() {
+    setAberto(false)
+    setFechamentos((n) => n + 1)
   }
   return (
     <View style={{ gap: ESPACO.x3 }}>
-      {children(() => setAberto(false))}
-      <Botao titulo="Fechar sem salvar" variante="discreto" aoPressionar={() => setAberto(false)} />
+      <Botao
+        ref={botao}
+        titulo={titulo}
+        icone={aberto ? 'fechar' : icone}
+        variante={aberto ? 'terciario' : 'secundario'}
+        larguraTotal={!aberto}
+        expandido={aberto}
+        aoPressionar={() => setAberto((a) => !a)}
+        desabilitado={desabilitado}
+        {...(motivo ? { motivo } : {})}
+      />
+      {aberto ? (
+        <Aparecer style={{ gap: ESPACO.x3 }}>
+          {children(fechar)}
+          <Botao titulo="Fechar sem salvar" variante="terciario" aoPressionar={fechar} />
+        </Aparecer>
+      ) : null}
     </View>
   )
 }

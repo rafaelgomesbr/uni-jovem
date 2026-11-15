@@ -7,7 +7,8 @@ import { falarQuando, formatarDuracao, formatarQuando } from '@/utilidades/datas
 import { linkDoMapa } from '@/utilidades/mapas'
 import { Aviso } from '@/ui/Aviso'
 import { Botao } from '@/ui/Botao'
-import { Cartao } from '@/ui/Cartao'
+import { CartaoDestaque } from '@/ui/Cartao'
+import { Chip } from '@/ui/Chip'
 import { Linha } from '@/ui/Linha'
 import { Selo } from '@/ui/Selo'
 import { Texto } from '@/ui/Texto'
@@ -26,8 +27,25 @@ export function CabecalhoDoEvento({ evento }: { evento: DetalheDoEvento }) {
   ].filter(Boolean)
 
   return (
-    <Cartao>
-      <Texto variante="titulo">{evento.titulo}</Texto>
+    // O item principal da tela: cartão de destaque (claro no tema escuro), como no Início.
+    <CartaoDestaque>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: ESPACO.x2,
+        }}
+      >
+        <Texto variante="corpoForte" cor="textoSuave" tabular style={{ fontSize: 13 }}>
+          {formatarQuando(evento.inicio, evento.fuso)} · {formatarDuracao(evento.duracaoMin)}
+        </Texto>
+        <Chip texto={evento.categoria} />
+      </View>
+      <Texto variante="titulo" style={{ fontSize: 24, lineHeight: 28 }}>
+        {evento.titulo}
+      </Texto>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>
         <Selo texto={NOME_DO_STATUS[evento.status]} cor={COR_DO_STATUS[evento.status]} />
         <Selo texto={`Visibilidade: ${NOME_DA_VISIBILIDADE[evento.visibilidade]}`} />
@@ -45,7 +63,7 @@ export function CabecalhoDoEvento({ evento }: { evento: DetalheDoEvento }) {
         icone="relogio"
         titulo={formatarQuando(evento.inicio, evento.fuso)}
         descricao={`Duração prevista: ${formatarDuracao(evento.duracaoMin)} · ${evento.categoria}`}
-        rotuloAcessivel={`${falarQuando(evento.inicio, evento.fuso)}. Duração prevista: ${formatarDuracao(evento.duracaoMin)}. Categoria: ${evento.categoria}`}
+        rotuloAcessivel={`${formatarQuando(evento.inicio, evento.fuso)} (${falarQuando(evento.inicio, evento.fuso)}). Duração prevista: ${formatarDuracao(evento.duracaoMin)}. Categoria: ${evento.categoria}`}
       />
       {evento.local ? (
         <View style={{ gap: ESPACO.x2 }}>
@@ -67,7 +85,7 @@ export function CabecalhoDoEvento({ evento }: { evento: DetalheDoEvento }) {
               icone="mapa"
               variante="secundario"
               larguraTotal={false}
-              rotuloAcessivel={`Abrir ${evento.local.nome} no app de mapas`}
+              rotuloAcessivel={`Abrir no app de mapas: ${evento.local.nome}`}
               aoPressionar={() => void abrirLink(mapa)}
             />
           ) : null}
@@ -83,6 +101,6 @@ export function CabecalhoDoEvento({ evento }: { evento: DetalheDoEvento }) {
           <Texto>{evento.informacoesUteis}</Texto>
         </View>
       ) : null}
-    </Cartao>
+    </CartaoDestaque>
   )
 }

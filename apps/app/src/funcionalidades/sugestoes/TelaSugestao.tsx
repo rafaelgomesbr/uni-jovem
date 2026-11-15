@@ -19,6 +19,7 @@ import { Cartao } from '@/ui/Cartao'
 import { GrupoDeOpcoes } from '@/ui/GrupoDeOpcoes'
 import { Selo } from '@/ui/Selo'
 import { Texto } from '@/ui/Texto'
+import { TextoAnunciado } from '@/ui/TextoAnunciado'
 
 import { usePode } from '../comunidade/permissoes'
 import { BotaoDenunciar } from '../denuncias/BotaoDenunciar'
@@ -132,9 +133,9 @@ function Moderacao({ comunidadeId, sugestao }: { comunidadeId: string; sugestao:
       />
       {moderar.error ? <AvisoDeErro erro={moderar.error} /> : null}
       {moderar.isSuccess && !mudou ? (
-        <Texto variante="apoio" cor="sucesso" accessibilityLiveRegion="polite">
+        <TextoAnunciado variante="apoio" cor="sucesso">
           Moderação salva.
-        </Texto>
+        </TextoAnunciado>
       ) : null}
       <Botao
         titulo="Salvar status e resposta"

@@ -3,6 +3,7 @@ import { router } from 'expo-router'
 import { View } from 'react-native'
 
 import type { DetalheDoEvento } from '@/servicos/contratoDosEventos'
+import { Avatar } from '@/ui/Avatar'
 import { Botao } from '@/ui/Botao'
 import { Cartao } from '@/ui/Cartao'
 import { Linha } from '@/ui/Linha'
@@ -30,6 +31,7 @@ export function SecaoEquipe({ evento }: { evento: DetalheDoEvento }) {
           {geral.map((a) => (
             <Linha
               key={a.id}
+              inicio={<Avatar nome={a.nome} tamanho="P" decorativo />}
               titulo={a.nome}
               descricao={a.funcao}
               extra={

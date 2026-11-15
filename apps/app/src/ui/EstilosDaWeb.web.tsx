@@ -21,6 +21,9 @@ export function EstilosDaWeb() {
       `:focus-visible { outline: 3px solid ${cores.foco} !important; outline-offset: 2px !important; }`,
       ':focus:not(:focus-visible) { outline: none; }',
       `body { background-color: ${cores.fundo}; }`,
+      // "Pular para o conteúdo": fora da vista até receber o foco do teclado.
+      '#uj-pular:not(:focus) { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }',
+      '#uj-conteudo:focus { outline: none !important; }',
       '@media (prefers-reduced-motion: reduce) {',
       '  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }',
       '}',

@@ -144,6 +144,7 @@ function Inscricoes({ comunidadeId, eventoId }: { comunidadeId: string; eventoId
           <ListaFiltrada
             inscricoes={filtrarInscricoes(lista.data.inscricoes, filtro)}
             vazioTotal={lista.data.inscricoes.length === 0}
+            aoMostrarTodas={() => setFiltro('todas')}
             aoCancelar={pode('inscricao', 'gerenciar') ? pedirCancelamento : null}
             publica={e?.visibilidade === 'publica'}
           />
@@ -161,9 +162,11 @@ function ListaFiltrada({
   vazioTotal,
   aoCancelar,
   publica,
+  aoMostrarTodas,
 }: {
   inscricoes: Inscricao[]
   vazioTotal: boolean
+  aoMostrarTodas: () => void
   aoCancelar: ((i: Inscricao) => void) | null
   publica: boolean
 }) {
@@ -179,6 +182,15 @@ function ListaFiltrada({
                 ? 'Compartilhe o link da página pública abaixo para receber inscrições.'
                 : 'Membros se inscrevem pelo app, na página do evento.'
               : 'Escolha outra opção em Mostrar.'
+          }
+          acao={
+            vazioTotal
+              ? {
+                  titulo: 'Voltar para a programação',
+                  icone: 'voltar',
+                  aoPressionar: () => router.back(),
+                }
+              : { titulo: 'Mostrar todas', aoPressionar: aoMostrarTodas }
           }
         />
       </Cartao>
@@ -210,7 +222,7 @@ function ListaFiltrada({
                   titulo="Cancelar inscrição"
                   variante="discreto"
                   larguraTotal={false}
-                  rotuloAcessivel={`Cancelar a inscrição de ${i.nome}`}
+                  rotuloAcessivel={`Cancelar inscrição: ${i.nome}`}
                   aoPressionar={() => aoCancelar(i)}
                 />
               ) : null}

@@ -19,6 +19,15 @@ export type EstadoDaComunidade = 'ativa' | 'suspensa' | 'arquivada' | 'exclusao_
 export type EstadoDoVinculo = 'ativo' | 'desativado' | 'removido'
 export type Designacao = 'equipe_oracao'
 
+/**
+ * Avatar escolhido: nomes das listas fechadas de `@uj/tokens` (`ICONES_DO_AVATAR`,
+ * `CORES_DO_AVATAR`). Os dois juntos ou nenhum (`null`: usa as iniciais).
+ */
+export interface AvatarDaConta {
+  icone: string
+  cor: string
+}
+
 export interface Conta {
   id: string
   nome: string
@@ -26,6 +35,8 @@ export interface Conta {
   whatsapp: string | null
   criador: boolean
   doisFatores: boolean
+  /** Ausente em API anterior à migração 0016; `null` sem escolha. */
+  avatar?: AvatarDaConta | null
 }
 
 export interface ComunidadeDoVinculo {
@@ -73,6 +84,7 @@ export interface Membro {
   whatsapp: string | null
   criador: boolean
   desde: string
+  avatar?: AvatarDaConta | null
 }
 
 export type SituacaoDoConvite =
@@ -98,6 +110,21 @@ export interface ConviteCriado {
   id: string
   link: string
   expiraEm: string
+}
+
+export type Provedor = 'google' | 'apple'
+
+export interface ContaConectada {
+  provedor: Provedor
+  /** O e-mail que o provedor informou (pode ser o de retransmissão da Apple). */
+  email: string | null
+  conectadaEm: string
+}
+
+export interface RespostaProvedores {
+  provedores: ContaConectada[]
+  /** Provedores ligados na API (com IDs de cliente configurados). */
+  disponiveis: Provedor[]
 }
 
 export interface ConfiguracaoDoAutenticador {

@@ -1,27 +1,43 @@
 import { NOME_DO_PAPEL } from '@uj/dominio'
-import { ESPACO } from '@uj/tokens'
+import { ESPACO, RAIO } from '@uj/tokens'
 import { router } from 'expo-router'
-import { Platform, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Pressable, Text, View } from 'react-native'
 
-import { LARGURA_MAXIMA_DO_CONTEUDO } from '@/constantes'
 import { useSessao } from '@/estado/sessao'
-import { Botao } from '@/ui/Botao'
+import { FAMILIA } from '@/ui/fontes'
+import { Icone } from '@/ui/Icone'
+import { ALVO } from '@/ui/medidas'
 import { Texto } from '@/ui/Texto'
-import { Vidro } from '@/ui/Vidro'
+import { useTema } from '@/ui/tema'
+import { soNaWeb } from '@/ui/web'
 
-import { IdentidadeDaComunidade } from '../comunidade/Identidade'
 import { NOME_DO_ESTADO_DA_COMUNIDADE } from '../comunidade/nomes'
 import { IndicadorDeSincronizacao } from '../offline/IndicadorDeSincronizacao'
 
+/** Iniciais da comunidade para o círculo coral ("Jovens Central" vira "JC"). */
+function iniciaisDaComunidade(nome: string): string {
+  const partes = nome
+    .trim()
+    .split(/\s+/)
+    .filter((p) => /\p{L}/u.test(p))
+  const letras = partes.length > 1 ? [partes[0]!, partes.at(-1)!] : partes.slice(0, 1)
+  return (
+    letras
+      .map((p) => [...p][0] ?? '')
+      .join('')
+      .toLocaleUpperCase('pt-BR') || '?'
+  )
+}
+
 /**
- * Faixa flutuante (vidro) com a comunidade ativa SEMPRE visível e o seletor
- * explícito para trocar. Toda tela do app autenticado começa por ela.
+ * Topo das abas (mockup Aurora): pílula da comunidade ativa, sempre visível,
+ * que abre a troca; à direita, o estado da sincronização. Fica dentro da
+ * rolagem, sobre a aurora; a área segura de cima é da `Tela`.
  */
 export function CabecalhoDaComunidade() {
   const { comunidadeAtiva, comunidades } = useSessao()
-  const margens = useSafeAreaInsets()
-  const podeTrocar = comunidades.length > 1
+  const { cores } = useTema()
+  const podeTrocar = comunidades.length > 1 || (!comunidadeAtiva && comunidades.length > 0)
 
   const detalhe = comunidadeAtiva
     ? [
@@ -31,54 +47,102 @@ export function CabecalhoDaComunidade() {
           : null,
       ]
         .filter(Boolean)
-        .join(' · ')
-    : undefined
+        .join(', ')
+    : ''
 
-  return (
-    <Vidro style={{ borderTopWidth: 0, borderLeftWidth: 0, borderRightWidth: 0 }}>
+  const nome = comunidadeAtiva
+    ? comunidadeAtiva.nome
+    : comunidades.length === 0
+      ? 'Sem comunidade'
+      : 'Escolher comunidade'
+
+  const pilula = (pressionado: boolean) => (
+    <View
+      style={{
+        minHeight: ALVO,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        paddingVertical: 6,
+        paddingLeft: 6,
+        paddingRight: 14,
+        borderRadius: RAIO.pilula,
+        borderWidth: 1,
+        borderColor: cores.cartaoVidroBorda,
+        backgroundColor: pressionado ? cores.superficieRealce : cores.cartaoVidro,
+        maxWidth: '100%',
+      }}
+    >
       <View
-        accessibilityRole="header"
         style={{
-          paddingTop: (Platform.OS === 'web' ? 0 : margens.top) + ESPACO.x2,
-          paddingBottom: ESPACO.x2,
-          paddingHorizontal: ESPACO.x4,
-          width: '100%',
-          maxWidth: LARGURA_MAXIMA_DO_CONTEUDO + ESPACO.x8,
-          alignSelf: 'center',
-          gap: ESPACO.x2,
+          width: 32,
+          height: 32,
+          borderRadius: 16,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: cores.primaria,
         }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.x3 }}>
-          <View style={{ flex: 1 }}>
-            {comunidadeAtiva ? (
-              <IdentidadeDaComunidade
-                nome={comunidadeAtiva.nome}
-                cor={comunidadeAtiva.cor}
-                {...(detalhe ? { detalhe } : {})}
-              />
-            ) : (
-              <Texto variante="corpoForte">
-                {comunidades.length === 0 ? 'Sem comunidade' : 'Nenhuma comunidade escolhida'}
-              </Texto>
-            )}
-          </View>
-          {podeTrocar || (!comunidadeAtiva && comunidades.length > 0) ? (
-            <Botao
-              titulo={comunidadeAtiva ? 'Trocar' : 'Escolher'}
-              icone="trocar"
-              variante="secundario"
-              larguraTotal={false}
-              rotuloAcessivel={
-                comunidadeAtiva
-                  ? `Trocar de comunidade. Ativa agora: ${comunidadeAtiva.nome}`
-                  : 'Escolher comunidade'
-              }
-              aoPressionar={() => router.push('/trocar-comunidade')}
-            />
-          ) : null}
-        </View>
-        <IndicadorDeSincronizacao />
+        {comunidadeAtiva ? (
+          <Text
+            allowFontScaling={false}
+            importantForAccessibility="no"
+            style={{
+              color: cores.sobrePrimaria,
+              fontFamily: FAMILIA.tituloForte,
+              fontSize: 13,
+              lineHeight: 16,
+            }}
+          >
+            {iniciaisDaComunidade(comunidadeAtiva.nome)}
+          </Text>
+        ) : (
+          <Icone nome="comunidade" cor={cores.sobrePrimaria} tamanho={18} />
+        )}
       </View>
-    </Vidro>
+      <Texto variante="corpoForte" numberOfLines={1} style={{ fontSize: 15, flexShrink: 1 }}>
+        {nome}
+      </Texto>
+      {podeTrocar ? <Icone nome="abrirLista" cor={cores.texto} tamanho={16} /> : null}
+    </View>
+  )
+
+  return (
+    <View
+      {...soNaWeb({ role: 'banner' })}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: ESPACO.x3,
+      }}
+    >
+      <View style={{ flexShrink: 1, minWidth: 0 }}>
+        {podeTrocar ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              comunidadeAtiva
+                ? `Comunidade ${comunidadeAtiva.nome}, ${detalhe}. Trocar de comunidade`
+                : 'Escolher comunidade'
+            }
+            onPress={() => router.push('/trocar-comunidade')}
+          >
+            {({ pressed }) => pilula(pressed)}
+          </Pressable>
+        ) : (
+          <View
+            accessible
+            accessibilityLabel={
+              comunidadeAtiva ? `Comunidade ${comunidadeAtiva.nome}, ${detalhe}` : nome
+            }
+          >
+            {pilula(false)}
+          </View>
+        )}
+      </View>
+      <IndicadorDeSincronizacao />
+    </View>
   )
 }

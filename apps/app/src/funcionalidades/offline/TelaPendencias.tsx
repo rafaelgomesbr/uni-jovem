@@ -11,7 +11,9 @@ import { Aviso } from '@/ui/Aviso'
 import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { Botao } from '@/ui/Botao'
 import { Cartao } from '@/ui/Cartao'
+import { anunciar } from '@/ui/anunciar'
 import { EstadoVazio } from '@/ui/EstadoVazio'
+import { useFocoAoMudar, type NoDeTexto } from '@/ui/foco'
 import { Linha } from '@/ui/Linha'
 import { Selo } from '@/ui/Selo'
 import { Tela } from '@/ui/Tela'
@@ -38,9 +40,14 @@ import type { OperacaoNaFila } from './tipos'
 export function TelaPendencias() {
   const offline = useOffline()
   const { comunidadeAtiva } = useSessao()
+  // Resolver, descartar ou remover tira o item da tela: o foco volta para o título.
+  const { alvo: tituloRef, pedirFoco } = useFocoAoMudar<NoDeTexto>(
+    `${offline.operacoes.map((o) => `${o.chave}:${o.estado}`).join()}|${offline.pacotes.length}`,
+  )
   return (
     <Tela
       cabecalhoNativo
+      refDoTitulo={tituloRef}
       titulo="Pendências"
       descricao="O que foi feito sem internet e ainda não chegou ao servidor."
     >
@@ -50,7 +57,11 @@ export function TelaPendencias() {
           {offline.motivoIndisponivel ?? MENSAGEM_DA_WEB}
         </Aviso>
       ) : comunidadeAtiva ? (
-        <Pendencias offline={offline} nomeDaComunidade={comunidadeAtiva.nome} />
+        <Pendencias
+          offline={offline}
+          nomeDaComunidade={comunidadeAtiva.nome}
+          pedirFoco={pedirFoco}
+        />
       ) : (
         <SemComunidade oQue="as pendências" />
       )}
@@ -58,15 +69,41 @@ export function TelaPendencias() {
   )
 }
 
-/** Ações locais rodam sem rede: `networkMode: 'always'` (o padrão pausaria offline). */
-function useAcaoLocal() {
+interface AcaoLocal {
+  chave: string
+  executar: () => Promise<void>
+  /** Frase anunciada ao leitor de tela quando der certo (o item some da tela). */
+  feito?: string
+}
+
+/**
+ * Ações locais rodam sem rede: `networkMode: 'always'` (o padrão pausaria offline).
+ * Quem tem `pedirFoco` devolve o foco ao título, já que o item tocado some.
+ */
+function useAcaoLocal(pedirFoco?: () => void) {
   return useMutation({
-    mutationFn: async (acao: { chave: string; executar: () => Promise<void> }) => acao.executar(),
+    mutationFn: async (acao: AcaoLocal) => {
+      pedirFoco?.()
+      await acao.executar()
+    },
+    onSuccess: (_r, acao) => {
+      if (acao.feito) anunciar(acao.feito)
+    },
     networkMode: 'always',
   })
 }
 
-function Pendencias({ offline, nomeDaComunidade }: { offline: Offline; nomeDaComunidade: string }) {
+type PedirFoco = () => void
+
+function Pendencias({
+  offline,
+  nomeDaComunidade,
+  pedirFoco,
+}: {
+  offline: Offline
+  nomeDaComunidade: string
+  pedirFoco: PedirFoco
+}) {
   const conflitos = offline.operacoes.filter((o) => o.estado === 'conflito')
   const recusadas = offline.operacoes.filter((o) => o.estado === 'rejeitada')
   const aguardando = offline.operacoes.filter((o) => o.estado === 'pendente')
@@ -82,14 +119,14 @@ function Pendencias({ offline, nomeDaComunidade }: { offline: Offline; nomeDaCom
             vale; nada é decidido sem você.
           </Texto>
           {conflitos.map((op) => (
-            <Conflito key={op.chave} op={op} offline={offline} />
+            <Conflito key={op.chave} op={op} offline={offline} pedirFoco={pedirFoco} />
           ))}
         </Cartao>
       ) : null}
       {recusadas.length ? (
         <Cartao titulo={`Recusadas pelo servidor (${recusadas.length})`} icone="cancelar">
           {recusadas.map((op) => (
-            <Recusada key={op.chave} op={op} offline={offline} />
+            <Recusada key={op.chave} op={op} offline={offline} pedirFoco={pedirFoco} />
           ))}
         </Cartao>
       ) : null}
@@ -109,7 +146,7 @@ function Pendencias({ offline, nomeDaComunidade }: { offline: Offline; nomeDaCom
           ))}
         </Cartao>
       ) : null}
-      <Preparados offline={offline} />
+      <Preparados offline={offline} pedirFoco={pedirFoco} />
       {nada ? (
         <Cartao>
           <EstadoVazio
@@ -217,8 +254,16 @@ function Bloco({ titulo, linhas }: { titulo: string; linhas: string[] }) {
   )
 }
 
-function Conflito({ op, offline }: { op: OperacaoNaFila; offline: Offline }) {
-  const acao = useAcaoLocal()
+function Conflito({
+  op,
+  offline,
+  pedirFoco,
+}: {
+  op: OperacaoNaFila
+  offline: Offline
+  pedirFoco: PedirFoco
+}) {
+  const acao = useAcaoLocal(pedirFoco)
   const ocupado = acao.isPending && acao.variables?.chave === op.chave
   return (
     <View style={{ gap: ESPACO.x2 }}>
@@ -234,19 +279,27 @@ function Conflito({ op, offline }: { op: OperacaoNaFila; offline: Offline }) {
           titulo="Ficar com a do servidor"
           variante="secundario"
           larguraTotal={false}
-          rotuloAcessivel={`Ficar com a versão do servidor: ${op.descricao}`}
+          rotuloAcessivel={`Ficar com a do servidor: ${op.descricao}`}
           desabilitado={ocupado}
           aoPressionar={() =>
-            acao.mutate({ chave: op.chave, executar: () => offline.descartar(op.chave) })
+            acao.mutate({
+              chave: op.chave,
+              executar: () => offline.descartar(op.chave),
+              feito: 'Conflito resolvido: ficou a versão do servidor.',
+            })
           }
         />
         <Botao
           titulo="Aplicar a minha"
           larguraTotal={false}
-          rotuloAcessivel={`Aplicar a sua versão: ${op.descricao}`}
+          rotuloAcessivel={`Aplicar a minha: ${op.descricao}`}
           carregando={ocupado}
           aoPressionar={() =>
-            acao.mutate({ chave: op.chave, executar: () => offline.refazer(op.chave) })
+            acao.mutate({
+              chave: op.chave,
+              executar: () => offline.refazer(op.chave),
+              feito: 'Conflito resolvido: sua versão vai para o servidor.',
+            })
           }
         />
       </View>
@@ -254,8 +307,16 @@ function Conflito({ op, offline }: { op: OperacaoNaFila; offline: Offline }) {
   )
 }
 
-function Recusada({ op, offline }: { op: OperacaoNaFila; offline: Offline }) {
-  const acao = useAcaoLocal()
+function Recusada({
+  op,
+  offline,
+  pedirFoco,
+}: {
+  op: OperacaoNaFila
+  offline: Offline
+  pedirFoco: PedirFoco
+}) {
+  const acao = useAcaoLocal(pedirFoco)
   const [copiado, setCopiado] = useState(false)
   const ocupado = acao.isPending && acao.variables?.chave === op.chave
 
@@ -266,7 +327,13 @@ function Recusada({ op, offline }: { op: OperacaoNaFila; offline: Offline }) {
       confirmar: 'Descartar',
       destrutivo: true,
     })
-    if (ok) acao.mutate({ chave: op.chave, executar: () => offline.descartar(op.chave) })
+    if (ok) {
+      acao.mutate({
+        chave: op.chave,
+        executar: () => offline.descartar(op.chave),
+        feito: 'Alteração descartada.',
+      })
+    }
   }
 
   return (
@@ -310,7 +377,11 @@ function Recusada({ op, offline }: { op: OperacaoNaFila; offline: Offline }) {
           rotuloAcessivel={`Refazer: ${op.descricao}`}
           carregando={ocupado}
           aoPressionar={() =>
-            acao.mutate({ chave: op.chave, executar: () => offline.refazer(op.chave) })
+            acao.mutate({
+              chave: op.chave,
+              executar: () => offline.refazer(op.chave),
+              feito: 'Alteração enviada de novo para a fila.',
+            })
           }
         />
       </View>
@@ -318,8 +389,8 @@ function Recusada({ op, offline }: { op: OperacaoNaFila; offline: Offline }) {
   )
 }
 
-function Preparados({ offline }: { offline: Offline }) {
-  const acao = useAcaoLocal()
+function Preparados({ offline, pedirFoco }: { offline: Offline; pedirFoco: PedirFoco }) {
+  const acao = useAcaoLocal(pedirFoco)
   if (!offline.pacotes.length) return null
   return (
     <Cartao titulo="Preparados neste aparelho" icone="guardadoNoAparelho">
@@ -341,10 +412,14 @@ function Preparados({ offline }: { offline: Offline }) {
             variante="discreto"
             icone="excluir"
             larguraTotal={false}
-            rotuloAcessivel={`Remover ${p.titulo} deste aparelho`}
+            rotuloAcessivel={`Remover deste aparelho: ${p.titulo}`}
             carregando={acao.isPending && acao.variables?.chave === p.eventoId}
             aoPressionar={() =>
-              acao.mutate({ chave: p.eventoId, executar: () => offline.removerPacote(p.eventoId) })
+              acao.mutate({
+                chave: p.eventoId,
+                executar: () => offline.removerPacote(p.eventoId),
+                feito: `${p.titulo} saiu deste aparelho.`,
+              })
             }
           />
         </View>

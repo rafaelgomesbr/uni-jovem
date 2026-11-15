@@ -1,11 +1,12 @@
 import { DURACAO, ESPACO } from '@uj/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useEffect, useState } from 'react'
-import { AccessibilityInfo, Animated, View } from 'react-native'
+import { Animated, View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
 import { parametro } from '@/utilidades/parametros'
 import { usePreferenciasDeAcessibilidade } from '@/ui/acessibilidade'
+import { anunciar } from '@/ui/anunciar'
 import { BarraDeProgresso } from '@/ui/BarraDeProgresso'
 import { Botao } from '@/ui/Botao'
 import { Carregando } from '@/ui/Carregando'
@@ -174,7 +175,7 @@ export function Celebracao() {
   const { reduzirMovimento } = usePreferenciasDeAcessibilidade()
   const [escala] = useState(() => new Animated.Value(reduzirMovimento ? 1 : 0.85))
   useEffect(() => {
-    AccessibilityInfo.announceForAccessibility('Mapa concluído. Você já conhece o caminho.')
+    anunciar('Mapa concluído. Você já conhece o caminho.')
     if (reduzirMovimento) {
       escala.setValue(1)
       return

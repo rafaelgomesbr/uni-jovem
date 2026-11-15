@@ -22,7 +22,8 @@ export function CaixaDeMarcar({ rotulo, descricao, marcada, aoMudar, desabilitad
       accessibilityRole="checkbox"
       accessibilityLabel={rotulo}
       accessibilityHint={descricao}
-      accessibilityState={{ checked: marcada, disabled: !!desabilitada }}
+      aria-checked={marcada}
+      aria-disabled={!!desabilitada}
       disabled={desabilitada}
       onPress={() => aoMudar(!marcada)}
       style={{

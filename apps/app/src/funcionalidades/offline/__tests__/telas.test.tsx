@@ -219,7 +219,7 @@ describe('sem conexão', () => {
     )
     expect(await screen.findByText('Sem conexão: lista deste aparelho')).toBeOnTheScreen()
     const usuario = userEvent.setup()
-    await usuario.press(screen.getByRole('button', { name: 'Marcar presença de Davi Rocha' }))
+    await usuario.press(screen.getByRole('button', { name: 'Marcar presença: Davi Rocha' }))
     expect(await screen.findByText(/Presença de Davi Rocha anotada neste aparelho/)).toBeTruthy()
 
     const p = await deposito.abrir(CONTA, COMUNIDADE)
@@ -302,7 +302,7 @@ describe('Pendências', () => {
     // Conflito: fica com a do servidor (a alteração local sai da fila).
     await usuario.press(
       screen.getByRole('button', {
-        name: `Ficar com a versão do servidor: ${conflito!.descricao}`,
+        name: `Ficar com a do servidor: ${conflito!.descricao}`,
       }),
     )
     await waitFor(() => expect(screen.queryByText('Conflitos a resolver (1)')).toBeNull())

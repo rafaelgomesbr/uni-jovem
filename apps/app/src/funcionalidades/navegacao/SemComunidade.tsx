@@ -4,20 +4,16 @@ import { useSessao } from '@/estado/sessao'
 import { Cartao } from '@/ui/Cartao'
 import { EstadoVazio } from '@/ui/EstadoVazio'
 
-/** O que mostrar nas abas enquanto não há comunidade ativa. */
+import { AtalhosParaComecar } from '../comunidade/AtalhosParaComecar'
+
+/**
+ * O que mostrar nas abas enquanto não há comunidade ativa. Sem nenhuma, os
+ * caminhos para começar (Criador cria a primeira; os demais entram com o
+ * convite), mantidos pela área de comunidade.
+ */
 export function SemComunidade({ oQue }: { oQue: string }) {
   const { comunidades } = useSessao()
-  if (comunidades.length === 0) {
-    return (
-      <Cartao>
-        <EstadoVazio
-          icone="comunidade"
-          titulo="Você ainda não participa de uma comunidade"
-          descricao="Peça um convite a quem administra a sua comunidade. Quando você abrir o link, ela aparece aqui."
-        />
-      </Cartao>
-    )
-  }
+  if (comunidades.length === 0) return <AtalhosParaComecar />
   return (
     <Cartao>
       <EstadoVazio
@@ -26,6 +22,7 @@ export function SemComunidade({ oQue }: { oQue: string }) {
         descricao={`Você participa de mais de uma. Escolha a comunidade para ver ${oQue}; dá para trocar a qualquer momento pelo topo da tela.`}
         acao={{
           titulo: 'Escolher comunidade',
+          variante: 'primario',
           aoPressionar: () => router.push('/trocar-comunidade'),
         }}
       />

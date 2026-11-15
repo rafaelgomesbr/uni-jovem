@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
 import { nomeDoAparelho, plataformaAtual } from '@/servicos/aparelho'
@@ -13,6 +14,7 @@ import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
 import { Cartao } from '@/ui/Cartao'
+import { focar, type NoDeView } from '@/ui/foco'
 import { Texto } from '@/ui/Texto'
 
 import { problemaDaSenha } from '../autenticacao/politicaDeSenha'
@@ -45,7 +47,13 @@ const CODIGO_ERRADO = new Set(['codigo_invalido', 'codigo_vencido'])
  */
 export function CadastroPorConvite({ token, comunidade }: { token: string; comunidade: string }) {
   const sessao = useSessao()
-  const [passo, setPasso] = useState<Passo>('dados')
+  const [passo, setPassoAtual] = useState<Passo>('dados')
+  // Ao trocar de passo, o que tinha o foco some: o indicador do passo novo recebe o foco.
+  const [trocouDePasso, setTrocouDePasso] = useState(false)
+  const setPasso = (novo: Passo) => {
+    setTrocouDePasso(true)
+    setPassoAtual(novo)
+  }
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
@@ -132,6 +140,7 @@ export function CadastroPorConvite({ token, comunidade }: { token: string; comun
           : null
     return (
       <Cartao titulo="Crie sua conta" icone="convidar">
+        <IndicadorDePasso numero={1} titulo="Crie sua conta" focar={trocouDePasso} />
         <Campo
           rotulo="Nome"
           value={nome}
@@ -207,6 +216,7 @@ export function CadastroPorConvite({ token, comunidade }: { token: string; comun
     }
     return (
       <Cartao titulo="Confira seu e-mail" icone="email">
+        <IndicadorDePasso numero={2} titulo="Confira seu e-mail" focar={trocouDePasso} />
         <Texto accessibilityLiveRegion="polite">
           Mandamos uma mensagem para {email.trim()}. Se for uma conta nova, ela traz um código de 6
           números que vale por 10 minutos.
@@ -258,6 +268,7 @@ export function CadastroPorConvite({ token, comunidade }: { token: string; comun
 
   return (
     <Cartao titulo="Crie sua senha" icone="chave">
+      <IndicadorDePasso numero={3} titulo="Crie sua senha" focar={trocouDePasso} />
       <RegrasDaSenha senha={senha} nome={nome} email={email} />
       <Campo
         rotulo="Senha"
@@ -303,5 +314,36 @@ export function CadastroPorConvite({ token, comunidade }: { token: string; comun
         aoPressionar={() => setPasso('codigo')}
       />
     </Cartao>
+  )
+}
+
+/**
+ * "Passo 2 de 3", visível e anunciado como cabeçalho. Quando o passo muda,
+ * recebe o foco do leitor de tela (o botão que a pessoa tocou deixou de existir).
+ */
+function IndicadorDePasso({
+  numero,
+  titulo,
+  focar: deveFocar,
+}: {
+  numero: number
+  titulo: string
+  focar: boolean
+}) {
+  const ref = useRef<NoDeView>(null)
+  useEffect(() => {
+    if (deveFocar) focar(ref)
+  }, [deveFocar])
+  return (
+    <View
+      ref={ref}
+      accessible
+      accessibilityRole="header"
+      accessibilityLabel={`Passo ${numero} de 3: ${titulo}`}
+    >
+      <Texto variante="apoio" cor="textoSuave">
+        Passo {numero} de 3
+      </Texto>
+    </View>
   )
 }

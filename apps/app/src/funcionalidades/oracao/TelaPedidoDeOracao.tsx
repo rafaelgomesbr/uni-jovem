@@ -14,6 +14,7 @@ import { Carregando } from '@/ui/Carregando'
 import { Cartao } from '@/ui/Cartao'
 import { GrupoDeOpcoes } from '@/ui/GrupoDeOpcoes'
 import { Texto } from '@/ui/Texto'
+import { TextoAnunciado } from '@/ui/TextoAnunciado'
 
 import { TelaDaComunidade } from '../navegacao/TelaDaComunidade'
 import { useEditarPedido, useMudarVisibilidade, usePedidoDeOracao } from './consultas'
@@ -83,9 +84,9 @@ function EditarTexto({ comunidadeId, pedido }: { comunidadeId: string; pedido: P
       </Texto>
       {editar.error ? <AvisoDeErro erro={editar.error} /> : null}
       {editar.isSuccess && !mudou ? (
-        <Texto variante="apoio" cor="sucesso" accessibilityLiveRegion="polite">
+        <TextoAnunciado variante="apoio" cor="sucesso">
           Texto salvo.
-        </Texto>
+        </TextoAnunciado>
       ) : null}
       <Botao
         titulo="Salvar texto"

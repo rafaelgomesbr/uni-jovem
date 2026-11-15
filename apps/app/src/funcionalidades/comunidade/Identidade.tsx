@@ -1,4 +1,4 @@
-import { ESPACO } from '@uj/tokens'
+import { corSobre, ESPACO } from '@uj/tokens'
 import { View } from 'react-native'
 
 import { Icone } from '@/ui/Icone'
@@ -10,6 +10,7 @@ const HEX = /^#[0-9A-Fa-f]{6}$/
 /** Marca da comunidade: círculo na cor dela com ícone. Decorativa: o nome vem ao lado. */
 export function MarcaDaComunidade({ cor, tamanho = 36 }: { cor: string; tamanho?: number }) {
   const { cores } = useTema()
+  const fundo = HEX.test(cor) ? cor : cores.secundaria
   return (
     <View
       accessibilityElementsHidden
@@ -18,14 +19,15 @@ export function MarcaDaComunidade({ cor, tamanho = 36 }: { cor: string; tamanho?
         width: tamanho,
         height: tamanho,
         borderRadius: tamanho / 2,
-        backgroundColor: HEX.test(cor) ? cor : cores.secundaria,
+        backgroundColor: fundo,
         borderWidth: 1,
-        borderColor: cores.borda,
+        borderColor: cores.bordaSuave,
         alignItems: 'center',
         justifyContent: 'center',
       }}
     >
-      <Icone nome="comunidade" cor="#FFFFFF" tamanho={tamanho * 0.55} />
+      {/* Branco ou quase preto, o que contrastar mais com a cor da comunidade. */}
+      <Icone nome="comunidade" cor={corSobre(fundo)} tamanho={tamanho * 0.55} />
     </View>
   )
 }
@@ -46,9 +48,7 @@ export function IdentidadeDaComunidade({ nome, cor, detalhe }: PropsDaIdentidade
     >
       <MarcaDaComunidade cor={cor} />
       <View style={{ flexShrink: 1 }}>
-        <Texto variante="corpoForte" numberOfLines={2}>
-          {nome}
-        </Texto>
+        <Texto variante="corpoForte">{nome}</Texto>
         {detalhe ? (
           <Texto variante="apoio" cor="textoSuave">
             {detalhe}

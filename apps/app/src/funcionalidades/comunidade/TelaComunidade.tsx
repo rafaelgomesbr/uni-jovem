@@ -1,267 +1,266 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { NOME_DO_PAPEL } from '@uj/dominio'
 import { ESPACO } from '@uj/tokens'
 import { router } from 'expo-router'
 import { View } from 'react-native'
 
-import { CHAVES } from '@/estado/clienteDeConsulta'
 import { useSessao } from '@/estado/sessao'
-import { api } from '@/servicos/api'
-import type { ComunidadeDoVinculo, ConviteDaComunidade } from '@/servicos/contrato'
-import { confirmar } from '@/utilidades/confirmar'
-import { formatarData } from '@/utilidades/formatos'
+import type { ComunidadeDoVinculo, Membro } from '@/servicos/contrato'
+import { Aviso } from '@/ui/Aviso'
 import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { Botao } from '@/ui/Botao'
 import { Carregando } from '@/ui/Carregando'
 import { Cartao } from '@/ui/Cartao'
 import { EstadoVazio } from '@/ui/EstadoVazio'
 import { Linha } from '@/ui/Linha'
-import { Selo } from '@/ui/Selo'
-import { Texto } from '@/ui/Texto'
+import { Secao } from '@/ui/Secao'
 
 import { TelaDoApp } from '../navegacao/TelaDoApp'
-import { mensagemDePendencias } from '../offline/avisoAntesDeApagar'
-import { useOffline } from '../offline/ProvedorOffline'
-import { useConvites, useMembros } from './consultas'
-import { IdentidadeDaComunidade } from './Identidade'
-import {
-  COR_DO_ESTADO_DA_COMUNIDADE,
-  NOME_DA_SITUACAO_DO_CONVITE,
-  NOME_DO_ESTADO_DA_COMUNIDADE,
-  NOME_DO_ESTADO_DO_VINCULO,
-} from './nomes'
+import { AtalhosParaComecar } from './AtalhosParaComecar'
+import { useMembros } from './consultas'
+import { MarcaDaComunidade } from './Identidade'
+import { LinhaDoMembro } from './LinhaDoMembro'
+import { CHIP_DO_ESTADO_DA_COMUNIDADE, CHIP_DO_PAPEL, NOME_DO_ESTADO_DA_COMUNIDADE } from './nomes'
 import { usePode } from './permissoes'
+import { useSairDaComunidade } from './sairDaComunidade'
+import { SecaoConvites } from './SecaoConvites'
+import { CabecalhoDeTela, CartaoDeDestaque, Chip, Chips } from './visual'
 
+/**
+ * Aba Equipe (rota `/comunidade`): pessoas, convites e configurações da
+ * comunidade ativa. Cada bloco só aparece para quem pode usá-lo (mesma
+ * matriz da API, que decide de verdade).
+ */
 export function TelaComunidade() {
-  const { comunidadeAtiva, comunidades } = useSessao()
-
+  const { comunidadeAtiva } = useSessao()
   if (!comunidadeAtiva) {
     return (
-      <TelaDoApp titulo="Comunidade">
-        <Cartao>
-          <EstadoVazio
-            icone="comunidade"
-            titulo={comunidades.length ? 'Escolha uma comunidade' : 'Nenhuma comunidade'}
-            descricao={
-              comunidades.length
-                ? 'Escolha a comunidade para ver as pessoas e os convites dela.'
-                : 'Quando você aceitar um convite, a comunidade aparece aqui.'
-            }
-            {...(comunidades.length
-              ? {
-                  acao: {
-                    titulo: 'Escolher comunidade',
-                    aoPressionar: () => router.push('/trocar-comunidade'),
-                  },
-                }
-              : {})}
-          />
-        </Cartao>
+      <TelaDoApp>
+        <CabecalhoDeTela sobrancelha="Comunidade" titulo="Equipe" />
+        <AtalhosParaComecar />
       </TelaDoApp>
     )
   }
-
-  return <DetalheDaComunidade comunidade={comunidadeAtiva} />
+  return <Equipe comunidade={comunidadeAtiva} />
 }
 
-function DetalheDaComunidade({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
+function Equipe({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
   const pode = usePode()
-  const consultas = useQueryClient()
-  const podeConvidar = pode('convite', 'listar')
-
-  const offline = useOffline()
-  const sair = useMutation({
-    mutationFn: () => api.post(`/api/v1/c/${comunidade.id}/sair`),
-    onSuccess: async () => {
-      // Fora da comunidade, a partição dela sai do aparelho.
-      await offline.apagarComunidade(comunidade.id)
-      await consultas.invalidateQueries({ queryKey: CHAVES.eu })
-      router.replace('/')
-    },
-  })
-
-  async function pedirParaSair() {
-    const naoEnviadas = await offline.naoEnviadas(comunidade.id)
-    const ok = await confirmar({
-      titulo: `Sair de ${comunidade.nome}?`,
-      mensagem: `Você deixa de ver a agenda e as programações desta comunidade. Para voltar, vai precisar de um convite novo.${
-        naoEnviadas.length
-          ? `
-
-${mensagemDePendencias(naoEnviadas)}`
-          : ''
-      }`,
-      confirmar: `Sair de ${comunidade.nome}`,
-      destrutivo: true,
-    })
-    if (ok) sair.mutate()
-  }
+  const { conta, comunidades } = useSessao()
+  const ativa = comunidade.estado === 'ativa'
+  const podeConvidar = pode('convite', 'criar')
+  const sair = useSairDaComunidade(comunidade)
 
   return (
-    <TelaDoApp titulo="Comunidade">
-      <Cartao>
-        <IdentidadeDaComunidade
-          nome={comunidade.nome}
-          cor={comunidade.cor}
-          detalhe={`Seu papel: ${NOME_DO_PAPEL[comunidade.papel]}`}
-        />
-        <Selo
-          texto={NOME_DO_ESTADO_DA_COMUNIDADE[comunidade.estado]}
-          cor={COR_DO_ESTADO_DA_COMUNIDADE[comunidade.estado]}
-        />
-        {comunidade.designacoes.includes('equipe_oracao') ? (
-          <Texto variante="apoio" cor="textoSuave">
-            Você faz parte da equipe de oração.
-          </Texto>
-        ) : null}
-      </Cartao>
+    <TelaDoApp>
+      <CabecalhoDeTela
+        sobrancelha={comunidade.nome}
+        titulo="Equipe"
+        descricao="Quem participa da comunidade, com que papel, e os convites para chegar mais gente."
+      />
 
-      {podeConvidar ? <Convites comunidade={comunidade} /> : null}
-      <Membros comunidade={comunidade} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.x3 }}>
+        <MarcaDaComunidade cor={comunidade.cor} tamanho={40} />
+        <Chips>
+          <Chip
+            texto={`Você: ${NOME_DO_PAPEL[comunidade.papel]}`}
+            icone={CHIP_DO_PAPEL[comunidade.papel].icone}
+            tom={CHIP_DO_PAPEL[comunidade.papel].tom}
+          />
+          <Chip
+            texto={NOME_DO_ESTADO_DA_COMUNIDADE[comunidade.estado]}
+            icone={CHIP_DO_ESTADO_DA_COMUNIDADE[comunidade.estado].icone}
+            tom={CHIP_DO_ESTADO_DA_COMUNIDADE[comunidade.estado].tom}
+          />
+          {comunidade.designacoes.includes('equipe_oracao') ? (
+            <Chip texto="Equipe de oração" icone="oracao" />
+          ) : null}
+        </Chips>
+      </View>
 
-      <Cartao titulo="Sair da comunidade" icone="sair">
-        <Texto variante="apoio" cor="textoSuave">
-          Sair apaga o seu vínculo com {comunidade.nome}. Sua conta continua existindo.
-        </Texto>
-        {sair.error ? <AvisoDeErro erro={sair.error} /> : null}
+      {!ativa ? (
+        <Aviso tipo="alerta" titulo="Comunidade sem alterações por enquanto">
+          {comunidade.estado === 'suspensa'
+            ? 'Esta comunidade está suspensa: dá para consultar, mas não convidar nem mudar papéis.'
+            : 'Esta comunidade não está ativa. Fale com o Criador da plataforma se precisar reativá-la.'}
+        </Aviso>
+      ) : null}
+
+      {podeConvidar && ativa ? (
+        <CartaoDeDestaque
+          sobrancelha="Convites"
+          titulo="Convidar pessoas"
+          descricao="Gere um link de uso único com o papel certo e mande pelo WhatsApp, ou mostre o QR."
+        >
+          <Botao
+            titulo="Convidar pessoas"
+            icone="convidar"
+            rotuloAcessivel={`Convidar pessoas para ${comunidade.nome}`}
+            aoPressionar={() => router.push('/convidar')}
+          />
+        </CartaoDeDestaque>
+      ) : null}
+
+      <Membros comunidade={comunidade} podeAlterar={ativa} />
+
+      {pode('convite', 'listar') ? (
+        <SecaoConvites comunidade={comunidade} podeAlterar={ativa && podeConvidar} />
+      ) : null}
+
+      <Secao titulo="Comunidade">
+        <Cartao>
+          {pode('comunidade', 'configurar') && ativa ? (
+            <Linha
+              icone="ajustes"
+              titulo="Configurações da comunidade"
+              descricao="Nome, cor e fuso horário."
+              aoPressionar={() => router.push('/configurar-comunidade')}
+            />
+          ) : null}
+          {comunidades.length > 1 ? (
+            <Linha
+              icone="trocar"
+              titulo="Trocar de comunidade"
+              descricao={`Você participa de ${comunidades.length} comunidades.`}
+              aoPressionar={() => router.push('/trocar-comunidade')}
+            />
+          ) : null}
+          <Linha
+            icone="link"
+            titulo="Entrar em outra comunidade"
+            descricao="Cole o link ou o código de um convite."
+            aoPressionar={() => router.push('/entrar-com-convite')}
+          />
+          {conta?.criador ? (
+            <Linha
+              icone="plataforma"
+              titulo="Plataforma do Criador"
+              descricao="Criar e cuidar das comunidades."
+              aoPressionar={() => router.push('/plataforma')}
+            />
+          ) : null}
+        </Cartao>
+      </Secao>
+
+      {conta?.criador ? (
         <Botao
-          titulo={`Sair de ${comunidade.nome}`}
-          variante="perigo"
-          icone="sair"
-          aoPressionar={() => void pedirParaSair()}
-          carregando={sair.isPending}
+          titulo="Criar comunidade"
+          icone="adicionar"
+          variante="secundario"
+          aoPressionar={() => router.push('/plataforma/nova')}
         />
-      </Cartao>
+      ) : null}
+
+      <Secao titulo="Sair">
+        <Cartao>
+          {sair.erro ? <AvisoDeErro erro={sair.erro} /> : null}
+          <Linha
+            icone="sair"
+            destrutivo
+            titulo={`Sair de ${comunidade.nome}`}
+            descricao="Apaga só o seu vínculo com esta comunidade. Sua conta continua existindo."
+            aoPressionar={() => void sair.pedirParaSair()}
+            semSeta
+          />
+          {sair.saindo ? <Carregando texto="Saindo da comunidade" /> : null}
+        </Cartao>
+      </Secao>
     </TelaDoApp>
   )
 }
 
-function Membros({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
+function Membros({
+  comunidade,
+  podeAlterar,
+}: {
+  comunidade: ComunidadeDoVinculo
+  podeAlterar: boolean
+}) {
   const pode = usePode()
-  const membros = useMembros(comunidade.id)
-  const podeAlterar = pode('vinculo', 'alterar_papel')
   const { conta } = useSessao()
+  const membros = useMembros(comunidade.id)
+  const podeEditar =
+    podeAlterar &&
+    (pode('vinculo', 'alterar_papel') ||
+      pode('vinculo', 'desativar') ||
+      pode('vinculo', 'designar_equipe_oracao'))
+  const verContato = pode('vinculo', 'ver_contato')
+
+  const ativos = membros.data?.filter((m) => m.estado === 'ativo') ?? []
+  const fora = membros.data?.filter((m) => m.estado !== 'ativo') ?? []
+
+  function linha(membro: Membro) {
+    const ehVoce = membro.contaId === conta?.id
+    // Ninguém mexe no próprio vínculo nem no do Criador (a API recusa os dois).
+    const editavel = podeEditar && !ehVoce && !membro.criador
+    return (
+      <LinhaDoMembro
+        key={membro.vinculoId}
+        membro={membro}
+        ehVoce={ehVoce}
+        mostrarContato={verContato}
+        {...(editavel
+          ? {
+              aoPressionar: () =>
+                router.push({
+                  pathname: '/membro/[vinculoId]',
+                  params: { vinculoId: membro.vinculoId },
+                }),
+            }
+          : {})}
+      />
+    )
+  }
 
   return (
-    <Cartao titulo="Pessoas" icone="comunidade">
-      {membros.isPending ? (
-        <Carregando texto="Carregando as pessoas" />
-      ) : membros.error ? (
-        <AvisoDeErro erro={membros.error} aoTentarDeNovo={() => void membros.refetch()} />
-      ) : membros.data.length === 0 ? (
-        <EstadoVazio
-          icone="convidar"
-          titulo="Ninguém por aqui ainda"
-          descricao="Convide as pessoas da liderança para começar."
-        />
-      ) : (
-        <View style={{ gap: ESPACO.x1 }}>
-          {membros.data.map((membro) => {
-            const detalhes = [
-              NOME_DO_PAPEL[membro.papel],
-              membro.estado !== 'ativo' ? NOME_DO_ESTADO_DO_VINCULO[membro.estado] : null,
-              membro.designacoes.includes('equipe_oracao') ? 'Equipe de oração' : null,
-              membro.criador ? 'Criador da plataforma' : null,
-              membro.email,
-              membro.whatsapp,
-            ].filter(Boolean)
-            const ehVoce = membro.contaId === conta?.id
-            const editavel = podeAlterar && !ehVoce && !membro.criador
-            return (
-              <Linha
-                key={membro.vinculoId}
-                titulo={ehVoce ? `${membro.nome} (você)` : membro.nome}
-                descricao={detalhes.join(' · ')}
-                {...(editavel
+    <>
+      <Secao
+        titulo={membros.data ? `Membros (${ativos.length})` : 'Membros'}
+        {...(podeEditar && ativos.length > 1
+          ? { rodape: 'Toque numa pessoa para mudar o papel, desativar ou remover.' }
+          : {})}
+      >
+        <Cartao>
+          {membros.isPending ? (
+            <Carregando texto="Carregando as pessoas" />
+          ) : membros.error ? (
+            <AvisoDeErro erro={membros.error} aoTentarDeNovo={() => void membros.refetch()} />
+          ) : ativos.length <= 1 && fora.length === 0 ? (
+            <>
+              {ativos.map(linha)}
+              <EstadoVazio
+                icone="convidar"
+                titulo="Por enquanto, só você"
+                descricao={
+                  pode('convite', 'criar')
+                    ? 'Convide as pessoas da liderança para começar.'
+                    : 'Quando a administração convidar mais gente, as pessoas aparecem aqui.'
+                }
+                {...(pode('convite', 'criar') && podeAlterar
                   ? {
-                      aoPressionar: () =>
-                        router.push({
-                          pathname: '/membro/[vinculoId]',
-                          params: { vinculoId: membro.vinculoId },
-                        }),
-                      rotuloAcessivel: `Alterar ${membro.nome}. ${detalhes.join(', ')}`,
+                      acao: {
+                        titulo: 'Convidar pessoas',
+                        icone: 'convidar' as const,
+                        aoPressionar: () => router.push('/convidar'),
+                      },
                     }
                   : {})}
               />
-            )
-          })}
-        </View>
-      )}
-    </Cartao>
-  )
-}
-
-function Convites({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
-  const convites = useConvites(comunidade.id, true)
-  const consultas = useQueryClient()
-  const revogar = useMutation({
-    mutationFn: (convite: ConviteDaComunidade) =>
-      api.post(`/api/v1/c/${comunidade.id}/convites/${convite.id}/revogar`),
-    onSuccess: () => consultas.invalidateQueries({ queryKey: CHAVES.convites(comunidade.id) }),
-  })
-
-  async function pedirRevogacao(convite: ConviteDaComunidade) {
-    const ok = await confirmar({
-      titulo: 'Cancelar este convite?',
-      mensagem: `O link deixa de funcionar e ninguém mais entra em ${comunidade.nome} por ele.`,
-      confirmar: 'Cancelar convite',
-      destrutivo: true,
-    })
-    if (ok) revogar.mutate(convite)
-  }
-
-  const validos = convites.data?.filter((c) => c.situacao === 'valido') ?? []
-  const outros = convites.data?.filter((c) => c.situacao !== 'valido').slice(0, 10) ?? []
-
-  return (
-    <Cartao titulo="Convites" icone="convidar">
-      <Botao
-        titulo={`Convidar para ${comunidade.nome}`}
-        icone="adicionar"
-        aoPressionar={() => router.push('/convidar')}
-      />
-      {convites.isPending ? (
-        <Carregando texto="Carregando os convites" />
-      ) : convites.error ? (
-        <AvisoDeErro erro={convites.error} aoTentarDeNovo={() => void convites.refetch()} />
-      ) : convites.data.length === 0 ? (
-        <Texto variante="apoio" cor="textoSuave">
-          Nenhum convite criado ainda. Cada convite gera um link que vale para uma pessoa.
-        </Texto>
-      ) : (
-        <View style={{ gap: ESPACO.x2 }}>
-          {revogar.error ? <AvisoDeErro erro={revogar.error} /> : null}
-          {[...validos, ...outros].map((convite) => {
-            const descricao = [
-              convite.emailDestino ? `Para ${convite.emailDestino}` : 'Link aberto',
-              convite.situacao === 'valido'
-                ? `vale até ${formatarData(convite.expiraEm)}`
-                : `criado em ${formatarData(convite.criadoEm)}`,
-            ].join(' · ')
-            return (
-              <Linha
-                key={convite.id}
-                titulo={NOME_DO_PAPEL[convite.papel]}
-                descricao={descricao}
-                extra={
-                  convite.situacao === 'valido' ? (
-                    <Botao
-                      titulo="Cancelar"
-                      variante="perigo"
-                      larguraTotal={false}
-                      rotuloAcessivel={`Cancelar convite de ${NOME_DO_PAPEL[convite.papel]}. ${descricao}`}
-                      aoPressionar={() => void pedirRevogacao(convite)}
-                      carregando={revogar.isPending && revogar.variables?.id === convite.id}
-                    />
-                  ) : (
-                    <Selo texto={NOME_DA_SITUACAO_DO_CONVITE[convite.situacao]} />
-                  )
-                }
-              />
-            )
-          })}
-        </View>
-      )}
-    </Cartao>
+            </>
+          ) : (
+            <View>{ativos.map(linha)}</View>
+          )}
+        </Cartao>
+      </Secao>
+      {fora.length ? (
+        <Secao
+          titulo={`Desativados e removidos (${fora.length})`}
+          rodape="Desativado pode ser reativado. Removido só volta com um convite novo."
+        >
+          <Cartao>
+            <View>{fora.map(linha)}</View>
+          </Cartao>
+        </Secao>
+      ) : null}
+    </>
   )
 }

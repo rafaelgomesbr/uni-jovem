@@ -3,7 +3,7 @@ import { router } from 'expo-router'
 
 import { BASE, pedidosPara, renderizarTela } from '@/testes/telas'
 
-import { TelaMais } from '../../navegacao/TelaMais'
+import { TelaPerfil } from '../../perfil/TelaPerfil'
 import { TelaExportacoes } from '../TelaExportacoes'
 import { rotuloDoPeriodo, TelaRelatorios } from '../TelaRelatorios'
 
@@ -25,20 +25,20 @@ const PRESENCA = {
 describe('relatórios', () => {
   beforeEach(() => jest.clearAllMocks())
 
-  test('membro não vê relatórios: nem no "Mais", nem a tela busca dados', async () => {
+  test('membro não vê relatórios: nem no Perfil, nem a tela busca dados', async () => {
     const { servidor } = await renderizarTela(<TelaRelatorios />, { papel: 'membro' })
     expect(await screen.findByText('Relatórios são da organização')).toBeOnTheScreen()
     expect(servidor.pedidos.filter((p) => p.url.includes('/relatorios/'))).toHaveLength(0)
   })
 
-  test('o "Mais" lista Relatórios só para organizador para cima', async () => {
-    await renderizarTela(<TelaMais />, { papel: 'membro' })
+  test('o Perfil (que reúne o antigo "Mais") lista Relatórios só para organizador para cima', async () => {
+    await renderizarTela(<TelaPerfil />, { papel: 'membro' })
     expect(await screen.findByRole('button', { name: /^Oração\./ })).toBeOnTheScreen()
     expect(screen.queryByRole('button', { name: /^Relatórios\./ })).toBeNull()
   })
 
-  test('organizador vê o "Mais" com Relatórios e abre a tela', async () => {
-    await renderizarTela(<TelaMais />, { papel: 'organizador' })
+  test('organizador vê Relatórios no Perfil e abre a tela', async () => {
+    await renderizarTela(<TelaPerfil />, { papel: 'organizador' })
     await fireEvent.press(await screen.findByRole('button', { name: /^Relatórios\./ }))
     expect(router.push).toHaveBeenCalledWith('/relatorios')
   })

@@ -1,7 +1,6 @@
 import { ESPACO, RAIO, type Paleta } from '@uj/tokens'
 import { router } from 'expo-router'
-import { useEffect } from 'react'
-import { AccessibilityInfo, Pressable, View } from 'react-native'
+import { Pressable, View } from 'react-native'
 
 import { Botao } from '@/ui/Botao'
 import { Icone, type NomeDoIcone } from '@/ui/Icone'
@@ -9,6 +8,7 @@ import { IndicadorDeConexao } from '@/ui/IndicadorDeConexao'
 import { ALVO } from '@/ui/medidas'
 import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
+import { useAnunciar } from '@/ui/useAnunciar'
 
 import { contar, horaNoAparelho } from './formatos'
 import { useOffline, type Offline } from './ProvedorOffline'
@@ -96,21 +96,15 @@ export function IndicadorDeSincronizacao() {
 
   // O selo visual não é anunciado sozinho: avisa o leitor de tela quando a rede cai.
   // Sem modo offline, quem anuncia é o `IndicadorDeConexao` (um aviso só).
-  useEffect(() => {
-    if (!online && disponivel) {
-      AccessibilityInfo.announceForAccessibility('Sem conexão com a internet')
-    }
-  }, [online, disponivel])
+  useAnunciar(!online && disponivel ? 'Sem conexão com a internet' : null)
 
   if (!offline.disponivel) return <IndicadorDeConexao />
   const sinal = sinalDaSincronizacao(offline)
   if (!sinal) return null
 
   return (
-    <View
-      accessibilityLiveRegion="polite"
-      style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: ESPACO.x2 }}
-    >
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: ESPACO.x1 }}>
+      {/* Mockup: marca e texto de 13 pt, sem moldura; tocar abre Pendências. */}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${sinal.texto}. Abrir pendências e sincronização.`}
@@ -119,17 +113,15 @@ export function IndicadorDeSincronizacao() {
           minHeight: ALVO,
           flexDirection: 'row',
           alignItems: 'center',
-          gap: ESPACO.x1,
-          paddingHorizontal: ESPACO.x3,
+          gap: 6,
+          paddingHorizontal: ESPACO.x1,
           borderRadius: RAIO.pilula,
-          borderWidth: 1,
-          borderColor: cores[sinal.cor],
-          backgroundColor: cores.superficie,
-          opacity: pressed ? 0.7 : 1,
+          backgroundColor: pressed ? cores.superficieRealce : 'transparent',
         })}
       >
-        <Icone nome={sinal.icone} cor={cores[sinal.cor]} tamanho={16} />
-        <Texto variante="rotulo" cor={sinal.cor}>
+        <Icone nome={sinal.icone} cor={cores[sinal.cor]} tamanho={14} />
+        {/* Texto sempre na cor do texto: fica sobre o brilho coral (par conferido no teste). */}
+        <Texto variante="apoio" style={{ fontSize: 13, lineHeight: 18 }}>
           {sinal.texto}
         </Texto>
       </Pressable>
@@ -139,7 +131,7 @@ export function IndicadorDeSincronizacao() {
           icone="sincronizar"
           variante="discreto"
           larguraTotal={false}
-          rotuloAcessivel="Tentar sincronizar de novo"
+          rotuloAcessivel="Tentar de novo: sincronizar"
           aoPressionar={() => void offline.sincronizarAgora()}
         />
       ) : null}

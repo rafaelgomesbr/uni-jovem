@@ -3,8 +3,13 @@
  *
  * Mapa de estado: conta e comunidades são ESTADO DO SERVIDOR (vêm de
  * `GET /api/v1/eu` e vivem no React Query); aqui ficam só a fase da sessão,
- * o desafio de segundo fator em andamento e a comunidade escolhida, que é
- * preferência local guardada por conta.
+ * o desafio de segundo fator em andamento, a comunidade escolhida (preferência
+ * local guardada por conta) e a situação da biometria deste aparelho.
+ *
+ * Biometria: com ela ligada, a sessão guardada só abre com o rosto ou a
+ * digital (o cofre de `armazenamentoDoRefresh.ts`). Na abertura, o próprio
+ * sistema pede; se a pessoa cancela, a sessão fica "trancada": a tela Entrar
+ * mostra "Entrar com Face ID" e, como alternativa, e-mail e senha.
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -18,11 +23,21 @@ import {
 } from 'react'
 import { Platform } from 'react-native'
 
+// Fecha a janela de retorno do Google na web (efeito ao carregar o módulo).
+import '@/funcionalidades/autenticacao/provedores/retornoNaWeb'
 import { nomeDoAparelho, plataformaAtual } from '@/servicos/aparelho'
 import { api, type ClienteDaApi } from '@/servicos/api'
+import {
+  BiometriaRecusada,
+  biometriaLigada,
+  desligarBiometria,
+  ligarBiometria,
+} from '@/servicos/armazenamentoDoRefresh'
+import { consultarBiometria, SEM_BIOMETRIA, type Biometria } from '@/servicos/biometria'
 import type {
   ComunidadeDoVinculo,
   Conta,
+  Provedor,
   RespostaDeEntrar,
   RespostaEu,
   SessaoAberta,
@@ -36,9 +51,40 @@ import {
 import { CHAVES } from './clienteDeConsulta'
 import { gravarComunidadeAtiva, lerComunidadeAtiva } from './comunidadeAtivaSalva'
 import { apagarContaSalva, gravarContaSalva, lerContaSalva } from './contaSalva'
+import { gravarPreferenciaLocal, lerPreferenciaLocal } from './preferenciaLocal'
 
 export type EstadoDaSessao = 'carregando' | 'anonimo' | 'autenticado'
 export type ResultadoDeEntrar = 'pronto' | 'segundo_fator'
+
+/** O que o app recebeu do provedor: o ID token (e, na Apple, o nonce cru). */
+export type CredencialDoProvedor = { idToken: string } | { identityToken: string; nonce: string }
+
+export interface SituacaoDaBiometria extends Biometria {
+  /** A sessão deste aparelho só abre com a biometria. */
+  ligada: boolean
+  /** Há uma sessão trancada esperando a biometria (a pessoa cancelou na abertura). */
+  travada: boolean
+  /** Acabou de entrar com senha ou provedor: vale perguntar se quer usar a biometria. */
+  oferecer: boolean
+}
+
+/** Operações da biometria; injetáveis para os testes. */
+export interface OperacoesDeBiometria {
+  consultar(): Promise<Biometria>
+  ligada(): Promise<boolean>
+  ligar(): Promise<void>
+  desligar(): Promise<void>
+}
+
+const BIOMETRIA_DO_APARELHO: OperacoesDeBiometria = {
+  consultar: consultarBiometria,
+  ligada: biometriaLigada,
+  ligar: ligarBiometria,
+  desligar: desligarBiometria,
+}
+
+/** "Agora não" na oferta: não pergunta de novo (dá para ligar em Perfil, Segurança). */
+export const OFERTA_DISPENSADA = 'uj.biometria.oferta-dispensada'
 
 export interface Sessao {
   estado: EstadoDaSessao
@@ -50,10 +96,21 @@ export interface Sessao {
   comunidades: ComunidadeDoVinculo[]
   comunidadeAtiva: ComunidadeDoVinculo | null
   temSegundoFatorPendente: boolean
+  biometria: SituacaoDaBiometria
   entrar(dados: { email: string; senha: string }): Promise<ResultadoDeEntrar>
+  /** Google ou Apple: nunca cria conta; segue o 2FA de quem ligou, como a senha. */
+  entrarComProvedor(
+    provedor: Provedor,
+    credencial: CredencialDoProvedor,
+  ): Promise<ResultadoDeEntrar>
   confirmarSegundoFator(codigo: string): Promise<void>
   /** Para fluxos que já recebem a sessão pronta (convite, primeiro acesso). */
   abrirSessao(sessao: SessaoAberta): Promise<void>
+  /** Abre a sessão trancada pedindo a biometria de novo. */
+  desbloquearComBiometria(): Promise<void>
+  ligarBiometria(): Promise<void>
+  desligarBiometria(): Promise<void>
+  dispensarOfertaDeBiometria(): Promise<void>
   sair(): Promise<void>
   trocarComunidade(comunidadeId: string): Promise<void>
   tentarDeNovo(): void
@@ -69,18 +126,25 @@ interface PropsDoProvedor {
   cliente?: ClienteDaApi
   /** Padrão: os ganchos registrados em `aoEncerrarSessao.ts`. */
   aoEncerrarSessao?: GanchoDeEncerramento
+  /** Padrão: Face ID, Touch ID ou a biometria do Android (nada na web). */
+  biometria?: OperacoesDeBiometria
 }
 
 export function ProvedorDeSessao({
   children,
   cliente = api,
   aoEncerrarSessao = ganchosDeEncerramento,
+  biometria = BIOMETRIA_DO_APARELHO,
 }: PropsDoProvedor) {
   const consultas = useQueryClient()
   const [fase, setFase] = useState<Fase>('iniciando')
   const [falhaAoIniciar, setFalhaAoIniciar] = useState<Error | null>(null)
   const [desafio, setDesafio] = useState<string | null>(null)
   const [preferida, setPreferida] = useState<string | null>(null)
+  const [aparelho, setAparelho] = useState<Biometria>(SEM_BIOMETRIA)
+  const [ligada, setLigada] = useState(false)
+  const [travada, setTravada] = useState(false)
+  const [oferecer, setOferecer] = useState(false)
   const encerramento = useRef<Promise<void> | null>(null)
   const iniciou = useRef(false)
   // Depois de sair, nenhuma busca atrasada pode tentar renovar a sessão
@@ -108,6 +172,10 @@ export function ProvedorDeSessao({
       consultas.clear()
       setDesafio(null)
       setPreferida(null)
+      // O cofre foi apagado junto com o refresh: a biometria recomeça desligada.
+      setLigada(false)
+      setTravada(false)
+      setOferecer(false)
       setFase('anonimo')
       await aoEncerrarSessao(contaId)
     })()
@@ -143,13 +211,22 @@ export function ProvedorDeSessao({
     setFalhaAoIniciar(null)
     try {
       const temSessao = cliente.temAcesso() || (await cliente.renovar())
+      setTravada(false)
       if (!temSessao) {
+        setLigada(await biometria.ligada().catch(() => false))
         setFase('anonimo')
         return
       }
       await carregarConta()
     } catch (erro) {
+      if (erro instanceof BiometriaRecusada) {
+        // A sessão continua guardada e trancada: a tela Entrar oferece tentar de novo.
+        setTravada(true)
+        setFase('anonimo')
+        return
+      }
       if (erro instanceof ErroDaApi && erro.status === 401) {
+        setLigada(false)
         setFase('anonimo')
         return
       }
@@ -164,7 +241,15 @@ export function ProvedorDeSessao({
   // Sincroniza com o armazenamento seguro e a rede na abertura do app. O ref
   // impede uma segunda renovação no modo estrito (refresh repetido derruba o aparelho).
   const aoAbrir = useEffectEvent(() => {
-    void iniciar()
+    void (async () => {
+      const [disponivel, jaLigada] = await Promise.all([
+        biometria.consultar().catch(() => SEM_BIOMETRIA),
+        biometria.ligada().catch(() => false),
+      ])
+      setAparelho(disponivel)
+      setLigada(jaLigada)
+      await iniciar()
+    })()
   })
   useEffect(() => {
     if (iniciou.current) return
@@ -180,7 +265,32 @@ export function ProvedorDeSessao({
 
   async function abrirSessao(sessao: SessaoAberta): Promise<void> {
     await cliente.abrirSessao(sessao)
+    // Gravar a sessão nova recomeça o cofre (ver armazenamentoDoRefresh.ts).
+    setLigada(await biometria.ligada().catch(() => false))
+    setTravada(false)
     await carregarConta()
+  }
+
+  /**
+   * Depois de entrar com credencial (não na abertura): pergunta sobre a
+   * biometria. Roda ANTES de abrir a sessão, para a pergunta já estar de pé
+   * quando a navegação sair da tela Entrar. Sessão nova sempre começa com a
+   * biometria desligada (o cofre recomeça ao gravar o refresh novo).
+   */
+  async function talvezOferecerBiometria(): Promise<void> {
+    if (!aparelho.disponivel) return
+    if (await lerPreferenciaLocal<boolean>(OFERTA_DISPENSADA)) return
+    setOferecer(true)
+  }
+
+  async function concluirEntrada(resposta: RespostaDeEntrar): Promise<ResultadoDeEntrar> {
+    if (resposta.segundoFator) {
+      setDesafio(resposta.desafio)
+      return 'segundo_fator'
+    }
+    await talvezOferecerBiometria()
+    await abrirSessao(resposta)
+    return 'pronto'
   }
 
   const comunidades = fase === 'conectado' ? (eu.data?.comunidades ?? []) : []
@@ -207,18 +317,22 @@ export function ProvedorDeSessao({
     comunidades,
     comunidadeAtiva,
     temSegundoFatorPendente: desafio !== null,
+    biometria: { ...aparelho, ligada, travada, oferecer },
     async entrar({ email, senha }) {
       const resposta = await cliente.post<RespostaDeEntrar>(
         '/api/auth/entrar',
         { email: email.trim(), senha, plataforma: plataformaAtual(), aparelho: nomeDoAparelho() },
         { autenticado: false },
       )
-      if (resposta.segundoFator) {
-        setDesafio(resposta.desafio)
-        return 'segundo_fator'
-      }
-      await abrirSessao(resposta)
-      return 'pronto'
+      return concluirEntrada(resposta)
+    },
+    async entrarComProvedor(provedor, credencial) {
+      const resposta = await cliente.post<RespostaDeEntrar>(
+        `/api/auth/provedor/${provedor}`,
+        { ...credencial, plataforma: plataformaAtual(), aparelho: nomeDoAparelho() },
+        { autenticado: false },
+      )
+      return concluirEntrada(resposta)
     },
     async confirmarSegundoFator(codigo) {
       if (!desafio) {
@@ -230,9 +344,26 @@ export function ProvedorDeSessao({
         { autenticado: false },
       )
       setDesafio(null)
+      await talvezOferecerBiometria()
       await abrirSessao(sessao)
     },
     abrirSessao,
+    async desbloquearComBiometria() {
+      await iniciar()
+    },
+    async ligarBiometria() {
+      await biometria.ligar()
+      setLigada(true)
+      setOferecer(false)
+    },
+    async desligarBiometria() {
+      await biometria.desligar()
+      setLigada(false)
+    },
+    async dispensarOfertaDeBiometria() {
+      setOferecer(false)
+      await gravarPreferenciaLocal(OFERTA_DISPENSADA, true)
+    },
     async sair() {
       try {
         if (cliente.temAcesso()) {

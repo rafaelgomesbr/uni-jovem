@@ -3,6 +3,7 @@ import { Pressable, View } from 'react-native'
 
 import { Icone } from './Icone'
 import { ALVO } from './medidas'
+import { useSetasDoGrupo } from './setasDoGrupo'
 import { Texto } from './Texto'
 import { useTema } from './tema'
 
@@ -28,33 +29,36 @@ export function GrupoDeOpcoes<T extends string>({
   aoMudar,
 }: PropsDoGrupo<T>) {
   const { cores } = useTema()
+  const propsDaOpcao = useSetasDoGrupo(opcoes, valor, aoMudar)
   return (
-    <View accessibilityRole="radiogroup" accessibilityLabel={rotulo} style={{ gap: ESPACO.x2 }}>
+    <View accessibilityRole="radiogroup" aria-label={rotulo} style={{ gap: ESPACO.x2 }}>
       <Texto variante="corpoForte">{rotulo}</Texto>
       {opcoes.map((opcao) => {
         const marcada = opcao.valor === valor
         return (
           <Pressable
             key={opcao.valor}
+            {...propsDaOpcao(opcao.valor)}
             accessibilityRole="radio"
             accessibilityLabel={opcao.rotulo}
             accessibilityHint={opcao.descricao}
-            accessibilityState={{ checked: marcada, disabled: !!opcao.desabilitada }}
+            aria-checked={marcada}
+            aria-disabled={!!opcao.desabilitada}
             disabled={opcao.desabilitada}
             onPress={() => aoMudar(opcao.valor)}
-            style={{
+            style={({ pressed }) => ({
               minHeight: ALVO,
               flexDirection: 'row',
               alignItems: 'center',
               gap: ESPACO.x3,
-              paddingHorizontal: ESPACO.x3,
-              paddingVertical: ESPACO.x2,
+              paddingHorizontal: ESPACO.x4,
+              paddingVertical: ESPACO.x3,
               borderRadius: RAIO.medio,
               borderWidth: marcada ? 2 : 1,
               borderColor: marcada ? cores.destaque : cores.borda,
-              backgroundColor: cores.superficie,
+              backgroundColor: marcada || pressed ? cores.superficieRealce : cores.superficie,
               opacity: opcao.desabilitada ? 0.5 : 1,
-            }}
+            })}
           >
             <View
               style={{

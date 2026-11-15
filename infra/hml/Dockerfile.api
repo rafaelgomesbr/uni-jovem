@@ -9,19 +9,21 @@ ENV NODE_ENV=production
 # Só o necessário para a API: código, migrações e o pacote de domínio.
 COPY apps/api/package.json apps/api/package.json
 COPY packages/dominio/package.json packages/dominio/package.json
+COPY packages/tokens/package.json packages/tokens/package.json
 
 # Pacote enxuto com as dependências de execução da API mais o tsx (a API roda
 # o TypeScript direto, como no desenvolvimento). Sem o lockfile do monorepo,
 # que arrastaria o Expo inteiro; as faixas de versão vêm do package.json.
 RUN node -e "\
 const api = require('./apps/api/package.json'); \
-const deps = { ...api.dependencies }; delete deps['@uj/dominio']; \
+const deps = { ...api.dependencies }; delete deps['@uj/dominio']; delete deps['@uj/tokens']; \
 deps.tsx = '^4.20.0'; \
 require('fs').writeFileSync('package.json', JSON.stringify({ name: 'uj-api-imagem', private: true, type: 'module', dependencies: deps }, null, 2));" \
  && npm install --omit=dev --no-audit --no-fund \
  && npm cache clean --force
 
 COPY packages/dominio/src packages/dominio/src
+COPY packages/tokens/src packages/tokens/src
 COPY apps/api/src apps/api/src
 COPY apps/api/migracoes apps/api/migracoes
 COPY apps/api/tsconfig.json apps/api/tsconfig.json
@@ -29,8 +31,10 @@ COPY tsconfig.base.json tsconfig.base.json
 # Fonte das páginas públicas /privacidade, /termos e /excluir-conta.
 COPY docs/privacidade docs/privacidade
 
-# @uj/dominio aponta para o código-fonte do pacote, como no monorepo.
-RUN mkdir -p node_modules/@uj && ln -s /srv/uj/packages/dominio node_modules/@uj/dominio
+# @uj/dominio e @uj/tokens apontam para o código-fonte dos pacotes, como no monorepo.
+RUN mkdir -p node_modules/@uj \
+ && ln -s /srv/uj/packages/dominio node_modules/@uj/dominio \
+ && ln -s /srv/uj/packages/tokens node_modules/@uj/tokens
 
 USER node
 EXPOSE 3000

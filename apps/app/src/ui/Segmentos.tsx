@@ -4,6 +4,7 @@ import { Pressable, View } from 'react-native'
 import { usePreferenciasDeAcessibilidade } from './acessibilidade'
 import { Icone, type NomeDoIcone } from './Icone'
 import { ALVO } from './medidas'
+import { useSetasDoGrupo } from './setasDoGrupo'
 import { Texto } from './Texto'
 import { useTema } from './tema'
 
@@ -34,10 +35,11 @@ export function Segmentos<T extends string>({
 }: PropsDosSegmentos<T>) {
   const { cores } = useTema()
   const { aumentarContraste } = usePreferenciasDeAcessibilidade()
+  const propsDaOpcao = useSetasDoGrupo(segmentos, valor, aoMudar)
   return (
     <View
       accessibilityRole="radiogroup"
-      accessibilityLabel={rotulo}
+      aria-label={rotulo}
       style={{
         flexDirection: 'row',
         flexWrap: 'wrap',
@@ -45,20 +47,22 @@ export function Segmentos<T extends string>({
         padding: ESPACO.x1,
         borderRadius: RAIO.pilula,
         borderWidth: aumentarContraste ? 2 : 1,
-        borderColor: aumentarContraste ? cores.texto : cores.borda,
-        backgroundColor: cores.superficie,
+        borderColor: aumentarContraste ? cores.texto : cores.cartaoVidroBorda,
+        backgroundColor: cores.cartaoVidro,
         alignSelf: 'flex-start',
       }}
     >
       {segmentos.map((s) => {
         const marcado = s.valor === valor
-        const cor = marcado ? cores.sobreSecundaria : cores.texto
+        // Escolhido: pílula coral translúcida e texto coral, como a aba ativa (e a marca de confirmação).
+        const cor = marcado ? cores.destaque : cores.texto
         return (
           <Pressable
             key={s.valor}
+            {...propsDaOpcao(s.valor)}
             accessibilityRole="radio"
             accessibilityLabel={s.rotulo}
-            accessibilityState={{ checked: marcado, selected: marcado }}
+            aria-checked={marcado}
             onPress={() => aoMudar(s.valor)}
             style={({ pressed }) => ({
               minHeight: ALVO,
@@ -69,8 +73,11 @@ export function Segmentos<T extends string>({
               alignItems: 'center',
               justifyContent: 'center',
               gap: ESPACO.x1,
-              backgroundColor: marcado ? cores.secundaria : 'transparent',
-              opacity: pressed ? 0.8 : 1,
+              backgroundColor: marcado
+                ? cores.abaAtiva
+                : pressed
+                  ? cores.superficieRealce
+                  : 'transparent',
             })}
           >
             {marcado ? (

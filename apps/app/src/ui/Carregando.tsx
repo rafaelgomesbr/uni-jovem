@@ -11,7 +11,7 @@ export function Carregando({ texto = 'Carregando' }: { texto?: string }) {
       accessible
       accessibilityRole="progressbar"
       accessibilityLabel={texto}
-      accessibilityState={{ busy: true }}
+      aria-busy
       style={{ padding: ESPACO.x6, alignItems: 'center', gap: ESPACO.x3 }}
     >
       <ActivityIndicator color={cores.destaque} />
