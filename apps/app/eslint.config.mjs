@@ -15,6 +15,25 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
+const ESPACO_FINO = {
+  selector: "MemberExpression[object.name='ESPACO'][property.name=/^e(2|6|10|14|18)$/]",
+  message:
+    'Os espaços 2, 6, 10, 14 e 18 são só dos componentes de src/ui; nas telas, use 4, 8, 12, 16, 20, 24, 32 ou 40.',
+}
+
+const LITERAL_DE_ESTILO = {
+  selector:
+    'JSXAttribute[name.name=/[sS]tyle$/] Property[key.name!=/^(flex|flexGrow|flexShrink|zIndex|aspectRatio)$/] > Literal[raw=/^[1-9]/]',
+  message:
+    'Nada de número solto no estilo da tela: use ESPACO, ALTURA, RAIO ou TIPO de @uj/tokens.',
+}
+
+const OPACIDADE_COMO_ESTADO = {
+  selector: "Property[key.name='opacity']",
+  message:
+    'Estado (pressionado, desabilitado) é cor, não opacidade (seção 2.12.1). Animação de entrada pode, com a justificativa.',
+}
+
 export default tseslint.config(
   {
     ignores: [
@@ -69,5 +88,32 @@ export default tseslint.config(
     files: ['*.config.ts', '*.config.mjs', 'jest.setup.ts', '**/__tests__/**', 'src/testes/**'],
     languageOptions: { globals: { ...globals.node, ...globals.jest } },
     rules: { '@typescript-eslint/no-require-imports': 'off' },
+  },
+  // Design system (D0, docs/design seção 2.5 e 4.2). As regras de forma ficam
+  // por pasta porque `no-restricted-syntax` não soma entre blocos: o último vale.
+  {
+    // Fora de `src/ui`, nada dos espaços finos do mockup (2, 6, 10, 14, 18).
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/ui/**', '**/__tests__/**'],
+    rules: { 'no-restricted-syntax': ['error', ESPACO_FINO] },
+  },
+  {
+    // Telas já redesenhadas (D1): também nenhum literal numérico de estilo.
+    files: [
+      'src/funcionalidades/inicio/**/*.tsx',
+      'src/funcionalidades/navegacao/**/*.tsx',
+      'src/funcionalidades/autenticacao/**/*.tsx',
+      'src/funcionalidades/convite/**/*.tsx',
+      'src/funcionalidades/perfil/TelaPerfil.tsx',
+      'src/funcionalidades/perfil/TelaAjuda.tsx',
+    ],
+    ignores: ['**/__tests__/**'],
+    rules: { 'no-restricted-syntax': ['error', ESPACO_FINO, LITERAL_DE_ESTILO] },
+  },
+  {
+    // Componentes de base: estado é desenhado em cor, nunca com `opacity`.
+    files: ['src/ui/**/*.{ts,tsx}'],
+    ignores: ['**/__tests__/**'],
+    rules: { 'no-restricted-syntax': ['error', OPACIDADE_COMO_ESTADO] },
   },
 )

@@ -1,18 +1,28 @@
-import { ESPACO, RAIO, RITMO } from '@uj/tokens'
-import { router } from 'expo-router'
-import { createContext, useContext, type ReactNode, type Ref } from 'react'
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native'
+import { AURORA, DURACAO, ESPACO, RITMO } from '@uj/tokens'
+import { createContext, useContext, useEffect, useState, type ReactNode, type Ref } from 'react'
+import {
+  Animated,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  View,
+  type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { LARGURA_MAXIMA_DO_CONTEUDO, LARGURA_MAXIMA_LARGA } from '@/constantes'
 
+import { usePreferenciasDeAcessibilidade } from './acessibilidade'
+import { fimComBarraDeAcao } from './BarraDeAcao'
+import { BotaoIcone } from './Botao'
+import { CabecalhoDeTela, voltar } from './CabecalhoDeTela'
 import type { NoDeTexto } from './foco'
 import { FundoAurora } from './FundoAurora'
-import { Icone } from './Icone'
-import { ALVO, useMargemDaTela } from './medidas'
 import { Texto } from './Texto'
-import { useTema } from './tema'
-import { soNaWeb } from './web'
+import { sombra, useTema } from './tema'
+import { Vidro } from './Vidro'
 
 /**
  * Altura que a barra de abas flutuante ocupa no fim da tela (0 fora das abas).
@@ -22,81 +32,93 @@ export const ContextoDaBarraDeAbas = createContext(0)
 
 interface PropsDaTela {
   children: ReactNode
-  /** Título da tela em Bricolage 34 (anunciado como cabeçalho de nível 1). */
+  /** Raiz: `display` 34/38. Pilha: `tituloTela` 28/32. Anunciado como cabeçalho de nível 1. */
   titulo?: string
   descricao?: string
-  /**
-   * Faixa fixa ACIMA da rolagem; ela mesma cuida da área segura de cima
-   * (ex.: `CabecalhoProprio` das telas de comunidade).
-   */
-  cabecalho?: ReactNode
-  /** Faixa do topo DENTRO da rolagem, sobre a aurora (pílula da comunidade e sincronização). */
+  /** Tela de pilha: voltar circular de 44, título 28/32 e Aurora a 60%. */
+  pilha?: boolean
+  /** Raiz de aba: a linha de 44 com a pílula e o status. */
   topo?: ReactNode
+  /** Raiz: a mesma linha em versão compacta, no cabeçalho que aparece ao rolar. */
+  topoCompacto?: ReactNode
+  /** Raiz: só ícone à direita do título. */
+  acaoDoTitulo?: ReactNode
+  /** Pilha: ações de 44 à direita do voltar. */
+  acoes?: ReactNode
+  /** Pilha sem voltar (convite aberto pelo link). */
+  semVoltar?: boolean
+  passos?: { atual: number; total: number }
   rolar?: boolean
-  /**
-   * Tela interna (aberta por cima das abas): mostra o botão Voltar em pílula de
-   * vidro no topo. Nenhuma tela usa o cabeçalho nativo do sistema.
-   */
-  cabecalhoNativo?: boolean
   /** Usa a largura de tela larga (lista e detalhe lado a lado na web). */
   larga?: boolean
   /** Para levar o foco ao título quando o conteúdo da tela troca (ver `useFocoAoMudar`). */
   refDoTitulo?: Ref<NoDeTexto>
-  /** Elemento à direita do título (ex.: avatar, botão de ação). */
-  acaoDoTitulo?: ReactNode
-}
-
-/** Botão Voltar das telas internas: pílula de vidro com seta e rótulo. */
-export function BotaoVoltar() {
-  const { cores } = useTema()
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Voltar"
-      onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-      style={({ pressed }) => ({
-        alignSelf: 'flex-start',
-        minHeight: ALVO,
-        minWidth: ALVO,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: ESPACO.x1,
-        paddingLeft: ESPACO.x2,
-        paddingRight: ESPACO.x4,
-        borderRadius: RAIO.pilula,
-        borderWidth: 1,
-        borderColor: cores.cartaoVidroBorda,
-        backgroundColor: pressed ? cores.superficieRealce : cores.cartaoVidro,
-      })}
-    >
-      <Icone nome="voltar" cor={cores.texto} tamanho={20} />
-      <Texto variante="corpoForte" style={{ fontSize: 15 }}>
-        Voltar
-      </Texto>
-    </Pressable>
-  )
+  /** Rodapé fixo com a ação principal (`BarraDeAcao`). Sobe com o teclado. */
+  barraDeAcao?: ReactNode
+  /** Intensidade da Aurora: 1 na raiz e na entrada, 0,6 na pilha, 0 no Ao vivo. */
+  aurora?: number
+  /** A tela desenha o próprio topo (Entrar): sem cabeçalho e com o respiro de 40. */
+  semCabecalho?: boolean
 }
 
 /**
- * Esqueleto de toda tela: fundo Aurora, área segura, rolagem, teclado que não
- * cobre o campo, largura máxima de leitura na web e o espaço da barra de abas.
+ * Esqueleto de toda tela (seção 2.13): fundo Aurora rolando com o conteúdo,
+ * margem lateral de 20, topo na área segura mais 8, intervalo de 16 entre
+ * blocos, cabeçalho próprio (nunca o nativo), largura máxima de 720 na web e
+ * o fim de 120 nas abas (24 de fundo, 64 de barra e 32 de folga).
  */
 export function Tela({
   children,
   titulo,
   descricao,
-  cabecalho,
+  pilha = false,
   topo,
+  topoCompacto,
+  acaoDoTitulo,
+  acoes,
+  semVoltar,
+  passos,
   rolar = true,
-  cabecalhoNativo = false,
   larga = false,
   refDoTitulo,
-  acaoDoTitulo,
+  barraDeAcao,
+  aurora,
+  semCabecalho = false,
 }: PropsDaTela) {
   const { cores } = useTema()
   const margens = useSafeAreaInsets()
-  const margemLateral = useMargemDaTela()
   const espacoDaBarra = useContext(ContextoDaBarraDeAbas)
+  const [fimDoTitulo, setFimDoTitulo] = useState<number | null>(null)
+  const [compacto, setCompacto] = useState(false)
+  const alturaDoCompacto = margens.top + 52
+
+  const temCabecalho = !semCabecalho && !!(titulo || topo || pilha || passos)
+  const intensidade = aurora ?? (pilha ? AURORA.intensidadeNaPilha : 1)
+  const fim = barraDeAcao
+    ? fimComBarraDeAcao(margens.bottom)
+    : espacoDaBarra > 0
+      ? Math.max(RITMO.fimDasAbas, espacoDaBarra + ESPACO.e16)
+      : margens.bottom + ESPACO.e24
+
+  const cabecalho = temCabecalho ? (
+    <View
+      onLayout={(e: LayoutChangeEvent) =>
+        setFimDoTitulo(e.nativeEvent.layout.y + e.nativeEvent.layout.height)
+      }
+    >
+      <CabecalhoDeTela
+        tipo={pilha ? 'pilha' : 'raiz'}
+        {...(titulo ? { titulo } : {})}
+        {...(descricao ? { subtitulo: descricao } : {})}
+        {...(topo ? { linhaDoTopo: topo } : {})}
+        {...(acaoDoTitulo ? { acaoDoTitulo } : {})}
+        {...(acoes ? { acoes } : {})}
+        {...(semVoltar ? { semVoltar } : {})}
+        {...(passos ? { passos } : {})}
+        {...(refDoTitulo ? { refDoTitulo } : {})}
+      />
+    </View>
+  ) : null
 
   const conteudo = (
     <View
@@ -109,37 +131,27 @@ export function Tela({
         ...(rolar ? {} : { flex: 1 }),
       }}
     >
-      {topo}
-      {cabecalhoNativo ? <BotaoVoltar /> : null}
-      {titulo ? (
-        <View style={{ gap: RITMO.depoisDoTitulo, marginTop: ESPACO.x1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.x3 }}>
-            <Texto
-              variante="tituloGrande"
-              ref={refDoTitulo}
-              style={{ flex: 1 }}
-              {...soNaWeb({ tabIndex: -1 })}
-            >
-              {titulo}
-            </Texto>
-            {acaoDoTitulo}
-          </View>
-          {descricao ? <Texto cor="textoSuave">{descricao}</Texto> : null}
-        </View>
-      ) : null}
+      {cabecalho}
       {children}
     </View>
   )
 
   const preenchimento = {
-    paddingHorizontal: margemLateral,
-    paddingTop: (cabecalho ? 0 : margens.top) + RITMO.topoDaTela,
-    paddingBottom: margens.bottom + espacoDaBarra + ESPACO.x8,
+    paddingHorizontal: RITMO.margemDaTela,
+    paddingTop: margens.top + (semCabecalho ? ESPACO.e40 : RITMO.topoDaTela),
+    paddingBottom: fim,
+  }
+
+  function aoRolar(e: NativeSyntheticEvent<NativeScrollEvent>) {
+    if (fimDoTitulo === null || !titulo) return
+    // O título "sai da tela" quando passa por baixo do cabeçalho compacto.
+    const saiu =
+      e.nativeEvent.contentOffset.y + alturaDoCompacto > fimDoTitulo + preenchimento.paddingTop
+    if (saiu !== compacto) setCompacto(saiu)
   }
 
   return (
     <View style={{ flex: 1, backgroundColor: cores.fundo }}>
-      {cabecalho}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -148,18 +160,116 @@ export function Tela({
           <ScrollView
             contentInsetAdjustmentBehavior="never"
             keyboardShouldPersistTaps="handled"
+            onScroll={aoRolar}
+            scrollEventThrottle={16}
             contentContainerStyle={[{ flexGrow: 1 }, preenchimento]}
           >
-            <FundoAurora />
+            <FundoAurora intensidade={intensidade} />
             {conteudo}
           </ScrollView>
         ) : (
           <View style={[{ flex: 1 }, preenchimento]}>
-            <FundoAurora />
+            <FundoAurora intensidade={intensidade} />
             {conteudo}
           </View>
         )}
+        {barraDeAcao ? (
+          <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>{barraDeAcao}</View>
+        ) : null}
       </KeyboardAvoidingView>
+      {compacto && titulo ? (
+        <CabecalhoCompacto
+          altura={alturaDoCompacto}
+          topo={margens.top}
+          pilha={pilha}
+          titulo={titulo}
+          topoCompacto={topoCompacto}
+          semVoltar={!!semVoltar}
+        />
+      ) : null}
     </View>
+  )
+}
+
+/**
+ * Cabeçalho compacto (2.12.16): barra de vidro com a área segura mais 52 e
+ * borda de baixo, que dissolve em 200 ms quando o título sai da tela
+ * (instantâneo com "Reduzir movimento"). Raiz: pílula compacta e status;
+ * pilha: voltar e o título em uma linha.
+ */
+function CabecalhoCompacto({
+  altura,
+  topo,
+  pilha,
+  titulo,
+  topoCompacto,
+  semVoltar,
+}: {
+  altura: number
+  topo: number
+  pilha: boolean
+  titulo: string
+  topoCompacto: ReactNode
+  semVoltar: boolean
+}) {
+  const { elevacao } = useTema()
+  const { reduzirMovimento } = usePreferenciasDeAcessibilidade()
+  const [entrada] = useState(() => new Animated.Value(reduzirMovimento ? 1 : 0))
+  // A animação é um sistema externo (o motor de animação): começa ao montar.
+  useEffect(() => {
+    if (reduzirMovimento) return
+    const a = Animated.timing(entrada, {
+      toValue: 1,
+      duration: DURACAO.aparecer,
+      useNativeDriver: Platform.OS !== 'web',
+    })
+    a.start()
+    return () => a.stop()
+  }, [entrada, reduzirMovimento])
+  // Animação de entrada, não estado.
+  // eslint-disable-next-line no-restricted-syntax
+  const dissolver = { opacity: entrada }
+  return (
+    <Animated.View
+      style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: altura }, dissolver]}
+    >
+      <Vidro borda="baixo" style={[{ flex: 1 }, sombra(elevacao.flutuante)]}>
+        <View
+          style={{
+            flex: 1,
+            marginTop: topo,
+            paddingHorizontal: RITMO.margemDaTela,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: ESPACO.e8,
+            width: '100%',
+            maxWidth: LARGURA_MAXIMA_DO_CONTEUDO + RITMO.margemDaTela * 2,
+            alignSelf: 'center',
+          }}
+        >
+          {pilha ? (
+            <>
+              {semVoltar ? (
+                <View style={{ width: 44 }} />
+              ) : (
+                <BotaoIcone icone="voltar" rotulo="Voltar" circular aoPressionar={voltar} />
+              )}
+              <Texto
+                variante="tituloItem"
+                numberOfLines={1}
+                centralizado
+                accessibilityRole="text"
+                style={{ flex: 1 }}
+              >
+                {titulo}
+              </Texto>
+              <View style={{ width: 44 }} />
+            </>
+          ) : (
+            <View style={{ flex: 1 }}>{topoCompacto}</View>
+          )}
+        </View>
+      </Vidro>
+    </Animated.View>
   )
 }

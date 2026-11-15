@@ -45,9 +45,9 @@ export function LinkCompartilhavel({
 
   return (
     <Cartao>
-      <View style={{ gap: ESPACO.x1 }}>
+      <View style={{ gap: ESPACO.e4 }}>
         <Sobrancelha>Link do convite</Sobrancelha>
-        <Texto variante="subtitulo" accessibilityRole="header" nivel={2}>
+        <Texto variante="tituloItem" accessibilityRole="header" nivel={2}>
           {titulo}
         </Texto>
       </View>
@@ -56,19 +56,19 @@ export function LinkCompartilhavel({
         <Chip texto={`Vale até ${formatarData(expiraEm)}`} icone="relogio" />
         <Chip texto="Uso único" icone="chave" />
       </Chips>
-      <Texto variante="apoio" cor="textoSuave">
+      <Texto variante="legenda" cor="textoSuave">
         {emailDestino
           ? `Só quem entrar com ${emailDestino} consegue usar este convite.`
           : 'Qualquer pessoa com o link entra uma vez. Mande só para quem você quer convidar.'}
       </Texto>
       <View
         style={{
-          padding: ESPACO.x3,
-          borderRadius: RAIO.medio,
-          backgroundColor: cores.superficieRealce,
+          padding: ESPACO.e12,
+          borderRadius: RAIO.controle,
+          backgroundColor: cores.pressionado,
         }}
       >
-        <Texto selectable variante="apoio" accessibilityLabel={`Link do convite: ${link}`}>
+        <Texto selectable variante="corpo" accessibilityLabel={`Link do convite: ${link}`}>
           {link}
         </Texto>
       </View>
@@ -99,11 +99,11 @@ export function LinkCompartilhavel({
       <Texto variante="legenda" cor="textoSuave">
         Para mandar no WhatsApp, toque em Compartilhar e escolha o WhatsApp.
       </Texto>
-      {aviso ? <TextoAnunciado variante="apoio">{aviso}</TextoAnunciado> : null}
+      {aviso ? <TextoAnunciado variante="corpo">{aviso}</TextoAnunciado> : null}
       {mostrarQr ? (
-        <View style={{ gap: ESPACO.x2, alignItems: 'center', marginTop: ESPACO.x2 }}>
+        <View style={{ gap: ESPACO.e8, alignItems: 'center', marginTop: ESPACO.e8 }}>
           <CodigoQR valor={link} rotulo="QR com o link do convite" />
-          <Texto variante="apoio" cor="textoSuave" centralizado>
+          <Texto variante="legenda" cor="textoSuave" centralizado>
             Quem estiver ao seu lado pode apontar a câmera para o QR.
           </Texto>
         </View>

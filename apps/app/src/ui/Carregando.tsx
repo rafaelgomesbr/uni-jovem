@@ -1,23 +1,14 @@
-import { ESPACO } from '@uj/tokens'
-import { ActivityIndicator, View } from 'react-native'
+import { CartaoDeEsqueleto, Esqueleto } from './Esqueleto'
 
-import { Texto } from './Texto'
-import { useTema } from './tema'
-
+/**
+ * Fachada do carregamento antigo (indicador giratório com texto): agora é um
+ * esqueleto com a forma de um cartão (seção 2.12.22). O texto vira o rótulo
+ * que o leitor de tela ouve.
+ */
 export function Carregando({ texto = 'Carregando' }: { texto?: string }) {
-  const { cores } = useTema()
   return (
-    <View
-      accessible
-      accessibilityRole="progressbar"
-      accessibilityLabel={texto}
-      aria-busy
-      style={{ padding: ESPACO.x6, alignItems: 'center', gap: ESPACO.x3 }}
-    >
-      <ActivityIndicator color={cores.destaque} />
-      <Texto variante="apoio" cor="textoSuave">
-        {texto}
-      </Texto>
-    </View>
+    <Esqueleto rotulo={texto}>
+      <CartaoDeEsqueleto titulo />
+    </Esqueleto>
   )
 }

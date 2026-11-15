@@ -64,7 +64,7 @@ export function BotaoDenunciar({ comunidadeId, recursoTipo, recursoId, descricao
     <Expansivel titulo="Denunciar" icone="denuncia">
       {() => (
         <>
-          <Texto variante="apoio" cor="textoSuave">
+          <Texto variante="legenda" cor="textoSuave">
             A administração da comunidade vai analisar {descricao}. Ela não vê quem denunciou.
           </Texto>
           <GrupoDeOpcoes
@@ -83,7 +83,7 @@ export function BotaoDenunciar({ comunidadeId, recursoTipo, recursoId, descricao
           {enviar.error ? <AvisoDeErro erro={enviar.error} /> : null}
           <Botao
             titulo="Enviar denúncia"
-            variante="perigo"
+            variante="destrutivo"
             desabilitado={motivo === null}
             motivo="Escolha o motivo para enviar."
             carregando={enviar.isPending}

@@ -18,7 +18,7 @@ export function EstilosDaWeb() {
       document.head.appendChild(estilo)
     }
     estilo.textContent = [
-      `:focus-visible { outline: 3px solid ${cores.foco} !important; outline-offset: 2px !important; }`,
+      `:focus-visible { outline: 2px solid ${cores.foco} !important; outline-offset: 2px !important; }`,
       ':focus:not(:focus-visible) { outline: none; }',
       `body { background-color: ${cores.fundo}; }`,
       // "Pular para o conteúdo": fora da vista até receber o foco do teclado.

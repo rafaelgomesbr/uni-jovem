@@ -46,7 +46,7 @@ function MesEmLista({ referencia, hoje, selecionado, porDia, aoEscolher }: Props
   )
   if (dias.length === 0) {
     return (
-      <Texto variante="apoio" cor="textoSuave">
+      <Texto variante="legenda" cor="textoSuave">
         Nenhum evento neste mês.
       </Texto>
     )
@@ -79,10 +79,10 @@ function MesEmGrade({ referencia, hoje, selecionado, porDia, aoEscolher }: Props
   const semanas = Array.from({ length: 6 }, (_, i) => grade.slice(i * 7, i * 7 + 7))
 
   return (
-    <View style={{ gap: ESPACO.x1 }}>
+    <View style={{ gap: ESPACO.e4 }}>
       {/* Cada dia já diz o dia da semana no rótulo: o cabeçalho é só visual. */}
       <View
-        style={{ flexDirection: 'row', paddingBottom: ESPACO.x1 }}
+        style={{ flexDirection: 'row', paddingBottom: ESPACO.e4 }}
         aria-hidden
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
@@ -109,15 +109,15 @@ function MesEmGrade({ referencia, hoje, selecionado, porDia, aoEscolher }: Props
                 onPress={() => aoEscolher(dia)}
                 style={({ pressed }) => ({
                   flex: 1,
-                  minHeight: ALVO + ESPACO.x3,
+                  minHeight: ALVO + ESPACO.e12,
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 2,
-                  borderRadius: RAIO.pequeno,
+                  borderRadius: RAIO.celula,
                   // Escolhido: contorno em destaque e fundo de realce (forma, não só cor).
                   borderWidth: escolhido ? 2 : aumentarContraste ? 1 : 0,
-                  borderColor: escolhido ? cores.destaque : cores.borda,
-                  backgroundColor: escolhido || pressed ? cores.superficieRealce : 'transparent',
+                  borderColor: escolhido ? cores.destaque : cores.campoBorda,
+                  backgroundColor: escolhido || pressed ? cores.pressionado : 'transparent',
                 })}
               >
                 <View
@@ -128,12 +128,12 @@ function MesEmGrade({ referencia, hoje, selecionado, porDia, aoEscolher }: Props
                     borderRadius: RAIO.pilula,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    backgroundColor: ehHoje ? cores.secundaria : 'transparent',
+                    backgroundColor: ehHoje ? cores.primaria : 'transparent',
                   }}
                 >
                   <Texto
-                    variante={escolhido || ehHoje ? 'corpoForte' : 'corpo'}
-                    cor={ehHoje ? 'sobreSecundaria' : doMes ? 'texto' : 'textoSuave'}
+                    variante={escolhido || ehHoje ? 'tituloItem' : 'corpo'}
+                    cor={ehHoje ? 'sobrePrimaria' : doMes ? 'texto' : 'textoSuave'}
                     centralizado
                     tabular
                   >

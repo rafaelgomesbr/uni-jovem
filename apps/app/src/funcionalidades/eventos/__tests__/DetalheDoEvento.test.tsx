@@ -77,7 +77,7 @@ describe('detalhe do evento', () => {
     const { servidor } = await montar('membro', {
       [`POST ${CAMINHO}/inscricoes/eu`]: () => ({
         status: 200,
-        corpo: { inscricao_id: 'insc-1', estado: 'confirmada', codigo_checkin: 'A1B2C3D4E5' },
+        corpo: { inscricaoId: 'insc-1', estado: 'confirmada', codigoCheckin: 'A1B2C3D4E5' },
       }),
     })
 

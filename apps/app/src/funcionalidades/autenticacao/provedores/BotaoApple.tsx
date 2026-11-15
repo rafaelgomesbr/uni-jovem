@@ -99,7 +99,7 @@ export function BotaoApple({
           ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
           : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
       }
-      cornerRadius={RAIO.medio}
+      cornerRadius={RAIO.controle}
       style={{ height: altura, alignSelf: 'stretch' }}
       onPress={aoPressionar}
     />

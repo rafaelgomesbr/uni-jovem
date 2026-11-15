@@ -90,7 +90,7 @@ function Agenda({ comunidadeId }: { comunidadeId: string }) {
 
   const controles = (
     <>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
         <Botao
           titulo="Minhas escalas"
           icone="escalas"
@@ -119,7 +119,7 @@ function Agenda({ comunidadeId }: { comunidadeId: string }) {
           { valor: 'lista', rotulo: 'Lista' },
         ]}
       />
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.x2 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}>
         <Botao
           titulo="Anterior"
           icone="voltar"
@@ -128,7 +128,7 @@ function Agenda({ comunidadeId }: { comunidadeId: string }) {
           rotuloAcessivel={`Anterior: ${nomeDoPasso.toLowerCase()} anterior`}
           aoPressionar={() => mover(-1)}
         />
-        <TextoAnunciado soMudancas variante="subtitulo" centralizado style={{ flex: 1 }}>
+        <TextoAnunciado soMudancas variante="tituloItem" centralizado style={{ flex: 1 }}>
           {titulo}
         </TextoAnunciado>
         <Botao
@@ -141,7 +141,7 @@ function Agenda({ comunidadeId }: { comunidadeId: string }) {
       </View>
       <Botao
         titulo="Voltar para hoje"
-        variante="discreto"
+        variante="terciario"
         larguraTotal={false}
         aoPressionar={() => {
           setReferencia(hoje)
@@ -217,11 +217,11 @@ function PainelDoDia({
       icone="agenda"
     >
       {eventos.length === 0 ? (
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           Nada marcado para este dia.
         </Texto>
       ) : (
-        <View style={{ gap: ESPACO.x2 }}>
+        <View style={{ gap: ESPACO.e8 }}>
           {eventos.map((e) => (
             <LinhaDoEvento
               key={e.id}
@@ -254,7 +254,7 @@ function VistaDaSemana({
 }) {
   const dias = Array.from({ length: 7 }, (_, i) => somarDias(inicio, i))
   return (
-    <View style={{ gap: ESPACO.x3 }}>
+    <View style={{ gap: ESPACO.e12 }}>
       {dias.map((dia) => {
         const lista = porDia.get(dia) ?? []
         return (
@@ -263,11 +263,11 @@ function VistaDaSemana({
             titulo={`${formatarDataPorExtenso(dia, false)}${dia === hoje ? ' (hoje)' : ''}`}
           >
             {lista.length === 0 ? (
-              <Texto variante="apoio" cor="textoSuave">
+              <Texto variante="legenda" cor="textoSuave">
                 Sem eventos.
               </Texto>
             ) : (
-              <View style={{ gap: ESPACO.x2 }}>
+              <View style={{ gap: ESPACO.e8 }}>
                 {lista.map((e) => (
                   <LinhaDoEvento
                     key={e.id}
@@ -280,7 +280,7 @@ function VistaDaSemana({
                 <Botao
                   titulo="Linha do tempo"
                   icone="relogio"
-                  variante="discreto"
+                  variante="terciario"
                   larguraTotal={false}
                   rotuloAcessivel={`Linha do tempo: ${formatarDataPorExtenso(dia)}`}
                   aoPressionar={() => abrirDia(dia)}
@@ -329,10 +329,10 @@ function VistaDeLista({
     )
   }
   return (
-    <View style={{ gap: ESPACO.x3 }}>
+    <View style={{ gap: ESPACO.e12 }}>
       {dias.map((dia) => (
-        <View key={dia} style={{ gap: ESPACO.x2 }}>
-          <Texto variante="corpoForte" accessibilityRole="header">
+        <View key={dia} style={{ gap: ESPACO.e8 }}>
+          <Texto variante="tituloItem" accessibilityRole="header">
             {formatarDataPorExtenso(dia)}
             {dia === hoje ? ' (hoje)' : ''} · {contarEventos(porDia.get(dia)!.length)}
           </Texto>

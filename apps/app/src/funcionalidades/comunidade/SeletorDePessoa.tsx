@@ -67,7 +67,7 @@ export function SeletorDePessoa({
   ]
 
   return (
-    <View style={{ gap: ESPACO.x2 }}>
+    <View style={{ gap: ESPACO.e8 }}>
       <Campo
         rotulo={`Buscar pessoa (${rotulo.toLowerCase()})`}
         value={busca}
@@ -77,13 +77,13 @@ export function SeletorDePessoa({
         exemplo="Digite parte do nome"
       />
       {candidatas.length > MAXIMO_VISIVEL ? (
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           Mostrando {MAXIMO_VISIVEL} de {candidatas.length}. Digite parte do nome para achar outras
           pessoas.
         </Texto>
       ) : null}
       {opcoes.length === 0 ? (
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           Ninguém encontrado com esse nome.
         </Texto>
       ) : (

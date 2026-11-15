@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
+import { ESPACO } from '@uj/tokens'
 import { router } from 'expo-router'
-import { useEffect, useRef, useState } from 'react'
-import { View } from 'react-native'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { useSessao } from '@/estado/sessao'
 import { nomeDoAparelho, plataformaAtual } from '@/servicos/aparelho'
@@ -11,10 +11,12 @@ import type { FaixaEtaria } from '@/servicos/contratoDosModulos'
 import { ehErroDaApi } from '@/servicos/erros'
 import { normalizarWhatsApp } from '@/utilidades/formatos'
 import { AvisoDeErro } from '@/ui/AvisoDeErro'
+import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
-import { Cartao } from '@/ui/Cartao'
-import { focar, type NoDeView } from '@/ui/foco'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { focar, type NoDeTexto } from '@/ui/foco'
+import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 
 import { problemaDaSenha } from '../autenticacao/politicaDeSenha'
@@ -30,6 +32,13 @@ import { guardarConviteEmEspera } from './conviteEmEspera'
 
 type Passo = 'dados' | 'codigo' | 'senha'
 
+const NUMERO: Readonly<Record<Passo, number>> = { dados: 1, codigo: 2, senha: 3 }
+const TITULO: Readonly<Record<Passo, string>> = {
+  dados: 'Seus dados',
+  codigo: 'Confira seu e-mail',
+  senha: 'Crie sua senha',
+}
+
 interface Erros {
   nome?: string
   email?: string
@@ -41,15 +50,30 @@ interface Erros {
 const CODIGO_ERRADO = new Set(['codigo_invalido', 'codigo_vencido'])
 
 /**
- * Conta nova pelo convite: dados, idade (TC-01) e Termos (TC-02); código de 6
- * números enviado por e-mail; senha e o consentimento sobre a fé (TC-03).
- * Menor de 16 para no primeiro passo, sem enviar nada.
+ * Conta nova pelo convite (3.1.2), em 3 passos com o cabeçalho de passos:
+ * 1. Seus dados (nome, WhatsApp, e-mail, idade TC-01 e Termos TC-02);
+ * 2. Código de 6 números enviado por e-mail;
+ * 3. Senha e o consentimento sobre a fé (TC-03).
+ * A ação principal fica na barra de ação; menor de 16 para no primeiro passo.
  */
-export function CadastroPorConvite({ token, comunidade }: { token: string; comunidade: string }) {
+export function CadastroPorConvite({
+  token,
+  comunidade,
+  cartaoDoConvite,
+}: {
+  token: string
+  comunidade: string
+  /** O convite em destaque, no topo do primeiro passo. */
+  cartaoDoConvite?: ReactNode
+}) {
   const sessao = useSessao()
   const [passo, setPassoAtual] = useState<Passo>('dados')
-  // Ao trocar de passo, o que tinha o foco some: o indicador do passo novo recebe o foco.
+  // Ao trocar de passo, o que tinha o foco some: o título do passo novo recebe o foco.
   const [trocouDePasso, setTrocouDePasso] = useState(false)
+  const titulo = useRef<NoDeTexto>(null)
+  useEffect(() => {
+    if (trocouDePasso) focar(titulo)
+  }, [passo, trocouDePasso])
   const setPasso = (novo: Passo) => {
     setTrocouDePasso(true)
     setPassoAtual(novo)
@@ -121,13 +145,27 @@ export function CadastroPorConvite({ token, comunidade }: { token: string; comun
     },
   })
 
+  const moldura = (barra: ReactNode, conteudo: ReactNode) => (
+    <Tela
+      pilha
+      semVoltar
+      aurora={1}
+      passos={{ atual: NUMERO[passo], total: 3 }}
+      titulo={TITULO[passo]}
+      refDoTitulo={titulo}
+      {...(barra ? { barraDeAcao: barra } : {})}
+    >
+      {conteudo}
+    </Tela>
+  )
+
   if (passo === 'dados') {
     const enviarDados = () => {
       const novos: Erros = {}
       if (!nome.trim()) novos.nome = 'Informe seu nome.'
       if (!/^\S+@\S+\.\S+$/.test(email.trim())) novos.email = 'Informe um e-mail válido.'
       if (whatsapp.trim() && !whatsappNormalizado) {
-        novos.whatsapp = 'Informe o WhatsApp com DDD, por exemplo (11) 91234-5678.'
+        novos.whatsapp = 'Use o formato com DDD, como (11) 91234-5678.'
       }
       setErros(novos)
       if (Object.keys(novos).length === 0) iniciar.mutate()
@@ -138,70 +176,80 @@ export function CadastroPorConvite({ token, comunidade }: { token: string; comun
         : !termos
           ? 'Para criar a conta, é preciso concordar com os Termos de Uso.'
           : null
-    return (
-      <Cartao titulo="Crie sua conta" icone="convidar">
-        <IndicadorDePasso numero={1} titulo="Crie sua conta" focar={trocouDePasso} />
-        <Campo
-          rotulo="Nome"
-          value={nome}
-          onChangeText={setNome}
-          erro={erros.nome ?? null}
-          autoComplete="name"
-          textContentType="name"
-          autoCapitalize="words"
-        />
-        <Campo
-          rotulo="WhatsApp (opcional)"
-          ajuda="Com DDD. Fora do Brasil, comece com + e o código do país."
-          exemplo="(11) 91234-5678"
-          value={whatsapp}
-          onChangeText={setWhatsapp}
-          erro={erros.whatsapp ?? null}
-          keyboardType="phone-pad"
-          inputMode="tel"
-          autoComplete="tel"
-          textContentType="telephoneNumber"
-        />
-        <Campo
-          rotulo="E-mail"
-          ajuda="Vamos mandar um código de 6 números para confirmar."
-          value={email}
-          onChangeText={setEmail}
-          erro={erros.email ?? null}
-          keyboardType="email-address"
-          inputMode="email"
-          autoCapitalize="none"
-          autoCorrect={false}
-          autoComplete="email"
-          textContentType="emailAddress"
-          onSubmitEditing={enviarDados}
-        />
+    const menor = faixa === 'menos_16'
+    return moldura(
+      menor ? null : (
+        <BarraDeAcao>
+          <Botao
+            titulo="Enviar código"
+            tamanho="grande"
+            aoPressionar={enviarDados}
+            carregando={iniciar.isPending}
+            desabilitado={motivoDosDados !== null}
+            {...(motivoDosDados ? { motivo: motivoDosDados } : {})}
+          />
+        </BarraDeAcao>
+      ),
+      <>
+        {cartaoDoConvite}
+        <CartaoDeVidro intervalo={ESPACO.e16}>
+          <Campo
+            rotulo="Nome"
+            value={nome}
+            onChangeText={setNome}
+            erro={erros.nome ?? null}
+            autoComplete="name"
+            textContentType="name"
+            autoCapitalize="words"
+          />
+          <Campo
+            rotulo="WhatsApp"
+            opcional
+            ajuda="Com DDD. Fora do Brasil, comece com + e o código do país."
+            exemplo="(11) 91234-5678"
+            value={whatsapp}
+            onChangeText={setWhatsapp}
+            erro={erros.whatsapp ?? null}
+            keyboardType="phone-pad"
+            inputMode="tel"
+            autoComplete="tel"
+            textContentType="telephoneNumber"
+          />
+          <Campo
+            rotulo="E-mail"
+            ajuda="Vamos mandar um código de 6 números para confirmar."
+            value={email}
+            onChangeText={setEmail}
+            erro={erros.email ?? null}
+            keyboardType="email-address"
+            inputMode="email"
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="email"
+            textContentType="emailAddress"
+            onSubmitEditing={enviarDados}
+          />
+        </CartaoDeVidro>
         <PerguntaDeIdade valor={faixa} aoMudar={setFaixa} />
-        {faixa === 'menos_16' ? (
+        {menor ? (
           <MenorDe16 />
         ) : (
-          <>
+          <CartaoDeVidro>
             <AceiteDosTermos marcada={termos} aoMudar={setTermos} />
-            {iniciar.error ? <AvisoDeErro erro={iniciar.error} /> : null}
-            <Botao
-              titulo="Enviar código"
-              aoPressionar={enviarDados}
-              carregando={iniciar.isPending}
-              desabilitado={motivoDosDados !== null}
-              {...(motivoDosDados ? { motivo: motivoDosDados } : {})}
-            />
-          </>
+          </CartaoDeVidro>
         )}
+        {iniciar.error ? <AvisoDeErro erro={iniciar.error} /> : null}
         <Botao
           titulo="Já tenho conta: entrar"
-          variante="discreto"
+          variante="terciario"
+          alinhado
           aoPressionar={() => {
             guardarConviteEmEspera(token)
             router.push('/entrar')
           }}
           dica="Depois de entrar, você volta para este convite."
         />
-      </Cartao>
+      </>,
     )
   }
 
@@ -214,42 +262,45 @@ export function CadastroPorConvite({ token, comunidade }: { token: string; comun
       setErros({})
       setPasso('senha')
     }
-    return (
-      <Cartao titulo="Confira seu e-mail" icone="email">
-        <IndicadorDePasso numero={2} titulo="Confira seu e-mail" focar={trocouDePasso} />
-        <Texto accessibilityLiveRegion="polite">
-          Mandamos uma mensagem para {email.trim()}. Se for uma conta nova, ela traz um código de 6
-          números que vale por 10 minutos.
-        </Texto>
-        <Texto variante="apoio" cor="textoSuave">
-          Se este e-mail já tem conta, a mensagem explica como entrar nela e aceitar o convite. Não
-          chegou? Olhe a caixa de spam.
-        </Texto>
-        <Campo
-          rotulo="Código de 6 números"
-          value={codigo}
-          onChangeText={setCodigo}
-          erro={erros.codigo ?? null}
-          keyboardType="number-pad"
-          textContentType="oneTimeCode"
-          autoComplete="one-time-code"
-          maxLength={6}
-          onSubmitEditing={enviarCodigo}
-        />
-        <Botao titulo="Continuar" aoPressionar={enviarCodigo} />
-        {iniciar.error ? <AvisoDeErro erro={iniciar.error} /> : null}
+    return moldura(
+      <BarraDeAcao>
         <Botao
           titulo="Mandar outro código"
           variante="secundario"
+          tamanho="grande"
           aoPressionar={() => iniciar.mutate()}
           carregando={iniciar.isPending}
         />
+        <Botao titulo="Continuar" tamanho="grande" aoPressionar={enviarCodigo} />
+      </BarraDeAcao>,
+      <>
+        <CartaoDeVidro intervalo={ESPACO.e16}>
+          <Texto variante="corpo" accessibilityLiveRegion="polite">
+            Mandamos uma mensagem para {email.trim()}. Se for uma conta nova, ela traz um código de
+            6 números que vale por 10 minutos.
+          </Texto>
+          <Campo
+            rotulo="Código de 6 números"
+            value={codigo}
+            onChangeText={setCodigo}
+            erro={erros.codigo ?? null}
+            codigo
+            ajuda="Não chegou? Olhe a caixa de spam. Se o e-mail já tem conta, a mensagem explica como entrar."
+            keyboardType="number-pad"
+            textContentType="oneTimeCode"
+            autoComplete="one-time-code"
+            maxLength={6}
+            onSubmitEditing={enviarCodigo}
+          />
+        </CartaoDeVidro>
+        {iniciar.error ? <AvisoDeErro erro={iniciar.error} /> : null}
         <Botao
           titulo="Corrigir meus dados"
-          variante="discreto"
+          variante="terciario"
+          alinhado
           aoPressionar={() => setPasso('dados')}
         />
-      </Cartao>
+      </>,
     )
   }
 
@@ -266,84 +317,61 @@ export function CadastroPorConvite({ token, comunidade }: { token: string; comun
     !senhaFraca &&
     !(ehErroDaApi(concluir.error) && CODIGO_ERRADO.has(concluir.error.codigo))
 
-  return (
-    <Cartao titulo="Crie sua senha" icone="chave">
-      <IndicadorDePasso numero={3} titulo="Crie sua senha" focar={trocouDePasso} />
-      <RegrasDaSenha senha={senha} nome={nome} email={email} />
-      <Campo
-        rotulo="Senha"
-        senha
-        value={senha}
-        onChangeText={setSenha}
-        erro={erros.senha ?? senhaFraca}
-        autoCapitalize="none"
-        autoCorrect={false}
-        autoComplete="new-password"
-        textContentType="newPassword"
-      />
-      <Campo
-        rotulo="Repita a senha"
-        senha
-        value={confirmacao}
-        onChangeText={setConfirmacao}
-        autoCapitalize="none"
-        autoCorrect={false}
-        autoComplete="new-password"
-        textContentType="newPassword"
-        onSubmitEditing={enviarSenha}
-      />
-      <ConsentimentoDeFe
-        comunidade={comunidade}
-        marcada={fe}
-        aoMudar={setFe}
-        pedirResponsavel={adolescente}
-        responsavel={responsavel}
-        aoMudarResponsavel={setResponsavel}
-      />
-      {outroErro ? <AvisoDeErro erro={concluir.error} /> : null}
+  return moldura(
+    <BarraDeAcao>
       <Botao
-        titulo={`Criar conta e entrar em ${comunidade}`}
+        titulo="Criar conta e entrar"
+        tamanho="grande"
+        rotuloAcessivel={`Criar conta e entrar em ${comunidade}`}
         aoPressionar={enviarSenha}
         carregando={concluir.isPending}
         desabilitado={motivoDaFe !== null}
         {...(motivoDaFe ? { motivo: motivoDaFe } : {})}
       />
+    </BarraDeAcao>,
+    <>
+      <CartaoDeVidro intervalo={ESPACO.e16}>
+        <RegrasDaSenha senha={senha} nome={nome} email={email} />
+        <Campo
+          rotulo="Senha"
+          senha
+          value={senha}
+          onChangeText={setSenha}
+          erro={erros.senha ?? senhaFraca}
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="new-password"
+          textContentType="newPassword"
+        />
+        <Campo
+          rotulo="Repita a senha"
+          senha
+          value={confirmacao}
+          onChangeText={setConfirmacao}
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="new-password"
+          textContentType="newPassword"
+          onSubmitEditing={enviarSenha}
+        />
+      </CartaoDeVidro>
+      <CartaoDeVidro>
+        <ConsentimentoDeFe
+          comunidade={comunidade}
+          marcada={fe}
+          aoMudar={setFe}
+          pedirResponsavel={adolescente}
+          responsavel={responsavel}
+          aoMudarResponsavel={setResponsavel}
+        />
+      </CartaoDeVidro>
+      {outroErro ? <AvisoDeErro erro={concluir.error} /> : null}
       <Botao
         titulo="Voltar ao código"
-        variante="discreto"
+        variante="terciario"
+        alinhado
         aoPressionar={() => setPasso('codigo')}
       />
-    </Cartao>
-  )
-}
-
-/**
- * "Passo 2 de 3", visível e anunciado como cabeçalho. Quando o passo muda,
- * recebe o foco do leitor de tela (o botão que a pessoa tocou deixou de existir).
- */
-function IndicadorDePasso({
-  numero,
-  titulo,
-  focar: deveFocar,
-}: {
-  numero: number
-  titulo: string
-  focar: boolean
-}) {
-  const ref = useRef<NoDeView>(null)
-  useEffect(() => {
-    if (deveFocar) focar(ref)
-  }, [deveFocar])
-  return (
-    <View
-      ref={ref}
-      accessible
-      accessibilityRole="header"
-      accessibilityLabel={`Passo ${numero} de 3: ${titulo}`}
-    >
-      <Texto variante="apoio" cor="textoSuave">
-        Passo {numero} de 3
-      </Texto>
-    </View>
+    </>,
   )
 }

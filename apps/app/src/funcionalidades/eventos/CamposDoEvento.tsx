@@ -72,7 +72,7 @@ export function CamposDoEvento({
         <View
           role="group"
           aria-label="Sugestões de categoria"
-          style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}
+          style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}
         >
           {sugestoes.map((c) => (
             <Botao
@@ -108,7 +108,7 @@ export function CamposDoEvento({
             maxLength={10}
           />
         ) : (
-          <Texto variante="apoio" cor="textoSuave">
+          <Texto variante="legenda" cor="textoSuave">
             O dia de cada ocorrência vem da regra da série. Para mudar o dia da semana, use a tela
             da série.
           </Texto>
@@ -159,7 +159,7 @@ export function CamposDoEvento({
           />
         )}
         {r.local === LOCAL_NOVO ? (
-          <View style={{ gap: ESPACO.x3 }}>
+          <View style={{ gap: ESPACO.e12 }}>
             <Campo
               rotulo="Nome do local"
               value={r.novoLocal.nome}

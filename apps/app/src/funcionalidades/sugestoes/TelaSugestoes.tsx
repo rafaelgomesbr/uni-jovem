@@ -85,7 +85,7 @@ function Lista({ comunidadeId, modera }: { comunidadeId: string; modera: boolean
       ) : (
         <Cartao>
           {sugestoes.data.map((s) => (
-            <View key={s.id} style={{ gap: ESPACO.x1 }}>
+            <View key={s.id} style={{ gap: ESPACO.e4 }}>
               <Linha
                 titulo={s.titulo}
                 descricao={[

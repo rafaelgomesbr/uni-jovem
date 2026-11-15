@@ -46,7 +46,7 @@ export function TelaPendencias() {
   )
   return (
     <Tela
-      cabecalhoNativo
+      pilha
       refDoTitulo={tituloRef}
       titulo="Pendências"
       descricao="O que foi feito sem internet e ainda não chegou ao servidor."
@@ -114,7 +114,7 @@ function Pendencias({
       <Sincronizacao offline={offline} nomeDaComunidade={nomeDaComunidade} />
       {conflitos.length ? (
         <Cartao titulo={`Conflitos a resolver (${conflitos.length})`} icone="erro">
-          <Texto variante="apoio">
+          <Texto variante="corpo">
             Isto mudou no servidor enquanto você estava sem conexão. Compare e escolha qual versão
             vale; nada é decidido sem você.
           </Texto>
@@ -132,7 +132,7 @@ function Pendencias({
       ) : null}
       {aguardando.length ? (
         <Cartao titulo={`Aguardando envio (${aguardando.length})`} icone="relogio">
-          <Texto variante="apoio" cor="textoSuave">
+          <Texto variante="legenda" cor="textoSuave">
             {offline.online
               ? 'Vão para o servidor na próxima sincronização.'
               : 'Ficam guardadas neste aparelho e vão sozinhas quando a internet voltar.'}
@@ -237,16 +237,16 @@ function Bloco({ titulo, linhas }: { titulo: string; linhas: string[] }) {
       style={{
         flex: 1,
         minWidth: 200,
-        gap: ESPACO.x1,
-        padding: ESPACO.x3,
-        borderRadius: RAIO.medio,
+        gap: ESPACO.e4,
+        padding: ESPACO.e12,
+        borderRadius: RAIO.controle,
         borderWidth: 1,
-        borderColor: cores.borda,
+        borderColor: cores.campoBorda,
       }}
     >
       <Texto variante="rotulo">{titulo}</Texto>
       {linhas.map((l) => (
-        <Texto key={l} variante="apoio">
+        <Texto key={l} variante="corpo">
           {l}
         </Texto>
       ))}
@@ -266,15 +266,15 @@ function Conflito({
   const acao = useAcaoLocal(pedirFoco)
   const ocupado = acao.isPending && acao.variables?.chave === op.chave
   return (
-    <View style={{ gap: ESPACO.x2 }}>
-      <Texto variante="corpoForte">{op.descricao}</Texto>
-      {op.mensagem ? <Texto variante="apoio">{op.mensagem}</Texto> : null}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>
+    <View style={{ gap: ESPACO.e8 }}>
+      <Texto variante="tituloItem">{op.descricao}</Texto>
+      {op.mensagem ? <Texto variante="corpo">{op.mensagem}</Texto> : null}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
         <Bloco titulo="Sua versão (neste aparelho)" linhas={suaVersao(op)} />
         <Bloco titulo="Versão atual do servidor" linhas={versaoDoServidor(op)} />
       </View>
       {acao.error && acao.variables?.chave === op.chave ? <AvisoDeErro erro={acao.error} /> : null}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
         <Botao
           titulo="Ficar com a do servidor"
           variante="secundario"
@@ -337,13 +337,13 @@ function Recusada({
   }
 
   return (
-    <View style={{ gap: ESPACO.x2 }}>
-      <Texto variante="corpoForte">{op.descricao}</Texto>
+    <View style={{ gap: ESPACO.e8 }}>
+      <Texto variante="tituloItem">{op.descricao}</Texto>
       <Selo texto="Recusada" cor="erro" />
-      <Texto variante="apoio">
+      <Texto variante="corpo">
         Motivo: {op.mensagem ?? 'O servidor não aceitou esta alteração.'}
       </Texto>
-      <Texto variante="apoio" cor="textoSuave">
+      <Texto variante="legenda" cor="textoSuave">
         Feita em {quandoNoAparelho(op.criadaEm)}
       </Texto>
       {copiado ? (
@@ -352,11 +352,11 @@ function Recusada({
         </Aviso>
       ) : null}
       {acao.error && acao.variables?.chave === op.chave ? <AvisoDeErro erro={acao.error} /> : null}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
         <Botao
           titulo="Descartar"
           icone="excluir"
-          variante="perigo"
+          variante="destrutivo"
           larguraTotal={false}
           rotuloAcessivel={`Descartar: ${op.descricao}`}
           desabilitado={ocupado}
@@ -394,12 +394,12 @@ function Preparados({ offline, pedirFoco }: { offline: Offline; pedirFoco: Pedir
   if (!offline.pacotes.length) return null
   return (
     <Cartao titulo="Preparados neste aparelho" icone="guardadoNoAparelho">
-      <Texto variante="apoio" cor="textoSuave">
+      <Texto variante="legenda" cor="textoSuave">
         {contar(offline.pacotes.length, 'programação guardada', 'programações guardadas')},
         cifradas, para usar sem internet.
       </Texto>
       {offline.pacotes.map((p) => (
-        <View key={p.eventoId} style={{ gap: ESPACO.x1 }}>
+        <View key={p.eventoId} style={{ gap: ESPACO.e4 }}>
           <Linha
             titulo={p.titulo}
             descricao={textoDoPreparo(p.baixadoEm, offline.validoAte ?? p.validoAte)}
@@ -409,7 +409,7 @@ function Preparados({ offline, pedirFoco }: { offline: Offline; pedirFoco: Pedir
           />
           <Botao
             titulo="Remover deste aparelho"
-            variante="discreto"
+            variante="terciario"
             icone="excluir"
             larguraTotal={false}
             rotuloAcessivel={`Remover deste aparelho: ${p.titulo}`}

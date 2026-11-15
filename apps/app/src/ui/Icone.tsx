@@ -95,26 +95,50 @@ export const ICONES = {
   celebrar: { ios: 'sparkles', android: 'celebration', web: 'celebration' },
   sincronizar: { ios: 'arrow.triangle.2.circlepath', android: 'sync', web: 'sync' },
   guardadoNoAparelho: { ios: 'externaldrive', android: 'offline_pin', web: 'offline_pin' },
+  // Seção 2.10 e componentes da 2.12.
+  check: { ios: 'checkmark', android: 'check', web: 'check' },
+  erroDeCampo: { ios: 'exclamationmark.circle.fill', android: 'error', web: 'error' },
+  avisoInfo: { ios: 'info.circle.fill', android: 'info', web: 'info' },
+  avisoSucesso: { ios: 'checkmark.circle.fill', android: 'check_circle', web: 'check_circle' },
+  avisoAlerta: { ios: 'exclamationmark.triangle.fill', android: 'warning', web: 'warning' },
+  avisoErro: { ios: 'xmark.octagon.fill', android: 'report', web: 'report' },
+  maisAcoes: { ios: 'ellipsis', android: 'more_horiz', web: 'more_horiz' },
+  externo: { ios: 'arrow.up.right', android: 'open_in_new', web: 'open_in_new' },
+  faceId: { ios: 'faceid', android: 'face', web: 'face' },
+  pessoas: { ios: 'person.2', android: 'group', web: 'group' },
+  calendario: { ios: 'calendar', android: 'calendar_today', web: 'calendar_today' },
+  limpar: { ios: 'xmark.circle.fill', android: 'cancel', web: 'cancel' },
 } as const
 
 export type NomeDoIcone = keyof typeof ICONES
+
+/** Peso do traço: médio por padrão (o traço de 2 px do mockup); `forte` na aba ativa e no chevron. */
+export type PesoDoIcone = 'medio' | 'semibold' | 'forte'
+
+const PESO_DO_SIMBOLO = { medio: 'medium', semibold: 'semibold', forte: 'bold' } as const
+const TRACO = { medio: 2, semibold: 2.25, forte: 2.5 } as const
 
 interface PropsDoIcone {
   nome: NomeDoIcone
   cor: ColorValue
   tamanho?: number
+  peso?: PesoDoIcone
 }
 
-export function Icone({ nome, cor, tamanho = 22 }: PropsDoIcone) {
+/** Tamanhos da 2.10: 22 na barra de abas; 18 em botões, avisos, toast e ladrilho; 16 no status, erro e chip; 14 no chevron. */
+export function Icone({ nome, cor, tamanho = 22, peso = 'medio' }: PropsDoIcone) {
   // Os ícones que aparecem no mockup aprovado usam o desenho exato dele.
   if (nome in TRACOS) {
-    return <IconeDeTraco nome={nome as NomeDoTraco} cor={cor} tamanho={tamanho} />
+    return (
+      <IconeDeTraco nome={nome as NomeDoTraco} cor={cor} tamanho={tamanho} traco={TRACO[peso]} />
+    )
   }
   return (
     <SymbolView
       name={ICONES[nome]}
       tintColor={cor}
       size={tamanho}
+      weight={PESO_DO_SIMBOLO[peso]}
       accessible={false}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"

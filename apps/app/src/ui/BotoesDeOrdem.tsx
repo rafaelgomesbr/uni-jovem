@@ -1,9 +1,7 @@
-import { ESPACO, RAIO } from '@uj/tokens'
-import { Pressable, View } from 'react-native'
+import { ESPACO } from '@uj/tokens'
+import { View } from 'react-native'
 
-import { Icone, type NomeDoIcone } from './Icone'
-import { ALVO } from './medidas'
-import { useTema } from './tema'
+import { BotaoIcone } from './Botao'
 
 interface PropsDosBotoesDeOrdem {
   /** Nome do item, para o rótulo ("Subir Louvor"). */
@@ -15,48 +13,9 @@ interface PropsDosBotoesDeOrdem {
   desabilitado?: boolean
 }
 
-function BotaoDeOrdem({
-  icone,
-  rotulo,
-  dica,
-  inativo,
-  aoPressionar,
-}: {
-  icone: NomeDoIcone
-  rotulo: string
-  dica: string
-  inativo: boolean
-  aoPressionar: () => void
-}) {
-  const { cores } = useTema()
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={rotulo}
-      accessibilityHint={dica}
-      aria-disabled={inativo}
-      disabled={inativo}
-      onPress={aoPressionar}
-      style={({ pressed }) => ({
-        minWidth: ALVO,
-        minHeight: ALVO,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderRadius: RAIO.pequeno,
-        borderWidth: 1.5,
-        borderColor: cores.borda,
-        backgroundColor: cores.superficie,
-        opacity: inativo ? 0.35 : pressed ? 0.7 : 1,
-      })}
-    >
-      <Icone nome={icone} cor={cores.texto} tamanho={20} />
-    </Pressable>
-  )
-}
-
 /**
- * Reordenar sem gesto: botões Subir e Descer com alvo de 44 pt e rótulo que
- * diz o item e a posição. Arrastar pode existir, mas nunca é o único jeito.
+ * Reordenar sem gesto: botões só ícone Subir e Descer (44, tonal) com rótulo
+ * que diz o item e a posição. Arrastar pode existir, mas nunca é o único jeito.
  */
 export function BotoesDeOrdem({
   nome,
@@ -68,19 +27,19 @@ export function BotoesDeOrdem({
 }: PropsDosBotoesDeOrdem) {
   const lugar = `Posição ${posicao + 1} de ${total}.`
   return (
-    <View style={{ flexDirection: 'row', gap: ESPACO.x1 }}>
-      <BotaoDeOrdem
+    <View style={{ flexDirection: 'row', gap: ESPACO.e8 }}>
+      <BotaoIcone
         icone="subir"
         rotulo={`Subir ${nome}`}
         dica={posicao === 0 ? `${lugar} Já é o primeiro.` : lugar}
-        inativo={desabilitado || posicao === 0}
+        desabilitado={desabilitado || posicao === 0}
         aoPressionar={aoSubir}
       />
-      <BotaoDeOrdem
+      <BotaoIcone
         icone="descer"
         rotulo={`Descer ${nome}`}
         dica={posicao === total - 1 ? `${lugar} Já é o último.` : lugar}
-        inativo={desabilitado || posicao === total - 1}
+        desabilitado={desabilitado || posicao === total - 1}
         aoPressionar={aoDescer}
       />
     </View>

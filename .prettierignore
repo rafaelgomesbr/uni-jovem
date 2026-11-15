@@ -5,3 +5,7 @@ coverage
 package-lock.json
 # Gerado do código; o teste compara byte a byte.
 docs/matriz-permissoes.md
+# Quadros e mockups de design aprovados pelo dono: são referência visual, mantidos como foram aprovados.
+docs/design/*.html
+# Prévia local (Postgres embutido e arquivos gerados).
+.previa

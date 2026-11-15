@@ -1,70 +1,75 @@
 import { TIPO, type Paleta } from '@uj/tokens'
 import type { Ref } from 'react'
-import { Text, type TextProps } from 'react-native'
+import { Text, type TextProps, type TextStyle } from 'react-native'
 
 import type { NoDeTexto } from './foco'
-import { FAMILIA_DA_VARIANTE, type VarianteDeTexto } from './fontes'
+import { familiaDoPeso, type VarianteDeTexto } from './fontes'
 import { useTema } from './tema'
 import { soNaWeb } from './web'
 
-const TITULOS: ReadonlySet<VarianteDeTexto> = new Set(['tituloGrande', 'titulo', 'subtitulo'])
+/**
+ * Peso dentro do mesmo papel, quando a 2.4 prevê: hora da linha em 600
+ * (`lista`), erro em 600 (`legenda`), aba e segmento inativos em 500.
+ */
+export type PesoDoTexto = 'regular' | 'medio' | 'forte'
 
-/** Nível do título na web (h1 a h4). Sem isso, todo cabeçalho vira <h1>. */
-const NIVEL_PADRAO: Partial<Record<VarianteDeTexto, 1 | 2 | 3>> = {
-  tituloGrande: 1,
-  titulo: 1,
-  subtitulo: 2,
-  secao: 2,
-}
+const PESO = { regular: '400', medio: '500', forte: '600' } as const
 
 export interface PropsDoTexto extends TextProps {
   variante?: VarianteDeTexto
   cor?: keyof Paleta
+  peso?: PesoDoTexto
   centralizado?: boolean
-  /**
-   * Algarismos de largura fixa: contagens e horários não "dançam" quando o
-   * número muda (contador de presença, cronômetro, totais de relatório).
-   */
+  /** Algarismos de largura fixa (horas em coluna, contagens, totais). */
   tabular?: boolean
-  /** Nível do cabeçalho (web): 1 título da tela, 2 cartão ou seção, 3 dentro do cartão. */
+  /** Nível do cabeçalho; o padrão vem do papel (display e tituloTela 1, tituloCartao 2, sobrancelha 3). */
   nivel?: 1 | 2 | 3 | 4
   ref?: Ref<NoDeTexto>
 }
 
+/** Estilo de um papel tipográfico (para quem desenha texto sem `Texto`, como o `TextInput`). */
+export function estiloDoPapel(variante: VarianteDeTexto, peso?: PesoDoTexto): TextStyle {
+  const papel = TIPO[variante]
+  return {
+    fontFamily: familiaDoPeso(papel.familia, peso ? PESO[peso] : papel.peso),
+    fontSize: papel.tamanho,
+    lineHeight: papel.altura,
+    ...(papel.espacamento ? { letterSpacing: papel.espacamento } : {}),
+    ...(papel.maiusculas ? { textTransform: 'uppercase' as const } : {}),
+    ...(papel.tabular ? { fontVariant: ['tabular-nums' as const] } : {}),
+  }
+}
+
 /**
- * Texto com a escala do design system. Respeita o tamanho de fonte do sistema
- * (nunca desliga `allowFontScaling`). Títulos são anunciados como cabeçalho.
+ * Texto com os papéis da seção 2.4. Respeita o tamanho de fonte do sistema
+ * (nunca desliga `allowFontScaling`); o teto de escala vem do papel. Títulos
+ * e sobrancelhas são anunciados como cabeçalho, com o nível do papel.
  */
 export function Texto({
   variante = 'corpo',
   cor,
+  peso,
   centralizado,
   tabular,
   nivel,
   style,
   accessibilityRole,
+  maxFontSizeMultiplier,
   ...resto
 }: PropsDoTexto) {
   const { cores } = useTema()
-  const tipo = TIPO[variante]
-  const papel = accessibilityRole ?? (TITULOS.has(variante) ? 'header' : undefined)
+  const papel = TIPO[variante]
+  const nivelFinal = nivel ?? papel.nivel
+  const funcao = accessibilityRole ?? (papel.nivel ? 'header' : undefined)
   return (
     <Text
-      accessibilityRole={papel}
-      {...(papel === 'header'
-        ? soNaWeb({ 'aria-level': nivel ?? NIVEL_PADRAO[variante] ?? 3 })
-        : {})}
+      accessibilityRole={funcao}
+      {...(funcao === 'header' ? soNaWeb({ 'aria-level': nivelFinal ?? 3 }) : {})}
+      maxFontSizeMultiplier={maxFontSizeMultiplier ?? papel.teto ?? undefined}
       style={[
-        {
-          // A sobrancelha é coral por padrão (mockup); o resto, a cor do texto.
-          color: cores[cor ?? (variante === 'sobrancelha' ? 'destaque' : 'texto')],
-          fontFamily: FAMILIA_DA_VARIANTE[variante],
-          fontSize: tipo.tamanho,
-          lineHeight: tipo.altura,
-        },
-        variante === 'secao' ? { letterSpacing: 0.2 } : null,
-        variante === 'tituloGrande' || variante === 'titulo' ? { letterSpacing: -0.5 } : null,
-        variante === 'sobrancelha' ? { letterSpacing: 1, textTransform: 'uppercase' } : null,
+        // A sobrancelha é coral por padrão (mockup); o resto, a cor do texto.
+        { color: cores[cor ?? (variante === 'sobrancelha' ? 'destaque' : 'texto')] },
+        estiloDoPapel(variante, peso),
         tabular ? { fontVariant: ['tabular-nums'] } : null,
         centralizado ? { textAlign: 'center' } : null,
         style,

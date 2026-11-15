@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { useSessao } from '@/estado/sessao'
@@ -8,8 +8,11 @@ import { api } from '@/servicos/api'
 import type { FaixaEtaria } from '@/servicos/contratoDosModulos'
 import { ehErroDaApi } from '@/servicos/erros'
 import { AvisoDeErro } from '@/ui/AvisoDeErro'
+import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
-import { Cartao } from '@/ui/Cartao'
+import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 
 import {
@@ -24,6 +27,8 @@ interface Props {
   token: string
   comunidade: string
   papel: string
+  /** O convite em destaque, no topo. */
+  cartaoDoConvite?: ReactNode
 }
 
 /** Erros da API que a tela resolve pedindo o que falta, em vez de só mostrar. */
@@ -35,7 +40,7 @@ const PEDE_RESPONSAVEL = 'responsavel_necessario'
  * com o consentimento sobre a fé desta comunidade (TC-03). A idade (TC-01) só
  * é pedida se a conta ainda não declarou: a API avisa com `faixa_etaria_necessaria`.
  */
-export function AceitarComConta({ token, comunidade, papel }: Props) {
+export function AceitarComConta({ token, comunidade, papel, cartaoDoConvite }: Props) {
   const { conta } = useSessao()
   const consultas = useQueryClient()
   const [fe, setFe] = useState(false)
@@ -65,12 +70,13 @@ export function AceitarComConta({ token, comunidade, papel }: Props) {
 
   if (aceitar.isSuccess) {
     return (
-      <Cartao titulo="Pronto!" icone="confirmado">
-        <Texto accessibilityLiveRegion="polite">
-          Agora você participa de {comunidade} como {papel}.
-        </Texto>
-        <Botao titulo="Ir para o início" aoPressionar={() => router.replace('/')} />
-      </Cartao>
+      <Tela pilha aurora={1} titulo="Pronto">
+        <CartaoDeDestaque
+          titulo={comunidade}
+          descricao={`Agora você participa de ${comunidade} como ${papel}.`}
+          acoes={<Botao titulo="Ir para o Início" aoPressionar={() => router.replace('/')} />}
+        />
+      </Tela>
     )
   }
 
@@ -84,22 +90,51 @@ export function AceitarComConta({ token, comunidade, papel }: Props) {
     aceitar.error && !ehErroDaApi(aceitar.error, PEDE_IDADE) ? aceitar.error : null
 
   return (
-    <Cartao>
-      {conta ? (
-        <Texto variante="apoio" cor="textoSuave">
-          Você está conectado como {conta.email}.
-        </Texto>
-      ) : null}
+    <Tela
+      pilha
+      aurora={1}
+      titulo="Você recebeu um convite"
+      {...(conta ? { descricao: `Você está conectado como ${conta.email}.` } : {})}
+      {...(menor
+        ? {}
+        : {
+            barraDeAcao: (
+              <BarraDeAcao>
+                <Botao
+                  titulo="Agora não"
+                  variante="secundario"
+                  tamanho="grande"
+                  aoPressionar={() => {
+                    descartarConviteEmEspera()
+                    router.replace('/')
+                  }}
+                />
+                <Botao
+                  titulo="Entrar na comunidade"
+                  tamanho="grande"
+                  rotuloAcessivel={`Entrar em ${comunidade} como ${papel}`}
+                  aoPressionar={() => aceitar.mutate()}
+                  carregando={aceitar.isPending}
+                  desabilitado={motivo !== null}
+                  {...(motivo ? { motivo } : {})}
+                />
+              </BarraDeAcao>
+            ),
+          })}
+    >
+      {cartaoDoConvite}
       {precisaIdade ? (
         <>
-          <Texto>Antes de entrar na comunidade, informe a sua faixa de idade.</Texto>
+          <Texto variante="corpo">
+            Antes de entrar na comunidade, informe a sua faixa de idade.
+          </Texto>
           <PerguntaDeIdade valor={faixa} aoMudar={setFaixa} />
         </>
       ) : null}
       {menor ? (
         <MenorDe16 />
       ) : (
-        <>
+        <CartaoDeVidro>
           <ConsentimentoDeFe
             comunidade={comunidade}
             marcada={fe}
@@ -108,24 +143,9 @@ export function AceitarComConta({ token, comunidade, papel }: Props) {
             responsavel={responsavel}
             aoMudarResponsavel={setResponsavel}
           />
-          {erroParaMostrar ? <AvisoDeErro erro={erroParaMostrar} /> : null}
-          <Botao
-            titulo={`Entrar em ${comunidade} como ${papel}`}
-            aoPressionar={() => aceitar.mutate()}
-            carregando={aceitar.isPending}
-            desabilitado={motivo !== null}
-            {...(motivo ? { motivo } : {})}
-          />
-        </>
+        </CartaoDeVidro>
       )}
-      <Botao
-        titulo="Agora não"
-        variante="discreto"
-        aoPressionar={() => {
-          descartarConviteEmEspera()
-          router.replace('/')
-        }}
-      />
-    </Cartao>
+      {erroParaMostrar ? <AvisoDeErro erro={erroParaMostrar} /> : null}
+    </Tela>
   )
 }

@@ -1,80 +1,179 @@
-import { ALTURA, ESPACO, RAIO, type Paleta } from '@uj/tokens'
-import { useId, type Ref } from 'react'
-import { ActivityIndicator, Pressable, View, type StyleProp, type ViewStyle } from 'react-native'
+import { ALTURA, ESPACO, RAIO } from '@uj/tokens'
+import {
+  Children,
+  createContext,
+  useContext,
+  useId,
+  useState,
+  type ReactNode,
+  type Ref,
+} from 'react'
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  useWindowDimensions,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native'
 
 import { usePreferenciasDeAcessibilidade } from './acessibilidade'
+import { ALFA_DESABILITADO, comOpacidade, escurecer } from './cor'
+import { useAnelDeFoco, type NoDeView } from './foco'
 import { Icone, type NomeDoIcone } from './Icone'
 import { ALVO } from './medidas'
 import { Texto } from './Texto'
-import type { NoDeView } from './foco'
-import { useTema } from './tema'
+import { useTema, type Tema } from './tema'
 import { soNaWeb } from './web'
 
 /**
- * Hierarquia: `primario` (a ação principal da tela, no máximo uma por bloco),
- * `secundario` (contorno), `terciario` (só texto, para "ver todos", "voltar").
- * `discreto` é o nome antigo de `terciario`. `perigo` apaga ou encerra algo.
+ * Hierarquia (seção 2.12.1): `primario` (no máximo um visível por tela ou por
+ * cartão de destaque), `secundario` (contorno), `terciario` (só texto),
+ * `destrutivo` (contorno de erro) e `destrutivoCheio` (a confirmação final).
  */
-export type VarianteDoBotao = 'primario' | 'secundario' | 'terciario' | 'perigo' | 'discreto'
+export type VarianteDoBotao =
+  'primario' | 'secundario' | 'terciario' | 'destrutivo' | 'destrutivoCheio'
+
+/** `grande` (48): formulários, barra de ação, entrada. `medio` (44; 48 no Android): dentro de cartão. */
+export type TamanhoDoBotao = 'grande' | 'medio'
 
 export interface PropsDoBotao {
   titulo: string
   aoPressionar: () => void
   variante?: VarianteDoBotao
+  tamanho?: TamanhoDoBotao
   carregando?: boolean
   desabilitado?: boolean
-  /** Por que o botão está desabilitado. Aparece abaixo dele e é lido pelo leitor de tela. */
+  /** Por que o botão está desabilitado. Aparece 6 abaixo dele e vai para o leitor de tela. */
   motivo?: string
+  /** Só quando ajuda a reconhecer a ação (QR, compartilhar, "+"). */
   icone?: NomeDoIcone
   /** Quando o título sozinho não basta fora de contexto (ex.: "Revogar" + nome do aparelho). */
   rotuloAcessivel?: string
   dica?: string
+  /** Largura total: só em formulário, barra de ação e estado vazio de tela inteira. */
   larguraTotal?: boolean
+  /**
+   * Terciário alinhado à coluna de texto: sem padding lateral, o rótulo
+   * começa (ou termina) na mesma borda do texto ao redor.
+   */
+  alinhado?: boolean
   style?: StyleProp<ViewStyle>
   /** Botão que abre e fecha um bloco: o leitor de tela anuncia aberto ou fechado. */
   expandido?: boolean
-  /** Para devolver o foco ao botão (ex.: depois de fechar o que ele abriu). */
+  /** Só o catálogo: desenha o estado pressionado ou o anel de foco sem toque nem teclado. */
+  estadoDeVitrine?: 'pressionado' | 'foco'
   ref?: Ref<NoDeView>
 }
 
 interface Aparencia {
-  fundo: keyof Paleta | 'transparente'
-  texto: keyof Paleta
-  borda: keyof Paleta | null
+  fundo: string
+  fundoPressionado: string
+  texto: string
+  borda: string | null
 }
 
-const APARENCIA: Readonly<Record<VarianteDoBotao, Aparencia>> = {
-  primario: { fundo: 'primaria', texto: 'sobrePrimaria', borda: null },
-  // Mockup: contorno translúcido, sem fundo (o cartão de vidro aparece por trás).
-  secundario: { fundo: 'transparente', texto: 'texto', borda: 'contornoSecundario' },
-  terciario: { fundo: 'transparente', texto: 'destaque', borda: null },
-  perigo: { fundo: 'transparente', texto: 'erro', borda: 'erro' },
-  discreto: { fundo: 'transparente', texto: 'destaque', borda: null },
+/** Cores de cada variante em cada estado (tabela da 2.12.1). Sem `opacity`: tudo é cor. */
+export function aparenciaDoBotao(
+  variante: VarianteDoBotao,
+  inativo: boolean,
+  { cores, semFundo, solido }: Pick<Tema, 'cores' | 'semFundo' | 'solido'>,
+): Aparencia {
+  const textoInativo = comOpacidade(cores.texto, ALFA_DESABILITADO)
+  if (inativo) {
+    if (variante === 'primario' || variante === 'destrutivoCheio') {
+      return { fundo: solido(cores.tonal), fundoPressionado: '', texto: textoInativo, borda: null }
+    }
+    if (variante === 'terciario') {
+      return { fundo: 'transparent', fundoPressionado: '', texto: textoInativo, borda: null }
+    }
+    return { fundo: semFundo, fundoPressionado: '', texto: textoInativo, borda: cores.tonalBorda }
+  }
+  switch (variante) {
+    case 'primario':
+      return {
+        fundo: cores.primaria,
+        fundoPressionado: cores.primariaPressionada,
+        texto: cores.sobrePrimaria,
+        borda: null,
+      }
+    case 'secundario':
+      return {
+        fundo: semFundo,
+        fundoPressionado: solido(cores.pressionado),
+        texto: cores.texto,
+        borda: cores.contorno,
+      }
+    case 'terciario':
+      return {
+        fundo: 'transparent',
+        fundoPressionado: solido(cores.quenteFundo),
+        texto: cores.destaque,
+        borda: null,
+      }
+    case 'destrutivo':
+      return {
+        fundo: semFundo,
+        fundoPressionado: solido(cores.erroFundo),
+        texto: cores.erro,
+        borda: cores.erro,
+      }
+    case 'destrutivoCheio':
+      return {
+        fundo: cores.erroCheio,
+        fundoPressionado: escurecer(cores.erroCheio, 0.08),
+        texto: cores.sobreErro,
+        borda: null,
+      }
+  }
+}
+
+/** Dentro do `ParDeBotoes`, cada botão ocupa a sua metade. */
+const ContextoDoPar = createContext(false)
+
+/** O anel de foco (2, afastado 2) desenhado sem foco de verdade, para o catálogo. */
+function ANEL_DE_VITRINE(cor: string): ViewStyle {
+  return { outlineWidth: 2, outlineStyle: 'solid', outlineColor: cor, outlineOffset: 2 }
+}
+
+/** Altura do tamanho: grande 48; médio 44 no iOS e na web, 48 no Android. */
+export function alturaDoBotao(tamanho: TamanhoDoBotao): number {
+  return tamanho === 'grande' ? ALTURA.controle : ALVO
 }
 
 export function Botao({
   titulo,
   aoPressionar,
   variante = 'primario',
+  tamanho = 'medio',
   carregando = false,
   desabilitado = false,
   motivo,
   icone,
   rotuloAcessivel,
   dica,
-  larguraTotal = true,
+  larguraTotal: larguraTotalPedida,
+  alinhado = false,
   style,
   expandido,
+  estadoDeVitrine,
   ref,
 }: PropsDoBotao) {
-  const { cores } = useTema()
+  const noPar = useContext(ContextoDoPar)
+  const larguraTotal = larguraTotalPedida ?? noPar
+  const tema = useTema()
+  const { cores } = tema
   const { reduzirMovimento } = usePreferenciasDeAcessibilidade()
-  const aparencia = APARENCIA[variante]
-  const soTexto = aparencia.fundo === 'transparente' && aparencia.borda === null
   const idDoMotivo = `motivo-${useId()}`
+  // Carregando: a largura fica travada na medida do estado normal (o botão não "pula").
+  const [larguraNormal, setLarguraNormal] = useState<number | null>(null)
+  const anel = useAnelDeFoco(cores.foco)
   const inativo = desabilitado || carregando
-  const corDoTexto = cores[aparencia.texto]
+  const aparencia = aparenciaDoBotao(variante, desabilitado && !carregando, tema)
   const mostrarMotivo = desabilitado && !carregando && motivo
+  // Em par (`flex: 1`) o padding cai para 6, como no quadro: "Pedir substituição" cabe em 152.
+  const padding = alinhado ? 0 : noPar ? ESPACO.e6 : tamanho === 'grande' ? ESPACO.e20 : ESPACO.e16
 
   return (
     <View style={[larguraTotal ? { alignSelf: 'stretch' } : { alignSelf: 'flex-start' }, style]}>
@@ -89,55 +188,154 @@ export function Botao({
         {...(mostrarMotivo ? soNaWeb({ 'aria-describedby': idDoMotivo }) : {})}
         disabled={inativo}
         onPress={aoPressionar}
-        style={({ pressed }) => ({
-          // Primário, secundário e destrutivo: 48 (mockup). Terciário: só o alvo mínimo.
-          minHeight: soTexto ? ALVO : Math.max(ALVO, ALTURA.botao),
-          minWidth: ALVO,
-          paddingHorizontal: soTexto ? ESPACO.x3 : ESPACO.x5,
-          paddingVertical: ESPACO.x2,
-          borderRadius: soTexto ? RAIO.pilula : RAIO.medio,
-          // Toque: o primário escurece um pouco; os demais ganham o fundo de realce.
-          backgroundColor:
-            pressed && variante !== 'primario'
-              ? cores.superficieRealce
-              : aparencia.fundo === 'transparente'
-                ? 'transparent'
-                : cores[aparencia.fundo],
-          borderWidth: aparencia.borda ? 1 : 0,
-          borderColor: aparencia.borda ? cores[aparencia.borda] : 'transparent',
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: ESPACO.x2,
-          opacity:
-            desabilitado && !carregando ? 0.5 : pressed && variante === 'primario' ? 0.88 : 1,
-          // Afundar de leve ao tocar é movimento: some com "Reduzir movimento".
-          transform: [{ scale: pressed && !reduzirMovimento ? 0.98 : 1 }],
-        })}
+        onFocus={anel.onFocus}
+        onBlur={anel.onBlur}
+        onLayout={(e) => {
+          if (!carregando) setLarguraNormal(e.nativeEvent.layout.width)
+        }}
+        android_ripple={
+          aparencia.fundoPressionado ? { color: cores.pressionado, borderless: false } : undefined
+        }
+        style={({ pressed: tocado }) => {
+          const pressed = tocado || estadoDeVitrine === 'pressionado'
+          return [
+            {
+              minHeight: alturaDoBotao(tamanho),
+              minWidth: carregando && larguraNormal ? larguraNormal : ALVO,
+              paddingHorizontal: padding,
+              paddingVertical: ESPACO.e8,
+              borderRadius: RAIO.controle,
+              backgroundColor:
+                pressed && aparencia.fundoPressionado
+                  ? aparencia.fundoPressionado
+                  : aparencia.fundo,
+              borderWidth: aparencia.borda ? 1 : 0,
+              borderColor: aparencia.borda ?? 'transparent',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: ESPACO.e8,
+              // Afundar de leve ao tocar é movimento: some com "Reduzir movimento".
+              transform: [{ scale: pressed && !inativo && !reduzirMovimento ? 0.98 : 1 }],
+            },
+            anel.estilo,
+            estadoDeVitrine === 'foco' ? ANEL_DE_VITRINE(cores.foco) : null,
+          ]
+        }}
       >
         {carregando ? (
-          <ActivityIndicator color={corDoTexto} />
+          <ActivityIndicator
+            color={aparencia.texto}
+            size={Platform.OS === 'android' ? 18 : 'small'}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          />
         ) : icone ? (
-          <Icone nome={icone} cor={corDoTexto} tamanho={20} />
+          <Icone nome={icone} cor={aparencia.texto} tamanho={18} />
         ) : null}
-        <Texto
-          variante="corpoForte"
-          style={{ color: corDoTexto, fontSize: 15, lineHeight: 20 }}
-          centralizado
-        >
+        <Texto variante="botao" style={{ color: aparencia.texto }} centralizado>
           {titulo}
         </Texto>
       </Pressable>
       {mostrarMotivo ? (
         <Texto
-          variante="apoio"
+          variante="legenda"
           cor="textoSuave"
           nativeID={idDoMotivo}
-          style={{ marginTop: ESPACO.x1 }}
+          style={{ marginTop: ESPACO.e6 }}
         >
           {motivo}
         </Texto>
       ) : null}
     </View>
+  )
+}
+
+export interface PropsDoBotaoIcone {
+  icone: NomeDoIcone
+  /** Sempre: o botão só ícone não tem texto visível. */
+  rotulo: string
+  aoPressionar: () => void
+  dica?: string
+  desabilitado?: boolean
+  /** Circular (raio 22): o voltar e as ações do cabeçalho. */
+  circular?: boolean
+  /** 44 por padrão; 48 na barra de ação. */
+  lado?: number
+  ref?: Ref<NoDeView>
+}
+
+/** Botão só ícone (44×44, fundo tonal): voltar, mais ações, "+", subir e descer. */
+export function BotaoIcone({
+  icone,
+  rotulo,
+  aoPressionar,
+  dica,
+  desabilitado = false,
+  circular = false,
+  lado = ALTURA.iconeSo,
+  ref,
+}: PropsDoBotaoIcone) {
+  const { cores, solido } = useTema()
+  const { reduzirTransparencia, aumentarContraste } = usePreferenciasDeAcessibilidade()
+  const anel = useAnelDeFoco(cores.foco)
+  const fundo = reduzirTransparencia ? cores.tonalOpaco : solido(cores.tonal)
+  const cor = desabilitado ? comOpacidade(cores.texto, ALFA_DESABILITADO) : cores.texto
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={rotulo}
+      accessibilityHint={dica}
+      aria-disabled={desabilitado}
+      disabled={desabilitado}
+      onPress={aoPressionar}
+      onFocus={anel.onFocus}
+      onBlur={anel.onBlur}
+      ref={ref}
+      hitSlop={Math.max(0, (ALVO - lado) / 2)}
+      style={({ pressed }) => [
+        {
+          width: lado,
+          height: lado,
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: circular ? lado / 2 : RAIO.controle,
+          backgroundColor: fundo,
+          borderWidth: aumentarContraste ? 2 : 0,
+          borderColor: aumentarContraste ? cores.texto : 'transparent',
+        },
+        // Pressionado: a camada `pressionado` sobre o tonal.
+        pressed ? { boxShadow: `inset 0px 0px 0px ${lado}px ${cores.pressionado}` } : null,
+        anel.estilo,
+      ]}
+    >
+      <Icone nome={icone} cor={cor} tamanho={18} peso="semibold" />
+    </Pressable>
+  )
+}
+
+/** Botões que dividem a linha (barra de ação): largura total e padding 6, como no par. */
+export function EmPar({ children }: { children: ReactNode }) {
+  return <ContextoDoPar.Provider value>{children}</ContextoDoPar.Provider>
+}
+
+/**
+ * Até 2 botões lado a lado, cada um com `flex: 1` e intervalo de 10 (M). Com
+ * fonte grande (`fontScale` de 1,35 ou mais), viram coluna.
+ */
+export function ParDeBotoes({ children }: { children: ReactNode }) {
+  const { fontScale } = useWindowDimensions()
+  const coluna = fontScale >= 1.35
+  const itens = Children.toArray(children).filter(Boolean)
+  return (
+    <ContextoDoPar.Provider value>
+      <View style={{ flexDirection: coluna ? 'column' : 'row', gap: ESPACO.e10 }}>
+        {itens.map((filho, i) => (
+          <View key={i} style={coluna ? { alignSelf: 'stretch' } : { flex: 1 }}>
+            {filho}
+          </View>
+        ))}
+      </View>
+    </ContextoDoPar.Provider>
   )
 }

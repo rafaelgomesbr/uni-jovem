@@ -4,12 +4,18 @@ import { useState } from 'react'
 
 import { api } from '@/servicos/api'
 import { AvisoDeErro } from '@/ui/AvisoDeErro'
+import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
-import { Cartao } from '@/ui/Cartao'
+import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Tela } from '@/ui/Tela'
-import { Texto } from '@/ui/Texto'
 
+/**
+ * Recuperar a senha (3.1.4): pilha, cartão com o e-mail e a barra de ação.
+ * Depois de enviar, o destaque "Confira seu e-mail" com a mensagem da API
+ * (que traz o e-mail mascarado e não diz se a conta existe).
+ */
 export function TelaRecuperarSenha() {
   const [email, setEmail] = useState('')
   const [erro, setErro] = useState<string | null>(null)
@@ -32,40 +38,57 @@ export function TelaRecuperarSenha() {
     recuperar.mutate()
   }
 
+  if (recuperar.data) {
+    return (
+      <Tela pilha aurora={1} titulo="Recuperar a senha">
+        <CartaoDeDestaque
+          titulo="Confira seu e-mail"
+          descricao={recuperar.data.mensagem}
+          acoes={
+            <Botao
+              titulo="Voltar para entrar"
+              variante="secundario"
+              aoPressionar={() => router.replace('/entrar')}
+            />
+          }
+        />
+      </Tela>
+    )
+  }
+
   return (
     <Tela
-      cabecalhoNativo
-      titulo="Criar uma senha nova"
+      pilha
+      aurora={1}
+      titulo="Recuperar a senha"
       descricao="Enviamos um link para o seu e-mail. Ele vale por 30 minutos e só pode ser usado uma vez."
-    >
-      {recuperar.data ? (
-        <Cartao titulo="Confira seu e-mail" icone="email">
-          <Texto accessibilityLiveRegion="polite">{recuperar.data.mensagem}</Texto>
+      barraDeAcao={
+        <BarraDeAcao>
           <Botao
-            titulo="Voltar para entrar"
-            variante="secundario"
-            aoPressionar={() => router.replace('/entrar')}
+            titulo="Enviar link"
+            tamanho="grande"
+            aoPressionar={enviar}
+            carregando={recuperar.isPending}
           />
-        </Cartao>
-      ) : (
-        <Cartao>
-          <Campo
-            rotulo="E-mail da conta"
-            value={email}
-            onChangeText={setEmail}
-            erro={erro}
-            keyboardType="email-address"
-            inputMode="email"
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoComplete="email"
-            textContentType="emailAddress"
-            onSubmitEditing={enviar}
-          />
-          {recuperar.error ? <AvisoDeErro erro={recuperar.error} /> : null}
-          <Botao titulo="Enviar link" aoPressionar={enviar} carregando={recuperar.isPending} />
-        </Cartao>
-      )}
+        </BarraDeAcao>
+      }
+    >
+      <CartaoDeVidro>
+        <Campo
+          rotulo="E-mail da conta"
+          value={email}
+          onChangeText={setEmail}
+          erro={erro}
+          keyboardType="email-address"
+          inputMode="email"
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="email"
+          textContentType="emailAddress"
+          onSubmitEditing={enviar}
+        />
+        {recuperar.error ? <AvisoDeErro erro={recuperar.error} /> : null}
+      </CartaoDeVidro>
     </Tela>
   )
 }

@@ -1,87 +1,134 @@
+export * from './aurora.ts'
 export * from './avatar.ts'
 export * from './contraste.ts'
 export * from './cores.ts'
+export * from './pares.ts'
 
-/** Escala de espaço em múltiplos de 4. */
+/**
+ * Escala de espaço (seção 2.5), de 2 a 40. As telas usam só os valores de
+ * layout (4, 8, 12, 16, 20, 24, 32, 40); os valores finos do mockup (2, 6,
+ * 10, 14, 18) ficam dentro dos componentes de `src/ui`. O lint confere.
+ */
 export const ESPACO = {
-  x1: 4,
-  x2: 8,
-  x3: 12,
-  x4: 16,
-  x5: 20,
-  x6: 24,
-  x8: 32,
-  x10: 40,
-  x12: 48,
+  /** Só `src/ui`: ícone e rótulo da aba. */
+  e2: 2,
+  e4: 4,
+  /** Só `src/ui`: padding da pílula, acima do título do destaque, ajuda abaixo do campo. */
+  e6: 6,
+  e8: 8,
+  /** Só `src/ui`: entre botões lado a lado, entre avatar e nome na pílula. */
+  e10: 10,
+  e12: 12,
+  /** Só `src/ui`: abaixo do título do destaque, antes das ações no cartão. */
+  e14: 14,
+  e16: 16,
+  /** Só `src/ui`: padding de cartão. */
+  e18: 18,
+  e20: 20,
+  e24: 24,
+  e32: 32,
+  e40: 40,
+} as const
+
+/** Os valores de `ESPACO` que só os componentes de `src/ui` podem usar. */
+export const ESPACOS_INTERNOS = ['e2', 'e6', 'e10', 'e14', 'e18'] as const
+
+/** Grade e ritmo (seção 2.13): os espaços que se repetem em toda tela, com nome de uso. */
+export const RITMO = {
+  /** Margem lateral de toda tela (M). Na web, o conteúdo tem largura máxima de 720. */
+  margemDaTela: ESPACO.e20,
+  /** Topo: área segura mais 8. */
+  topoDaTela: ESPACO.e8,
+  /** Intervalo entre blocos (M). */
+  entreSecoes: ESPACO.e16,
+  /** Antes de um grupo novo (sobrancelha fora de cartão). */
+  antesDoGrupo: ESPACO.e24,
+  /** Entre a sobrancelha de um grupo e o cartão. */
+  rotuloDaSecao: ESPACO.e8,
+  /** Entre itens dentro de um bloco (campos, parágrafos). */
+  entreItens: ESPACO.e12,
+  /** Fim das telas de aba: 24 de fundo, 64 de barra e 32 de folga (M). */
+  fimDasAbas: 120,
+} as const
+
+/** Alvo de toque mínimo (Apple HIG 44 pt; Material 48 dp: 48 no Android). */
+export const ALVO_MINIMO = { ios: 44, android: 48, web: 44 } as const
+
+/** Alturas (seção 2.5). */
+export const ALTURA = {
+  /** Botão grande e campo. */
+  controle: 48,
+  /** Botão médio, dentro de cartão: 44 no iOS e na web, 48 no Android. */
+  controleCompacto: ALVO_MINIMO,
+  /** Botão só ícone. */
+  iconeSo: 44,
+  /** Item da barra de abas (M). */
+  aba: 48,
+  /** Linha de lista. */
+  linha: 56,
+  /** Pílula da comunidade (M). */
+  pilula: 44,
+  /** Pílula de filtro: 36 visual, com folga de toque vertical de 4 (44 efetivo). */
+  filtro: 36,
+  chip: 24,
+  /** Campo multilinha. */
+  multilinha: 120,
+  /** Ladrilho de ícone à esquerda da linha. */
+  ladrilho: 32,
 } as const
 
 /**
- * Ritmo do layout: os espaços que se repetem em toda tela, com nome de uso.
- * Quem monta tela usa estes; a escala crua (`ESPACO`) fica para ajustes finos.
+ * Raios (seção 2.6). Regra concêntrica: raio interno = raio externo menos o
+ * afastamento. Nenhum outro raio é permitido.
  */
-export const RITMO = {
-  /** Margem lateral da tela no celular. */
-  margemDaTela: ESPACO.x5,
-  /** Margem lateral a partir de `LARGURA_DE_MARGEM_LARGA` (tablet, web). */
-  margemDaTelaLarga: ESPACO.x8,
-  /** Espaço acima do conteúdo, abaixo da área segura. */
-  topoDaTela: ESPACO.x2,
-  /** Do título da tela ao primeiro bloco. */
-  depoisDoTitulo: ESPACO.x2,
-  /** Entre seções (cartões, grupos) de uma tela (mockup: 16). */
-  entreSecoes: ESPACO.x4,
-  /** Entre o rótulo de uma seção e o conteúdo dela. */
-  rotuloDaSecao: ESPACO.x2,
-  /** Entre itens dentro de um cartão (campos, parágrafos, botões). */
-  entreItens: ESPACO.x3,
-  /** Preenchimento interno do cartão (mockup: 18). */
-  dentroDoCartao: 18,
-  /** Entre botões lado a lado ou empilhados. */
-  entreBotoes: ESPACO.x2,
-} as const
-
-/** A partir desta largura de janela, a margem da tela cresce para `margemDaTelaLarga`. */
-export const LARGURA_DE_MARGEM_LARGA = 600
-
 export const RAIO = {
-  pequeno: 10,
-  medio: 14,
-  /** Cartões e folhas. */
-  grande: 22,
+  /** Caixa de marcar e linha do esqueleto (10 - 4). */
+  marca: 6,
+  /** Célula do calendário, ladrilho de 32, segmento interno (14 - 4). */
+  celula: 10,
+  /** Botão, campo, trilho de segmentos, aviso, toast (M). */
+  controle: 14,
+  /** Pílula da aba ativa (28 - 8, M). */
+  abaAtiva: 20,
+  /** Cartão de vidro, cartão de destaque, diálogo (M). */
+  cartao: 22,
+  /** Barra de abas e topo da folha (M). */
+  barra: 28,
+  /** Pílula da comunidade, chip, pílula de filtro, avatar (M). */
   pilula: 999,
 } as const
 
-/**
- * Alturas mínimas. Todo controle tocável respeita `ALVO_MINIMO`; linhas de lista
- * e botões ficam um pouco acima para o toque ficar confortável, não só possível.
- */
-export const ALTURA = {
-  linha: 52,
-  linhaComDescricao: 64,
-  botao: 48,
-  campo: 48,
-  /** Moldura quadrada do ícone que abre uma linha de lista. */
-  molduraDoIcone: 36,
+/** Espessuras de borda: 1 em tudo (M); 2 com "Aumentar contraste" e no foco do campo. */
+export const BORDA = { fina: 1, contraste: 2 } as const
+
+/** Lado do avatar em cada uso (seção 2.12.13). */
+export const TAMANHO_DO_AVATAR = {
+  aba: 24,
+  pilula: 32,
+  linha: 40,
+  comunidade: 56,
+  perfil: 72,
 } as const
 
-/** Lado do avatar em cada tamanho (P em listas densas, M em listas, G no Perfil). */
-export const TAMANHO_DO_AVATAR = { P: 32, M: 44, G: 88 } as const
+/** Tamanho das iniciais de cada avatar: 40% do lado (Bricolage 800). */
+export const INICIAIS_DO_AVATAR: Readonly<Record<keyof typeof TAMANHO_DO_AVATAR, number>> = {
+  aba: 10,
+  pilula: 13,
+  linha: 16,
+  comunidade: 22,
+  perfil: 28,
+}
 
-/** Barra de abas flutuante (mockup): medidas e o espaço que ela tira do fim da tela. */
+/** Barra de abas flutuante (seção 2.12.17, M). */
 export const BARRA_DE_ABAS = {
   margemLateral: 16,
-  distanciaDoFim: 24,
+  /** Distância do fim: o maior entre (área segura de baixo - 10) e 12; 24 no iPhone com Face ID. */
+  descontoDaAreaSegura: 10,
+  distanciaMinima: 12,
   preenchimento: 8,
-  raio: 28,
-  alturaDoItem: 48,
   larguraMinimaDoItem: 58,
-  raioDoItem: 20,
   tamanhoDoIcone: 22,
-  ladoDoAvatar: 26,
 } as const
-
-/** Alvo de toque mínimo (Apple HIG 44 pt; Material 48 dp: usamos 48 no Android). */
-export const ALVO_MINIMO = { ios: 44, android: 48, web: 44 } as const
 
 /**
  * Tipografia. Títulos em Bricolage Grotesque (personalidade), texto em Inter
@@ -92,61 +139,119 @@ export const FONTES = {
   texto: 'Inter',
 } as const
 
+export interface PapelTipografico {
+  familia: keyof typeof FONTES
+  peso: '400' | '500' | '600' | '800'
+  tamanho: number
+  altura: number
+  /** Espaçamento entre letras, em pt. */
+  espacamento: number
+  /** Maiúsculas por estilo (`textTransform`), nunca digitadas. */
+  maiusculas: boolean
+  /** Teto de escala (`maxFontSizeMultiplier`); `null` = sem teto. */
+  teto: number | null
+  /** Algarismos de largura fixa. */
+  tabular: boolean
+  /** Nível de cabeçalho (`aria-level`) quando o papel é título. */
+  nivel: 1 | 2 | 3 | null
+}
+
+function papel(
+  familia: PapelTipografico['familia'],
+  peso: PapelTipografico['peso'],
+  tamanho: number,
+  altura: number,
+  extra: Partial<Omit<PapelTipografico, 'familia' | 'peso' | 'tamanho' | 'altura'>> = {},
+): PapelTipografico {
+  return {
+    familia,
+    peso,
+    tamanho,
+    altura,
+    espacamento: 0,
+    maiusculas: false,
+    teto: null,
+    tabular: false,
+    nivel: null,
+    ...extra,
+  }
+}
+
+/** Papéis tipográficos (seção 2.4). Nenhum tamanho fora desta tabela. */
 export const TIPO = {
-  /** Saudação e título das telas principais (mockup: Bricolage 800, 34 pt, -0,5 de espaço). */
-  tituloGrande: { tamanho: 34, altura: 38, peso: '800' },
-  titulo: { tamanho: 28, altura: 34, peso: '800' },
-  subtitulo: { tamanho: 18, altura: 24, peso: '600' },
-  /** Rótulo de seção (acima de um grupo de linhas ou cartões). */
-  secao: { tamanho: 14, altura: 20, peso: '600' },
-  corpo: { tamanho: 16, altura: 24, peso: '400' },
-  corpoForte: { tamanho: 16, altura: 24, peso: '600' },
-  apoio: { tamanho: 14, altura: 20, peso: '400' },
-  legenda: { tamanho: 12, altura: 16, peso: '400' },
-  rotulo: { tamanho: 12, altura: 16, peso: '600' },
-  /** Sobrancelha acima do conteúdo do cartão: 12 pt, 600, maiúsculas, espaço 1, coral. */
-  sobrancelha: { tamanho: 12, altura: 16, peso: '600' },
-  /** Rótulo da barra de abas: 11 pt (600 na ativa, 500 nas outras). */
-  aba: { tamanho: 11, altura: 14, peso: '500' },
-  /** Texto de leitura em destaque (versículo): 17 pt, entrelinha 1,5. */
-  leitura: { tamanho: 17, altura: 26, peso: '400' },
-} as const
+  /** Saudação do Início; título das 5 raízes de aba. */
+  display: papel('titulo', '800', 34, 38, { espacamento: -0.5, teto: 1.6, nivel: 1 }),
+  /** Título das telas de pilha e das folhas grandes. */
+  tituloTela: papel('titulo', '800', 28, 32, { espacamento: -0.3, teto: 1.8, nivel: 1 }),
+  /** Título do cartão de destaque, mês da agenda, nome no Perfil, título de diálogo. */
+  tituloCartao: papel('titulo', '800', 24, 28, { espacamento: -0.2, teto: 2, nivel: 2 }),
+  /** Números de relatório e contador do check-in. */
+  numero: papel('titulo', '800', 28, 32, { teto: 1.6, tabular: true }),
+  /** Ao vivo. */
+  cronometro: papel('titulo', '800', 64, 68, { espacamento: -1, teto: 1.4, tabular: true }),
+  /** Versículo, pedido de oração, descrição de evento, corpo de aviso. */
+  leitura: papel('texto', '400', 17, 26),
+  /** Título de linha, nome de pessoa, título de estado vazio e de aviso. */
+  tituloItem: papel('texto', '600', 16, 22),
+  /** Texto de interface, descrição de estado vazio, texto de toast. */
+  corpo: papel('texto', '400', 15, 22),
+  /** Botões, pílula da comunidade, links terciários, segmento ativo (o inativo é 500). */
+  botao: papel('texto', '600', 15, 20, { teto: 2 }),
+  /** Linhas compactas ("16:05 Louvor") e pílulas de filtro (500). */
+  lista: papel('texto', '400', 14, 20),
+  /** Rótulo de campo, meta forte ("Sábado · 16:00 · 60 min"). */
+  rotulo: papel('texto', '600', 13, 18),
+  /** Ajuda, erro de campo (600), meta, referência, status de sincronização. */
+  legenda: papel('texto', '400', 13, 18),
+  /** Etiqueta de seção no cartão e acima de grupos. */
+  sobrancelha: papel('texto', '600', 12, 16, {
+    espacamento: 1,
+    maiusculas: true,
+    teto: 1.6,
+    nivel: 3,
+  }),
+  /** Chip de estado. */
+  chip: papel('texto', '600', 12, 16, { teto: 1.6 }),
+  /** Rótulos da barra de abas: 600 na ativa, 500 nas outras. */
+  aba: papel('texto', '500', 11, 14, { teto: 1.3 }),
+} as const satisfies Record<string, PapelTipografico>
 
-/**
- * Papéis tipográficos: o nome do USO aponta para a variante. Tela nova escolhe
- * pelo papel; a variante é detalhe de implementação.
- */
-export const PAPEL_DO_TEXTO = {
-  tituloDeTela: 'titulo',
-  tituloDeCartao: 'subtitulo',
-  tituloDeSecao: 'secao',
-  corpo: 'corpo',
-  enfase: 'corpoForte',
-  apoio: 'apoio',
-  legenda: 'legenda',
-  rotulo: 'rotulo',
-  sobrancelha: 'sobrancelha',
-} as const satisfies Record<string, keyof typeof TIPO>
+export type NomeDoPapel = keyof typeof TIPO
 
-/**
- * Elevação por tema, como `boxShadow` (iOS, Android na nova arquitetura e
- * web). No escuro a sombra quase não aparece: quem separa é a borda suave e o
- * tom da superfície, por isso a sombra ali é só um contorno escuro discreto.
- */
+/** Elevação por tema (seção 2.7), como `boxShadow`. `none`: sem sombra. */
 export const ELEVACAO = {
-  claro: {
-    nenhuma: 'none',
-    cartao: '0px 1px 2px rgba(27, 24, 56, 0.06), 0px 4px 14px rgba(27, 24, 56, 0.06)',
-    flutuante: '0px 4px 10px rgba(27, 24, 56, 0.08), 0px 12px 32px rgba(27, 24, 56, 0.12)',
-  },
   escuro: {
     nenhuma: 'none',
-    cartao: '0px 1px 2px rgba(0, 0, 0, 0.28)',
-    flutuante: '0px 8px 28px rgba(0, 0, 0, 0.45)',
+    // No escuro a borda faz o papel da sombra (fidelidade ao mockup).
+    cartao: 'none',
+    destaque: 'none',
+    flutuante: '0px 12px 32px rgba(0,0,0,0.40)',
+    folha: '0px -8px 40px rgba(0,0,0,0.50)',
+  },
+  claro: {
+    nenhuma: 'none',
+    cartao: '0px 1px 2px rgba(27,24,56,0.06), 0px 6px 16px rgba(27,24,56,0.06)',
+    destaque: '0px 10px 30px rgba(31,27,77,0.28)',
+    flutuante: '0px 12px 32px rgba(27,24,56,0.14)',
+    folha: '0px -8px 40px rgba(27,24,56,0.18)',
   },
 } as const
 
 export type NivelDeElevacao = keyof typeof ELEVACAO.claro
 
-/** Movimento: durações curtas; com "Reduzir movimento", tudo vira 0. */
-export const DURACAO = { rapida: 150, media: 250, lenta: 400 } as const
+/**
+ * Movimento (seção 2.9). Não há animação decorativa contínua. Com "Reduzir
+ * movimento": toque sem escala, `aparecer` só dissolve em 120, esqueleto estático.
+ */
+export const DURACAO = {
+  /** Cor de pressionado e escala 0,98. */
+  toque: 120,
+  /** Cabeçalho compacto e toast (sobe 8 e aparece). */
+  aparecer: 200,
+  /** `aparecer` com "Reduzir movimento": só dissolve. */
+  aparecerReduzido: 120,
+  /** Pulso do esqueleto, ida e volta. */
+  pulso: 1200,
+  /** O esqueleto só aparece depois disto, para não piscar em carga rápida. */
+  atrasoDoEsqueleto: 300,
+} as const

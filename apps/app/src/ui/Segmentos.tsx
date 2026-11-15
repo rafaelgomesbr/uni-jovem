@@ -1,22 +1,25 @@
-import { ESPACO, RAIO } from '@uj/tokens'
-import { Pressable, View } from 'react-native'
+import { ALTURA, ESPACO, RAIO } from '@uj/tokens'
+import { Pressable, useWindowDimensions, View } from 'react-native'
 
 import { usePreferenciasDeAcessibilidade } from './acessibilidade'
-import { Icone, type NomeDoIcone } from './Icone'
-import { ALVO } from './medidas'
+import type { NomeDoIcone } from './Icone'
+import { PilulasDeFiltro } from './PilulasDeFiltro'
 import { useSetasDoGrupo } from './setasDoGrupo'
 import { Texto } from './Texto'
 import { useTema } from './tema'
 
 export interface Segmento<T extends string> {
   valor: T
+  /** Até 12 caracteres: o segmento nunca quebra linha. */
   rotulo: string
+  /** Mantido por compatibilidade; o segmento não mostra ícone (2.12.4). */
   icone?: NomeDoIcone
 }
 
 interface PropsDosSegmentos<T extends string> {
   /** Nome do grupo, lido pelo leitor de tela (ex.: "Modo de exibição"). */
   rotulo: string
+  /** No máximo 4. */
   segmentos: readonly Segmento<T>[]
   /** `null` quando nada foi escolhido ainda. */
   valor: T | null
@@ -24,8 +27,10 @@ interface PropsDosSegmentos<T extends string> {
 }
 
 /**
- * Escolha única compacta, em linha (modo de exibição, filtro). Papel `radio`
- * para o leitor de tela; o selecionado tem fundo, borda e marca, nunca só cor.
+ * Segmentos (seção 2.12.4): trilho de largura total (44, raio 14, tonal) com
+ * segmentos de largura igual (36, raio 10). O escolhido tem polegar em
+ * relevo e peso 600: forma e peso além da cor. Papel `radio` para o leitor de
+ * tela. Com fonte grande, vira pílulas de filtro roláveis.
  */
 export function Segmentos<T extends string>({
   rotulo,
@@ -33,29 +38,42 @@ export function Segmentos<T extends string>({
   valor,
   aoMudar,
 }: PropsDosSegmentos<T>) {
-  const { cores } = useTema()
-  const { aumentarContraste } = usePreferenciasDeAcessibilidade()
+  const { cores, escuro, elevacao, solido } = useTema()
+  const { aumentarContraste, reduzirTransparencia } = usePreferenciasDeAcessibilidade()
+  const { fontScale } = useWindowDimensions()
   const propsDaOpcao = useSetasDoGrupo(segmentos, valor, aoMudar)
+
+  if (fontScale >= 1.35) {
+    return (
+      <PilulasDeFiltro
+        rotulo={rotulo}
+        pilulas={segmentos}
+        selecionadas={valor ? [valor] : []}
+        aoMudar={(v) => {
+          if (v[0]) aoMudar(v[0])
+        }}
+      />
+    )
+  }
+
   return (
     <View
       accessibilityRole="radiogroup"
       aria-label={rotulo}
       style={{
         flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: ESPACO.x1,
-        padding: ESPACO.x1,
-        borderRadius: RAIO.pilula,
-        borderWidth: aumentarContraste ? 2 : 1,
-        borderColor: aumentarContraste ? cores.texto : cores.cartaoVidroBorda,
-        backgroundColor: cores.cartaoVidro,
-        alignSelf: 'flex-start',
+        alignSelf: 'stretch',
+        minHeight: ALTURA.iconeSo,
+        padding: ESPACO.e4,
+        gap: ESPACO.e4,
+        borderRadius: RAIO.controle,
+        backgroundColor: reduzirTransparencia ? cores.tonalOpaco : solido(cores.tonal),
+        borderWidth: aumentarContraste ? 2 : 0,
+        borderColor: aumentarContraste ? cores.texto : 'transparent',
       }}
     >
       {segmentos.map((s) => {
         const marcado = s.valor === valor
-        // Escolhido: pílula coral translúcida e texto coral, como a aba ativa (e a marca de confirmação).
-        const cor = marcado ? cores.destaque : cores.texto
         return (
           <Pressable
             key={s.valor}
@@ -64,28 +82,40 @@ export function Segmentos<T extends string>({
             accessibilityLabel={s.rotulo}
             aria-checked={marcado}
             onPress={() => aoMudar(s.valor)}
-            style={({ pressed }) => ({
-              minHeight: ALVO,
-              minWidth: ALVO,
-              paddingHorizontal: ESPACO.x3,
-              borderRadius: RAIO.pilula,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: ESPACO.x1,
-              backgroundColor: marcado
-                ? cores.abaAtiva
-                : pressed
-                  ? cores.superficieRealce
-                  : 'transparent',
-            })}
+            style={({ pressed }) => [
+              {
+                flex: 1,
+                minHeight: 36,
+                paddingHorizontal: ESPACO.e8,
+                borderRadius: RAIO.celula,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: marcado
+                  ? escuro
+                    ? cores.tonalBorda
+                    : cores.superficie
+                  : pressed
+                    ? cores.pressionado
+                    : 'transparent',
+                borderWidth: marcado && aumentarContraste ? 2 : 0,
+                borderColor: aumentarContraste ? cores.texto : 'transparent',
+              },
+              // Claro: polegar branco com anel interno de 1 no contorno e a sombra de cartão.
+              marcado && !escuro && !aumentarContraste
+                ? {
+                    boxShadow: [`inset 0px 0px 0px 1px ${cores.contorno}`, elevacao.cartao].join(
+                      ', ',
+                    ),
+                  }
+                : null,
+            ]}
           >
-            {marcado ? (
-              <Icone nome="confirmado" cor={cor} tamanho={16} />
-            ) : s.icone ? (
-              <Icone nome={s.icone} cor={cor} tamanho={16} />
-            ) : null}
-            <Texto variante="rotulo" style={{ color: cor }}>
+            <Texto
+              variante="botao"
+              peso={marcado ? 'forte' : 'medio'}
+              cor={marcado ? 'texto' : 'textoSuave'}
+              numberOfLines={1}
+            >
               {s.rotulo}
             </Texto>
           </Pressable>

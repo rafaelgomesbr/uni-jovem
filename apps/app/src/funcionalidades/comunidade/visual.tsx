@@ -41,11 +41,11 @@ export function CabecalhoDeTela({
   acao,
 }: PropsDoCabecalhoDeTela) {
   return (
-    <View style={{ gap: ESPACO.x1 }}>
+    <View style={{ gap: ESPACO.e4 }}>
       {sobrancelha ? <Sobrancelha>{sobrancelha}</Sobrancelha> : null}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.x3 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e12 }}>
         <Texto
-          variante="tituloGrande"
+          variante="display"
           ref={refDoTitulo}
           nivel={1}
           style={{ flex: 1, letterSpacing: -0.5 }}
@@ -56,7 +56,7 @@ export function CabecalhoDeTela({
         {acao}
       </View>
       {descricao ? (
-        <Texto cor="textoSuave" style={{ marginTop: ESPACO.x1 }}>
+        <Texto cor="textoSuave" style={{ marginTop: ESPACO.e4 }}>
           {descricao}
         </Texto>
       ) : null}
@@ -79,12 +79,12 @@ interface PropsDoDestaque {
 export function CartaoDeDestaque({ sobrancelha, titulo, descricao, children }: PropsDoDestaque) {
   return (
     <Cartao variante="destaque" {...(sobrancelha ? { titulo: sobrancelha } : {})}>
-      <View style={{ gap: ESPACO.x1 }}>
-        <Texto variante="titulo" nivel={2} style={{ fontSize: 24, lineHeight: 30 }}>
+      <View style={{ gap: ESPACO.e4 }}>
+        <Texto variante="tituloTela" nivel={2} style={{ fontSize: 24, lineHeight: 30 }}>
           {titulo}
         </Texto>
         {descricao ? (
-          <Texto variante="apoio" cor="textoSuave">
+          <Texto variante="legenda" cor="textoSuave">
             {descricao}
           </Texto>
         ) : null}
@@ -119,16 +119,16 @@ export function Chip({
         flexDirection: 'row',
         alignItems: 'center',
         alignSelf: 'flex-start',
-        gap: ESPACO.x1,
+        gap: ESPACO.e4,
         paddingHorizontal: 10,
         paddingVertical: 3,
         borderRadius: RAIO.pilula,
-        backgroundColor: cores.superficieRealce,
+        backgroundColor: cores.pressionado,
         borderWidth: 1,
         borderColor: aumentarContraste
           ? cores.texto
           : tom === 'neutro'
-            ? cores.bordaSuave
+            ? cores.separador
             : corDoTom,
       }}
     >
@@ -140,7 +140,7 @@ export function Chip({
 
 /** Fila de chips que quebra linha. */
 export function Chips({ children }: { children: ReactNode }) {
-  return <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>{children}</View>
+  return <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>{children}</View>
 }
 
 /**
@@ -149,7 +149,7 @@ export function Chips({ children }: { children: ReactNode }) {
  */
 export function TelaPropria({ children, larga }: { children: ReactNode; larga?: boolean }) {
   return (
-    <Tela cabecalhoNativo {...(larga ? { larga } : {})}>
+    <Tela pilha {...(larga ? { larga } : {})}>
       {children}
     </Tela>
   )

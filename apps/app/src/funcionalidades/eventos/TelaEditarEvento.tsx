@@ -66,14 +66,14 @@ export function TelaEditarEvento() {
 
   if (!comunidadeAtiva || !eventoId) {
     return (
-      <Tela cabecalhoNativo>
+      <Tela pilha>
         <SemComunidade oQue="a programação" />
       </Tela>
     )
   }
   if (!pode('evento', 'editar')) {
     return (
-      <Tela cabecalhoNativo titulo="Editar">
+      <Tela pilha titulo="Editar">
         <Aviso tipo="info" titulo="Só a organização edita programações">
           Você pode ver a programação, mas não alterar.
         </Aviso>
@@ -82,14 +82,14 @@ export function TelaEditarEvento() {
   }
   if (evento.isPending) {
     return (
-      <Tela cabecalhoNativo>
+      <Tela pilha>
         <Carregando texto="Carregando a programação" />
       </Tela>
     )
   }
   if (evento.error) {
     return (
-      <Tela cabecalhoNativo>
+      <Tela pilha>
         <AvisoDeErro erro={evento.error} aoTentarDeNovo={() => void evento.refetch()} />
       </Tela>
     )
@@ -256,10 +256,10 @@ function EditarEvento({
   const salvando = salvarOcorrencia.isPending || salvarSerie.isPending
 
   return (
-    <Tela cabecalhoNativo titulo="Editar programação" descricao={inicial.titulo}>
+    <Tela pilha titulo="Editar programação" descricao={inicial.titulo}>
       {ehSerie ? (
         <Cartao titulo="O que você quer mudar?" icone="repetir">
-          <Texto variante="apoio" cor="textoSuave">
+          <Texto variante="legenda" cor="textoSuave">
             Este evento faz parte de uma série. Escolha antes de salvar.
           </Texto>
           <GrupoDeOpcoes
@@ -373,16 +373,16 @@ function ConflitoDeEdicao({
         A programação mudou enquanto você editava. Compare e escolha o que fica.
       </Aviso>
       {conflito.campos.length ? (
-        <View style={{ gap: ESPACO.x2 }}>
+        <View style={{ gap: ESPACO.e8 }}>
           {conflito.campos.map((c) => (
-            <Texto key={c} variante="apoio">
+            <Texto key={c} variante="corpo">
               {NOME_DO_CAMPO[c] ?? c}: na versão atual está &quot;
               {valorLegivel(c, conflito.atual, fuso)}&quot;. A sua mudança substitui isso.
             </Texto>
           ))}
         </View>
       ) : (
-        <Texto variante="apoio">
+        <Texto variante="corpo">
           A outra pessoa mudou campos diferentes dos seus: salvar a sua versão mantém as duas
           mudanças.
         </Texto>

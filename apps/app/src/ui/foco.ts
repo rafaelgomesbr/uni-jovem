@@ -1,5 +1,5 @@
-import { useEffect, useRef, type ComponentRef, type RefObject } from 'react'
-import { AccessibilityInfo, Platform, type Text, type View } from 'react-native'
+import { useEffect, useRef, useState, type ComponentRef, type RefObject } from 'react'
+import { AccessibilityInfo, Platform, type Text, type View, type ViewStyle } from 'react-native'
 
 export type NoDeView = ComponentRef<typeof View>
 export type NoDeTexto = ComponentRef<typeof Text>
@@ -45,5 +45,30 @@ export function useFocoAoMudar<T extends NoFocavel = NoDeView>(chave: string) {
     pedirFoco: () => {
       pedido.current = true
     },
+  }
+}
+
+/**
+ * Anel de foco de teclado (seção 2.12): 2 na cor `foco`, afastado 2, com o
+ * raio do componente mais 2 (o contorno acompanha o raio da caixa). Na web quem desenha é o `:focus-visible` (CSS em
+ * `EstilosDaWeb`); no Android e no Acesso Total por Teclado do iOS, o
+ * `onFocus` do Pressable liga as propriedades `outline*`.
+ */
+export function useAnelDeFoco(cor: string) {
+  const [focado, setFocado] = useState(false)
+  const nativo = Platform.OS !== 'web'
+  const estilo: ViewStyle =
+    focado && nativo
+      ? {
+          outlineWidth: 2,
+          outlineStyle: 'solid',
+          outlineColor: cor,
+          outlineOffset: 2,
+        }
+      : {}
+  return {
+    estilo,
+    onFocus: () => setFocado(true),
+    onBlur: () => setFocado(false),
   }
 }

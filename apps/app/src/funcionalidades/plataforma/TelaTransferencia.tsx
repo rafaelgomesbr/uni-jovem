@@ -151,7 +151,7 @@ export function TelaTransferencia() {
               tom={prazoPassou ? 'sucesso' : 'neutro'}
             />
           </Chips>
-          <Texto variante="apoio" cor="textoSuave">
+          <Texto variante="legenda" cor="textoSuave">
             Iniciada em {formatarDataEHora(t.criadoEm)}. Pode ser concluída a partir de{' '}
             {formatarDataEHora(t.efetivaApos)}
             {t.aceitaEm ? `; aceita em ${formatarDataEHora(t.aceitaEm)}.` : ', depois do aceite.'}
@@ -195,7 +195,7 @@ export function TelaTransferencia() {
           <Botao
             titulo={souDestino ? 'Recusar' : 'Cancelar a transferência'}
             icone="cancelar"
-            variante="perigo"
+            variante="destrutivo"
             carregando={agir.executando && agir.variaveis === 'cancelar'}
             aoPressionar={() =>
               void pedir(
@@ -209,7 +209,7 @@ export function TelaTransferencia() {
         </Cartao>
       ) : conta?.criador ? (
         <Cartao titulo="Iniciar transferência" icone="chave">
-          <Texto variante="apoio" cor="textoSuave">
+          <Texto variante="legenda" cor="textoSuave">
             A conta de destino precisa existir, estar ativa e ter a verificação em duas etapas
             ligada.
           </Texto>
@@ -227,7 +227,7 @@ export function TelaTransferencia() {
           <Botao
             titulo="Iniciar transferência"
             icone="publicar"
-            variante="perigo"
+            variante="destrutivo"
             carregando={iniciar.executando}
             aoPressionar={() => void comecar()}
           />

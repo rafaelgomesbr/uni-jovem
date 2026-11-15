@@ -34,7 +34,7 @@ export function CartaoOfflineDoEvento({ eventoId, titulo }: { eventoId: string; 
   if (!offline.disponivel) {
     return (
       <Cartao titulo="Usar sem internet" icone="guardadoNoAparelho">
-        <Texto variante="apoio">{offline.motivoIndisponivel ?? MENSAGEM_DA_WEB}</Texto>
+        <Texto variante="corpo">{offline.motivoIndisponivel ?? MENSAGEM_DA_WEB}</Texto>
       </Cartao>
     )
   }
@@ -61,14 +61,14 @@ export function CartaoOfflineDoEvento({ eventoId, titulo }: { eventoId: string; 
           descricao="Guardado cifrado neste aparelho. Pedidos de oração nunca ficam guardados."
         />
       ) : (
-        <Texto variante="apoio">
+        <Texto variante="corpo">
           Baixe a programação, a equipe, as tarefas e os checklists para consultar e marcar o que
           foi feito mesmo sem conexão. Fica cifrado neste aparelho.
         </Texto>
       )}
       {preparar.error ? <AvisoDeErro erro={preparar.error} /> : null}
       {remover.error ? <AvisoDeErro erro={remover.error} /> : null}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
         <Botao
           titulo={guardado ? 'Atualizar agora' : 'Preparar para usar sem internet'}
           icone={guardado ? 'sincronizar' : 'baixar'}
@@ -83,7 +83,7 @@ export function CartaoOfflineDoEvento({ eventoId, titulo }: { eventoId: string; 
           <Botao
             titulo="Remover deste aparelho"
             icone="excluir"
-            variante="discreto"
+            variante="terciario"
             larguraTotal={false}
             carregando={remover.isPending}
             aoPressionar={() => void pedirRemocao()}

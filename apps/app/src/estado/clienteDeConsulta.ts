@@ -28,6 +28,8 @@ export const CHAVES = {
   aoVivo: (id: string, eventoId: string) => ['c', id, 'ao-vivo', eventoId] as const,
   inscricoes: (id: string, eventoId: string) => ['c', id, 'inscricoes', eventoId] as const,
   minhaInscricao: (id: string, eventoId: string) => ['c', id, 'minha-inscricao', eventoId] as const,
+  /** As próprias inscrições (`GET /inscricoes/eu`), para o Início. */
+  minhasInscricoes: (id: string) => ['c', id, 'minhas-inscricoes'] as const,
   checkin: (id: string, eventoId: string) => ['c', id, 'checkin', eventoId] as const,
   presencas: (id: string, eventoId: string) => ['c', id, 'presencas', eventoId] as const,
   /** Prefixo de tudo que é pedido de oração (nunca persistido; ver `oracao/consultas`). */

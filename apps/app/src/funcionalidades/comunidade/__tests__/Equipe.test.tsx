@@ -62,7 +62,10 @@ describe('aba Equipe', () => {
       rotas: { 'GET /api/v1/eu': euComoCriador(false) },
     })
     expect(await screen.findByRole('button', { name: 'Criar comunidade' })).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Entrar com um convite' })).toBeOnTheScreen()
+    // Entrar com um convite: a pílula vazia do topo leva até lá (quadro 10).
+    expect(
+      screen.getByRole('button', { name: 'Sem comunidade. Entrar numa comunidade' }),
+    ).toBeOnTheScreen()
   })
 
   test('admin vê membros com papel e o cartão de convidar', async () => {

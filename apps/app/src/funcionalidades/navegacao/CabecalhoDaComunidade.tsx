@@ -1,44 +1,25 @@
 import { NOME_DO_PAPEL } from '@uj/dominio'
-import { ESPACO, RAIO } from '@uj/tokens'
+import { ALTURA, ESPACO } from '@uj/tokens'
 import { router } from 'expo-router'
-import { Pressable, Text, View } from 'react-native'
+import { View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
-import { FAMILIA } from '@/ui/fontes'
-import { Icone } from '@/ui/Icone'
-import { ALVO } from '@/ui/medidas'
-import { Texto } from '@/ui/Texto'
-import { useTema } from '@/ui/tema'
+import { PilulaDaComunidade as Pilula } from '@/ui/PilulaDaComunidade'
 import { soNaWeb } from '@/ui/web'
 
 import { NOME_DO_ESTADO_DA_COMUNIDADE } from '../comunidade/nomes'
 import { IndicadorDeSincronizacao } from '../offline/IndicadorDeSincronizacao'
 
-/** Iniciais da comunidade para o círculo coral ("Jovens Central" vira "JC"). */
-function iniciaisDaComunidade(nome: string): string {
-  const partes = nome
-    .trim()
-    .split(/\s+/)
-    .filter((p) => /\p{L}/u.test(p))
-  const letras = partes.length > 1 ? [partes[0]!, partes.at(-1)!] : partes.slice(0, 1)
-  return (
-    letras
-      .map((p) => [...p][0] ?? '')
-      .join('')
-      .toLocaleUpperCase('pt-BR') || '?'
-  )
-}
-
-/**
- * Topo das abas (mockup Aurora): pílula da comunidade ativa, sempre visível,
- * que abre a troca; à direita, o estado da sincronização. Fica dentro da
- * rolagem, sobre a aurora; a área segura de cima é da `Tela`.
- */
-export function CabecalhoDaComunidade() {
+/** O que a pílula mostra e faz, a partir da sessão. */
+function usePilula() {
   const { comunidadeAtiva, comunidades } = useSessao()
-  const { cores } = useTema()
+  const vazia = comunidades.length === 0
   const podeTrocar = comunidades.length > 1 || (!comunidadeAtiva && comunidades.length > 0)
-
+  const nome = comunidadeAtiva
+    ? comunidadeAtiva.nome
+    : vazia
+      ? 'Sem comunidade'
+      : 'Escolher comunidade'
   const detalhe = comunidadeAtiva
     ? [
         NOME_DO_PAPEL[comunidadeAtiva.papel],
@@ -49,100 +30,45 @@ export function CabecalhoDaComunidade() {
         .filter(Boolean)
         .join(', ')
     : ''
-
-  const nome = comunidadeAtiva
-    ? comunidadeAtiva.nome
-    : comunidades.length === 0
-      ? 'Sem comunidade'
+  const rotulo = comunidadeAtiva
+    ? `Comunidade ${comunidadeAtiva.nome}, ${detalhe}.${podeTrocar ? ' Trocar de comunidade' : ''}`
+    : vazia
+      ? 'Sem comunidade. Entrar numa comunidade'
       : 'Escolher comunidade'
+  const aoPressionar = podeTrocar
+    ? () => router.push('/trocar-comunidade')
+    : vazia
+      ? () => router.push('/entrar-com-convite')
+      : null
+  return { nome, vazia, podeTrocar, rotulo, aoPressionar }
+}
 
-  const pilula = (pressionado: boolean) => (
-    <View
-      style={{
-        minHeight: ALVO,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-        paddingVertical: 6,
-        paddingLeft: 6,
-        paddingRight: 14,
-        borderRadius: RAIO.pilula,
-        borderWidth: 1,
-        borderColor: cores.cartaoVidroBorda,
-        backgroundColor: pressionado ? cores.superficieRealce : cores.cartaoVidro,
-        maxWidth: '100%',
-      }}
-    >
-      <View
-        style={{
-          width: 32,
-          height: 32,
-          borderRadius: 16,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: cores.primaria,
-        }}
-      >
-        {comunidadeAtiva ? (
-          <Text
-            allowFontScaling={false}
-            importantForAccessibility="no"
-            style={{
-              color: cores.sobrePrimaria,
-              fontFamily: FAMILIA.tituloForte,
-              fontSize: 13,
-              lineHeight: 16,
-            }}
-          >
-            {iniciaisDaComunidade(comunidadeAtiva.nome)}
-          </Text>
-        ) : (
-          <Icone nome="comunidade" cor={cores.sobrePrimaria} tamanho={18} />
-        )}
-      </View>
-      <Texto variante="corpoForte" numberOfLines={1} style={{ fontSize: 15, flexShrink: 1 }}>
-        {nome}
-      </Texto>
-      {podeTrocar ? <Icone nome="abrirLista" cor={cores.texto} tamanho={16} /> : null}
-    </View>
-  )
+/** Pílula da comunidade com a sessão (o desenho está em `ui/PilulaDaComunidade`). */
+export function PilulaDaComunidade({ compacta = false }: { compacta?: boolean }) {
+  return <Pilula {...usePilula()} compacta={compacta} />
+}
 
+/**
+ * Linha do topo das raízes de aba (M): pílula à esquerda e status à direita,
+ * `space-between`, intervalo de 12. Sem comunidade, não há status. Com fonte
+ * grande, o status desce para a linha de baixo.
+ */
+export function CabecalhoDaComunidade({ compacto = false }: { compacto?: boolean }) {
+  const { comunidades } = useSessao()
   return (
     <View
       {...soNaWeb({ role: 'banner' })}
       style={{
+        minHeight: compacto ? 36 : ALTURA.pilula,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         flexWrap: 'wrap',
-        gap: ESPACO.x3,
+        gap: ESPACO.e12,
       }}
     >
-      <View style={{ flexShrink: 1, minWidth: 0 }}>
-        {podeTrocar ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={
-              comunidadeAtiva
-                ? `Comunidade ${comunidadeAtiva.nome}, ${detalhe}. Trocar de comunidade`
-                : 'Escolher comunidade'
-            }
-            onPress={() => router.push('/trocar-comunidade')}
-          >
-            {({ pressed }) => pilula(pressed)}
-          </Pressable>
-        ) : (
-          <View
-            accessible
-            accessibilityLabel={
-              comunidadeAtiva ? `Comunidade ${comunidadeAtiva.nome}, ${detalhe}` : nome
-            }
-          >
-            {pilula(false)}
-          </View>
-        )}
-      </View>
-      <IndicadorDeSincronizacao />
+      <PilulaDaComunidade compacta={compacto} />
+      {comunidades.length ? <IndicadorDeSincronizacao /> : null}
     </View>
   )
 }

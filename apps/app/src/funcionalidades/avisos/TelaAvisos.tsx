@@ -106,33 +106,33 @@ export function ResumoDoAviso({
       onPress={() => router.push({ pathname: '/avisos/[avisoId]', params: { avisoId: aviso.id } })}
       style={({ pressed }) => ({
         minHeight: ALVO,
-        gap: ESPACO.x2,
-        padding: ESPACO.x3,
-        borderRadius: RAIO.medio,
+        gap: ESPACO.e8,
+        padding: ESPACO.e12,
+        borderRadius: RAIO.controle,
         borderWidth: aviso.fixado ? 2 : 1,
-        borderColor: aviso.fixado ? cores.destaque : cores.borda,
+        borderColor: aviso.fixado ? cores.destaque : cores.campoBorda,
         backgroundColor: cores.superficie,
         opacity: pressed ? 0.8 : 1,
       })}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.x2 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}>
         {aviso.fixado ? <Icone nome="fixar" cor={cores.destaque} tamanho={18} /> : null}
-        <Texto variante="corpoForte" style={{ flex: 1 }}>
+        <Texto variante="tituloItem" style={{ flex: 1 }}>
           {aviso.titulo}
         </Texto>
         <Icone nome="avancar" cor={cores.textoSuave} tamanho={18} />
       </View>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
         {aviso.fixado ? <Selo texto="Fixado" cor="destaque" /> : null}
         {mostrarEstado && aviso.estado && aviso.estado !== 'publicado' ? (
           <Selo texto={NOME_DO_ESTADO[aviso.estado]} cor="alerta" />
         ) : null}
       </View>
-      <Texto variante="apoio" numberOfLines={3}>
+      <Texto variante="corpo" numberOfLines={3}>
         {aviso.texto}
       </Texto>
       {aviso.publicadoEm ? (
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           Publicado em {formatarData(aviso.publicadoEm)}
         </Texto>
       ) : null}

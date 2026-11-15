@@ -19,7 +19,7 @@ import { Tela } from '@/ui/Tela'
 export function TelaEditarPerfil() {
   const { conta } = useSessao()
   return (
-    <Tela cabecalhoNativo titulo="Dados pessoais">
+    <Tela pilha titulo="Dados pessoais">
       <Stack.Screen options={{ title: 'Editar perfil' }} />
       {conta ? <DadosDaConta conta={conta} /> : null}
     </Tela>

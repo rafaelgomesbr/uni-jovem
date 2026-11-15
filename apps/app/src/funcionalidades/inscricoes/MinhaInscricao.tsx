@@ -83,12 +83,15 @@ export function MinhaInscricao({ evento, comunidadeId }: Props) {
     networkMode: 'always',
     onSuccess: (r) => {
       if (r) consultas.setQueryData(chave, r)
+      // O Início lista as próprias inscrições (`GET /inscricoes/eu`).
+      void consultas.invalidateQueries({ queryKey: CHAVES.minhasInscricoes(comunidadeId) })
     },
   })
   const cancelar = useMutation({
     mutationFn: (id: string) => api.post(`${naComunidade(comunidadeId)}/inscricoes/${id}/cancelar`),
     onSuccess: async () => {
       consultas.setQueryData(chave, null)
+      void consultas.invalidateQueries({ queryKey: CHAVES.minhasInscricoes(comunidadeId) })
       await invalidar(evento.id)
     },
   })
@@ -117,7 +120,7 @@ export function MinhaInscricao({ evento, comunidadeId }: Props) {
 
   if (ativa) {
     return (
-      <View style={{ gap: ESPACO.x3 }}>
+      <View style={{ gap: ESPACO.e12 }}>
         <View ref={focoRef} accessible {...soNaWeb({ tabIndex: -1 })}>
           <Selo
             texto={`Sua inscrição: ${NOME_DO_ESTADO_DA_INSCRICAO[ativa.estado]}`}
@@ -125,26 +128,26 @@ export function MinhaInscricao({ evento, comunidadeId }: Props) {
           />
         </View>
         {ativa.estado === 'espera' ? (
-          <Texto variante="apoio">
+          <Texto variante="corpo">
             Você está na lista de espera. Se abrir uma vaga, sua inscrição é confirmada sozinha.
           </Texto>
         ) : null}
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           Na entrada, mostre o QR ou diga o código.
         </Texto>
         <CodigoQR
-          valor={ativa.codigo_checkin}
-          rotulo={`QR do seu código de entrada, ${ativa.codigo_checkin.split('').join(' ')}`}
+          valor={ativa.codigoCheckin}
+          rotulo={`QR do seu código de entrada, ${ativa.codigoCheckin.split('').join(' ')}`}
         />
-        <Texto variante="subtitulo" centralizado selectable accessibilityRole="text">
-          {formatarCodigo(ativa.codigo_checkin)}
+        <Texto variante="tituloItem" centralizado selectable accessibilityRole="text">
+          {formatarCodigo(ativa.codigoCheckin)}
         </Texto>
         {cancelar.error ? <AvisoDeErro erro={cancelar.error} /> : null}
         <Botao
           titulo="Cancelar minha inscrição"
-          variante="perigo"
+          variante="destrutivo"
           carregando={cancelar.isPending}
-          aoPressionar={() => void pedirCancelamento(ativa.inscricao_id)}
+          aoPressionar={() => void pedirCancelamento(ativa.inscricaoId)}
         />
       </View>
     )
@@ -152,11 +155,11 @@ export function MinhaInscricao({ evento, comunidadeId }: Props) {
 
   if (intencao?.estado === 'pendente') {
     return (
-      <View style={{ gap: ESPACO.x2 }}>
+      <View style={{ gap: ESPACO.e8 }}>
         <View ref={focoRef} accessible {...soNaWeb({ tabIndex: -1 })}>
           <Selo texto="Pendente: vaga não garantida" cor="alerta" />
         </View>
-        <Texto variante="apoio">
+        <Texto variante="corpo">
           Sua inscrição foi anotada neste aparelho, sem internet. A vaga só fica garantida quando o
           servidor confirmar, assim que a conexão voltar.
         </Texto>
@@ -165,7 +168,7 @@ export function MinhaInscricao({ evento, comunidadeId }: Props) {
   }
 
   return (
-    <View style={{ gap: ESPACO.x2 }}>
+    <View style={{ gap: ESPACO.e8 }}>
       {intencao ? (
         <Aviso tipo="alerta" titulo="A inscrição feita sem internet não entrou">
           {`${intencao.mensagem ?? 'O servidor não confirmou a vaga.'} Veja em Pendências.`}
@@ -173,7 +176,7 @@ export function MinhaInscricao({ evento, comunidadeId }: Props) {
       ) : null}
       {inscrever.error ? <AvisoDeErro erro={inscrever.error} /> : null}
       {!offline.online && offline.disponivel && motivo === null ? (
-        <Texto variante="apoio">
+        <Texto variante="corpo">
           Sem internet: a inscrição fica anotada neste aparelho e a vaga só é garantida quando o
           servidor confirmar.
         </Texto>

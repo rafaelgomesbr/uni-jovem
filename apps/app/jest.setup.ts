@@ -219,3 +219,11 @@ jest.mock('expo-file-system', () => {
   }
   return { File, Paths: { cache: 'cache' } }
 })
+
+// Seletor de data e hora do @expo/ui (nativo): no teste, um nó que só repassa as props.
+jest.mock('@expo/ui/community/datetime-picker', () => {
+  const { View } = require('react-native')
+  const DateTimePicker = (props: object) =>
+    require('react').createElement(View, { ...props, testID: 'seletor-de-data' })
+  return { __esModule: true, default: DateTimePicker, DateTimePicker }
+})

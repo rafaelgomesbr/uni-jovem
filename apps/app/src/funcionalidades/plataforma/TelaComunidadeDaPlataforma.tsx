@@ -120,7 +120,7 @@ function CicloDeVida({ comunidade }: { comunidade: ComunidadeDaPlataforma }) {
 
   return (
     <TelaPropria>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.x4 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e16 }}>
         <MarcaDaComunidade cor={comunidade.cor} tamanho={56} />
         <View style={{ flex: 1 }}>
           <CabecalhoDeTela sobrancelha="Plataforma" titulo={nome} />
@@ -162,7 +162,7 @@ function CicloDeVida({ comunidade }: { comunidade: ComunidadeDaPlataforma }) {
       <Cartao titulo="Situação" icone="plataforma" descricao={`Agora: ${estado}.`}>
         {comunidade.estado === 'ativa' ? (
           <>
-            <Texto variante="apoio" cor="textoSuave">
+            <Texto variante="legenda" cor="textoSuave">
               Suspensa: todo mundo consulta, ninguém altera, e as notificações param. Arquivada:
               some para os membros; só a exportação continua.
             </Texto>
@@ -222,7 +222,7 @@ function CicloDeVida({ comunidade }: { comunidade: ComunidadeDaPlataforma }) {
 
       {comunidade.estado !== 'exclusao_agendada' ? (
         <Cartao titulo="Agendar exclusão" icone="excluir">
-          <Texto variante="apoio">
+          <Texto variante="corpo">
             Depois de 30 dias de carência, todos os dados de {nome} são apagados. Uma exportação é
             gerada antes para a administração. Até lá, dá para cancelar.
           </Texto>
@@ -236,7 +236,7 @@ function CicloDeVida({ comunidade }: { comunidade: ComunidadeDaPlataforma }) {
           />
           <Botao
             titulo={`Agendar exclusão de ${nome}`}
-            variante="perigo"
+            variante="destrutivo"
             icone="excluir"
             desabilitado={!nomeConfere}
             motivo="Digite o nome exato da comunidade para liberar."

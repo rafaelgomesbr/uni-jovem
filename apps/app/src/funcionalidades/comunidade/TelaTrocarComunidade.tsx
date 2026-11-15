@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { NOME_DO_PAPEL } from '@uj/dominio'
-import { ESPACO, RAIO, RITMO } from '@uj/tokens'
+import { ESPACO, RAIO } from '@uj/tokens'
 import { router } from 'expo-router'
 import { Pressable, View } from 'react-native'
 
@@ -54,7 +54,7 @@ export function TelaTrocarComunidade() {
         <View
           accessibilityRole="radiogroup"
           aria-label="Suas comunidades"
-          style={{ gap: ESPACO.x3 }}
+          style={{ gap: ESPACO.e12 }}
         >
           {comunidades.map((c) => (
             <OpcaoDeComunidade
@@ -109,19 +109,19 @@ function OpcaoDeComunidade({
       style={({ pressed }) => ({
         flexDirection: 'row',
         alignItems: 'center',
-        gap: ESPACO.x3,
-        padding: RITMO.dentroDoCartao,
-        borderRadius: RAIO.grande,
-        backgroundColor: pressed || ativa ? cores.superficieRealce : cores.superficie,
+        gap: ESPACO.e12,
+        padding: ESPACO.e16,
+        borderRadius: RAIO.cartao,
+        backgroundColor: pressed || ativa ? cores.pressionado : cores.superficie,
         // Escolhida: contorno grosso na cor de destaque, marca e texto (nunca só cor).
         borderWidth: ativa || aumentarContraste ? 2 : 1,
-        borderColor: ativa ? cores.destaque : aumentarContraste ? cores.texto : cores.bordaSuave,
+        borderColor: ativa ? cores.destaque : aumentarContraste ? cores.texto : cores.separador,
         boxShadow: aumentarContraste ? elevacao.nenhuma : elevacao.cartao,
       })}
     >
       <MarcaDaComunidade cor={comunidade.cor} tamanho={48} />
-      <View style={{ flex: 1, gap: ESPACO.x1 }}>
-        <Texto variante="subtitulo">{comunidade.nome}</Texto>
+      <View style={{ flex: 1, gap: ESPACO.e4 }}>
+        <Texto variante="tituloItem">{comunidade.nome}</Texto>
         <Chips>
           <Chip
             texto={papel}

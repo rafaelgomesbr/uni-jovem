@@ -1,26 +1,20 @@
-import { ESPACO, RAIO, type Paleta } from '@uj/tokens'
-import { View } from 'react-native'
+import type { Paleta } from '@uj/tokens'
 
-import { Texto } from './Texto'
-import { useTema } from './tema'
+import { Chip, type TomDoChip } from './Chip'
 
-/** Etiqueta curta (papel, situação). O texto carrega o sentido; a cor só reforça. */
+const TOM_DA_COR: Partial<Record<keyof Paleta, TomDoChip>> = {
+  sucesso: 'sucesso',
+  alerta: 'alerta',
+  erro: 'erro',
+  info: 'info',
+  destaque: 'quente',
+  primaria: 'quente',
+}
+
+/**
+ * Fachada do selo antigo (contorno colorido) para as telas ainda não
+ * redesenhadas: vira o chip preenchido da 2.12.12, no tom da cor pedida.
+ */
 export function Selo({ texto, cor = 'textoSuave' }: { texto: string; cor?: keyof Paleta }) {
-  const { cores } = useTema()
-  return (
-    <View
-      style={{
-        alignSelf: 'flex-start',
-        paddingHorizontal: ESPACO.x2,
-        paddingVertical: 2,
-        borderRadius: RAIO.pilula,
-        borderWidth: 1,
-        borderColor: cores[cor],
-      }}
-    >
-      <Texto variante="rotulo" cor={cor}>
-        {texto}
-      </Texto>
-    </View>
-  )
+  return <Chip texto={texto} tom={TOM_DA_COR[cor] ?? 'neutro'} />
 }

@@ -40,7 +40,7 @@ export function TelaNotificacoes() {
 
   return (
     <Tela
-      cabecalhoNativo
+      pilha
       titulo="Notificações"
       descricao="O que o app avisa e em quais comunidades. A permissão do aparelho é separada."
     >
@@ -50,7 +50,7 @@ export function TelaNotificacoes() {
 
       <Cartao titulo="Por comunidade" icone="comunidade">
         {comunidades.length === 0 ? (
-          <Texto variante="apoio" cor="textoSuave">
+          <Texto variante="legenda" cor="textoSuave">
             Quando você entrar numa comunidade, escolha aqui o que ela pode avisar.
           </Texto>
         ) : (

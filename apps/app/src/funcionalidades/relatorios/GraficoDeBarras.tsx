@@ -23,10 +23,10 @@ export function GraficoDeBarras({ titulo, barras }: { titulo: string; barras: re
   const { aumentarContraste } = usePreferenciasDeAcessibilidade()
   const maximo = Math.max(1, ...barras.map((b) => b.valor))
   return (
-    <View accessibilityRole="summary" accessibilityLabel={titulo} style={{ gap: ESPACO.x3 }}>
-      <Texto variante="corpoForte">{titulo}</Texto>
+    <View accessibilityRole="summary" accessibilityLabel={titulo} style={{ gap: ESPACO.e12 }}>
+      <Texto variante="tituloItem">{titulo}</Texto>
       {barras.length === 0 ? (
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           Nada para mostrar neste período.
         </Texto>
       ) : (
@@ -37,17 +37,17 @@ export function GraficoDeBarras({ titulo, barras }: { titulo: string; barras: re
               key={`${b.rotulo}-${i}`}
               accessible
               accessibilityLabel={`${b.rotulo}: ${texto}`}
-              style={{ gap: ESPACO.x1 }}
+              style={{ gap: ESPACO.e4 }}
             >
-              <Texto variante="apoio">{b.rotulo}</Texto>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.x2 }}>
+              <Texto variante="corpo">{b.rotulo}</Texto>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}>
                 <View
                   style={{
                     flex: 1,
                     height: 14,
                     borderRadius: RAIO.pilula,
                     borderWidth: 1,
-                    borderColor: aumentarContraste ? cores.texto : cores.borda,
+                    borderColor: aumentarContraste ? cores.texto : cores.campoBorda,
                     backgroundColor: cores.superficieElevada,
                     overflow: 'hidden',
                   }}
@@ -60,7 +60,7 @@ export function GraficoDeBarras({ titulo, barras }: { titulo: string; barras: re
                     }}
                   />
                 </View>
-                <Texto variante="corpoForte" style={{ minWidth: 48, textAlign: 'right' }}>
+                <Texto variante="tituloItem" style={{ minWidth: 48, textAlign: 'right' }}>
                   {texto}
                 </Texto>
               </View>
@@ -82,18 +82,18 @@ export function Numero({ rotulo, valor }: { rotulo: string; valor: string | numb
       style={{
         flexGrow: 1,
         flexBasis: 140,
-        padding: ESPACO.x3,
-        gap: ESPACO.x1,
-        borderRadius: RAIO.medio,
+        padding: ESPACO.e12,
+        gap: ESPACO.e4,
+        borderRadius: RAIO.controle,
         borderWidth: 1,
-        borderColor: cores.borda,
+        borderColor: cores.campoBorda,
         backgroundColor: cores.superficieElevada,
       }}
     >
-      <Texto variante="titulo" accessibilityRole="text">
+      <Texto variante="tituloTela" accessibilityRole="text">
         {String(valor)}
       </Texto>
-      <Texto variante="apoio" cor="textoSuave">
+      <Texto variante="legenda" cor="textoSuave">
         {rotulo}
       </Texto>
     </View>
@@ -101,5 +101,5 @@ export function Numero({ rotulo, valor }: { rotulo: string; valor: string | numb
 }
 
 export function GradeDeNumeros({ children }: { children: ReactNode }) {
-  return <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>{children}</View>
+  return <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>{children}</View>
 }

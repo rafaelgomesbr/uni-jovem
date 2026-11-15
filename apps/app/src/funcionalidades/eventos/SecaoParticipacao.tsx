@@ -29,7 +29,7 @@ export function SecaoParticipacao({ evento, comunidadeId }: Props) {
   return (
     <>
       <Cartao titulo="Participação" icone="inscricoes">
-        <View style={{ gap: ESPACO.x2 }}>
+        <View style={{ gap: ESPACO.e8 }}>
           <Botao
             titulo={conduz ? 'Conduzir ao vivo' : 'Acompanhar ao vivo'}
             icone="aoVivo"
@@ -59,7 +59,7 @@ export function SecaoParticipacao({ evento, comunidadeId }: Props) {
         </View>
         <MinhaInscricao evento={evento} comunidadeId={comunidadeId} />
         {evento.visibilidade === 'interna' && verLista ? (
-          <Texto variante="apoio" cor="textoSuave">
+          <Texto variante="legenda" cor="textoSuave">
             Evento interno: só quem participa da comunidade se inscreve, pelo app. Para ter uma
             página aberta, mude a visibilidade para pública.
           </Texto>

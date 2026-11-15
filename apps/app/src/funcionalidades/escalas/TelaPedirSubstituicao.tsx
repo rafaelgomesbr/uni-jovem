@@ -28,7 +28,7 @@ export function TelaPedirSubstituicao() {
   const atribuicaoId = parametro(useLocalSearchParams<{ atribuicaoId: string }>().atribuicaoId)
   if (!comunidadeAtiva || !atribuicaoId) {
     return (
-      <Tela cabecalhoNativo>
+      <Tela pilha>
         <SemComunidade oQue="as suas escalas" />
       </Tela>
     )
@@ -66,11 +66,11 @@ function PedirSubstituicao({
   })
 
   return (
-    <Tela cabecalhoNativo titulo="Pedir substituição">
+    <Tela pilha titulo="Pedir substituição">
       {escala ? (
         <Cartao>
-          <Texto variante="corpoForte">{escala.eventoTitulo}</Texto>
-          <Texto variante="apoio" cor="textoSuave">
+          <Texto variante="tituloItem">{escala.eventoTitulo}</Texto>
+          <Texto variante="legenda" cor="textoSuave">
             {[escala.etapaTitulo, escala.funcao, formatarQuando(escala.eventoInicio, fuso)]
               .filter(Boolean)
               .join(' · ')}
@@ -78,7 +78,7 @@ function PedirSubstituicao({
         </Cartao>
       ) : null}
       <Cartao>
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           Você continua na escala até alguém assumir. Quem assume fica registrado no seu lugar.
         </Texto>
         <GrupoDeOpcoes

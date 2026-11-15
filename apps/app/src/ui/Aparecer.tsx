@@ -10,7 +10,7 @@ interface PropsDoAparecer {
 }
 
 /**
- * Entrada curta (opacidade e 6 pt de deslocamento, 150 ms) para conteúdo que
+ * Entrada curta (opacidade e 6 pt de deslocamento, 200 ms) para conteúdo que
  * surge depois de um toque: formulário que abre, painel que troca. Com
  * "Reduzir movimento", aparece direto, sem animação nenhuma.
  */
@@ -26,7 +26,7 @@ function Animado({ children, style }: PropsDoAparecer) {
   useEffect(() => {
     const animacao = Animated.timing(progresso, {
       toValue: 1,
-      duration: DURACAO.rapida,
+      duration: DURACAO.aparecer,
       useNativeDriver: Platform.OS !== 'web',
     })
     animacao.start()
@@ -37,6 +37,8 @@ function Animado({ children, style }: PropsDoAparecer) {
       style={[
         style,
         {
+          // Animação de entrada, não estado.
+          // eslint-disable-next-line no-restricted-syntax
           opacity: progresso,
           transform: [
             { translateY: progresso.interpolate({ inputRange: [0, 1], outputRange: [6, 0] }) },

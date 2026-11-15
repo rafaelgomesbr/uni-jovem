@@ -12,7 +12,7 @@ export function TelaEvento() {
   const { comunidadeAtiva } = useSessao()
   const eventoId = parametro(useLocalSearchParams<{ eventoId: string }>().eventoId)
   return (
-    <Tela cabecalhoNativo>
+    <Tela pilha>
       {comunidadeAtiva && eventoId ? (
         <DetalheDoEvento comunidadeId={comunidadeAtiva.id} eventoId={eventoId} />
       ) : (

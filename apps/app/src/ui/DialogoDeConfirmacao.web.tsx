@@ -70,7 +70,7 @@ function Dialogo({ aberta }: { aberta: ConfirmacaoAberta }) {
           zIndex: 1000,
           alignItems: 'center',
           justifyContent: 'center',
-          padding: ESPACO.x5,
+          padding: ESPACO.e20,
           backgroundColor: 'rgba(10, 8, 30, 0.55)',
         },
       ]}
@@ -84,15 +84,15 @@ function Dialogo({ aberta }: { aberta: ConfirmacaoAberta }) {
           width: '100%',
           maxWidth: 440,
           gap: RITMO.entreItens,
-          padding: ESPACO.x6,
-          borderRadius: RAIO.grande,
+          padding: ESPACO.e24,
+          borderRadius: RAIO.cartao,
           backgroundColor: cores.superficie,
           borderWidth: 1,
-          borderColor: cores.bordaSuave,
+          borderColor: cores.separador,
           boxShadow: elevacao.flutuante,
         }}
       >
-        <Texto variante="subtitulo" nativeID={`titulo-${id}`}>
+        <Texto variante="tituloItem" nativeID={`titulo-${id}`}>
           {pedido.titulo}
         </Texto>
         <Texto cor="textoSuave" nativeID={`mensagem-${id}`}>
@@ -103,8 +103,8 @@ function Dialogo({ aberta }: { aberta: ConfirmacaoAberta }) {
             flexDirection: 'row',
             flexWrap: 'wrap-reverse',
             justifyContent: 'flex-end',
-            gap: RITMO.entreBotoes,
-            marginTop: ESPACO.x2,
+            gap: ESPACO.e8,
+            marginTop: ESPACO.e8,
           }}
         >
           <Botao
@@ -117,7 +117,7 @@ function Dialogo({ aberta }: { aberta: ConfirmacaoAberta }) {
           <Botao
             ref={confirmarRef}
             titulo={pedido.confirmar}
-            variante={pedido.destrutivo ? 'perigo' : 'primario'}
+            variante={pedido.destrutivo ? 'destrutivoCheio' : 'primario'}
             larguraTotal={false}
             aoPressionar={() => responder(true)}
           />

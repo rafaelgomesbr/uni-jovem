@@ -49,7 +49,7 @@ export function TelaTimelineDoDia() {
   const data = dataDaRota ?? hojeNoFuso(fuso)
   if (!comunidadeAtiva) {
     return (
-      <Tela cabecalhoNativo>
+      <Tela pilha>
         <SemComunidade oQue="a agenda" />
       </Tela>
     )
@@ -73,11 +73,11 @@ function Timeline({
 
   return (
     <Tela
-      cabecalhoNativo
+      pilha
       titulo="Linha do tempo"
       descricao={`${formatarDataPorExtenso(data)}${data === hoje ? ' (hoje)' : ''}`}
     >
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
         <Botao
           titulo="Dia anterior"
           icone="voltar"
@@ -147,9 +147,9 @@ function EventoNaLinhaDoTempo({
 
   return (
     <Cartao>
-      <View style={{ gap: ESPACO.x1 }}>
-        <Texto variante="subtitulo">{resumo.titulo}</Texto>
-        <Texto variante="apoio" cor="textoSuave">
+      <View style={{ gap: ESPACO.e4 }}>
+        <Texto variante="tituloItem">{resumo.titulo}</Texto>
+        <Texto variante="legenda" cor="textoSuave">
           {formatarHora(resumo.inicio, resumo.fuso)} · {formatarDuracao(resumo.duracaoMin)}
           {resumo.localNome ? ` · ${resumo.localNome}` : ''}
         </Texto>
@@ -164,7 +164,7 @@ function EventoNaLinhaDoTempo({
       ) : (
         <Etapas evento={detalhe.data} retrato={aoVivo.data ?? null} />
       )}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
         <Botao
           titulo="Abrir a programação"
           variante="secundario"
@@ -198,7 +198,7 @@ function Etapas({ evento, retrato }: { evento: DetalheDoEvento; retrato: Retrato
   const { cores } = useTema()
   if (evento.etapas.length === 0) {
     return (
-      <Texto variante="apoio" cor="textoSuave">
+      <Texto variante="legenda" cor="textoSuave">
         A programação deste evento ainda não tem etapas.
       </Texto>
     )
@@ -211,21 +211,21 @@ function Etapas({ evento, retrato }: { evento: DetalheDoEvento; retrato: Retrato
   const total = evento.etapas.length
 
   return (
-    <View style={{ gap: ESPACO.x2 }}>
+    <View style={{ gap: ESPACO.e8 }}>
       {comecou ? (
         <>
           <BarraDeProgresso
             fracao={concluidas / total}
             rotulo={`${concluidas} de ${total} etapas concluídas`}
           />
-          <Texto variante="apoio">
+          <Texto variante="corpo">
             {retrato.situacao === 'encerrado'
               ? 'Evento encerrado.'
               : `${concluidas} de ${total} etapas concluídas${retrato.situacao === 'pausado' ? ' (pausado)' : ''}.`}
           </Texto>
         </>
       ) : (
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           Horários previstos. O progresso aparece quando o ao vivo começar.
         </Texto>
       )}
@@ -252,7 +252,7 @@ function Etapas({ evento, retrato }: { evento: DetalheDoEvento; retrato: Retrato
             ]
               .filter(Boolean)
               .join(', ')}
-            style={{ flexDirection: 'row', gap: ESPACO.x3 }}
+            style={{ flexDirection: 'row', gap: ESPACO.e12 }}
           >
             {/* Largura mínima, não fixa: com fonte grande, a hora cresce sem cortar. */}
             <Texto variante="rotulo" tabular style={{ minWidth: 48, paddingTop: 2 }}>
@@ -265,17 +265,19 @@ function Etapas({ evento, retrato }: { evento: DetalheDoEvento; retrato: Retrato
                 tamanho={20}
               />
               {!ultima ? (
-                <View style={{ width: 2, flex: 1, minHeight: 24, backgroundColor: cores.borda }} />
+                <View
+                  style={{ width: 2, flex: 1, minHeight: 24, backgroundColor: cores.campoBorda }}
+                />
               ) : null}
             </View>
-            <View style={{ flex: 1, gap: 2, paddingBottom: ESPACO.x3 }}>
-              <Texto variante="corpoForte">{etapa.titulo}</Texto>
-              <Texto variante="apoio" cor="textoSuave">
+            <View style={{ flex: 1, gap: 2, paddingBottom: ESPACO.e12 }}>
+              <Texto variante="tituloItem">{etapa.titulo}</Texto>
+              <Texto variante="legenda" cor="textoSuave">
                 {inicio} a {fim} · {formatarDuracao(etapa.duracaoMin)}
                 {s ? ` · ${NOME_DA_SITUACAO_DA_ETAPA[s]}` : ''}
               </Texto>
               {quem ? (
-                <Texto variante="apoio" cor="textoSuave">
+                <Texto variante="legenda" cor="textoSuave">
                   Com: {quem}
                 </Texto>
               ) : null}

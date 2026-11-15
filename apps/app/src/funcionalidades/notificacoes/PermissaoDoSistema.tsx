@@ -56,7 +56,7 @@ export function PermissaoDoSistema({ ligadoNoApp }: { ligadoNoApp: boolean }) {
 
   if (estado === 'negada') {
     return (
-      <View style={{ gap: ESPACO.x2 }}>
+      <View style={{ gap: ESPACO.e8 }}>
         <Linha
           icone="sinoDesligado"
           titulo={ligadoNoApp ? 'Ligado no app, bloqueado no sistema' : 'Bloqueadas no sistema'}
@@ -76,8 +76,8 @@ export function PermissaoDoSistema({ ligadoNoApp }: { ligadoNoApp: boolean }) {
   // Ainda não perguntado: explicação primeiro, diálogo do sistema só depois de "Ativar".
   if (adiado) {
     return (
-      <View style={{ gap: ESPACO.x2 }}>
-        <Texto variante="apoio" cor="textoSuave">
+      <View style={{ gap: ESPACO.e8 }}>
+        <Texto variante="legenda" cor="textoSuave">
           Tudo bem. Nada se perde: tudo aparece no Início. Você pode ativar quando quiser.
         </Texto>
         <Botao
@@ -90,10 +90,10 @@ export function PermissaoDoSistema({ ligadoNoApp }: { ligadoNoApp: boolean }) {
     )
   }
   return (
-    <View style={{ gap: ESPACO.x2 }}>
-      <Texto variante="corpoForte">Quer ser avisado?</Texto>
+    <View style={{ gap: ESPACO.e8 }}>
+      <Texto variante="tituloItem">Quer ser avisado?</Texto>
       {EXPLICACAO_DAS_NOTIFICACOES.map((t) => (
-        <Texto key={t} variante="apoio">
+        <Texto key={t} variante="corpo">
           {t}
         </Texto>
       ))}
@@ -106,7 +106,7 @@ export function PermissaoDoSistema({ ligadoNoApp }: { ligadoNoApp: boolean }) {
           void pedirPermissaoEmContexto().finally(() => setPedindo(false))
         }}
       />
-      <Botao titulo="Agora não" variante="discreto" aoPressionar={() => setAdiado(true)} />
+      <Botao titulo="Agora não" variante="terciario" aoPressionar={() => setAdiado(true)} />
     </View>
   )
 }

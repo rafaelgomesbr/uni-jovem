@@ -35,6 +35,7 @@ export const TRACOS = {
   ),
   abrirLista: (c: ColorValue) => <Path d="M6 9l6 6 6-6" stroke={c} />,
   confirmado: (c: ColorValue) => <Path d="M5 12l5 5L20 7" stroke={c} strokeWidth={2.5} />,
+  check: (c: ColorValue) => <Path d="M5 12l5 5L20 7" stroke={c} strokeWidth={2.5} />,
 } as const
 
 export type NomeDoTraco = keyof typeof TRACOS
@@ -43,10 +44,13 @@ export function IconeDeTraco({
   nome,
   cor,
   tamanho = 22,
+  traco = 2,
 }: {
   nome: NomeDoTraco
   cor: ColorValue
   tamanho?: number
+  /** Espessura do traço (2 no mockup; 2,5 na aba ativa, o sinal de peso além da cor). */
+  traco?: number
 }) {
   return (
     <Svg
@@ -54,7 +58,7 @@ export function IconeDeTraco({
       height={tamanho}
       viewBox="0 0 24 24"
       fill="none"
-      strokeWidth={2}
+      strokeWidth={traco}
       strokeLinecap="round"
       strokeLinejoin="round"
       accessible={false}

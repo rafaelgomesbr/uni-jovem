@@ -52,21 +52,21 @@ export function CartaoDoPedido({
 
   return (
     <Cartao>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.x3 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e12 }}>
         <Avatar
           nome={pedido.minha ? (conta?.nome ?? 'Você') : (pedido.autorNome ?? 'Uma pessoa')}
           {...(pedido.minha ? { avatar: conta?.avatar ?? null } : {})}
-          tamanho="M"
+          tamanho="linha"
           decorativo
         />
         <View style={{ flex: 1, gap: 2 }}>
-          <Texto variante="corpoForte">{autor}</Texto>
-          <Texto variante="apoio" cor="textoSuave" style={{ fontSize: 13 }}>
+          <Texto variante="tituloItem">{autor}</Texto>
+          <Texto variante="legenda" cor="textoSuave" style={{ fontSize: 13 }}>
             {formatarData(pedido.criadoEm)}
           </Texto>
         </View>
       </View>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
         <Selo texto={`Quem vê: ${NOME_DA_VISIBILIDADE[pedido.visibilidade]}`} cor="destaque" />
         {pedido.respondidoEm ? <Selo texto="Respondido" cor="sucesso" /> : null}
       </View>
@@ -74,19 +74,19 @@ export function CartaoDoPedido({
         {pedido.texto ?? 'Não foi possível mostrar o texto deste pedido.'}
       </Texto>
       {pedido.minha ? (
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           {pedido.quemVe}
         </Texto>
       ) : null}
       {/* Quem está orando: avatares (decorativos) e a frase que diz quantos. */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.x2 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}>
         <PilhaDeAvatares nomes={pedido.orando.pessoas} />
-        <Texto variante="apoio" cor="textoSuave" style={{ flex: 1 }}>
+        <Texto variante="legenda" cor="textoSuave" style={{ flex: 1 }}>
           {orandoTexto(pedido)}
         </Texto>
       </View>
       {erro ? <AvisoDeErro erro={erro} /> : null}
-      <View style={{ gap: ESPACO.x2 }}>
+      <View style={{ gap: ESPACO.e8 }}>
         <Botao
           titulo={
             pedido.orando.euEstouOrando ? 'Deixar de marcar que estou orando' : 'Estou orando'
@@ -123,7 +123,7 @@ export function CartaoDoPedido({
             <Botao
               titulo="Excluir"
               icone="excluir"
-              variante="perigo"
+              variante="destrutivo"
               carregando={excluir.isPending}
               aoPressionar={() => void pedirExclusao()}
             />

@@ -5,7 +5,7 @@ import { Tela } from '@/ui/Tela'
 
 export default function NaoEncontrado() {
   return (
-    <Tela cabecalhoNativo>
+    <Tela pilha>
       <EstadoVazio
         icone="erro"
         titulo="Página não encontrada"

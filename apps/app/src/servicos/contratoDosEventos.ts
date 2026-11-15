@@ -172,6 +172,9 @@ export interface DetalheDaSerie {
   categoria: string
   local_id: string | null
   versao: number
+  /** Encerrada: não recebe mais alterações (a API responde 409 `serie_encerrada`). */
+  estado: 'ativa' | 'encerrada'
+  encerrada_em: string | null
   ocorrencias: {
     id: string
     inicio: string
@@ -298,9 +301,28 @@ export interface ListaDeInscricoes {
 
 /** Resposta de `POST /inscricoes/eu` (idempotente: devolve a existente). */
 export interface MinhaInscricao {
-  inscricao_id: string
+  inscricaoId: string
   estado: EstadoDaInscricao
-  codigo_checkin: string
+  codigoCheckin: string
+}
+
+/** Item de `GET /inscricoes/eu` (as próprias inscrições, com o evento). */
+export interface InscricaoMinha extends MinhaInscricao {
+  criadaEm: string
+  presente: boolean
+  evento: {
+    id: string
+    titulo: string
+    inicio: string
+    duracaoMin: number
+    fuso: string
+    status: StatusDoEvento
+    localNome: string | null
+  }
+}
+
+export interface RespostaDasMinhasInscricoes {
+  inscricoes: InscricaoMinha[]
 }
 
 export interface InscritoParaCheckin {

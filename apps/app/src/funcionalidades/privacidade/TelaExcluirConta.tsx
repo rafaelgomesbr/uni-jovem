@@ -72,11 +72,11 @@ export function TelaExcluirConta() {
   }
 
   return (
-    <Tela cabecalhoNativo titulo="Excluir sua conta?" descricao="Isso não pode ser desfeito.">
+    <Tela pilha titulo="Excluir sua conta?" descricao="Isso não pode ser desfeito.">
       <Cartao titulo="O que acontece" icone="info">
-        <View style={{ gap: ESPACO.x2 }}>
+        <View style={{ gap: ESPACO.e8 }}>
           {CONSEQUENCIAS_DA_EXCLUSAO.map((t) => (
-            <View key={t} style={{ flexDirection: 'row', gap: ESPACO.x2 }}>
+            <View key={t} style={{ flexDirection: 'row', gap: ESPACO.e8 }}>
               <Texto aria-hidden accessibilityElementsHidden importantForAccessibility="no">
                 •
               </Texto>
@@ -119,8 +119,8 @@ export function TelaExcluirConta() {
         ) : null}
         {unicoAdmin ? (
           <Aviso tipo="alerta" titulo="Antes, nomeie outra pessoa administradora" anunciar>
-            <View style={{ gap: ESPACO.x2 }}>
-              <Texto variante="apoio">{mensagemDoErro(excluir.error)}</Texto>
+            <View style={{ gap: ESPACO.e8 }}>
+              <Texto variante="corpo">{mensagemDoErro(excluir.error)}</Texto>
               {unicoAdmin.map((c) => (
                 <Botao
                   key={c.id}
@@ -140,7 +140,7 @@ export function TelaExcluirConta() {
         <Botao
           titulo="Excluir minha conta"
           icone="excluir"
-          variante="perigo"
+          variante="destrutivo"
           carregando={excluir.isPending}
           aoPressionar={() => void pedir()}
         />

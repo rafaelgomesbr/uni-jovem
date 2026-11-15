@@ -178,7 +178,7 @@ function Formulario({ comunidadeId, local }: { comunidadeId: string; local: Loca
   return (
     <>
       <Cartao>
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           {local.tipo === 'interno' ? 'Local interno da igreja.' : 'Local externo, com endereço.'}
         </Texto>
         <Campo rotulo="Nome" value={nome} onChangeText={setNome} erro={erro} maxLength={120} />
@@ -197,7 +197,7 @@ function Formulario({ comunidadeId, local }: { comunidadeId: string; local: Loca
         />
         {salvar.error ? <AvisoDeErro erro={salvar.error} /> : null}
         {salvar.isSuccess ? (
-          <TextoAnunciado variante="apoio" cor="sucesso">
+          <TextoAnunciado variante="corpo" cor="sucesso">
             Local salvo.
           </TextoAnunciado>
         ) : null}

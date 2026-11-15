@@ -40,8 +40,8 @@ export function LinhaDoMembro({ membro, ehVoce, mostrarContato, aoPressionar }: 
   const conteudo = (
     <>
       <Avatar nome={membro.nome} avatar={membro.avatar ?? null} decorativo />
-      <View style={{ flex: 1, gap: ESPACO.x1 }}>
-        <Texto variante="corpoForte">{nome}</Texto>
+      <View style={{ flex: 1, gap: ESPACO.e4 }}>
+        <Texto variante="tituloItem">{nome}</Texto>
         <Chips>
           <Chip
             texto={NOME_DO_PAPEL[membro.papel]}
@@ -59,7 +59,7 @@ export function LinhaDoMembro({ membro, ehVoce, mostrarContato, aoPressionar }: 
           {membro.criador ? <Chip texto="Criador" icone="plataforma" /> : null}
         </Chips>
         {contato.length ? (
-          <Texto variante="apoio" cor="textoSuave" selectable>
+          <Texto variante="legenda" cor="textoSuave" selectable>
             {contato.join(' · ')}
           </Texto>
         ) : null}
@@ -69,14 +69,14 @@ export function LinhaDoMembro({ membro, ehVoce, mostrarContato, aoPressionar }: 
   )
 
   const estilo = {
-    minHeight: Math.max(ALVO, ALTURA.linhaComDescricao),
+    minHeight: Math.max(ALVO, ALTURA.linha),
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    gap: ESPACO.x3,
-    paddingVertical: ESPACO.x3,
-    marginHorizontal: -ESPACO.x3,
-    paddingHorizontal: ESPACO.x3,
-    borderRadius: RAIO.medio,
+    gap: ESPACO.e12,
+    paddingVertical: ESPACO.e12,
+    marginHorizontal: -ESPACO.e12,
+    paddingHorizontal: ESPACO.e12,
+    borderRadius: RAIO.controle,
   }
 
   if (!aoPressionar) {
@@ -93,7 +93,7 @@ export function LinhaDoMembro({ membro, ehVoce, mostrarContato, aoPressionar }: 
       onPress={aoPressionar}
       style={({ pressed }) => [
         estilo,
-        { backgroundColor: pressed ? cores.superficieRealce : 'transparent' },
+        { backgroundColor: pressed ? cores.pressionado : 'transparent' },
       ]}
     >
       {conteudo}

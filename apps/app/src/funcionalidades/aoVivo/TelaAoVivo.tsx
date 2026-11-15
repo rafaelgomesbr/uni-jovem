@@ -1,4 +1,4 @@
-import { ESPACO, RAIO, TIPO } from '@uj/tokens'
+import { ESPACO, RAIO } from '@uj/tokens'
 import { useKeepAwake } from 'expo-keep-awake'
 import { useLocalSearchParams } from 'expo-router'
 import { View } from 'react-native'
@@ -47,7 +47,7 @@ export function TelaAoVivo() {
   const eventoId = parametro(useLocalSearchParams<{ eventoId: string }>().eventoId)
   if (!comunidadeAtiva || !eventoId) {
     return (
-      <Tela cabecalhoNativo>
+      <Tela pilha>
         <SemComunidade oQue="o ao vivo" />
       </Tela>
     )
@@ -80,14 +80,14 @@ export function AoVivo({ comunidadeId, eventoId }: { comunidadeId: string; event
   }
   if (retrato.isPending) {
     return (
-      <Tela cabecalhoNativo>
+      <Tela pilha>
         <Carregando texto="Carregando o andamento" />
       </Tela>
     )
   }
   if (retrato.error) {
     return (
-      <Tela cabecalhoNativo>
+      <Tela pilha>
         <AvisoDeErro erro={retrato.error} aoTentarDeNovo={() => void retrato.refetch()} />
       </Tela>
     )
@@ -204,16 +204,16 @@ function Painel({ r, conexao, aviso, comandar, enviando, erro }: PropsDoPainel) 
     { soMudancas: true },
   )
 
-  const borda = { borderWidth: 2, borderColor: cores.texto, borderRadius: RAIO.grande }
+  const borda = { borderWidth: 2, borderColor: cores.texto, borderRadius: RAIO.cartao }
   const estourou = t.restanteMs !== null && t.restanteMs < 0
   const atraso = r.situacao === 'nao_iniciado' ? null : t.atrasoMin
 
   return (
-    <Tela cabecalhoNativo>
+    <Tela pilha>
       {r.situacao !== 'encerrado' ? <ManterTelaAcesa /> : null}
-      <View style={{ gap: ESPACO.x2 }}>
-        <Texto variante="titulo">{r.evento.titulo}</Texto>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>
+      <View style={{ gap: ESPACO.e8 }}>
+        <Texto variante="tituloTela">{r.evento.titulo}</Texto>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
           <Selo texto={NOME_DA_SITUACAO[r.situacao]} cor="texto" />
           <Selo
             texto={
@@ -243,14 +243,12 @@ function Painel({ r, conexao, aviso, comandar, enviando, erro }: PropsDoPainel) 
       ) : null}
 
       <View
-        style={[borda, { padding: ESPACO.x5, gap: ESPACO.x3, backgroundColor: cores.superficie }]}
+        style={[borda, { padding: ESPACO.e20, gap: ESPACO.e12, backgroundColor: cores.superficie }]}
       >
         {r.situacao === 'nao_iniciado' ? (
           <>
             <Texto variante="rotulo">AINDA NÃO COMEÇOU</Texto>
-            <Texto variante="tituloGrande">
-              Previsto para {formatarHora(r.evento.inicio, fuso)}
-            </Texto>
+            <Texto variante="display">Previsto para {formatarHora(r.evento.inicio, fuso)}</Texto>
             {t.atrasoParaComecarMin > 0 ? (
               <LinhaComIcone
                 icone="relogio"
@@ -261,7 +259,7 @@ function Painel({ r, conexao, aviso, comandar, enviando, erro }: PropsDoPainel) 
         ) : r.situacao === 'encerrado' ? (
           <>
             <Texto variante="rotulo">ENCERRADO</Texto>
-            <Texto variante="tituloGrande">Evento encerrado</Texto>
+            <Texto variante="display">Evento encerrado</Texto>
             <LinhaComIcone
               icone="relogio"
               texto={`Atraso final: ${descreverAtraso(r.atrasoMin)}`}
@@ -273,10 +271,10 @@ function Painel({ r, conexao, aviso, comandar, enviando, erro }: PropsDoPainel) 
               {r.situacao === 'pausado' ? 'PAUSADO EM' : 'AGORA'} · ETAPA {t.indiceAtual + 1} DE{' '}
               {t.total}
             </Texto>
-            <Texto variante="tituloGrande" accessibilityRole="header">
+            <Texto variante="display" accessibilityRole="header">
               {t.atual.titulo}
             </Texto>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x6 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e24 }}>
               <Cronometro
                 rotulo="Decorrido"
                 valor={formatarCronometro(t.decorridoMs)}
@@ -292,7 +290,7 @@ function Painel({ r, conexao, aviso, comandar, enviando, erro }: PropsDoPainel) 
                 }
               />
             </View>
-            <Texto variante="apoio">
+            <Texto variante="corpo">
               Previsto: {formatarDuracao(t.atual.duracaoMin)}, das{' '}
               {formatarHora(t.atual.inicioPrevisto, fuso)} às{' '}
               {formatarHora(t.atual.fimPrevisto, fuso)}.
@@ -309,10 +307,10 @@ function Painel({ r, conexao, aviso, comandar, enviando, erro }: PropsDoPainel) 
       </View>
 
       {t.proxima ? (
-        <View style={[borda, { padding: ESPACO.x4, gap: ESPACO.x1 }]}>
+        <View style={[borda, { padding: ESPACO.e16, gap: ESPACO.e4 }]}>
           <Texto variante="rotulo">A SEGUIR</Texto>
-          <Texto variante="subtitulo">{t.proxima.titulo}</Texto>
-          <Texto variante="apoio">
+          <Texto variante="tituloItem">{t.proxima.titulo}</Texto>
+          <Texto variante="corpo">
             {formatarDuracao(t.proxima.duracaoMin)} · prevista para{' '}
             {formatarHora(t.proxima.inicioPrevisto, fuso)}
           </Texto>
@@ -324,13 +322,13 @@ function Painel({ r, conexao, aviso, comandar, enviando, erro }: PropsDoPainel) 
         rotulo={`${t.concluidas} de ${t.total} etapas concluídas`}
         altura={12}
       />
-      <Texto variante="apoio">
+      <Texto variante="corpo">
         {t.concluidas} de {t.total} etapas concluídas
       </Texto>
 
       {conduz ? (
-        <View style={{ gap: ESPACO.x3 }}>
-          <Texto variante="subtitulo">Condução</Texto>
+        <View style={{ gap: ESPACO.e12 }}>
+          <Texto variante="tituloItem">Condução</Texto>
           <Texto>
             {local
               ? 'Sem conexão: você conduz neste aparelho.'
@@ -341,7 +339,7 @@ function Painel({ r, conexao, aviso, comandar, enviando, erro }: PropsDoPainel) 
                   : 'Ninguém está conduzindo. Quem der o próximo comando passa a conduzir.'}
           </Texto>
           {erro ? <AvisoDeErro erro={erro} /> : null}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x3 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e12 }}>
             {CONTROLES_POR_SITUACAO[r.situacao].map((c) => {
               const recusa = outroConduz
                 ? 'Outra pessoa está conduzindo. Assuma a condução para mudar o andamento.'
@@ -357,7 +355,7 @@ function Painel({ r, conexao, aviso, comandar, enviando, erro }: PropsDoPainel) 
                   icone={ICONE_DO_CONTROLE[c]}
                   variante={
                     c === 'encerrar'
-                      ? 'perigo'
+                      ? 'destrutivo'
                       : c === 'avancar' || c === 'iniciar'
                         ? 'primario'
                         : 'secundario'
@@ -383,20 +381,20 @@ function Painel({ r, conexao, aviso, comandar, enviando, erro }: PropsDoPainel) 
           {!local && r.souCondutor && r.situacao !== 'encerrado' ? (
             <Botao
               titulo="Liberar a condução"
-              variante="discreto"
+              variante="terciario"
               carregando={enviando === 'liberar'}
               aoPressionar={() => comandar('liberar')}
             />
           ) : null}
         </View>
       ) : (
-        <Texto variante="apoio">
+        <Texto variante="corpo">
           Você está acompanhando. Quem conduz o andamento é a organização.
         </Texto>
       )}
 
-      <View style={{ gap: ESPACO.x2 }}>
-        <Texto variante="subtitulo">Todas as etapas</Texto>
+      <View style={{ gap: ESPACO.e8 }}>
+        <Texto variante="tituloItem">Todas as etapas</Texto>
         {r.etapas.map((e, i) => (
           <View
             key={e.id}
@@ -405,11 +403,11 @@ function Painel({ r, conexao, aviso, comandar, enviando, erro }: PropsDoPainel) 
             style={{
               flexDirection: 'row',
               alignItems: 'center',
-              gap: ESPACO.x3,
-              padding: ESPACO.x3,
-              borderRadius: RAIO.medio,
+              gap: ESPACO.e12,
+              padding: ESPACO.e12,
+              borderRadius: RAIO.controle,
               borderWidth: e.situacao === 'atual' ? 3 : 1,
-              borderColor: e.situacao === 'atual' ? cores.texto : cores.borda,
+              borderColor: e.situacao === 'atual' ? cores.texto : cores.campoBorda,
             }}
           >
             <Icone
@@ -423,8 +421,8 @@ function Painel({ r, conexao, aviso, comandar, enviando, erro }: PropsDoPainel) 
               cor={cores.texto}
             />
             <View style={{ flex: 1 }}>
-              <Texto variante="corpoForte">{e.titulo}</Texto>
-              <Texto variante="apoio" cor="textoSuave">
+              <Texto variante="tituloItem">{e.titulo}</Texto>
+              <Texto variante="legenda" cor="textoSuave">
                 {formatarHora(e.inicioPrevisto, fuso)} · {formatarDuracao(e.duracaoMin)} ·{' '}
                 {e.situacao === 'concluida'
                   ? 'Concluída'
@@ -442,19 +440,12 @@ function Painel({ r, conexao, aviso, comandar, enviando, erro }: PropsDoPainel) 
 
 function Cronometro({ rotulo, valor, falado }: { rotulo: string; valor: string; falado: string }) {
   return (
-    <View accessible accessibilityLabel={falado} style={{ gap: ESPACO.x1 }}>
-      <Texto variante="rotulo">{rotulo.toUpperCase()}</Texto>
-      {/* O número já é enorme: crescer mais com a fonte do sistema o empurraria para fora. */}
-      <Texto
-        variante="tituloGrande"
-        maxFontSizeMultiplier={1.5}
-        accessibilityRole="text"
-        style={{
-          fontSize: TIPO.tituloGrande.tamanho * 1.6,
-          lineHeight: TIPO.tituloGrande.altura * 1.6,
-          fontVariant: ['tabular-nums'],
-        }}
-      >
+    <View accessible accessibilityLabel={falado} style={{ gap: ESPACO.e4 }}>
+      <Texto variante="sobrancelha" cor="textoSuave" accessibilityRole="text">
+        {rotulo}
+      </Texto>
+      {/* Papel `cronometro` (64/68, teto 1,4): o número já é enorme e não pode sair da tela. */}
+      <Texto variante="cronometro" accessibilityRole="text">
         {valor}
       </Texto>
     </View>
@@ -472,9 +463,9 @@ function LinhaComIcone({
 }) {
   const { cores } = useTema()
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.x2 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}>
       <Icone nome={icone} cor={cores[cor]} />
-      <Texto variante="corpoForte" cor={cor}>
+      <Texto variante="tituloItem" cor={cor}>
         {texto}
       </Texto>
     </View>

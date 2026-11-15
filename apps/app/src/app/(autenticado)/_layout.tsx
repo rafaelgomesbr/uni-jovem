@@ -5,16 +5,18 @@ import { useOpcoesDaPilha } from '@/funcionalidades/navegacao/opcoesDaPilha'
 import { AgendadorDoAparelho } from '@/funcionalidades/notificacoes/AgendadorDoAparelho'
 import { Carregando } from '@/ui/Carregando'
 import { Tela } from '@/ui/Tela'
+import { useTema } from '@/ui/tema'
 
 /** Guarda do app: sem sessão, vai para Entrar. */
 export default function LayoutAutenticado() {
   const { estado } = useSessao()
   const opcoesDaPilha = useOpcoesDaPilha()
+  const { cores } = useTema()
   if (estado === 'anonimo') return <Redirect href="/entrar" />
   if (estado === 'carregando') {
     return (
       <Tela rolar={false}>
-        <Carregando />
+        <Carregando texto="Abrindo o app" />
       </Tela>
     )
   }
@@ -22,12 +24,23 @@ export default function LayoutAutenticado() {
     <>
       {/* Versículo local e token de push, sempre em dia com a conta (sem interface). */}
       <AgendadorDoAparelho />
-      {/* Sem cabeçalho nativo: cada tela tem o próprio topo sobre a aurora (Voltar em pílula). */}
+      {/* Sem cabeçalho nativo: cada tela tem o próprio cabeçalho (2.12.16) sobre a Aurora. */}
       <Stack screenOptions={{ ...opcoesDaPilha, headerShown: false }}>
         <Stack.Screen name="(abas)" options={{ headerShown: false, title: 'Início' }} />
         <Stack.Screen
           name="trocar-comunidade"
           options={{ title: 'Comunidade', presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="como-conseguir-convite"
+          options={{
+            title: 'Como conseguir um convite',
+            presentation: 'formSheet',
+            sheetAllowedDetents: 'fitToContents',
+            sheetGrabberVisible: true,
+            sheetCornerRadius: 28,
+            contentStyle: { backgroundColor: cores.superficieElevada },
+          }}
         />
         <Stack.Screen name="convidar" options={{ title: 'Convidar' }} />
         <Stack.Screen name="membro/[vinculoId]" options={{ title: 'Pessoa' }} />

@@ -40,7 +40,7 @@ function ListaDeOracao({ comunidadeId }: { comunidadeId: string }) {
         icone="adicionar"
         aoPressionar={() => router.push('/oracao/novo')}
       />
-      <View style={{ gap: ESPACO.x2 }}>
+      <View style={{ gap: ESPACO.e8 }}>
         <Segmentos
           rotulo="De quem"
           valor={filtro}

@@ -34,14 +34,14 @@ export function TelaLerQr() {
   const pode = usePode()
   if (!comunidadeAtiva || !eventoId) {
     return (
-      <Tela cabecalhoNativo>
+      <Tela pilha>
         <SemComunidade oQue="o check-in" />
       </Tela>
     )
   }
   if (!pode('presenca', 'registrar')) {
     return (
-      <Tela cabecalhoNativo titulo="Ler QR">
+      <Tela pilha titulo="Ler QR">
         <Aviso tipo="info" titulo="Só a organização registra presença">
           Mostre o seu código para quem está fazendo o check-in.
         </Aviso>
@@ -138,7 +138,7 @@ function LerQr({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: str
 
   if (!permissao) {
     return (
-      <Tela cabecalhoNativo titulo="Ler QR">
+      <Tela pilha titulo="Ler QR">
         <Carregando texto="Conferindo a permissão da câmera" />
         {voltarParaBusca}
       </Tela>
@@ -147,7 +147,7 @@ function LerQr({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: str
 
   if (!permissao.granted) {
     return (
-      <Tela cabecalhoNativo titulo="Ler QR">
+      <Tela pilha titulo="Ler QR">
         <Cartao titulo="Câmera" icone="qr">
           <Texto>
             Para ler o QR de entrada, o Uni Jovem precisa usar a câmera. A imagem não é gravada nem
@@ -161,7 +161,7 @@ function LerQr({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: str
             />
           ) : (
             <>
-              <Texto variante="apoio" cor="textoSuave">
+              <Texto variante="legenda" cor="textoSuave">
                 A câmera foi negada antes. Para liberar, abra os ajustes do aparelho.
               </Texto>
               <Botao
@@ -178,8 +178,8 @@ function LerQr({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: str
   }
 
   return (
-    <Tela cabecalhoNativo titulo="Ler QR">
-      <Texto variante="apoio" cor="textoSuave">
+    <Tela pilha titulo="Ler QR">
+      <Texto variante="legenda" cor="textoSuave">
         {usarLocal
           ? 'Sem conexão: cada leitura fica anotada neste aparelho e vai quando a internet voltar.'
           : 'Aponte para o QR de entrada. Cada leitura registra a presença na hora.'}
@@ -189,7 +189,7 @@ function LerQr({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: str
         accessibilityLabel="Visor da câmera. Aponte para o QR de entrada."
         style={{
           height: 320,
-          borderRadius: RAIO.grande,
+          borderRadius: RAIO.cartao,
           overflow: 'hidden',
           borderWidth: 2,
           borderColor: cores.texto,
@@ -202,7 +202,7 @@ function LerQr({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: str
           onBarcodeScanned={aoLer}
         />
       </View>
-      <View style={{ gap: ESPACO.x2 }}>
+      <View style={{ gap: ESPACO.e8 }}>
         {marcar.isPending || marcarLocal.isPending ? (
           <Carregando texto="Registrando a presença" />
         ) : null}

@@ -47,21 +47,21 @@ export function TelaEtapa() {
 
   if (!comunidadeAtiva || !eventoId || !etapaId) {
     return (
-      <Tela cabecalhoNativo>
+      <Tela pilha>
         <SemComunidade oQue="a programação" />
       </Tela>
     )
   }
   if (evento.isPending) {
     return (
-      <Tela cabecalhoNativo>
+      <Tela pilha>
         <Carregando />
       </Tela>
     )
   }
   if (evento.error) {
     return (
-      <Tela cabecalhoNativo>
+      <Tela pilha>
         <AvisoDeErro erro={evento.error} aoTentarDeNovo={() => void evento.refetch()} />
       </Tela>
     )
@@ -69,7 +69,7 @@ export function TelaEtapa() {
   const etapa = etapaId === EQUIPE_GERAL ? null : evento.data.etapas.find((e) => e.id === etapaId)
   if (etapa === undefined) {
     return (
-      <Tela cabecalhoNativo>
+      <Tela pilha>
         <EstadoVazio
           icone="etapas"
           titulo="Etapa não encontrada"
@@ -80,11 +80,7 @@ export function TelaEtapa() {
     )
   }
   return (
-    <Tela
-      cabecalhoNativo
-      titulo={etapa ? etapa.titulo : 'Equipe do evento'}
-      descricao={evento.data.titulo}
-    >
+    <Tela pilha titulo={etapa ? etapa.titulo : 'Equipe do evento'} descricao={evento.data.titulo}>
       {etapa ? (
         <EditarEtapa
           key={`${etapa.id}-${etapa.versao}`}
@@ -144,7 +140,7 @@ function EditarEtapa({
 
   return (
     <Cartao titulo="Etapa" icone="etapas">
-      <Texto variante="apoio" cor="textoSuave">
+      <Texto variante="legenda" cor="textoSuave">
         Prevista das {formatarHora(etapa.inicioPrevisto, evento.fuso)} às{' '}
         {formatarHora(etapa.fimPrevisto, evento.fuso)} ({formatarDuracao(etapa.duracaoMin)}).
       </Texto>
@@ -209,7 +205,7 @@ function EditarEtapa({
       <Botao
         titulo="Remover etapa"
         icone="excluir"
-        variante="perigo"
+        variante="destrutivo"
         carregando={remover.isPending}
         aoPressionar={() => void pedirRemocao()}
       />
@@ -268,15 +264,15 @@ function Equipe({
   return (
     <Cartao titulo={etapa ? 'Quem cuida desta etapa' : 'Equipe do evento'} icone="escalas">
       {atribuicoes.length === 0 ? (
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           Ninguém escalado ainda.
         </Texto>
       ) : (
-        <View style={{ gap: ESPACO.x1 }}>
+        <View style={{ gap: ESPACO.e4 }}>
           {atribuicoes.map((a) => (
-            <View key={a.id} style={{ gap: ESPACO.x1 }}>
+            <View key={a.id} style={{ gap: ESPACO.e4 }}>
               <Linha
-                inicio={<Avatar nome={a.nome} tamanho="P" decorativo />}
+                inicio={<Avatar nome={a.nome} tamanho="pilula" decorativo />}
                 titulo={a.nome}
                 descricao={a.funcao}
                 extra={
@@ -289,7 +285,7 @@ function Equipe({
               {atribuir ? (
                 <Botao
                   titulo="Tirar da escala"
-                  variante="discreto"
+                  variante="terciario"
                   icone="excluir"
                   larguraTotal={false}
                   rotuloAcessivel={`Tirar da escala: ${a.nome} (${a.funcao})`}
@@ -302,8 +298,8 @@ function Equipe({
       )}
       {remover.error ? <AvisoDeErro erro={remover.error} /> : null}
       {atribuir ? (
-        <View style={{ gap: ESPACO.x3 }}>
-          <Texto variante="corpoForte" accessibilityRole="header">
+        <View style={{ gap: ESPACO.e12 }}>
+          <Texto variante="tituloItem" accessibilityRole="header">
             Escalar alguém
           </Texto>
           <Segmentos

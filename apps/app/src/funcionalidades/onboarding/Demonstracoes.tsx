@@ -41,7 +41,7 @@ export function DemonstracaoDaEtapa({ demo }: { demo: Demonstracao }) {
 
 function Exemplo({ children }: { children: ReactNode }) {
   return (
-    <View style={{ gap: ESPACO.x3 }}>
+    <View style={{ gap: ESPACO.e12 }}>
       <Selo texto="Exemplo: não muda nada de verdade" cor="destaque" />
       {children}
     </View>
@@ -59,9 +59,9 @@ function DemoEvento() {
     })
   return (
     <Exemplo>
-      <Texto variante="corpoForte">Sábado de exemplo, às 16:00</Texto>
+      <Texto variante="tituloItem">Sábado de exemplo, às 16:00</Texto>
       {etapas.map((e, i) => (
-        <View key={e} style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.x2 }}>
+        <View key={e} style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}>
           <Texto style={{ flex: 1 }}>
             {i + 1}. {e}
           </Texto>
@@ -83,7 +83,7 @@ function DemoEscala() {
   return (
     <Exemplo>
       <Texto>Louvor · integrante · Sábado de exemplo</Texto>
-      <TextoAnunciado soMudancas variante="apoio">
+      <TextoAnunciado soMudancas variante="corpo">
         {resposta === 'pendente'
           ? 'Aguardando a sua resposta.'
           : resposta === 'confirmada'
@@ -97,7 +97,7 @@ function DemoEscala() {
       />
       <Botao
         titulo="Recusar a escala de exemplo"
-        variante="discreto"
+        variante="terciario"
         aoPressionar={() => setResposta('recusada')}
       />
     </Exemplo>
@@ -118,7 +118,7 @@ function DemoOracao() {
           rotulo: NOME_DA_VISIBILIDADE[valor],
         }))}
       />
-      <TextoAnunciado soMudancas variante="apoio">
+      <TextoAnunciado soMudancas variante="corpo">
         {explicarVisibilidade(v, 'comunidade de exemplo', contagem)}
       </TextoAnunciado>
     </Exemplo>
@@ -131,10 +131,10 @@ function DemoAoVivo() {
   return (
     <Exemplo>
       <Texto variante="rotulo">AGORA</Texto>
-      <TextoAnunciado soMudancas variante="titulo">
+      <TextoAnunciado soMudancas variante="tituloTela">
         {etapas[atual]}
       </TextoAnunciado>
-      <Texto variante="apoio">
+      <Texto variante="corpo">
         Etapa {atual + 1} de {etapas.length}
         {atual + 1 < etapas.length ? `. Depois: ${etapas[atual + 1]}` : '. É a última.'}
       </Texto>
@@ -163,7 +163,7 @@ function DemoCheckin() {
           aoMudar={(sim) => setPresentes((p) => (sim ? [...p, n] : p.filter((x) => x !== n)))}
         />
       ))}
-      <Texto variante="apoio">
+      <Texto variante="corpo">
         {presentes.length} de {nomes.length} presentes
       </Texto>
     </Exemplo>
@@ -174,9 +174,9 @@ function DemoAviso() {
   const [fixado, setFixado] = useState(false)
   return (
     <Exemplo>
-      <Texto variante="corpoForte">Aviso de exemplo: ensaio na sexta</Texto>
+      <Texto variante="tituloItem">Aviso de exemplo: ensaio na sexta</Texto>
       {fixado ? <Selo texto="Fixado" cor="destaque" /> : null}
-      <Texto variante="apoio">Quem toca, chegue às 19:00. Traga a cifra impressa.</Texto>
+      <Texto variante="corpo">Quem toca, chegue às 19:00. Traga a cifra impressa.</Texto>
       <Botao
         titulo={fixado ? 'Desafixar o aviso de exemplo' : 'Fixar o aviso de exemplo'}
         icone="fixar"
@@ -201,7 +201,7 @@ function DemoConvite() {
           { valor: 'admin', rotulo: 'Administrador' },
         ]}
       />
-      <Texto variante="apoio">
+      <Texto variante="corpo">
         Na vida real, o app gera um link de uso único para a pessoa entrar como{' '}
         {papel === 'admin' ? 'administrador' : papel}. Aqui nenhum link é criado.
       </Texto>

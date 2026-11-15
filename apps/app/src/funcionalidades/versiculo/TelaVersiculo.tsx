@@ -28,7 +28,7 @@ export const TEXTO_DO_VERSICULO =
 export function TelaVersiculo() {
   const prefs = usePreferenciasDaConta()
   return (
-    <Tela cabecalhoNativo titulo="Versículo do dia" descricao={TEXTO_DO_VERSICULO}>
+    <Tela pilha titulo="Versículo do dia" descricao={TEXTO_DO_VERSICULO}>
       <CartaoDoVersiculo comAtalho={false} />
       {prefs.isPending ? (
         <Carregando texto="Carregando a sua preferência" />
@@ -95,7 +95,7 @@ function Preferencia({ ativo, hora }: { ativo: boolean; hora: string }) {
         />
         {salvar.error ? <AvisoDeErro erro={salvar.error} /> : null}
         {salvar.isSuccess ? (
-          <TextoAnunciado variante="apoio" cor="sucesso">
+          <TextoAnunciado variante="corpo" cor="sucesso">
             Preferência salva.
           </TextoAnunciado>
         ) : null}
@@ -113,7 +113,7 @@ function Preferencia({ ativo, hora }: { ativo: boolean; hora: string }) {
           <PermissaoDoSistema ligadoNoApp={ativo} />
         </Cartao>
       ) : (
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           Na web o versículo aparece só no Início. A notificação diária chega no app do celular.
         </Texto>
       )}
@@ -125,7 +125,7 @@ function Preferencia({ ativo, hora }: { ativo: boolean; hora: string }) {
 export function TelaSobreATraducao() {
   const hoje = useHoje()
   return (
-    <Tela cabecalhoNativo titulo="Sobre a tradução">
+    <Tela pilha titulo="Sobre a tradução">
       <Cartao>
         <Texto selectable>{ATRIBUICAO.texto}</Texto>
       </Cartao>
@@ -147,7 +147,7 @@ export function TelaSobreATraducao() {
           aoPressionar={() => void abrirLink(ATRIBUICAO.linkDaTraducao)}
         />
       </Cartao>
-      <Texto variante="apoio" cor="textoSuave">
+      <Texto variante="legenda" cor="textoSuave">
         Hoje: {versiculoDoDia(hoje).referencia}. Os 366 versículos do plano são citados sem
         alteração.
       </Texto>

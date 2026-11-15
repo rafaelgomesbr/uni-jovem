@@ -42,7 +42,7 @@ export function TelaPrivacidade() {
   })
 
   return (
-    <Tela cabecalhoNativo titulo="Privacidade e dados">
+    <Tela pilha titulo="Privacidade e dados">
       <Cartao titulo="Exportar meus dados" icone="baixar">
         <Texto>{TEXTO_DA_EXPORTACAO}</Texto>
         {exportar.error ? <AvisoDeErro erro={exportar.error} /> : null}
@@ -74,13 +74,13 @@ export function TelaPrivacidade() {
       </Cartao>
 
       <Cartao titulo="Excluir conta" icone="excluir">
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           Apaga sua conta e sai de todas as comunidades. Pede sua senha.
         </Texto>
         <Botao
           titulo="Excluir minha conta"
           icone="excluir"
-          variante="perigo"
+          variante="destrutivo"
           aoPressionar={() => router.push('/excluir-conta')}
         />
       </Cartao>

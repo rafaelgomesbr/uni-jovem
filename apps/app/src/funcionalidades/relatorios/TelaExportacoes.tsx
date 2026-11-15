@@ -115,7 +115,7 @@ function Exportacoes({
             aoMudar={setComContatos}
           />
         ) : (
-          <Texto variante="apoio" cor="textoSuave">
+          <Texto variante="legenda" cor="textoSuave">
             O arquivo sai sem e-mail e telefone. Exportar contatos é só para administradores.
           </Texto>
         )}
@@ -187,13 +187,13 @@ function LinhaDaExportacao({
   }
 
   return (
-    <View style={{ gap: ESPACO.x2, paddingVertical: ESPACO.x2 }}>
-      <Texto variante="corpoForte">{e.nomeArquivo}</Texto>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>
+    <View style={{ gap: ESPACO.e8, paddingVertical: ESPACO.e8 }}>
+      <Texto variante="tituloItem">{e.nomeArquivo}</Texto>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
         <Selo texto={NOME_DA_EXPORTACAO[e.tipo]} />
         {e.comContatos ? <Selo texto="Com contatos" cor="alerta" /> : null}
       </View>
-      <Texto variante="apoio" cor="textoSuave">
+      <Texto variante="legenda" cor="textoSuave">
         {[
           `${e.linhas} ${e.linhas === 1 ? 'linha' : 'linhas'}`,
           e.filtros.de && e.filtros.ate
@@ -215,7 +215,7 @@ function LinhaDaExportacao({
           aoPressionar={() => baixar.mutate()}
         />
       ) : (
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           O código para baixar fica só na memória do app, da geração até você fechar o app ou sair
           da conta; ele nunca é gravado no aparelho. Para baixar de novo, gere outra exportação.
         </Texto>
@@ -225,7 +225,7 @@ function LinhaDaExportacao({
       <Botao
         titulo="Apagar"
         icone="excluir"
-        variante="discreto"
+        variante="terciario"
         larguraTotal={false}
         rotuloAcessivel={`Apagar ${e.nomeArquivo}`}
         carregando={excluir.isPending}

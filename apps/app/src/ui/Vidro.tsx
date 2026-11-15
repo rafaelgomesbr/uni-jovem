@@ -1,3 +1,4 @@
+import { VIDRO } from '@uj/tokens'
 import { BlurView } from 'expo-blur'
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
 import type { ReactNode } from 'react'
@@ -9,29 +10,36 @@ import { useTema } from './tema'
 interface PropsDoVidro {
   children?: ReactNode
   style?: StyleProp<ViewStyle>
+  /** `barra`: barra de abas, cabeçalho compacto e barra de ação. `folha`: folha. */
+  tipo?: keyof Pick<typeof VIDRO, 'barra' | 'folha'>
+  /** Só a borda de cima (barra de ação) ou a de baixo (cabeçalho compacto). */
+  borda?: 'toda' | 'cima' | 'baixo'
 }
 
 /**
- * Superfície de vidro para o que flutua (cabeçalho, barras). Ordem:
- * 1. "Reduzir transparência" ou "Aumentar contraste": opaco, sempre.
- * 2. Liquid Glass nativo (iOS 26 em diante).
- * 3. Desfoque do expo-blur sobre a cor translúcida do tema (no Android, só a cor).
+ * Superfície de vidro para o que flutua (seção 2.8). Ordem:
+ * 1. "Reduzir transparência" ou "Aumentar contraste": opaco (com borda de 2 na
+ *    cor do texto no Aumentar contraste);
+ * 2. Liquid Glass do iOS 26, com a tinta do token (sem tinta ele vira cinza);
+ * 3. desfoque do expo-blur sobre a cor do token (no Android, só a cor).
  */
-export function Vidro({ children, style }: PropsDoVidro) {
-  const { cores, escuro } = useTema()
+export function Vidro({ children, style, tipo = 'barra', borda = 'toda' }: PropsDoVidro) {
+  const { cores, nome, escuro } = useTema()
   const { reduzirTransparencia, aumentarContraste } = usePreferenciasDeAcessibilidade()
+  const token = VIDRO[tipo][nome]
+  const largura = aumentarContraste ? 2 : 1
+  const estiloDaBorda: ViewStyle =
+    borda === 'toda'
+      ? { borderWidth: largura }
+      : borda === 'cima'
+        ? { borderTopWidth: largura }
+        : { borderBottomWidth: largura }
+  const corDaBorda = aumentarContraste ? cores.texto : token.borda
 
   if (reduzirTransparencia || aumentarContraste) {
     return (
       <View
-        style={[
-          {
-            backgroundColor: cores.superficieElevada,
-            borderColor: aumentarContraste ? cores.texto : cores.borda,
-            borderWidth: aumentarContraste ? 2 : 1,
-          },
-          style,
-        ]}
+        style={[{ backgroundColor: token.opaco, borderColor: corDaBorda }, estiloDaBorda, style]}
       >
         {children}
       </View>
@@ -42,8 +50,9 @@ export function Vidro({ children, style }: PropsDoVidro) {
     return (
       <GlassView
         glassEffectStyle="regular"
+        tintColor={token.fundo}
         colorScheme={escuro ? 'dark' : 'light'}
-        style={[{ overflow: 'hidden' }, style]}
+        style={[{ overflow: 'hidden', borderColor: corDaBorda }, estiloDaBorda, style]}
       >
         {children}
       </GlassView>
@@ -52,15 +61,11 @@ export function Vidro({ children, style }: PropsDoVidro) {
 
   return (
     <BlurView
-      intensity={Platform.OS === 'android' ? 0 : 40}
+      intensity={Platform.OS === 'ios' ? 50 : 0}
       tint={escuro ? 'dark' : 'light'}
       style={[
-        {
-          overflow: 'hidden',
-          backgroundColor: cores.vidroFundo,
-          borderColor: cores.vidroBorda,
-          borderWidth: 1,
-        },
+        { overflow: 'hidden', backgroundColor: token.fundo, borderColor: corDaBorda },
+        estiloDaBorda,
         style,
       ]}
     >

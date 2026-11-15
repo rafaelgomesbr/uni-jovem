@@ -100,9 +100,9 @@ export function SecaoConvites({
               : {})}
           />
         ) : (
-          <View style={{ gap: ESPACO.x4 }}>
+          <View style={{ gap: ESPACO.e16 }}>
             {revogar.error ? <AvisoDeErro erro={revogar.error} /> : null}
-            {aviso ? <TextoAnunciado variante="apoio">{aviso}</TextoAnunciado> : null}
+            {aviso ? <TextoAnunciado variante="corpo">{aviso}</TextoAnunciado> : null}
             {[...pendentes, ...encerradosVisiveis].map((convite) => (
               <ItemDoConvite
                 key={convite.id}
@@ -147,8 +147,8 @@ function ItemDoConvite({
   const resumo = `Convite de ${papel}. ${situacao}. ${para}. ${datas}`
 
   return (
-    <View style={{ gap: ESPACO.x2 }}>
-      <View accessible accessibilityLabel={resumo} style={{ gap: ESPACO.x1 }}>
+    <View style={{ gap: ESPACO.e8 }}>
+      <View accessible accessibilityLabel={resumo} style={{ gap: ESPACO.e4 }}>
         <Chips>
           <Chip
             texto={situacao}
@@ -161,18 +161,18 @@ function ItemDoConvite({
             tom={CHIP_DO_PAPEL[convite.papel].tom}
           />
         </Chips>
-        <Texto variante="corpoForte">{para}</Texto>
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="tituloItem">{para}</Texto>
+        <Texto variante="legenda" cor="textoSuave">
           {datas}
         </Texto>
       </View>
       {podeAlterar ? (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
           {convite.situacao === 'valido' ? (
             <Botao
               titulo="Revogar"
               icone="cancelar"
-              variante="perigo"
+              variante="destrutivo"
               larguraTotal={false}
               rotuloAcessivel={`Revogar convite de ${papel}. ${para}`}
               aoPressionar={aoRevogar}

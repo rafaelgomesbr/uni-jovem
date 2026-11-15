@@ -1,8 +1,12 @@
 import {
+  CORES_DA_COMUNIDADE,
   CORES_DO_AVATAR,
-  corDoAvatarPeloNome,
+  corSobre,
   ehCorDoAvatar,
   ehIconeDoAvatar,
+  ESPACO,
+  INICIAIS_DO_AVATAR,
+  INICIAIS_SOBRE_COR,
   iniciaisDoNome,
   TAMANHO_DO_AVATAR,
   type IconeDoAvatar,
@@ -12,6 +16,7 @@ import { Text, View } from 'react-native'
 
 import { usePreferenciasDeAcessibilidade } from './acessibilidade'
 import { FAMILIA } from './fontes'
+import { Texto } from './Texto'
 import { useTema } from './tema'
 
 /** O que a API manda em `conta.avatar` (e nos membros). Nomes fora da lista viram iniciais. */
@@ -56,45 +61,82 @@ interface PropsDoAvatar {
   nome: string
   avatar?: DadosDoAvatar | null
   tamanho?: TamanhoDoAvatar
-  /** Lado em pontos, quando nenhum dos três tamanhos serve (ex.: 26 na barra de abas). */
+  /** Lado em pontos, quando nenhum dos tamanhos da 2.12.13 serve. */
   lado?: number
   /**
    * Quando o nome já está escrito ao lado (linha de lista), o avatar some do
    * leitor de tela para o nome não ser lido duas vezes.
    */
   decorativo?: boolean
+  /** A pessoa que usa o app: `primaria` com `sobrePrimaria` enquanto não escolher avatar. */
+  proprio?: boolean
+  /** Avatar de comunidade: a cor da comunidade. */
+  cor?: string
+  /**
+   * Anel (sinal de forma, além da cor): `inativo` 1,5 suave afastado 2 (aba
+   * Perfil); `ativo` 2 coral afastado 2; `perfil` 2 coral afastado 3.
+   */
+  anel?: 'inativo' | 'ativo' | 'perfil'
+}
+
+/** Cor estável da pessoa sem avatar escolhido: uma das 6 cores de comunidade (iniciais brancas). */
+export function corDaPessoa(nome: string): string {
+  let soma = 0
+  for (const letra of nome.trim().toLowerCase()) {
+    soma = (soma * 31 + (letra.codePointAt(0) ?? 0)) % 2_147_483_647
+  }
+  return CORES_DA_COMUNIDADE[soma % CORES_DA_COMUNIDADE.length]!.valor
 }
 
 /** Cor e ícone que valem para este avatar (o escolhido ou o derivado do nome). */
 export function aparenciaDoAvatar(nome: string, avatar?: DadosDoAvatar | null) {
   const corEscolhida = avatar?.cor
   const iconeEscolhido = avatar?.icone
-  const nomeDaCor = ehCorDoAvatar(corEscolhida) ? corEscolhida : corDoAvatarPeloNome(nome)
   const icone = ehIconeDoAvatar(iconeEscolhido) ? iconeEscolhido : null
-  return { cor: CORES_DO_AVATAR[nomeDaCor], icone }
+  const cor = ehCorDoAvatar(corEscolhida)
+    ? CORES_DO_AVATAR[corEscolhida]
+    : { fundo: corDaPessoa(nome), frente: INICIAIS_SOBRE_COR, nome: '' }
+  return { cor, icone }
 }
 
 /**
- * Avatar da pessoa: o ícone escolhido sobre a cor escolhida ou, sem escolha,
- * as iniciais sobre uma cor estável derivada do nome. Contraste do que vai
- * por cima conferido no teste dos tokens.
+ * Avatar (seção 2.12.13): o ícone escolhido sobre a cor escolhida ou, sem
+ * escolha, as iniciais (Bricolage 800, 40% do lado) em branco sobre uma cor
+ * estável. A própria pessoa usa a cor primária; a comunidade, a cor dela.
  */
 export function Avatar({
   nome,
   avatar,
-  tamanho = 'M',
+  tamanho = 'linha',
   lado: ladoPedido,
   decorativo = false,
+  proprio = false,
+  cor: corDaComunidade,
+  anel,
 }: PropsDoAvatar) {
   const { cores } = useTema()
   const { aumentarContraste } = usePreferenciasDeAcessibilidade()
   const lado = ladoPedido ?? TAMANHO_DO_AVATAR[tamanho]
-  const { cor, icone } = aparenciaDoAvatar(nome, avatar)
+  const aparencia = aparenciaDoAvatar(nome, avatar)
+  const escolhido = ehCorDoAvatar(avatar?.cor) || !!aparencia.icone
+  const fundo = escolhido
+    ? aparencia.cor.fundo
+    : corDaComunidade
+      ? corDaComunidade
+      : proprio
+        ? cores.primaria
+        : aparencia.cor.fundo
+  const frente = escolhido
+    ? aparencia.cor.frente
+    : corDaComunidade
+      ? corSobre(corDaComunidade)
+      : proprio
+        ? cores.sobrePrimaria
+        : INICIAIS_SOBRE_COR
   const iniciais = iniciaisDoNome(nome)
-  // Iniciais ocupam ~40% do lado; com duas letras largas, um pouco menos.
-  const tamanhoDaLetra = Math.round(lado * (iniciais.length > 1 ? 0.38 : 0.44))
+  const tamanhoDaLetra = ladoPedido ? Math.round(lado * 0.4) : INICIAIS_DO_AVATAR[tamanho]
 
-  return (
+  const circulo = (
     <View
       {...(decorativo
         ? { accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' }
@@ -107,18 +149,18 @@ export function Avatar({
         width: lado,
         height: lado,
         borderRadius: lado / 2,
-        backgroundColor: cor.fundo,
+        backgroundColor: fundo,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: aumentarContraste ? 2 : 1,
-        borderColor: aumentarContraste ? cores.texto : cores.bordaSuave,
+        borderWidth: aumentarContraste ? 2 : 0,
+        borderColor: aumentarContraste ? cores.texto : 'transparent',
         overflow: 'hidden',
       }}
     >
-      {icone ? (
+      {aparencia.icone ? (
         <SymbolView
-          name={SIMBOLO_DO_AVATAR[icone]}
-          tintColor={cor.frente}
+          name={SIMBOLO_DO_AVATAR[aparencia.icone]}
+          tintColor={frente}
           size={Math.round(lado * 0.52)}
           accessible={false}
           accessibilityElementsHidden
@@ -132,15 +174,31 @@ export function Avatar({
           importantForAccessibility="no"
           accessibilityElementsHidden
           style={{
-            color: cor.frente,
-            fontFamily: tamanho === 'G' ? FAMILIA.tituloForte : FAMILIA.textoForte,
+            color: frente,
+            fontFamily: FAMILIA.tituloForte,
             fontSize: tamanhoDaLetra,
-            lineHeight: Math.round(tamanhoDaLetra * 1.2),
+            lineHeight: Math.round(tamanhoDaLetra * 1.25),
           }}
         >
           {iniciais}
         </Text>
       )}
+    </View>
+  )
+  if (!anel) return circulo
+  const espessura = anel === 'inativo' ? 1.5 : 2
+  const afastamento = anel === 'perfil' ? 3 : 2
+  return (
+    <View
+      style={{
+        padding: afastamento,
+        borderRadius: lado,
+        borderWidth: espessura,
+        borderColor: anel === 'inativo' ? cores.textoSuave : cores.destaque,
+        margin: anel === 'perfil' ? 0 : -(afastamento + espessura),
+      }}
+    >
+      {circulo}
     </View>
   )
 }
@@ -160,7 +218,7 @@ export function PilhaDeAvatares({ nomes, maximo = 4 }: PropsDaPilha) {
   if (nomes.length === 0) return null
   const visiveis = nomes.slice(0, maximo)
   const resto = nomes.length - visiveis.length
-  const lado = TAMANHO_DO_AVATAR.P
+  const lado = TAMANHO_DO_AVATAR.aba
   return (
     <View
       accessibilityElementsHidden
@@ -172,26 +230,18 @@ export function PilhaDeAvatares({ nomes, maximo = 4 }: PropsDaPilha) {
           key={`${nome}-${i}`}
           style={{
             marginLeft: i === 0 ? 0 : -lado / 4,
-            borderRadius: lado / 2,
+            borderRadius: lado,
             borderWidth: 2,
             borderColor: cores.superficie,
           }}
         >
-          <Avatar nome={nome} tamanho="P" decorativo />
+          <Avatar nome={nome} tamanho="aba" decorativo />
         </View>
       ))}
       {resto > 0 ? (
-        <Text
-          style={{
-            marginLeft: 6,
-            color: cores.textoSuave,
-            fontFamily: FAMILIA.textoForte,
-            fontSize: 12,
-            fontVariant: ['tabular-nums'],
-          }}
-        >
+        <Texto variante="chip" cor="textoSuave" tabular style={{ marginLeft: ESPACO.e4 }}>
           +{resto}
-        </Text>
+        </Texto>
       ) : null}
     </View>
   )

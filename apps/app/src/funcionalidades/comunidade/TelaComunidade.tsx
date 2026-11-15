@@ -15,7 +15,7 @@ import { Linha } from '@/ui/Linha'
 import { Secao } from '@/ui/Secao'
 
 import { TelaDoApp } from '../navegacao/TelaDoApp'
-import { AtalhosParaComecar } from './AtalhosParaComecar'
+import { SemComunidade } from '../navegacao/SemComunidade'
 import { useMembros } from './consultas'
 import { MarcaDaComunidade } from './Identidade'
 import { LinhaDoMembro } from './LinhaDoMembro'
@@ -23,7 +23,7 @@ import { CHIP_DO_ESTADO_DA_COMUNIDADE, CHIP_DO_PAPEL, NOME_DO_ESTADO_DA_COMUNIDA
 import { usePode } from './permissoes'
 import { useSairDaComunidade } from './sairDaComunidade'
 import { SecaoConvites } from './SecaoConvites'
-import { CabecalhoDeTela, CartaoDeDestaque, Chip, Chips } from './visual'
+import { CartaoDeDestaque, Chip, Chips } from './visual'
 
 /**
  * Aba Equipe (rota `/comunidade`): pessoas, convites e configurações da
@@ -34,9 +34,8 @@ export function TelaComunidade() {
   const { comunidadeAtiva } = useSessao()
   if (!comunidadeAtiva) {
     return (
-      <TelaDoApp>
-        <CabecalhoDeTela sobrancelha="Comunidade" titulo="Equipe" />
-        <AtalhosParaComecar />
+      <TelaDoApp titulo="Equipe">
+        <SemComunidade />
       </TelaDoApp>
     )
   }
@@ -51,14 +50,11 @@ function Equipe({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
   const sair = useSairDaComunidade(comunidade)
 
   return (
-    <TelaDoApp>
-      <CabecalhoDeTela
-        sobrancelha={comunidade.nome}
-        titulo="Equipe"
-        descricao="Quem participa da comunidade, com que papel, e os convites para chegar mais gente."
-      />
-
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.x3 }}>
+    <TelaDoApp
+      titulo="Equipe"
+      descricao="Quem participa da comunidade, com que papel, e os convites para chegar mais gente."
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e12 }}>
         <MarcaDaComunidade cor={comunidade.cor} tamanho={40} />
         <Chips>
           <Chip

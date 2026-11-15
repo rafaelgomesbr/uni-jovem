@@ -23,7 +23,7 @@ export function TelaDaComunidade({ oQue, titulo, descricao, larga, children }: P
   const { comunidadeAtiva } = useSessao()
   return (
     <Tela
-      cabecalhoNativo
+      pilha
       {...(titulo ? { titulo } : {})}
       {...(descricao ? { descricao } : {})}
       {...(larga ? { larga } : {})}

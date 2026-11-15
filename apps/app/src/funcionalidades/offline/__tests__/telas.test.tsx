@@ -124,18 +124,20 @@ describe('indicadores', () => {
 
   test('dizem o estado em texto, por ordem de urgência', () => {
     expect(sinalDaSincronizacao(base)).toBeNull()
-    expect(sinalDaSincronizacao({ ...base, online: false, pendentes: 3 })?.texto).toBe(
-      'Sem conexão · 3 alterações pendentes',
-    )
-    expect(sinalDaSincronizacao({ ...base, fase: 'sincronizando' })?.texto).toBe('Sincronizando…')
-    expect(sinalDaSincronizacao({ ...base, conflitos: 1, fase: 'falha' })?.texto).toBe(
-      '1 conflito a resolver',
+    const semConexao = sinalDaSincronizacao({ ...base, online: false, pendentes: 3 })
+    expect(semConexao?.texto).toBe('Sem conexão')
+    // O detalhe que não cabe nos 22 caracteres vai para o leitor de tela.
+    expect(semConexao?.falado).toBe('Sem conexão. 3 alterações pendentes')
+    expect(sinalDaSincronizacao({ ...base, fase: 'sincronizando' })?.texto).toBe('Sincronizando')
+    expect(sinalDaSincronizacao({ ...base, conflitos: 1, fase: 'falha' })).toEqual(
+      expect.objectContaining({ texto: '1 conflito', falado: '1 conflito a resolver' }),
     )
     const falha = sinalDaSincronizacao({ ...base, fase: 'falha' })
     expect(falha).toEqual(
-      expect.objectContaining({ texto: 'Falha ao sincronizar', tentarDeNovo: true }),
+      expect.objectContaining({ texto: 'Falha. Tentar de novo', tentarDeNovo: true }),
     )
-    expect(sinalDaSincronizacao({ ...base, pendentes: 1 })?.texto).toBe('1 alteração pendente')
+    expect(sinalDaSincronizacao({ ...base, pendentes: 1 })?.texto).toBe('1 pendente')
+    expect(sinalDaSincronizacao({ ...base, pendentes: 1 })?.falado).toBe('1 alteração pendente')
     expect(
       sinalDaSincronizacao({
         ...base,
@@ -143,7 +145,7 @@ describe('indicadores', () => {
         fase: 'concluido',
         ultimaSincronizacao: '2026-11-14T17:32:00.000Z',
       })?.texto,
-    ).toMatch(/^Sincronizado às \d{2}:\d{2}$/)
+    ).toMatch(/^Sincronizado \d{2}:\d{2}$/)
   })
 })
 

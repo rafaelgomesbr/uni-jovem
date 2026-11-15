@@ -23,18 +23,18 @@ export function LinkPublico({ idPublico, titulo }: Props) {
 
   return (
     <Cartao titulo="Página pública" icone="link">
-      <Texto variante="apoio" cor="textoSuave">
+      <Texto variante="legenda" cor="textoSuave">
         Quem recebe o link vê as informações do evento e se inscreve com nome e WhatsApp, sem
         precisar de conta. A lista de participantes nunca aparece lá.
       </Texto>
       <View
         style={{
-          padding: ESPACO.x3,
-          borderRadius: RAIO.pequeno,
+          padding: ESPACO.e12,
+          borderRadius: RAIO.celula,
           backgroundColor: cores.superficieElevada,
         }}
       >
-        <Texto selectable variante="apoio">
+        <Texto selectable variante="corpo">
           {link}
         </Texto>
       </View>
@@ -62,7 +62,7 @@ export function LinkPublico({ idPublico, titulo }: Props) {
           setAviso(ok ? 'Link copiado.' : 'Não foi possível copiar. Selecione o link acima.')
         }}
       />
-      {aviso ? <TextoAnunciado variante="apoio">{aviso}</TextoAnunciado> : null}
+      {aviso ? <TextoAnunciado variante="corpo">{aviso}</TextoAnunciado> : null}
     </Cartao>
   )
 }

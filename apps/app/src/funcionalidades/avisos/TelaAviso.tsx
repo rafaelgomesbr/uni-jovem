@@ -48,9 +48,9 @@ function Detalhe({ comunidadeId, avisoId }: { comunidadeId: string; avisoId: str
   const publica = pode('aviso', 'publicar')
   return (
     <>
-      <View style={{ gap: ESPACO.x2 }}>
-        <Texto variante="titulo">{a.titulo}</Texto>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>
+      <View style={{ gap: ESPACO.e8 }}>
+        <Texto variante="tituloTela">{a.titulo}</Texto>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
           {a.fixado ? <Selo texto="Fixado" cor="destaque" /> : null}
           {publica ? (
             <Selo
@@ -59,7 +59,7 @@ function Detalhe({ comunidadeId, avisoId }: { comunidadeId: string; avisoId: str
             />
           ) : null}
         </View>
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           {[
             a.autorNome ? `Por ${a.autorNome}` : null,
             a.publicadoEm ? `publicado em ${formatarData(a.publicadoEm)}` : 'ainda não publicado',
@@ -128,7 +128,7 @@ function Gestao({ comunidadeId, aviso }: { comunidadeId: string; aviso: Aviso })
   return (
     <>
       <Cartao titulo="Publicação" icone="publicar">
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           {publicado
             ? 'Publicado: os membros veem no Início e na lista de avisos.'
             : aviso.estado === 'rascunho'
@@ -177,7 +177,7 @@ function Gestao({ comunidadeId, aviso }: { comunidadeId: string; aviso: Aviso })
       <Botao
         titulo="Excluir aviso"
         icone="excluir"
-        variante="perigo"
+        variante="destrutivo"
         carregando={excluir.isPending}
         aoPressionar={() => void pedirExclusao()}
       />

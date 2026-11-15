@@ -35,7 +35,7 @@ export function TelaAtivar2fa() {
 
   if (confirmar.data) {
     return (
-      <Tela cabecalhoNativo titulo="Verificação ligada">
+      <Tela pilha titulo="Verificação ligada">
         <CodigosDeRecuperacao
           codigos={confirmar.data.codigosDeRecuperacao}
           rotuloDeConcluir="Voltar ao perfil"
@@ -48,7 +48,7 @@ export function TelaAtivar2fa() {
   if (!iniciar.data) {
     return (
       <Tela
-        cabecalhoNativo
+        pilha
         titulo="Verificação em duas etapas"
         descricao="Além da senha, um código do app autenticador passa a ser pedido ao entrar. Primeiro, confirme sua senha."
       >
@@ -85,7 +85,7 @@ export function TelaAtivar2fa() {
   }
 
   return (
-    <Tela cabecalhoNativo titulo="Verificação em duas etapas">
+    <Tela pilha titulo="Verificação em duas etapas">
       <ConfigurarAutenticador uri={iniciar.data.uri} segredo={iniciar.data.segredo} />
       <Cartao titulo="Confirme o código" icone="confirmado">
         <Campo

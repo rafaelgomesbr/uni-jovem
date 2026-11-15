@@ -8,7 +8,6 @@ import {
   ICONES_DO_AVATAR,
   NOME_DO_ICONE_DO_AVATAR,
   NOMES_DAS_CORES_DO_AVATAR,
-  RITMO,
   type IconeDoAvatar,
   type NomeDaCorDoAvatar,
 } from '@uj/tokens'
@@ -39,7 +38,7 @@ const LADO = Math.max(ALVO, 52)
 export function TelaEscolherAvatar() {
   const { conta } = useSessao()
   return (
-    <Tela cabecalhoNativo titulo="Escolher avatar">
+    <Tela pilha titulo="Escolher avatar">
       <Stack.Screen options={{ title: 'Avatar' }} />
       {conta ? <EscolhaDoAvatar conta={conta} /> : null}
     </Tela>
@@ -73,12 +72,12 @@ function EscolhaDoAvatar({ conta }: { conta: Conta }) {
   return (
     <>
       <Cartao>
-        <View style={{ alignItems: 'center', gap: ESPACO.x3, paddingVertical: ESPACO.x2 }}>
-          <Avatar nome={conta.nome} avatar={escolha} tamanho="G" />
-          <Texto variante="subtitulo" centralizado accessibilityRole="text">
+        <View style={{ alignItems: 'center', gap: ESPACO.e12, paddingVertical: ESPACO.e8 }}>
+          <Avatar nome={conta.nome} avatar={escolha} tamanho="perfil" />
+          <Texto variante="tituloItem" centralizado accessibilityRole="text">
             {conta.nome}
           </Texto>
-          <Texto variante="apoio" cor="textoSuave" centralizado>
+          <Texto variante="legenda" cor="textoSuave" centralizado>
             É assim que as pessoas das suas comunidades veem você: na lista de pessoas, nas escalas,
             no check-in e em quem está orando.
           </Texto>
@@ -93,7 +92,7 @@ function EscolhaDoAvatar({ conta }: { conta: Conta }) {
             aoEscolher={() => setIcone(null)}
             fundo={CORES_DO_AVATAR[corDoAvatarPeloNome(conta.nome)].fundo}
           >
-            <Avatar nome={conta.nome} tamanho="M" decorativo />
+            <Avatar nome={conta.nome} tamanho="linha" decorativo />
           </Opcao>
           {ICONES_DO_AVATAR.map((nome) => (
             <Opcao
@@ -143,7 +142,7 @@ function EscolhaDoAvatar({ conta }: { conta: Conta }) {
           Avatar salvo.
         </Aviso>
       ) : null}
-      <View style={{ gap: RITMO.entreBotoes }}>
+      <View style={{ gap: ESPACO.e8 }}>
         <Botao
           titulo="Salvar avatar"
           icone="confirmado"
@@ -167,7 +166,7 @@ function Grade({ rotulo, children }: { rotulo: string; children: ReactNode }) {
     <View
       accessibilityRole="radiogroup"
       aria-label={rotulo}
-      style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x3 }}
+      style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e12 }}
     >
       {children}
     </View>
@@ -212,7 +211,7 @@ function Opcao({
         justifyContent: 'center',
         backgroundColor: fundo,
         borderWidth: 3,
-        borderColor: marcada ? cores.destaque : pressed ? cores.borda : 'transparent',
+        borderColor: marcada ? cores.destaque : pressed ? cores.campoBorda : 'transparent',
         opacity: desabilitada ? 0.4 : 1,
       })}
     >

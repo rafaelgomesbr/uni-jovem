@@ -50,7 +50,7 @@ export function DetalheLocalDoEvento({
       </Aviso>
       <CabecalhoLocal evento={evento} />
       <Cartao titulo="No dia" icone="aoVivo">
-        <View style={{ gap: ESPACO.x2 }}>
+        <View style={{ gap: ESPACO.e8 }}>
           <Botao
             titulo={conduz ? 'Conduzir ao vivo (só neste aparelho)' : 'Ver o andamento guardado'}
             icone="aoVivo"
@@ -92,8 +92,8 @@ export function DetalheLocalDoEvento({
 function CabecalhoLocal({ evento }: { evento: DetalheDoEvento }) {
   return (
     <Cartao>
-      <Texto variante="titulo">{evento.titulo}</Texto>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>
+      <Texto variante="tituloTela">{evento.titulo}</Texto>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
         <Selo texto={NOME_DO_STATUS[evento.status]} cor={COR_DO_STATUS[evento.status]} />
         <Selo texto="Guardado neste aparelho" />
       </View>
@@ -121,8 +121,8 @@ function CabecalhoLocal({ evento }: { evento: DetalheDoEvento }) {
       />
       {evento.descricao ? <Texto>{evento.descricao}</Texto> : null}
       {evento.informacoesUteis ? (
-        <View style={{ gap: ESPACO.x1 }}>
-          <Texto variante="corpoForte">Informações úteis</Texto>
+        <View style={{ gap: ESPACO.e4 }}>
+          <Texto variante="tituloItem">Informações úteis</Texto>
           <Texto>{evento.informacoesUteis}</Texto>
         </View>
       ) : null}
@@ -135,7 +135,7 @@ function ProgramacaoLocal({ evento }: { evento: DetalheDoEvento }) {
   return (
     <Cartao titulo="Programação" icone="etapas">
       {evento.etapas.length === 0 ? (
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           Nenhuma etapa cadastrada.
         </Texto>
       ) : (
@@ -158,8 +158,8 @@ function ProgramacaoLocal({ evento }: { evento: DetalheDoEvento }) {
         })
       )}
       {geral.length ? (
-        <View style={{ gap: ESPACO.x1 }}>
-          <Texto variante="corpoForte">Equipe do evento</Texto>
+        <View style={{ gap: ESPACO.e4 }}>
+          <Texto variante="tituloItem">Equipe do evento</Texto>
           {geral.map((a) => (
             <Linha key={a.id} titulo={a.nome} descricao={a.funcao} />
           ))}

@@ -23,10 +23,10 @@ interface PropsDoLayout {
  */
 export function LayoutDividido({ lista, detalhe, rotuloDoDetalhe }: PropsDoLayout) {
   return (
-    <View style={{ flex: 1, flexDirection: 'row', gap: ESPACO.x6 }}>
+    <View style={{ flex: 1, flexDirection: 'row', gap: ESPACO.e24 }}>
       <ScrollView
         style={{ flex: 2 }}
-        contentContainerStyle={{ gap: ESPACO.x4, paddingBottom: ESPACO.x8 }}
+        contentContainerStyle={{ gap: ESPACO.e16, paddingBottom: ESPACO.e32 }}
         keyboardShouldPersistTaps="handled"
       >
         {lista}
@@ -34,7 +34,7 @@ export function LayoutDividido({ lista, detalhe, rotuloDoDetalhe }: PropsDoLayou
       <ScrollView
         accessibilityLabel={rotuloDoDetalhe}
         style={{ flex: 3 }}
-        contentContainerStyle={{ gap: ESPACO.x4, paddingBottom: ESPACO.x8 }}
+        contentContainerStyle={{ gap: ESPACO.e16, paddingBottom: ESPACO.e32 }}
         keyboardShouldPersistTaps="handled"
       >
         {detalhe}

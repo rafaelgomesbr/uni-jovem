@@ -79,12 +79,12 @@ function EditarTexto({ comunidadeId, pedido }: { comunidadeId: string; pedido: P
   return (
     <Cartao titulo="Texto" icone="editar">
       <Campo rotulo="Seu pedido" value={texto} onChangeText={setTexto} multiline maxLength={2000} />
-      <Texto variante="apoio" cor="textoSuave">
+      <Texto variante="legenda" cor="textoSuave">
         {AVISO_DO_TEXTO}
       </Texto>
       {editar.error ? <AvisoDeErro erro={editar.error} /> : null}
       {editar.isSuccess && !mudou ? (
-        <TextoAnunciado variante="apoio" cor="sucesso">
+        <TextoAnunciado variante="corpo" cor="sucesso">
           Texto salvo.
         </TextoAnunciado>
       ) : null}
@@ -165,7 +165,7 @@ function MudarVisibilidade({
         carregando={mudar.isPending}
         aoPressionar={() => void aplicar()}
       />
-      <Botao titulo="Voltar aos pedidos" variante="discreto" aoPressionar={() => router.back()} />
+      <Botao titulo="Voltar aos pedidos" variante="terciario" aoPressionar={() => router.back()} />
     </Cartao>
   )
 }

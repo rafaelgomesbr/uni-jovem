@@ -35,18 +35,18 @@ export function CabecalhoDoEvento({ evento }: { evento: DetalheDoEvento }) {
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
-          gap: ESPACO.x2,
+          gap: ESPACO.e8,
         }}
       >
-        <Texto variante="corpoForte" cor="textoSuave" tabular style={{ fontSize: 13 }}>
+        <Texto variante="tituloItem" cor="textoSuave" tabular style={{ fontSize: 13 }}>
           {formatarQuando(evento.inicio, evento.fuso)} · {formatarDuracao(evento.duracaoMin)}
         </Texto>
         <Chip texto={evento.categoria} />
       </View>
-      <Texto variante="titulo" style={{ fontSize: 24, lineHeight: 28 }}>
+      <Texto variante="tituloTela" style={{ fontSize: 24, lineHeight: 28 }}>
         {evento.titulo}
       </Texto>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
         <Selo texto={NOME_DO_STATUS[evento.status]} cor={COR_DO_STATUS[evento.status]} />
         <Selo texto={`Visibilidade: ${NOME_DA_VISIBILIDADE[evento.visibilidade]}`} />
         {evento.serieId ? <Selo texto="Faz parte de uma série" /> : null}
@@ -66,7 +66,7 @@ export function CabecalhoDoEvento({ evento }: { evento: DetalheDoEvento }) {
         rotuloAcessivel={`${formatarQuando(evento.inicio, evento.fuso)} (${falarQuando(evento.inicio, evento.fuso)}). Duração prevista: ${formatarDuracao(evento.duracaoMin)}. Categoria: ${evento.categoria}`}
       />
       {evento.local ? (
-        <View style={{ gap: ESPACO.x2 }}>
+        <View style={{ gap: ESPACO.e8 }}>
           <Linha
             icone="local"
             titulo={evento.local.nome}
@@ -96,8 +96,8 @@ export function CabecalhoDoEvento({ evento }: { evento: DetalheDoEvento }) {
       <Linha icone="inscricoes" titulo="Inscrições" descricao={vagas.join(' · ')} />
       {evento.descricao ? <Texto>{evento.descricao}</Texto> : null}
       {evento.informacoesUteis ? (
-        <View style={{ gap: ESPACO.x1 }}>
-          <Texto variante="corpoForte">Informações úteis</Texto>
+        <View style={{ gap: ESPACO.e4 }}>
+          <Texto variante="tituloItem">Informações úteis</Texto>
           <Texto>{evento.informacoesUteis}</Texto>
         </View>
       ) : null}

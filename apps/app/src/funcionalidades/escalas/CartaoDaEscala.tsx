@@ -59,16 +59,16 @@ export function CartaoDaEscala({ escala, comunidadeId, fuso }: Props) {
   return (
     // Mockup "Sua escala": a função em destaque, o evento e a hora abaixo, e as
     // duas respostas principais lado a lado. Sem moldura própria: vive dentro de um cartão.
-    <View style={{ gap: ESPACO.x3 }}>
+    <View style={{ gap: ESPACO.e12 }}>
       <View
         ref={resumo}
         {...soNaWeb({ tabIndex: -1 })}
         accessible
         accessibilityLabel={`${escala.eventoTitulo}. ${onde_}. ${falarQuando(escala.eventoInicio, fuso)}. Situação: ${NOME_DO_ESTADO_DA_ATRIBUICAO[escala.estado]}`}
-        style={{ gap: ESPACO.x1 }}
+        style={{ gap: ESPACO.e4 }}
       >
-        <Texto variante="corpoForte">{onde_}</Texto>
-        <Texto variante="apoio" cor="textoSuave" style={{ fontSize: 13 }}>
+        <Texto variante="tituloItem">{onde_}</Texto>
+        <Texto variante="legenda" cor="textoSuave" style={{ fontSize: 13 }}>
           {escala.eventoTitulo} · {formatarQuando(escala.eventoInicio, fuso)}
         </Texto>
         <Selo
@@ -117,7 +117,7 @@ export function CartaoDaEscala({ escala, comunidadeId, fuso }: Props) {
             aoPressionar={() => cancelarPedido.mutate(pedidoAberto, depoisDeResponder)}
           />
         ) : (
-          <Texto variante="apoio" cor="textoSuave">
+          <Texto variante="legenda" cor="textoSuave">
             Você pediu substituição. Para cancelar o pedido, abra Minhas escalas.
           </Texto>
         )}
@@ -130,7 +130,7 @@ export function CartaoDaEscala({ escala, comunidadeId, fuso }: Props) {
           rotuloAcessivel={`Não posso ir: recusar a escala em ${escala.eventoTitulo}, ${onde}`}
           carregando={responder.isPending && responder.variables?.resposta === 'recusar'}
           aoPressionar={() => void recusar()}
-          style={{ marginLeft: -ESPACO.x3 }}
+          style={{ marginLeft: -ESPACO.e12 }}
         />
       ) : null}
     </View>

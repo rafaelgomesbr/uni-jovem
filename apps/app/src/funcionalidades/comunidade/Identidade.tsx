@@ -10,7 +10,7 @@ const HEX = /^#[0-9A-Fa-f]{6}$/
 /** Marca da comunidade: círculo na cor dela com ícone. Decorativa: o nome vem ao lado. */
 export function MarcaDaComunidade({ cor, tamanho = 36 }: { cor: string; tamanho?: number }) {
   const { cores } = useTema()
-  const fundo = HEX.test(cor) ? cor : cores.secundaria
+  const fundo = HEX.test(cor) ? cor : cores.primaria
   return (
     <View
       accessibilityElementsHidden
@@ -21,7 +21,7 @@ export function MarcaDaComunidade({ cor, tamanho = 36 }: { cor: string; tamanho?
         borderRadius: tamanho / 2,
         backgroundColor: fundo,
         borderWidth: 1,
-        borderColor: cores.bordaSuave,
+        borderColor: cores.separador,
         alignItems: 'center',
         justifyContent: 'center',
       }}
@@ -44,13 +44,13 @@ export function IdentidadeDaComunidade({ nome, cor, detalhe }: PropsDaIdentidade
     <View
       accessible
       accessibilityLabel={detalhe ? `Comunidade ${nome}. ${detalhe}` : `Comunidade ${nome}`}
-      style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.x3, flexShrink: 1 }}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e12, flexShrink: 1 }}
     >
       <MarcaDaComunidade cor={cor} />
       <View style={{ flexShrink: 1 }}>
-        <Texto variante="corpoForte">{nome}</Texto>
+        <Texto variante="tituloItem">{nome}</Texto>
         {detalhe ? (
-          <Texto variante="apoio" cor="textoSuave">
+          <Texto variante="legenda" cor="textoSuave">
             {detalhe}
           </Texto>
         ) : null}

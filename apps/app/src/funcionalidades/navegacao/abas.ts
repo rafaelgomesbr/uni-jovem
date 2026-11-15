@@ -1,4 +1,4 @@
-import type { NomeDoIcone } from '@/ui/Icone'
+import type { NomeDoTraco } from '@/ui/IconeDeTraco'
 
 export interface DefinicaoDaAba {
   /** Nome da rota dentro de `(autenticado)/(abas)`. */
@@ -6,7 +6,7 @@ export interface DefinicaoDaAba {
   href: '/' | '/agenda' | '/programacoes' | '/comunidade' | '/perfil'
   rotulo: string
   /** A aba Perfil mostra o avatar da pessoa no lugar do ícone. */
-  icone: NomeDoIcone | 'avatar'
+  icone: NomeDoTraco | 'avatar'
 }
 
 /**

@@ -49,21 +49,21 @@ export function TelaMudarStatus() {
 
   if (!comunidadeAtiva || !eventoId) {
     return (
-      <Tela cabecalhoNativo>
+      <Tela pilha>
         <SemComunidade oQue="a programação" />
       </Tela>
     )
   }
   if (evento.isPending) {
     return (
-      <Tela cabecalhoNativo>
+      <Tela pilha>
         <Carregando />
       </Tela>
     )
   }
   if (evento.error) {
     return (
-      <Tela cabecalhoNativo>
+      <Tela pilha>
         <AvisoDeErro erro={evento.error} aoTentarDeNovo={() => void evento.refetch()} />
       </Tela>
     )
@@ -76,7 +76,7 @@ export function TelaMudarStatus() {
 
   if (!permitido) {
     return (
-      <Tela cabecalhoNativo titulo={titulo}>
+      <Tela pilha titulo={titulo}>
         <Aviso tipo="info" titulo="Não dá para fazer isso agora">
           {pode('evento', 'cancelar_ou_adiar')
             ? 'A situação atual do evento não permite esta mudança.'
@@ -108,7 +108,7 @@ export function TelaMudarStatus() {
   }
 
   return (
-    <Tela cabecalhoNativo titulo={titulo} descricao={e.titulo}>
+    <Tela pilha titulo={titulo} descricao={e.titulo}>
       <Cartao>
         <Aviso
           tipo="alerta"
@@ -155,11 +155,11 @@ export function TelaMudarStatus() {
         {enviar.error ? <AvisoDeErro erro={enviar.error} /> : null}
         <Botao
           titulo={acao === 'adiar' ? 'Adiar e avisar' : 'Cancelar e avisar'}
-          variante={acao === 'adiar' ? 'primario' : 'perigo'}
+          variante={acao === 'adiar' ? 'primario' : 'destrutivo'}
           carregando={enviar.isPending}
           aoPressionar={confirmarEnvio}
         />
-        <Botao titulo="Voltar sem mudar" variante="discreto" aoPressionar={() => router.back()} />
+        <Botao titulo="Voltar sem mudar" variante="terciario" aoPressionar={() => router.back()} />
       </Cartao>
     </Tela>
   )

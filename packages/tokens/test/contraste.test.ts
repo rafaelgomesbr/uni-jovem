@@ -1,22 +1,27 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  ALFA_DA_AURORA_SOB_CARTOES,
+  alfaDaAurora,
+  AURORA,
+  centroDoBrilho,
   CLARO,
-  DESTAQUE_NO_CLARO,
-  DESTAQUE_NO_ESCURO,
-  PARES_TRANSLUCIDOS,
-  type Paleta,
-  comporCor,
+  comAlfa,
+  compor,
+  comporCamadas,
   contraste,
   CORES_DA_COMUNIDADE,
+  corDaAuroraNoPonto,
   corSobre,
   ESCURO,
-  FUNDOS_SOB_O_VIDRO,
+  INICIAIS_SOBRE_COR,
   MINIMO,
-  PARES_OBRIGATORIOS,
-  TEXTOS_SOBRE_O_VIDRO,
+  paresObrigatorios,
+  PONTOS_CRITICOS_DA_AURORA,
+  TEMAS,
+  type NomeDoTema,
 } from '../src/index.ts'
+
+const TEMAS_TODOS: readonly NomeDoTema[] = ['escuro', 'claro']
 
 describe('contraste WCAG', () => {
   it('fórmula confere com valores conhecidos', () => {
@@ -24,108 +29,114 @@ describe('contraste WCAG', () => {
     expect(contraste('#777777', '#FFFFFF')).toBeCloseTo(4.48, 2)
   })
 
-  it('composição do vidro: opaco não muda, transparente vira o fundo', () => {
-    expect(comporCor('rgba(18,16,42,1)', '#FFFFFF')).toBe('#12102A')
-    expect(comporCor('rgba(18,16,42,0)', '#FFFFFF')).toBe('#FFFFFF')
-    expect(comporCor('rgba(0,0,0,0.5)', '#FFFFFF')).toBe('#808080')
+  it('compor: opaco não muda, transparente vira o fundo, meio a meio dá o meio', () => {
+    expect(compor('rgba(18,16,42,1)', '#FFFFFF')).toBe('#12102A')
+    expect(compor('rgba(18,16,42,0)', '#FFFFFF')).toBe('#FFFFFF')
+    expect(compor('rgba(0,0,0,0.5)', '#FFFFFF')).toBe('#808080')
+    expect(compor('#ABCDEF', '#000000')).toBe('#ABCDEF')
+    expect(() => compor('rgba(0,0,0,0.5)', 'rgba(0,0,0,0.5)')).toThrow()
   })
 
-  for (const [nome, paleta] of [
-    ['escuro', ESCURO],
-    ['claro', CLARO],
-  ] as const) {
-    it(`tema ${nome}: todos os pares obrigatórios passam AA`, () => {
-      const falhas = PARES_OBRIGATORIOS.map(([frente, fundo, tipo]) => ({
-        par: `${frente} sobre ${fundo}`,
-        razao: Number(contraste(paleta[frente], paleta[fundo]).toFixed(2)),
-        minimo: MINIMO[tipo],
-      })).filter((p) => p.razao < p.minimo)
+  it('o cartão translúcido do mockup sobre o fundo é a superfície opaca (#232139)', () => {
+    expect(compor(ESCURO.superficieTranslucida, ESCURO.fundo)).toBe(ESCURO.superficie)
+  })
+
+  it('comporCamadas exige a camada de baixo opaca', () => {
+    expect(comporCamadas(['#FFFFFF', 'rgba(0,0,0,0.5)'])).toBe('#808080')
+    expect(() => comporCamadas(['rgba(0,0,0,0.5)'])).toThrow()
+  })
+
+  it('comAlfa multiplica o alfa (e deixa o hex igual)', () => {
+    expect(comAlfa('rgba(1,2,3,0.5)', 0.6)).toBe('rgba(1,2,3,0.3)')
+    expect(comAlfa('#123456', 0.6)).toBe('#123456')
+  })
+
+  for (const tema of TEMAS_TODOS) {
+    it(`tema ${tema}: todos os pares obrigatórios da tabela 2.11 passam`, () => {
+      const falhas = paresObrigatorios(tema)
+        .map((p) => ({ ...p, razao: Number(contraste(p.frente, p.fundo).toFixed(2)) }))
+        .filter((p) => p.razao < p.minimo)
+        .map((p) => `${p.nome}: ${p.razao} (mínimo ${p.minimo})`)
       expect(falhas).toEqual([])
     })
 
-    it(`tema ${nome}: texto sobre o vidro passa AA em qualquer superfície por baixo`, () => {
-      const falhas = FUNDOS_SOB_O_VIDRO.flatMap((baixo) => {
-        const vidro = comporCor(paleta.vidroFundo, paleta[baixo])
-        return TEXTOS_SOBRE_O_VIDRO.map((frente) => ({
-          par: `${frente} sobre vidro sobre ${baixo}`,
-          razao: Number(contraste(paleta[frente], vidro).toFixed(2)),
-        }))
-      }).filter((p) => p.razao < MINIMO.texto)
-      expect(falhas).toEqual([])
+    it(`tema ${tema}: a tabela cobre pelo menos 50 pares, sem nome repetido`, () => {
+      const nomes = paresObrigatorios(tema).map((p) => p.nome)
+      expect(nomes.length).toBeGreaterThanOrEqual(50)
+      expect(new Set(nomes).size).toBe(nomes.length)
     })
-  }
 
-  /** `rgba(...)` ou hex opaco composto sobre `base` (hex). */
-  function opaca(cor: string, base: string): string {
-    return cor.startsWith('rgba') ? comporCor(cor, base) : cor
-  }
-
-  /** Mesma cor com o alfa multiplicado (a aurora longe do centro). */
-  function comAlfa(rgba: string, fator: number): string {
-    return rgba.replace(/,\s*([\d.]+)\s*\)$/, (_, a: string) => `,${Number(a) * fator})`)
-  }
-
-  for (const [nome, paleta] of [
-    ['escuro', ESCURO],
-    ['claro', CLARO],
-    ['cartão de destaque no escuro', DESTAQUE_NO_ESCURO],
-    ['cartão de destaque no claro', DESTAQUE_NO_CLARO],
-  ] as const) {
-    it(`${nome}: pares sobre superfícies translúcidas passam AA`, () => {
-      const falhas = PARES_TRANSLUCIDOS.map(({ frente, fundo, base, tipo }) => {
-        const baseOpaca = opaca(paleta[base], paleta.fundo)
-        const atras = opaca(paleta[fundo], baseOpaca)
-        return {
-          par: `${frente} sobre ${fundo} sobre ${base}`,
-          razao: Number(contraste(paleta[frente], atras).toFixed(2)),
-          minimo: MINIMO[tipo],
-        }
-      }).filter((p) => p.razao < p.minimo)
-      expect(falhas).toEqual([])
-    })
-  }
-
-  for (const [nome, paleta] of [
-    ['escuro', ESCURO],
-    ['claro', CLARO],
-  ] as const) {
-    it(`${nome}: botão primário e texto do cartão de destaque passam AA`, () => {
-      const destaque: Paleta = nome === 'escuro' ? DESTAQUE_NO_ESCURO : DESTAQUE_NO_CLARO
-      expect(contraste(paleta.sobrePrimaria, paleta.primaria)).toBeGreaterThanOrEqual(MINIMO.texto)
-      for (const k of ['texto', 'textoSuave', 'destaque'] as const) {
-        expect(contraste(destaque[k], destaque.fundo)).toBeGreaterThanOrEqual(MINIMO.texto)
+    it(`tema ${tema}: as paletas base e inversa têm só cores válidas`, () => {
+      for (const paleta of [TEMAS[tema].base, TEMAS[tema].inverso]) {
+        const invalidas = Object.entries(paleta).filter(([, cor]) => {
+          try {
+            compor(cor, '#000000')
+            return false
+          } catch {
+            return true
+          }
+        })
+        expect(invalidas).toEqual([])
       }
     })
-
-    it(`${nome}: cabeçalho sobre o pico da aurora coral e cartões sobre as auroras passam AA`, () => {
-      const picoCoral = comporCor(paleta.auroraCoral, paleta.fundo)
-      // Cabeçalho (texto e marca de sincronizado) fica bem no pico da coral.
-      expect(contraste(paleta.texto, picoCoral)).toBeGreaterThanOrEqual(MINIMO.texto)
-      expect(contraste(paleta.sucesso, picoCoral)).toBeGreaterThanOrEqual(MINIMO.interface)
-      // Cartões: violeta no pico; coral já atenuada onde o primeiro cartão começa.
-      const sobCartoes = [
-        comporCor(paleta.auroraVioleta, paleta.fundo),
-        comporCor(comAlfa(paleta.auroraCoral, ALFA_DA_AURORA_SOB_CARTOES), paleta.fundo),
-      ]
-      const falhas = sobCartoes
-        .flatMap((atras) => {
-          const cartao = comporCor(paleta.cartaoVidro, atras)
-          return (['texto', 'textoSuave', 'destaque', 'sucesso'] as const).map((k) => ({
-            par: `${k} sobre cartão sobre ${atras}`,
-            razao: Number(contraste(paleta[k], cartao).toFixed(2)),
-          }))
-        })
-        .filter((p) => p.razao < MINIMO.texto)
-      expect(falhas).toEqual([])
-    })
   }
 
-  it('ícone sobre a cor de cada comunidade passa 3:1 (elemento de interface)', () => {
-    // Inclui a cor da comunidade de demonstração da homologação.
+  it('o escuro cobre também o cartão translúcido sobre os dois brilhos (D32)', () => {
+    const nomes = paresObrigatorios('escuro').map((p) => p.nome)
+    expect(nomes.filter((n) => n.startsWith('cartão translúcido')).length).toBe(14)
+  })
+
+  it('valores-chave do mockup não mudaram sem querer', () => {
+    expect(ESCURO.fundo).toBe('#12102A')
+    expect(ESCURO.texto).toBe('#F5F3FF')
+    expect(ESCURO.textoSuave).toBe('#C9C4EC')
+    expect(ESCURO.destaque).toBe('#FFB199')
+    expect(ESCURO.primaria).toBe('#FF8A65')
+    expect(ESCURO.sobrePrimaria).toBe('#1A0F0A')
+    expect(TEMAS.escuro.inverso.fundo).toBe('#F5F3FF')
+    expect(TEMAS.escuro.inverso.quenteFundo).toBe('#FFE3D9')
+    expect(TEMAS.escuro.inverso.destaque).toBe('#8A2E12')
+    expect(CLARO.fundo).toBe('#F7F5FF')
+    expect(TEMAS.claro.inverso.fundo).toBe('#1F1B4D')
+  })
+
+  it('iniciais brancas passam 4,5:1 sobre as 6 cores de comunidade', () => {
+    const falhas = CORES_DA_COMUNIDADE.map((c) => ({
+      cor: c.rotulo,
+      razao: Number(contraste(INICIAIS_SOBRE_COR, c.valor).toFixed(2)),
+    })).filter((c) => c.razao < MINIMO.texto)
+    expect(falhas).toEqual([])
+  })
+
+  it('ícone sobre a cor de cada comunidade passa 3:1 (inclui a cor da demonstração)', () => {
     const cores = [...CORES_DA_COMUNIDADE.map((c) => c.valor), '#9D8FFF']
     const falhas = cores
       .map((cor) => ({ cor, razao: Number(contraste(corSobre(cor), cor).toFixed(2)) }))
       .filter((c) => c.razao < MINIMO.interface)
     expect(falhas).toEqual([])
+  })
+})
+
+describe('Aurora', () => {
+  it('centros no quadro de referência (coral deslocada 20 e 20 do mockup)', () => {
+    expect(centroDoBrilho('coral')).toEqual({ x: 340, y: 30 })
+    expect(centroDoBrilho('violeta')).toEqual({ x: 20, y: 300 })
+  })
+
+  it('o degradê vai do pico no centro a zero em 70% do canto mais distante (CSS)', () => {
+    expect(alfaDaAurora('coral', centroDoBrilho('coral'), 'escuro')).toBeCloseTo(0.55, 5)
+    const fim = AURORA.paradaFinal * (AURORA.coral.lado / 2) * Math.SQRT2
+    expect(alfaDaAurora('coral', { x: 340, y: 30 + fim - 0.001 }, 'escuro')).toBeCloseTo(0, 3)
+    // Fora do círculo (o raio de borda corta o brilho), zero.
+    expect(alfaDaAurora('coral', { x: 340, y: 30 + 200 }, 'escuro')).toBe(0)
+    // Pilha: 60% da opacidade.
+    expect(alfaDaAurora('violeta', centroDoBrilho('violeta'), 'escuro', 0.6)).toBeCloseTo(0.27, 5)
+  })
+
+  it('o status fica fora do miolo da coral (alfa abaixo de 0,45 no pior ponto)', () => {
+    expect(alfaDaAurora('coral', PONTOS_CRITICOS_DA_AURORA.status, 'escuro')).toBeLessThan(0.45)
+    expect(corDaAuroraNoPonto('coral', PONTOS_CRITICOS_DA_AURORA.status, 'escuro')).toMatch(
+      /^rgba\(255,138,101,0\.\d+\)$/,
+    )
   })
 })

@@ -1,0 +1,139 @@
+import { DURACAO, ESPACO, RAIO, type NomeDoPapel, TIPO } from '@uj/tokens'
+import { useEffect, useState, type ReactNode } from 'react'
+import { Animated, Platform, View, type DimensionValue } from 'react-native'
+
+import { usePreferenciasDeAcessibilidade } from './acessibilidade'
+import { useTema } from './tema'
+
+interface PropsDoEsqueleto {
+  /** "Carregando a agenda": o que o leitor de tela ouve. Os blocos ficam ocultos para ele. */
+  rotulo: string
+  children: ReactNode
+}
+
+/**
+ * Esqueleto de carregamento (seção 2.12.22): blocos na cor `esqueleto` com
+ * pulso de 1,0 a 0,6 em 1200 ms (estático com "Reduzir movimento"). Só
+ * aparece depois de 300 ms, para não piscar em carga rápida. O indicador
+ * giratório fica só dentro de botões.
+ */
+export function Esqueleto({ rotulo, children }: PropsDoEsqueleto) {
+  const { reduzirMovimento } = usePreferenciasDeAcessibilidade()
+  const [visivel, setVisivel] = useState(false)
+  const [pulso] = useState(() => new Animated.Value(1))
+
+  // O atraso e o pulso são relógios externos à tela: começam ao montar e param ao sair.
+  useEffect(() => {
+    const t = setTimeout(() => setVisivel(true), DURACAO.atrasoDoEsqueleto)
+    return () => clearTimeout(t)
+  }, [])
+  useEffect(() => {
+    if (!visivel || reduzirMovimento) return
+    const metade = DURACAO.pulso / 2
+    const laco = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulso, {
+          toValue: 0.6,
+          duration: metade,
+          useNativeDriver: Platform.OS !== 'web',
+        }),
+        Animated.timing(pulso, {
+          toValue: 1,
+          duration: metade,
+          useNativeDriver: Platform.OS !== 'web',
+        }),
+      ]),
+    )
+    laco.start()
+    return () => laco.stop()
+  }, [visivel, reduzirMovimento, pulso])
+
+  return (
+    <View
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel={rotulo}
+      aria-busy
+      style={{ gap: ESPACO.e16, alignSelf: 'stretch' }}
+    >
+      {visivel ? (
+        <Animated.View
+          style={{
+            gap: ESPACO.e16,
+            // O pulso é animação, não estado: a opacidade varia só enquanto carrega.
+            // eslint-disable-next-line no-restricted-syntax
+            opacity: reduzirMovimento ? 1 : pulso,
+          }}
+        >
+          {children}
+        </Animated.View>
+      ) : null}
+    </View>
+  )
+}
+
+interface PropsDoBloco {
+  largura?: DimensionValue
+  altura: number
+  raio?: number
+  circulo?: boolean
+}
+
+/** Um bloco do esqueleto. */
+export function BlocoDeEsqueleto({
+  largura = '100%',
+  altura,
+  raio = RAIO.marca,
+  circulo,
+}: PropsDoBloco) {
+  const { cores, solido } = useTema()
+  return (
+    <View
+      style={{
+        width: circulo ? altura : largura,
+        height: altura,
+        borderRadius: circulo ? altura / 2 : raio,
+        backgroundColor: solido(cores.esqueleto),
+      }}
+    />
+  )
+}
+
+/** Linhas de texto com 60% da entrelinha do papel, em larguras de 100%, 72% e 48%. */
+export function LinhasDeEsqueleto({
+  papel = 'corpo',
+  linhas = 3,
+}: {
+  papel?: NomeDoPapel
+  linhas?: number
+}) {
+  const altura = Math.round(TIPO[papel].altura * 0.6)
+  const larguras: DimensionValue[] = ['100%', '72%', '48%']
+  return (
+    <View style={{ gap: TIPO[papel].altura - altura }}>
+      {Array.from({ length: linhas }, (_, i) => (
+        <BlocoDeEsqueleto key={i} largura={larguras[i % larguras.length]} altura={altura} />
+      ))}
+    </View>
+  )
+}
+
+/** Cartão completo: raio 22, padding 18, sobrancelha e 3 linhas. */
+export function CartaoDeEsqueleto({ titulo = false }: { titulo?: boolean }) {
+  const { cores } = useTema()
+  return (
+    <View
+      style={{
+        padding: ESPACO.e18,
+        borderRadius: RAIO.cartao,
+        borderWidth: 1,
+        borderColor: cores.superficieBorda,
+        gap: ESPACO.e12,
+      }}
+    >
+      <BlocoDeEsqueleto largura="36%" altura={10} />
+      {titulo ? <BlocoDeEsqueleto largura="64%" altura={20} /> : null}
+      <LinhasDeEsqueleto />
+    </View>
+  )
+}

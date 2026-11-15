@@ -1,9 +1,9 @@
-import { ESPACO, RAIO } from '@uj/tokens'
+import { BARRA_DE_ABAS, BORDA, ESPACO, RAIO } from '@uj/tokens'
 import { router } from 'expo-router'
 import { TabList, TabSlot, TabTrigger, Tabs, type TabTriggerSlotProps } from 'expo-router/ui'
 import { Pressable, useWindowDimensions, View } from 'react-native'
 
-import { LARGURA_DA_BARRA_LATERAL, NOME_DO_APP } from '@/constantes'
+import { LARGURA_DA_BARRA_LATERAL, LARGURA_DA_LATERAL, NOME_DO_APP } from '@/constantes'
 import { useSessao } from '@/estado/sessao'
 import { Avatar } from '@/ui/Avatar'
 import { FundoAurora } from '@/ui/FundoAurora'
@@ -45,41 +45,31 @@ function ItemLateral({ rotulo, icone, isFocused, onPress, onLongPress }: PropsDo
         minHeight: ALVO,
         flexDirection: 'row',
         alignItems: 'center',
-        gap: ESPACO.x3,
-        paddingHorizontal: ESPACO.x3,
-        paddingVertical: ESPACO.x2,
-        borderRadius: RAIO.medio,
-        backgroundColor: ativo ? cores.abaAtiva : pressed ? cores.superficieRealce : 'transparent',
+        gap: ESPACO.e12,
+        paddingHorizontal: ESPACO.e12,
+        paddingVertical: ESPACO.e8,
+        borderRadius: RAIO.controle,
+        backgroundColor: ativo ? cores.abaAtivaFundo : pressed ? cores.pressionado : 'transparent',
       })}
     >
-      {ativo ? (
-        <View
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: 10,
-            bottom: 10,
-            width: 3,
-            borderRadius: 2,
-            backgroundColor: cores.destaque,
-          }}
-        />
-      ) : null}
       {icone === 'avatar' && conta ? (
-        <View
-          style={{
-            borderRadius: RAIO.pilula,
-            borderWidth: 2,
-            borderColor: ativo ? cores.destaque : 'transparent',
-            padding: 1,
-          }}
-        >
-          <Avatar nome={conta.nome} avatar={conta.avatar ?? null} lado={22} decorativo />
-        </View>
+        <Avatar
+          nome={conta.nome}
+          avatar={conta.avatar ?? null}
+          proprio
+          tamanho="aba"
+          anel={ativo ? 'ativo' : 'inativo'}
+          decorativo
+        />
       ) : (
-        <Icone nome={icone === 'avatar' ? 'pessoa' : icone} cor={cor} tamanho={22} />
+        <Icone
+          nome={icone === 'avatar' ? 'pessoa' : icone}
+          cor={cor}
+          tamanho={BARRA_DE_ABAS.tamanhoDoIcone}
+          peso={ativo ? 'forte' : 'medio'}
+        />
       )}
-      <Texto variante={ativo ? 'corpoForte' : 'corpo'} style={{ color: cor }}>
+      <Texto variante={ativo ? 'tituloItem' : 'corpo'} style={{ color: cor }}>
         {rotulo}
       </Texto>
     </Pressable>
@@ -96,19 +86,19 @@ function MaisNaLateral() {
   return (
     <View
       style={{
-        gap: ESPACO.x1,
-        marginTop: ESPACO.x4,
-        borderTopWidth: 1,
-        borderTopColor: cores.cartaoVidroBorda,
+        gap: ESPACO.e4,
+        marginTop: ESPACO.e16,
+        borderTopWidth: BORDA.fina,
+        borderTopColor: cores.superficieBorda,
       }}
     >
       {grupos.map((g) => (
-        <View key={g.titulo} style={{ gap: ESPACO.x1 }}>
+        <View key={g.titulo} style={{ gap: ESPACO.e4 }}>
           <Texto
             variante="sobrancelha"
             accessibilityRole="header"
             nivel={2}
-            style={{ paddingHorizontal: ESPACO.x3, paddingTop: ESPACO.x4 }}
+            style={{ paddingHorizontal: ESPACO.e12, paddingTop: ESPACO.e16 }}
           >
             {g.titulo}
           </Texto>
@@ -122,10 +112,10 @@ function MaisNaLateral() {
                 minHeight: ALVO,
                 flexDirection: 'row',
                 alignItems: 'center',
-                gap: ESPACO.x3,
-                paddingHorizontal: ESPACO.x3,
-                borderRadius: RAIO.medio,
-                backgroundColor: pressed ? cores.superficieRealce : 'transparent',
+                gap: ESPACO.e12,
+                paddingHorizontal: ESPACO.e12,
+                borderRadius: RAIO.controle,
+                backgroundColor: pressed ? cores.pressionado : 'transparent',
               })}
             >
               <Icone nome={i.icone} cor={cores.textoSuave} tamanho={22} />
@@ -155,17 +145,17 @@ function PularParaOConteudo() {
       onPress={() => document.getElementById(ID_DO_CONTEUDO)?.focus()}
       style={{
         position: 'absolute',
-        top: ESPACO.x2,
-        left: ESPACO.x2,
+        top: ESPACO.e8,
+        left: ESPACO.e8,
         zIndex: 10,
         minHeight: ALVO,
         justifyContent: 'center',
-        paddingHorizontal: ESPACO.x4,
-        borderRadius: RAIO.medio,
+        paddingHorizontal: ESPACO.e16,
+        borderRadius: RAIO.controle,
         backgroundColor: cores.primaria,
       }}
     >
-      <Texto variante="corpoForte" cor="sobrePrimaria">
+      <Texto variante="tituloItem" cor="sobrePrimaria">
         Pular para o conteúdo
       </Texto>
     </Pressable>
@@ -217,20 +207,20 @@ export function AbasDoApp() {
         {...soNaWeb({ role: 'navigation' })}
         aria-label="Navegação principal"
         style={{
-          width: 264,
+          width: LARGURA_DA_LATERAL,
           flexDirection: 'column',
           justifyContent: 'flex-start',
-          gap: ESPACO.x1,
-          padding: ESPACO.x4,
-          borderRightWidth: 1,
-          borderRightColor: cores.cartaoVidroBorda,
+          gap: ESPACO.e4,
+          padding: ESPACO.e16,
+          borderRightWidth: BORDA.fina,
+          borderRightColor: cores.superficieBorda,
           backgroundColor: cores.fundo,
           overflow: 'hidden',
         }}
       >
         <FundoAurora />
-        <View style={{ paddingVertical: ESPACO.x4, paddingHorizontal: ESPACO.x3 }}>
-          <Texto variante="titulo" accessibilityRole="text">
+        <View style={{ paddingVertical: ESPACO.e16, paddingHorizontal: ESPACO.e12 }}>
+          <Texto variante="tituloTela" accessibilityRole="text">
             {NOME_DO_APP}
           </Texto>
         </View>

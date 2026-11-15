@@ -40,7 +40,7 @@ export function TelaSeguranca() {
   if (!conta) return null
   return (
     <Tela
-      cabecalhoNativo
+      pilha
       titulo="Segurança"
       descricao="Como você entra no Uni Jovem e onde a sua conta está aberta."
     >
@@ -110,7 +110,7 @@ function SecaoBiometria() {
                 : 'Desligado: o app abre sem pedir o rosto ou a digital.'
             }
             extra={
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.x2 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}>
                 <Selo
                   texto={biometria.ligada ? 'Ligado' : 'Desligado'}
                   cor={biometria.ligada ? 'sucesso' : 'textoSuave'}
@@ -121,7 +121,7 @@ function SecaoBiometria() {
                   value={biometria.ligada}
                   disabled={mudar.isPending}
                   onValueChange={(valor) => mudar.mutate(valor)}
-                  trackColor={{ true: cores.sucesso, false: cores.borda }}
+                  trackColor={{ true: cores.sucesso, false: cores.campoBorda }}
                 />
               </View>
             }
@@ -131,7 +131,7 @@ function SecaoBiometria() {
           ) : null}
         </>
       ) : (
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           Este aparelho não tem rosto ou digital cadastrados. Cadastre nos Ajustes do aparelho para
           usar a biometria no Uni Jovem.
         </Texto>
@@ -223,11 +223,11 @@ function SecaoContasConectadas() {
 
   return (
     <Cartao titulo="Contas conectadas" icone="link">
-      <Texto variante="apoio" cor="textoSuave">
+      <Texto variante="legenda" cor="textoSuave">
         Entre com a conta do Google ou da Apple em vez de digitar a senha.
       </Texto>
       {visiveis.length === 0 ? (
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           Nenhuma entrada com Google ou Apple está disponível neste aparelho.
         </Texto>
       ) : null}
@@ -235,7 +235,7 @@ function SecaoContasConectadas() {
       {visiveis.map((provedor) => {
         const conectada = conectadas.get(provedor)
         return (
-          <View key={provedor} style={{ gap: ESPACO.x2 }}>
+          <View key={provedor} style={{ gap: ESPACO.e8 }}>
             <Linha
               titulo={NOME[provedor]}
               descricao={
@@ -249,7 +249,7 @@ function SecaoContasConectadas() {
                 conectada ? (
                   <Botao
                     titulo="Desconectar"
-                    variante="perigo"
+                    variante="destrutivo"
                     larguraTotal={false}
                     rotuloAcessivel={`Desconectar a conta ${NOME[provedor]}`}
                     carregando={desconectar.isPending && desconectar.variables === provedor}
@@ -271,7 +271,7 @@ function SecaoContasConectadas() {
               }
             />
             {!conectada && conectando === provedor ? (
-              <View style={{ gap: ESPACO.x3 }}>
+              <View style={{ gap: ESPACO.e12 }}>
                 <Campo
                   rotulo="Senha atual"
                   ajuda={`Para conectar a conta ${NOME[provedor]}, confirme que é você.`}
@@ -304,7 +304,7 @@ function SecaoContasConectadas() {
                 )}
                 <Botao
                   titulo="Cancelar"
-                  variante="discreto"
+                  variante="terciario"
                   aoPressionar={() => {
                     setConectando(null)
                     setSenhaAtual('')

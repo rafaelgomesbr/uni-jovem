@@ -1,8 +1,9 @@
 import { ESPACO, RAIO } from '@uj/tokens'
 import { Pressable, View } from 'react-native'
 
+import { ALFA_DESABILITADO, comOpacidade } from './cor'
+import { useAnelDeFoco } from './foco'
 import { Icone } from './Icone'
-import { ALVO } from './medidas'
 import { Texto } from './Texto'
 import { useTema } from './tema'
 
@@ -14,9 +15,16 @@ interface PropsDaCaixa {
   desabilitada?: boolean
 }
 
-/** Caixa de marcar (papel `checkbox`), com a marca desenhada além da cor. */
+/**
+ * Caixa de marcar (seção 2.12.7): 22×22, raio 6, borda de 1,5; marcada,
+ * fundo primário com check de 14 em negrito. A caixa fica no topo da primeira
+ * linha do rótulo (entrelinha 22, a mesma altura). Para consentimentos,
+ * tarefas e checklist; liga e desliga é `Interruptor`.
+ */
 export function CaixaDeMarcar({ rotulo, descricao, marcada, aoMudar, desabilitada }: PropsDaCaixa) {
-  const { cores } = useTema()
+  const { cores, semFundo } = useTema()
+  const anel = useAnelDeFoco(cores.foco)
+  const corDoRotulo = desabilitada ? comOpacidade(cores.texto, ALFA_DESABILITADO) : cores.texto
   return (
     <Pressable
       accessibilityRole="checkbox"
@@ -26,32 +34,47 @@ export function CaixaDeMarcar({ rotulo, descricao, marcada, aoMudar, desabilitad
       aria-disabled={!!desabilitada}
       disabled={desabilitada}
       onPress={() => aoMudar(!marcada)}
-      style={{
-        minHeight: ALVO,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: ESPACO.x3,
-        opacity: desabilitada ? 0.5 : 1,
-      }}
+      onFocus={anel.onFocus}
+      onBlur={anel.onBlur}
+      style={[
+        {
+          minHeight: 48,
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          gap: ESPACO.e12,
+          paddingVertical: 13,
+          borderRadius: RAIO.controle,
+        },
+        anel.estilo,
+      ]}
     >
       <View
         style={{
-          width: 26,
-          height: 26,
-          borderRadius: RAIO.pequeno / 2,
-          borderWidth: 2,
-          borderColor: marcada ? cores.destaque : cores.borda,
-          backgroundColor: marcada ? cores.destaque : cores.superficie,
+          width: 22,
+          height: 22,
+          borderRadius: RAIO.marca,
+          borderWidth: marcada && !desabilitada ? 0 : 1.5,
+          borderColor: desabilitada ? cores.tonalBorda : cores.campoBorda,
+          backgroundColor: marcada && !desabilitada ? cores.primaria : semFundo,
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        {marcada ? <Icone nome="confirmado" cor={cores.superficie} tamanho={18} /> : null}
+        {marcada ? (
+          <Icone
+            nome="check"
+            cor={desabilitada ? corDoRotulo : cores.sobrePrimaria}
+            tamanho={14}
+            peso="forte"
+          />
+        ) : null}
       </View>
       <View style={{ flex: 1 }}>
-        <Texto variante="corpoForte">{rotulo}</Texto>
+        <Texto variante="corpo" style={{ color: corDoRotulo }}>
+          {rotulo}
+        </Texto>
         {descricao ? (
-          <Texto variante="apoio" cor="textoSuave">
+          <Texto variante="legenda" cor="textoSuave">
             {descricao}
           </Texto>
         ) : null}

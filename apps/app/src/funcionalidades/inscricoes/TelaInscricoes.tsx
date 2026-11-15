@@ -41,14 +41,14 @@ export function TelaInscricoes() {
   const pode = usePode()
   if (!comunidadeAtiva || !eventoId) {
     return (
-      <Tela cabecalhoNativo>
+      <Tela pilha>
         <SemComunidade oQue="as inscrições" />
       </Tela>
     )
   }
   if (!pode('inscricao', 'ler_lista')) {
     return (
-      <Tela cabecalhoNativo titulo="Inscrições">
+      <Tela pilha titulo="Inscrições">
         <Aviso tipo="info" titulo="Só a organização vê a lista">
           A lista de inscritos tem dados de contato e fica só com quem organiza.
         </Aviso>
@@ -67,18 +67,18 @@ function Contagem({ numero, rotulo }: { numero: number; rotulo: string }) {
       style={{
         flexGrow: 1,
         minWidth: 96,
-        padding: ESPACO.x3,
-        borderRadius: RAIO.medio,
+        padding: ESPACO.e12,
+        borderRadius: RAIO.controle,
         borderWidth: 1,
-        borderColor: cores.borda,
+        borderColor: cores.campoBorda,
         backgroundColor: cores.superficie,
         gap: 2,
       }}
     >
-      <Texto variante="titulo" accessibilityRole="text">
+      <Texto variante="tituloTela" accessibilityRole="text">
         {numero}
       </Texto>
-      <Texto variante="apoio" cor="textoSuave">
+      <Texto variante="legenda" cor="textoSuave">
         {rotulo}
       </Texto>
     </View>
@@ -104,14 +104,14 @@ function Inscricoes({ comunidadeId, eventoId }: { comunidadeId: string; eventoId
 
   const e = evento.data
   return (
-    <Tela cabecalhoNativo titulo="Inscrições" {...(e ? { descricao: e.titulo } : {})}>
+    <Tela pilha titulo="Inscrições" {...(e ? { descricao: e.titulo } : {})}>
       {lista.isPending ? (
         <Carregando texto="Carregando as inscrições" />
       ) : lista.error ? (
         <AvisoDeErro erro={lista.error} aoTentarDeNovo={() => void lista.refetch()} />
       ) : (
         <>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
             <Contagem
               numero={lista.data.contagem.confirmadas}
               rotulo={e?.capacidade ? `confirmadas de ${e.capacidade} vagas` : 'confirmadas'}
@@ -198,13 +198,13 @@ function ListaFiltrada({
   }
   return (
     <Cartao>
-      <View style={{ gap: ESPACO.x3 }}>
+      <View style={{ gap: ESPACO.e12 }}>
         {inscricoes.map((i) => {
           const contato = [i.telefone, i.email].filter(Boolean).join(' · ')
           return (
-            <View key={i.id} style={{ gap: ESPACO.x1 }}>
-              <Texto variante="corpoForte">{i.nome}</Texto>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>
+            <View key={i.id} style={{ gap: ESPACO.e4 }}>
+              <Texto variante="tituloItem">{i.nome}</Texto>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
                 <Selo
                   texto={NOME_DO_ESTADO_DA_INSCRICAO[i.estado]}
                   cor={COR_DO_ESTADO_DA_INSCRICAO[i.estado]}
@@ -213,14 +213,14 @@ function ListaFiltrada({
                 <Selo texto={i.origem === 'membro' ? 'Membro' : 'Página pública'} />
               </View>
               {contato ? (
-                <Texto variante="apoio" cor="textoSuave" selectable>
+                <Texto variante="legenda" cor="textoSuave" selectable>
                   {contato}
                 </Texto>
               ) : null}
               {aoCancelar && i.estado !== 'cancelada' ? (
                 <Botao
                   titulo="Cancelar inscrição"
-                  variante="discreto"
+                  variante="terciario"
                   larguraTotal={false}
                   rotuloAcessivel={`Cancelar inscrição: ${i.nome}`}
                   aoPressionar={() => aoCancelar(i)}

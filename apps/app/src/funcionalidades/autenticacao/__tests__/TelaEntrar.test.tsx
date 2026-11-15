@@ -124,7 +124,7 @@ describe('tela Entrar', () => {
     globalThis.fetch = servidorFalso({}).fetch
     await renderizar()
     await screen.findByLabelText('E-mail')
-    expect(screen.queryByRole('button', { name: 'Continuar com Google' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Continuar com o Google' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Entrar com a Apple' })).toBeNull()
     expect(screen.queryByRole('button', { name: /Entrar com Face ID/ })).toBeNull()
   })
@@ -140,7 +140,7 @@ describe('tela Entrar', () => {
 
     await userEvent
       .setup()
-      .press(await screen.findByRole('button', { name: 'Continuar com Google' }))
+      .press(await screen.findByRole('button', { name: 'Continuar com o Google' }))
     await act(async () => {
       google.__responder({ type: 'success', params: { id_token: 'token-do-google' } })
     })
@@ -164,7 +164,7 @@ describe('tela Entrar', () => {
     await renderizar()
     await userEvent
       .setup()
-      .press(await screen.findByRole('button', { name: 'Continuar com Google' }))
+      .press(await screen.findByRole('button', { name: 'Continuar com o Google' }))
     await act(async () => {
       google.__responder({ type: 'success', params: { id_token: 'token-sem-conta' } })
     })

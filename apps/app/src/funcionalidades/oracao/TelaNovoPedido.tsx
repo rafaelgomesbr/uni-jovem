@@ -91,13 +91,13 @@ function FormularioDoPedido({
           maxLength={2000}
           ajuda="Até 2.000 caracteres."
         />
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           {AVISO_DO_TEXTO}
         </Texto>
         <Botao
           titulo="Entenda como o pedido é guardado"
           icone="documento"
-          variante="discreto"
+          variante="terciario"
           larguraTotal={false}
           aoPressionar={() => void abrirLink(`${origemPublica()}/privacidade#oracao`)}
         />
@@ -122,7 +122,7 @@ function FormularioDoPedido({
         carregando={criar.isPending}
         aoPressionar={() => void publicar()}
       />
-      <Botao titulo="Cancelar" variante="discreto" aoPressionar={() => router.back()} />
+      <Botao titulo="Cancelar" variante="terciario" aoPressionar={() => router.back()} />
     </>
   )
 }

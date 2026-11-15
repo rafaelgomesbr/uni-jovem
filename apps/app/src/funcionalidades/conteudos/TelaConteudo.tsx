@@ -130,14 +130,14 @@ function Novo({ comunidadeId, def }: { comunidadeId: string; def: DefinicaoDoTip
 
   return (
     <>
-      <Texto variante="titulo">
+      <Texto variante="tituloTela">
         Nov{def.artigo} {def.singular}
       </Texto>
       <Cartao>
         <Formulario def={def} valores={valores} aoMudar={setValores} erros={erros} />
       </Cartao>
       {def.tipo === 'musicas' ? (
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           Depois de salvar, você escolhe quem toca esta música.
         </Texto>
       ) : null}
@@ -166,8 +166,8 @@ function Item({
   const gerencia = pode('conteudo', 'gerenciar')
   return (
     <>
-      <View style={{ gap: ESPACO.x2 }}>
-        <Texto variante="titulo">{String(registro[def.principal] ?? '')}</Texto>
+      <View style={{ gap: ESPACO.e8 }}>
+        <Texto variante="tituloTela">{String(registro[def.principal] ?? '')}</Texto>
         {estaArquivado(def, registro) ? <Selo texto={def.arquivo.selo} /> : null}
       </View>
       {gerencia ? (
@@ -193,12 +193,12 @@ function Leitura({ def, registro }: { def: DefinicaoDoTipo; registro: Record<str
   return (
     <Cartao>
       {preenchidos.length === 0 ? (
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           Sem mais detalhes cadastrados.
         </Texto>
       ) : (
         preenchidos.map((c) => (
-          <View key={c.campo} style={{ gap: ESPACO.x1 }}>
+          <View key={c.campo} style={{ gap: ESPACO.e4 }}>
             <Texto variante="rotulo" cor="textoSuave">
               {c.rotulo.toUpperCase()}
             </Texto>
@@ -288,7 +288,7 @@ function Edicao({
       <Botao
         titulo="Excluir"
         icone="excluir"
-        variante="perigo"
+        variante="destrutivo"
         carregando={excluir.isPending}
         rotuloAcessivel={`Excluir ${nome}`}
         aoPressionar={() => void pedirExclusao()}
@@ -333,7 +333,7 @@ function QuemToca({
         <AvisoDeErro erro={musicos.error} aoTentarDeNovo={() => void musicos.refetch()} />
       ) : musicos.data.length === 0 ? (
         <>
-          <Texto variante="apoio" cor="textoSuave">
+          <Texto variante="legenda" cor="textoSuave">
             Cadastre os músicos da comunidade para marcar quem toca.
           </Texto>
           <Botao

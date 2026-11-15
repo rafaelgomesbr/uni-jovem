@@ -1,4 +1,4 @@
-import { ESPACO } from '@uj/tokens'
+import { ESPACO, TIPO } from '@uj/tokens'
 import { View } from 'react-native'
 
 import { Icone } from '@/ui/Icone'
@@ -19,8 +19,10 @@ export function RegrasDaSenha({ senha, nome, email }: PropsDasRegras) {
   const regras = avaliarSenha(senha, { nome, email })
   return (
     // Sem rótulo no contêiner (View sem papel não tem nome): o título visível abre a lista.
-    <View style={{ gap: ESPACO.x1 }}>
-      <Texto variante="corpoForte">Sua senha precisa ter:</Texto>
+    <View style={{ gap: ESPACO.e4 }}>
+      <Texto variante="rotulo" cor="textoSuave">
+        Sua senha precisa ter:
+      </Texto>
       {regras.map((regra) => {
         const ok = regra.atendida === true
         const situacao =
@@ -30,14 +32,18 @@ export function RegrasDaSenha({ senha, nome, email }: PropsDasRegras) {
             key={regra.id}
             accessible
             accessibilityLabel={`${regra.texto}: ${situacao}`}
-            style={{ flexDirection: 'row', gap: ESPACO.x2, alignItems: 'flex-start' }}
+            style={{ flexDirection: 'row', gap: ESPACO.e8, alignItems: 'flex-start' }}
           >
-            <Icone
-              nome={regra.atendida === null ? 'info' : ok ? 'confirmado' : 'info'}
-              cor={ok ? cores.sucesso : cores.textoSuave}
-              tamanho={18}
-            />
-            <Texto variante="apoio" cor={ok ? 'texto' : 'textoSuave'} style={{ flex: 1 }}>
+            {/* Checklist (3.1.2): ícone e texto por regra; o check é o sinal além da cor. */}
+            <View style={{ height: TIPO.corpo.altura, justifyContent: 'center' }}>
+              <Icone
+                nome={ok ? 'check' : 'pendente'}
+                cor={ok ? cores.sucesso : cores.textoSuave}
+                tamanho={16}
+                peso="forte"
+              />
+            </View>
+            <Texto variante="corpo" cor={ok ? 'texto' : 'textoSuave'} style={{ flex: 1 }}>
               {regra.texto}
               {regra.atendida === true ? ' (ok)' : ''}
             </Texto>

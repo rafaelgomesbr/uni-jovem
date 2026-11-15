@@ -158,7 +158,7 @@ export function TelaNovaComunidade() {
           ]}
         />
         {quem === 'eu' ? (
-          <Texto variante="apoio" cor="textoSuave">
+          <Texto variante="legenda" cor="textoSuave">
             Logo depois de criar, você confirma a entrada com a sua conta ({conta.email}) e a
             comunidade já abre para você.
           </Texto>
@@ -176,7 +176,7 @@ export function TelaNovaComunidade() {
               autoCorrect={false}
               autoComplete="off"
             />
-            <Texto variante="apoio" cor="textoSuave">
+            <Texto variante="legenda" cor="textoSuave">
               Depois de criar, aparece o link do convite para copiar, compartilhar ou mostrar no QR.
               Ele vale 7 dias.
             </Texto>
@@ -193,7 +193,7 @@ export function TelaNovaComunidade() {
           <GrupoDeOpcoes rotulo="Fuso" valor={fuso} aoMudar={setFuso} opcoes={opcoesDeFuso()} />
         </Cartao>
       ) : (
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           Fuso: {nomeDoFuso(FUSO_PADRAO)}. Quem administrar ajusta em Equipe, Configurações.
         </Texto>
       )}
@@ -345,7 +345,7 @@ function EntrarNaNova({
       />
       <IdentidadeDaComunidade nome={pedido.nome} cor={pedido.cor} detalhe="Papel: Administrador" />
       <AceitarComConta token={token} comunidade={pedido.nome} papel="Administrador" />
-      <Texto variante="apoio" cor="textoSuave">
+      <Texto variante="legenda" cor="textoSuave">
         Prefere entrar depois? Guarde o link: ele vale 7 dias, só funciona com a sua conta e, por
         segurança, não aparece de novo.
       </Texto>
@@ -358,7 +358,7 @@ function EntrarNaNova({
           setCopiado(ok ? 'Link copiado.' : 'Não foi possível copiar agora.')
         }}
       />
-      {copiado ? <TextoAnunciado variante="apoio">{copiado}</TextoAnunciado> : null}
+      {copiado ? <TextoAnunciado variante="corpo">{copiado}</TextoAnunciado> : null}
     </TelaPropria>
   )
 }

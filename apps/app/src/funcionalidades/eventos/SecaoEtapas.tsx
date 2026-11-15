@@ -87,7 +87,7 @@ export function SecaoEtapas({ evento, comunidadeId }: Props) {
           }
         />
       ) : (
-        <View style={{ gap: ESPACO.x2 }}>
+        <View style={{ gap: ESPACO.e8 }}>
           {evento.etapas.map((etapa, i) => {
             const pessoas = pessoasDaEtapa(etapa.id)
             const horario = `${formatarHora(etapa.inicioPrevisto, evento.fuso)} a ${formatarHora(etapa.fimPrevisto, evento.fuso)}`
@@ -96,11 +96,11 @@ export function SecaoEtapas({ evento, comunidadeId }: Props) {
               <View
                 key={etapa.id}
                 style={{
-                  gap: ESPACO.x2,
-                  padding: ESPACO.x3,
-                  borderRadius: RAIO.medio,
+                  gap: ESPACO.e8,
+                  padding: ESPACO.e12,
+                  borderRadius: RAIO.controle,
                   borderWidth: 1,
-                  borderColor: cores.borda,
+                  borderColor: cores.campoBorda,
                 }}
               >
                 <View
@@ -111,13 +111,13 @@ export function SecaoEtapas({ evento, comunidadeId }: Props) {
                   <Texto variante="rotulo" cor="textoSuave">
                     {i + 1}. {horario} · {formatarDuracao(etapa.duracaoMin)}
                   </Texto>
-                  <Texto variante="corpoForte">{etapa.titulo}</Texto>
+                  <Texto variante="tituloItem">{etapa.titulo}</Texto>
                   {etapa.descricao ? (
-                    <Texto variante="apoio" cor="textoSuave">
+                    <Texto variante="legenda" cor="textoSuave">
                       {etapa.descricao}
                     </Texto>
                   ) : null}
-                  <Texto variante="apoio" cor="textoSuave">
+                  <Texto variante="legenda" cor="textoSuave">
                     {quem ? `Com: ${quem}` : 'Ninguém escalado'}
                   </Texto>
                 </View>
@@ -127,7 +127,7 @@ export function SecaoEtapas({ evento, comunidadeId }: Props) {
                       flexDirection: 'row',
                       flexWrap: 'wrap',
                       alignItems: 'center',
-                      gap: ESPACO.x2,
+                      gap: ESPACO.e8,
                     }}
                   >
                     <BotoesDeOrdem
@@ -159,7 +159,7 @@ export function SecaoEtapas({ evento, comunidadeId }: Props) {
       )}
       {reordenar.error ? <AvisoDeErro erro={reordenar.error} /> : null}
       {evento.etapas.length > 0 ? (
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           Total das etapas: {formatarDuracao(total)}. Duração prevista do evento:{' '}
           {formatarDuracao(evento.duracaoMin)}.
         </Texto>

@@ -107,14 +107,14 @@ export function TelaCheckin() {
   const pode = usePode()
   if (!comunidadeAtiva || !eventoId) {
     return (
-      <Tela cabecalhoNativo>
+      <Tela pilha>
         <SemComunidade oQue="o check-in" />
       </Tela>
     )
   }
   if (!pode('presenca', 'registrar')) {
     return (
-      <Tela cabecalhoNativo titulo="Check-in">
+      <Tela pilha titulo="Check-in">
         <Aviso tipo="info" titulo="Só a organização registra presença">
           Na entrada, mostre o seu código para quem está fazendo o check-in.
         </Aviso>
@@ -181,10 +181,10 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
   const erro = marcar.error ?? desfazer.error ?? marcarLocal.error
 
   return (
-    <Tela cabecalhoNativo titulo="Check-in">
+    <Tela pilha titulo="Check-in">
       {/* Contador grande com algarismos tabulares: o número não "dança" ao mudar. */}
       <Cartao titulo="Presenças">
-        <TextoAnunciado soMudancas variante="tituloGrande" tabular accessibilityRole="text">
+        <TextoAnunciado soMudancas variante="display" tabular accessibilityRole="text">
           {presentes === 1 ? '1 presença registrada' : `${presentes} presenças registradas`}
         </TextoAnunciado>
       </Cartao>
@@ -264,9 +264,9 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
             }
           />
         ) : (usarLocal || lista.data) && visiveis.length > 0 ? (
-          <View style={{ gap: ESPACO.x2 }}>
+          <View style={{ gap: ESPACO.e8 }}>
             {!busca.trim() && filtradas.length > MAXIMO_SEM_BUSCA ? (
-              <Texto variante="apoio" cor="textoSuave">
+              <Texto variante="legenda" cor="textoSuave">
                 Mostrando {MAXIMO_SEM_BUSCA} de {filtradas.length}. Busque pelo nome para achar as
                 demais.
               </Texto>
@@ -280,16 +280,16 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
                     flexDirection: 'row',
                     flexWrap: 'wrap',
                     alignItems: 'center',
-                    gap: ESPACO.x3,
-                    paddingVertical: ESPACO.x3,
+                    gap: ESPACO.e12,
+                    paddingVertical: ESPACO.e12,
                     borderTopWidth: StyleSheet.hairlineWidth,
-                    borderTopColor: cores.cartaoVidroBorda,
+                    borderTopColor: cores.superficieBorda,
                   }}
                 >
-                  <Avatar nome={p.nome} tamanho="M" decorativo />
+                  <Avatar nome={p.nome} tamanho="linha" decorativo />
                   <View style={{ flex: 1, minWidth: 160, gap: 2 }}>
-                    <Texto variante="corpoForte">{p.nome}</Texto>
-                    <Texto variante="apoio" cor="textoSuave">
+                    <Texto variante="tituloItem">{p.nome}</Texto>
+                    <Texto variante="legenda" cor="textoSuave">
                       {p.detalhe}
                     </Texto>
                     {p.presente ? <Selo texto="Presente" cor="sucesso" /> : null}
@@ -339,7 +339,7 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
       </Cartao>
 
       <Cartao titulo="Chegou sem inscrição" icone="adicionar">
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           Para visitantes sem inscrição e sem conta: registre só o nome.
         </Texto>
         <Campo

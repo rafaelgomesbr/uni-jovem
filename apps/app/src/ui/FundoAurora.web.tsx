@@ -1,14 +1,9 @@
-import { AURORA } from '@uj/tokens'
-
-import { usePreferenciasDeAcessibilidade } from './acessibilidade'
-import { gradienteDaAurora } from './FundoAurora'
-import { useTema } from './tema'
+import { useGeometriaDaAurora, type PropsDaAurora } from './FundoAurora'
 
 /** Web: as mesmas auroras em CSS puro (o react-native-web não desenha `backgroundImage`). */
-export function FundoAurora() {
-  const { cores } = useTema()
-  const { aumentarContraste } = usePreferenciasDeAcessibilidade()
-  if (aumentarContraste) return null
+export function FundoAurora({ intensidade = 1 }: PropsDaAurora) {
+  const g = useGeometriaDaAurora(intensidade)
+  if (!g) return null
   return (
     <div
       aria-hidden="true"
@@ -17,23 +12,23 @@ export function FundoAurora() {
       <div
         style={{
           position: 'absolute',
-          top: AURORA.coral.topo,
-          right: AURORA.coral.direita,
-          width: AURORA.coral.lado,
-          height: AURORA.coral.lado,
+          top: g.coral.top,
+          right: g.coral.right,
+          width: g.coral.lado,
+          height: g.coral.lado,
           borderRadius: '50%',
-          background: gradienteDaAurora(cores.auroraCoral),
+          background: g.coral.fundo,
         }}
       />
       <div
         style={{
           position: 'absolute',
-          top: AURORA.violeta.topo,
-          left: AURORA.violeta.esquerda,
-          width: AURORA.violeta.lado,
-          height: AURORA.violeta.lado,
+          top: g.violeta.top,
+          left: g.violeta.left,
+          width: g.violeta.lado,
+          height: g.violeta.lado,
           borderRadius: '50%',
-          background: gradienteDaAurora(cores.auroraVioleta),
+          background: g.violeta.fundo,
         }}
       />
     </div>

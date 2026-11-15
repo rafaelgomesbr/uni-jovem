@@ -34,7 +34,7 @@ export function BarraDeProgresso({ fracao, rotulo, cor = 'destaque', altura = 8 
         height: altura,
         borderRadius: RAIO.pilula,
         borderWidth: 1,
-        borderColor: aumentarContraste ? cores.texto : cores.borda,
+        borderColor: aumentarContraste ? cores.texto : cores.campoBorda,
         backgroundColor: cores.superficieElevada,
         overflow: 'hidden',
         alignSelf: 'stretch',

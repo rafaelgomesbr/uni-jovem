@@ -32,21 +32,21 @@ export function TelaDuplicar() {
   const evento = useEvento(comunidadeAtiva?.id ?? null, eventoId)
   if (!comunidadeAtiva || !eventoId) {
     return (
-      <Tela cabecalhoNativo>
+      <Tela pilha>
         <SemComunidade oQue="a programação" />
       </Tela>
     )
   }
   if (evento.isPending) {
     return (
-      <Tela cabecalhoNativo>
+      <Tela pilha>
         <Carregando />
       </Tela>
     )
   }
   if (evento.error) {
     return (
-      <Tela cabecalhoNativo>
+      <Tela pilha>
         <AvisoDeErro erro={evento.error} aoTentarDeNovo={() => void evento.refetch()} />
       </Tela>
     )
@@ -89,9 +89,9 @@ function Duplicar(p: {
   })
 
   return (
-    <Tela cabecalhoNativo titulo="Duplicar" descricao={p.titulo}>
+    <Tela pilha titulo="Duplicar" descricao={p.titulo}>
       <Cartao>
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           A cópia nasce como rascunho, com as mesmas etapas, checklist, tarefas e materiais. Escalas
           e inscrições não são copiadas.
         </Texto>

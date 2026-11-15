@@ -72,21 +72,21 @@ export function LinhaDoEvento({ evento, fuso, aoPressionar, selecionado, soHora 
         minHeight: ALVO,
         flexDirection: 'row',
         alignItems: 'center',
-        gap: ESPACO.x3,
-        padding: ESPACO.x4,
-        borderRadius: RAIO.grande - 4,
+        gap: ESPACO.e12,
+        padding: ESPACO.e16,
+        borderRadius: RAIO.cartao - 4,
         borderWidth: selecionado ? 2 : aumentarContraste ? 2 : 1,
         borderColor: selecionado
           ? cores.destaque
           : aumentarContraste
             ? cores.texto
-            : cores.cartaoVidroBorda,
-        backgroundColor: selecionado || pressed ? cores.superficieRealce : cores.cartaoVidro,
+            : cores.superficieBorda,
+        backgroundColor: selecionado || pressed ? cores.pressionado : cores.superficieTranslucida,
       })}
     >
-      <View style={{ flex: 1, gap: ESPACO.x1 }}>
-        <Texto variante="corpoForte">{evento.titulo}</Texto>
-        <Texto variante="apoio" cor="textoSuave">
+      <View style={{ flex: 1, gap: ESPACO.e4 }}>
+        <Texto variante="tituloItem">{evento.titulo}</Texto>
+        <Texto variante="legenda" cor="textoSuave">
           {detalhes.join(' · ')}
         </Texto>
         {evento.status !== 'publicado' ? (

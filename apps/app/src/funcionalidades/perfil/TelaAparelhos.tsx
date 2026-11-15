@@ -46,7 +46,7 @@ export function TelaAparelhos() {
 
   return (
     <Tela
-      cabecalhoNativo
+      pilha
       titulo="Aparelhos conectados"
       descricao="Se algum aparelho não for seu, desconecte e troque a senha."
     >
@@ -62,7 +62,7 @@ export function TelaAparelhos() {
             descricao="Nenhuma sessão aberta além desta."
           />
         ) : (
-          <View style={{ gap: ESPACO.x2 }}>
+          <View style={{ gap: ESPACO.e8 }}>
             {revogar.error ? <AvisoDeErro erro={revogar.error} /> : null}
             {aparelhos.data.map((aparelho) => (
               <Linha
@@ -76,7 +76,7 @@ export function TelaAparelhos() {
                   ) : (
                     <Botao
                       titulo="Desconectar"
-                      variante="perigo"
+                      variante="destrutivo"
                       larguraTotal={false}
                       rotuloAcessivel={`Desconectar ${nome(aparelho)}`}
                       carregando={revogar.isPending && revogar.variables?.id === aparelho.id}

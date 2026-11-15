@@ -58,7 +58,7 @@ export function TelaProgramacoes() {
   const { comunidadeAtiva } = useSessao()
   if (!comunidadeAtiva) {
     return (
-      <TelaDoApp titulo="Programações">
+      <TelaDoApp titulo="Programas">
         <SemComunidade oQue="as programações" />
       </TelaDoApp>
     )
@@ -97,7 +97,7 @@ function Programacoes({ comunidadeId }: { comunidadeId: string }) {
   const lista = (
     <>
       {podeCriar ? (
-        <View style={{ gap: ESPACO.x2 }}>
+        <View style={{ gap: ESPACO.e8 }}>
           <Botao
             titulo="Nova programação"
             icone="adicionar"
@@ -114,7 +114,7 @@ function Programacoes({ comunidadeId }: { comunidadeId: string }) {
           />
         </View>
       ) : null}
-      <View style={{ gap: ESPACO.x3 }}>
+      <View style={{ gap: ESPACO.e12 }}>
         <Segmentos
           rotulo="Período"
           valor={periodo}
@@ -193,8 +193,8 @@ function Programacoes({ comunidadeId }: { comunidadeId: string }) {
           />
         </Cartao>
       ) : (
-        <View style={{ gap: ESPACO.x2 }}>
-          <TextoAnunciado soMudancas variante="apoio" cor="textoSuave">
+        <View style={{ gap: ESPACO.e8 }}>
+          <TextoAnunciado soMudancas variante="legenda" cor="textoSuave">
             {filtrados.length === 1 ? '1 programação' : `${filtrados.length} programações`}
           </TextoAnunciado>
           {filtrados.map((e) => (
@@ -211,10 +211,10 @@ function Programacoes({ comunidadeId }: { comunidadeId: string }) {
     </>
   )
 
-  if (!largo) return <TelaDoApp titulo="Programações">{lista}</TelaDoApp>
+  if (!largo) return <TelaDoApp titulo="Programas">{lista}</TelaDoApp>
 
   return (
-    <TelaDoApp titulo="Programações" rolar={false} larga>
+    <TelaDoApp titulo="Programas" rolar={false} larga>
       <LayoutDividido
         rotuloDoDetalhe="Programação escolhida"
         lista={lista}

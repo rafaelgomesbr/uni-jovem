@@ -29,9 +29,9 @@ export function SeletorDeCor({
   const { cores } = useTema()
   const propsDaOpcao = useSetasDoGrupo(CORES_DA_COMUNIDADE, valor, aoMudar)
   return (
-    <View accessibilityRole="radiogroup" aria-label="Cor da comunidade" style={{ gap: ESPACO.x2 }}>
-      <Texto variante="corpoForte">Cor da comunidade</Texto>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>
+    <View accessibilityRole="radiogroup" aria-label="Cor da comunidade" style={{ gap: ESPACO.e8 }}>
+      <Texto variante="tituloItem">Cor da comunidade</Texto>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
         {CORES_DA_COMUNIDADE.map((c) => {
           const marcada = c.valor === valor
           return (
@@ -46,13 +46,13 @@ export function SeletorDeCor({
                 minHeight: ALVO,
                 flexDirection: 'row',
                 alignItems: 'center',
-                gap: ESPACO.x2,
-                paddingLeft: ESPACO.x2,
-                paddingRight: ESPACO.x4,
+                gap: ESPACO.e8,
+                paddingLeft: ESPACO.e8,
+                paddingRight: ESPACO.e16,
                 borderRadius: RAIO.pilula,
                 borderWidth: marcada ? 2 : 1,
-                borderColor: marcada ? cores.destaque : cores.borda,
-                backgroundColor: marcada || pressed ? cores.superficieRealce : cores.superficie,
+                borderColor: marcada ? cores.destaque : cores.campoBorda,
+                backgroundColor: marcada || pressed ? cores.pressionado : cores.superficie,
               })}
             >
               <View
@@ -67,7 +67,7 @@ export function SeletorDeCor({
               >
                 {marcada ? <Icone nome="confirmado" cor={corSobre(c.valor)} tamanho={18} /> : null}
               </View>
-              <Texto variante="corpoForte">{c.rotulo}</Texto>
+              <Texto variante="tituloItem">{c.rotulo}</Texto>
             </Pressable>
           )
         })}

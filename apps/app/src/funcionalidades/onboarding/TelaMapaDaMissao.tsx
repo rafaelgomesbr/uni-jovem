@@ -31,7 +31,7 @@ export function TelaMapaDaMissao() {
 
   if (!progresso) {
     return (
-      <Tela cabecalhoNativo>
+      <Tela pilha>
         <Carregando texto="Abrindo o mapa" />
       </Tela>
     )
@@ -82,7 +82,7 @@ function Mapa({
 
   if (concluido) {
     return (
-      <Tela cabecalhoNativo titulo="Mapa da missão">
+      <Tela pilha titulo="Mapa da missão">
         <Celebracao />
         <Cartao titulo="Para deixar tudo pronto" icone="tarefas">
           <MissoesDeConfiguracao />
@@ -90,7 +90,7 @@ function Mapa({
         <Botao titulo="Ir para o Início" aoPressionar={() => router.replace('/')} />
         <Botao
           titulo="Rever o mapa"
-          variante="discreto"
+          variante="terciario"
           aoPressionar={() => {
             setConcluido(false)
             setAtual(0)
@@ -102,7 +102,7 @@ function Mapa({
 
   return (
     <Tela
-      cabecalhoNativo
+      pilha
       titulo="Mapa da missão"
       descricao={`Etapa ${atual + 1} de ${etapas.length}. Sem pontos nem ranking: é só para conhecer o app.`}
     >
@@ -122,9 +122,9 @@ function Mapa({
         ))}
       </Cartao>
       <Cartao>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.x2 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}>
           <Icone nome="missao" cor={cores.destaque} />
-          <Texto variante="subtitulo" accessibilityRole="header" style={{ flex: 1 }}>
+          <Texto variante="tituloItem" accessibilityRole="header" style={{ flex: 1 }}>
             {etapa.titulo}
           </Texto>
         </View>
@@ -155,7 +155,7 @@ function Mapa({
       />
       <Botao
         titulo="Pular o mapa"
-        variante="discreto"
+        variante="terciario"
         dica="Dá para rever quando quiser, no Perfil."
         aoPressionar={() => {
           salvar({ ...progresso, estado: 'pulado', etapa: 0 })
@@ -182,7 +182,7 @@ export function Celebracao() {
     }
     const animacao = Animated.timing(escala, {
       toValue: 1,
-      duration: DURACAO.lenta,
+      duration: DURACAO.aparecer,
       useNativeDriver: true,
     })
     animacao.start()
@@ -191,10 +191,10 @@ export function Celebracao() {
   return (
     <Cartao>
       <Animated.View
-        style={{ alignItems: 'center', gap: ESPACO.x2, transform: [{ scale: escala }] }}
+        style={{ alignItems: 'center', gap: ESPACO.e8, transform: [{ scale: escala }] }}
       >
         <Icone nome="celebrar" cor={cores.destaque} tamanho={40} />
-        <Texto variante="subtitulo" centralizado accessibilityRole="header">
+        <Texto variante="tituloItem" centralizado accessibilityRole="header">
           Mapa concluído
         </Texto>
         <Texto centralizado>Você já conhece o caminho. Quando quiser rever, está no Perfil.</Texto>

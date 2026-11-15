@@ -76,9 +76,9 @@ function Lista({ comunidadeId, gerencia }: { comunidadeId: string; gerencia: boo
       </Cartao>
       <Cartao titulo="Do app" icone="modelo">
         {embutidos.map((m) => (
-          <View key={m.chave} style={{ gap: ESPACO.x1 }}>
-            <Texto variante="corpoForte">{m.nome}</Texto>
-            <Texto variante="apoio" cor="textoSuave">
+          <View key={m.chave} style={{ gap: ESPACO.e4 }}>
+            <Texto variante="tituloItem">{m.nome}</Texto>
+            <Texto variante="legenda" cor="textoSuave">
               {resumo(m.etapas)}. Já vem com o app e não pode ser apagado.
             </Texto>
           </View>
@@ -114,9 +114,9 @@ function ModeloDaLista({
   }
 
   return (
-    <View style={{ gap: ESPACO.x1 }}>
-      <Texto variante="corpoForte">{modelo.nome}</Texto>
-      <Texto variante="apoio" cor="textoSuave">
+    <View style={{ gap: ESPACO.e4 }}>
+      <Texto variante="tituloItem">{modelo.nome}</Texto>
+      <Texto variante="legenda" cor="textoSuave">
         {[modelo.categoria, resumo(modelo.etapas)].join(' · ')}
       </Texto>
       {apagar.error ? <AvisoDeErro erro={apagar.error} /> : null}
@@ -124,7 +124,7 @@ function ModeloDaLista({
         <Botao
           titulo="Apagar"
           icone="excluir"
-          variante="discreto"
+          variante="terciario"
           larguraTotal={false}
           rotuloAcessivel={`Apagar o modelo ${modelo.nome}`}
           carregando={apagar.isPending}

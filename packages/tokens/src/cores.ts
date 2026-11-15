@@ -1,213 +1,199 @@
 /**
  * Cores do Uni Jovem, direção visual A "Aurora" (noite e nascer do sol).
- * Decisão D15 (provisória até o dono escolher entre A, B e C): trocar de
- * direção é trocar ESTES valores; as telas usam só os nomes semânticos.
+ * Valores da seção 2.2 da especificação de design (`docs/design`): (M) copiado
+ * do mockup aprovado, (D) derivado dele. As telas usam só os nomes semânticos.
  *
- * Regras: todo par texto/fundo declarado em PARES_OBRIGATORIOS passa AA
+ * Regras: todo par texto/fundo declarado em `paresObrigatorios` passa AA
  * (teste `contraste.test.ts`); cor nunca é o único sinal (ícone ou texto junto).
  */
 
 export interface Paleta {
+  /** Fundo da tela. */
   fundo: string
+  /** Cartão de vidro opaco (escuro: branco a 7% composto sobre o fundo). */
   superficie: string
-  superficieElevada: string
-  texto: string
-  textoSuave: string
-  /** Contorno de controles (campos, botão secundário): passa 3:1 sobre a superfície. */
-  borda: string
   /**
-   * Contorno de cartões e separadores de lista. Decorativo: o cartão se distingue
-   * pela superfície e pela sombra; com "Aumentar contraste", vira `texto`.
+   * Cartão de vidro translúcido (D32: tinta do mockup, sem desfoque). Com
+   * "Reduzir transparência" ou "Aumentar contraste", o cartão usa `superficie`.
    */
-  bordaSuave: string
-  /** Fundo de realce: item tocado, item escolhido, moldura de ícone. Texto passa AA sobre ele. */
-  superficieRealce: string
-  primaria: string
-  sobrePrimaria: string
-  /** Texto e ícones em destaque sobre o fundo (links, rótulos de seção). */
+  superficieTranslucida: string
+  /** Borda do cartão de vidro (decorativa). */
+  superficieBorda: string
+  /** Folha, diálogo e menu (fallback opaco). */
+  superficieElevada: string
+  /** Caixa do campo: mais funda que o cartão, para o campo existir sem depender da borda. */
+  campoFundo: string
+  /** Borda do campo (3:1 contra o cartão e contra o próprio fundo do campo). */
+  campoBorda: string
+  texto: string
+  /** Meta, ajuda, rótulo de campo, aba inativa (sempre 4,5:1 ou mais). */
+  textoSuave: string
+  /** Sobrancelha, link, aba ativa, botão terciário. */
   destaque: string
-  secundaria: string
-  sobreSecundaria: string
+  /** Botão primário, check, interruptor ligado. */
+  primaria: string
+  primariaPressionada: string
+  sobrePrimaria: string
+  /** Borda do botão secundário. */
+  contorno: string
+  /** Fundo da pílula da comunidade, do botão só ícone e do trilho de segmentos. */
+  tonal: string
+  /** Tonal com "Reduzir transparência". */
+  tonalOpaco: string
+  /** Borda da pílula e da pílula de filtro inativa. */
+  tonalBorda: string
+  /** Camada de toque em linhas e secundários. */
+  pressionado: string
+  /** Linha entre itens de lista (decorativa). */
+  separador: string
+  esqueleto: string
+  /** Atrás de diálogos (web). */
+  veu: string
   sucesso: string
+  sucessoFundo: string
   alerta: string
+  alertaFundo: string
   erro: string
+  erroFundo: string
+  /** Botão destrutivo cheio. */
+  erroCheio: string
+  sobreErro: string
+  info: string
+  infoFundo: string
+  /** Chip quente (local, "Ao vivo", "Fixado") e pílula de filtro ativa. */
+  quenteFundo: string
+  /** Chip neutro ("Rascunho", "Anônima"). */
+  neutroFundo: string
+  /** Anel de foco. */
   foco: string
-  /** Vidro: fundo translúcido e borda; com "Reduzir transparência", usa `superficieElevada`. */
-  vidroFundo: string
-  vidroBorda: string
-  /** Cartão de conteúdo translúcido (mockup Aurora); com "Reduzir transparência", `superficie`. */
-  cartaoVidro: string
-  cartaoVidroBorda: string
-  /** Contorno do botão secundário. O rótulo identifica o botão; o contorno só desenha. */
-  contornoSecundario: string
-  /** Chip em pílula (local, categoria): fundo e texto. */
-  chipFundo: string
-  chipTexto: string
   /** Pílula por trás do item ativo da barra de abas. */
-  abaAtiva: string
-  /** As duas auroras do fundo: coral (nascer do sol) e violeta (noite). */
-  auroraCoral: string
-  auroraVioleta: string
+  abaAtivaFundo: string
 }
 
+export type NomeDoTema = 'escuro' | 'claro'
+
+/** Tema escuro (Aurora noite). */
 export const ESCURO: Paleta = {
   fundo: '#12102A',
-  superficie: '#1C1940',
-  superficieElevada: '#25214F',
+  superficie: '#232139',
+  superficieTranslucida: 'rgba(255,255,255,0.07)',
+  superficieBorda: 'rgba(255,255,255,0.14)',
+  superficieElevada: '#2B2848',
+  campoFundo: '#1A1833',
+  campoBorda: '#736DA8',
   texto: '#F5F3FF',
   textoSuave: '#C9C4EC',
-  borda: '#7A73B8',
-  bordaSuave: '#332E66',
-  superficieRealce: '#2C2862',
-  primaria: '#FF8A65',
-  sobrePrimaria: '#1A0F0A',
   destaque: '#FFB199',
-  secundaria: '#9D8FFF',
-  sobreSecundaria: '#12102A',
+  primaria: '#FF8A65',
+  primariaPressionada: '#F0764F',
+  sobrePrimaria: '#1A0F0A',
+  // Mockup: 30%; 36% para a borda do secundário passar 3:1 contra o cartão (1.11, item 4).
+  contorno: 'rgba(255,255,255,0.36)',
+  tonal: 'rgba(255,255,255,0.08)',
+  tonalOpaco: '#25233B',
+  tonalBorda: 'rgba(255,255,255,0.18)',
+  pressionado: 'rgba(255,255,255,0.08)',
+  separador: 'rgba(255,255,255,0.08)',
+  esqueleto: 'rgba(255,255,255,0.06)',
+  veu: 'rgba(8,6,24,0.60)',
   sucesso: '#7FE0B0',
+  sucessoFundo: 'rgba(127,224,176,0.16)',
   alerta: '#FFD166',
+  alertaFundo: 'rgba(255,209,102,0.16)',
   erro: '#FF8A8A',
+  erroFundo: 'rgba(255,138,138,0.16)',
+  erroCheio: '#FF8A8A',
+  sobreErro: '#2A0A0A',
+  info: '#B3A8FF',
+  infoFundo: 'rgba(157,143,255,0.16)',
+  quenteFundo: 'rgba(255,177,153,0.16)',
+  neutroFundo: 'rgba(255,255,255,0.10)',
   foco: '#FFD166',
-  vidroFundo: 'rgba(30,27,62,0.72)',
-  vidroBorda: 'rgba(255,255,255,0.16)',
-  cartaoVidro: 'rgba(255,255,255,0.07)',
-  cartaoVidroBorda: 'rgba(255,255,255,0.14)',
-  contornoSecundario: 'rgba(255,255,255,0.3)',
-  chipFundo: 'rgba(255,138,101,0.2)',
-  chipTexto: '#FFB199',
-  abaAtiva: 'rgba(255,138,101,0.2)',
-  auroraCoral: 'rgba(255,138,101,0.55)',
-  auroraVioleta: 'rgba(124,108,255,0.45)',
+  abaAtivaFundo: 'rgba(255,138,101,0.20)',
 }
 
+/** Tema claro (Aurora manhã), derivado do escuro. */
 export const CLARO: Paleta = {
   fundo: '#F7F5FF',
   superficie: '#FFFFFF',
+  // No claro o cartão é branco opaco com sombra: não há tinta translúcida.
+  superficieTranslucida: '#FFFFFF',
+  superficieBorda: 'rgba(27,24,56,0.08)',
   superficieElevada: '#FFFFFF',
-  texto: '#1B1838',
-  textoSuave: '#4B4670',
-  borda: '#8F89B8',
-  bordaSuave: '#E3DFF4',
-  superficieRealce: '#EEEBFF',
-  primaria: '#B83E1A',
-  sobrePrimaria: '#FFFFFF',
-  destaque: '#A33713',
-  secundaria: '#4B3FC4',
-  sobreSecundaria: '#FFFFFF',
-  sucesso: '#16794B',
-  alerta: '#8A5A00',
-  erro: '#B42318',
-  foco: '#4B3FC4',
-  vidroFundo: 'rgba(255,255,255,0.78)',
-  vidroBorda: 'rgba(27,24,56,0.12)',
-  cartaoVidro: 'rgba(255,255,255,0.72)',
-  cartaoVidroBorda: 'rgba(27,24,56,0.08)',
-  contornoSecundario: 'rgba(27,24,56,0.3)',
-  chipFundo: '#FFE3D9',
-  chipTexto: '#8A2E12',
-  abaAtiva: 'rgba(255,138,101,0.2)',
-  auroraCoral: 'rgba(255,138,101,0.35)',
-  auroraVioleta: 'rgba(124,108,255,0.22)',
-}
-
-/**
- * Paleta do cartão de destaque (o item principal da tela, como o próximo
- * evento no Início). No tema escuro ele é CLARO (#F5F3FF, como no mockup); no
- * tema claro, o equivalente é o cartão de noite. Tudo que vai dentro dele
- * (texto, selo, botão) usa esta paleta pelo contexto de `useTema`.
- */
-export const DESTAQUE_NO_ESCURO: Paleta = {
-  ...CLARO,
-  fundo: '#F5F3FF',
-  superficie: '#F5F3FF',
-  superficieElevada: '#FFFFFF',
-  superficieRealce: '#EAE6FF',
+  campoFundo: '#FFFFFF',
+  campoBorda: '#857FAF',
   texto: '#1B1838',
   textoSuave: '#4B4670',
   destaque: '#8A2E12',
-  sucesso: '#136B42',
-  cartaoVidro: 'rgba(27,24,56,0.05)',
-  cartaoVidroBorda: 'rgba(27,24,56,0.1)',
+  primaria: '#C2491F',
+  primariaPressionada: '#A93D18',
+  sobrePrimaria: '#FFFFFF',
+  contorno: '#857FAF',
+  tonal: 'rgba(27,24,56,0.05)',
+  tonalOpaco: '#ECEAF5',
+  tonalBorda: 'rgba(27,24,56,0.12)',
+  pressionado: 'rgba(27,24,56,0.06)',
+  separador: 'rgba(27,24,56,0.08)',
+  esqueleto: '#ECE9F8',
+  veu: 'rgba(27,24,56,0.40)',
+  sucesso: '#16794B',
+  sucessoFundo: '#E3F4EA',
+  alerta: '#8A5A00',
+  alertaFundo: '#FFF1D6',
+  erro: '#B42318',
+  erroFundo: '#FDE4E1',
+  erroCheio: '#B42318',
+  sobreErro: '#FFFFFF',
+  info: '#4B3FC4',
+  infoFundo: '#ECEAFD',
+  quenteFundo: '#FFE3D9',
+  neutroFundo: '#EEEBFA',
+  foco: '#4B3FC4',
+  abaAtivaFundo: 'rgba(194,73,31,0.12)',
 }
 
-export const DESTAQUE_NO_CLARO: Paleta = {
+/**
+ * Inverso do escuro: o cartão de destaque claro e o toast. Os valores são os do
+ * mockup e, onde ele não define, os do tema claro.
+ */
+export const INVERSO_DO_ESCURO: Paleta = {
+  ...CLARO,
+  fundo: '#F5F3FF',
+  superficie: '#F5F3FF',
+  superficieTranslucida: '#F5F3FF',
+  texto: '#1B1838',
+  textoSuave: '#4B4670',
+  destaque: '#8A2E12',
+  quenteFundo: '#FFE3D9',
+  primaria: '#C2491F',
+  sobrePrimaria: '#FFFFFF',
+  contorno: '#857FAF',
+  separador: 'rgba(27,24,56,0.10)',
+}
+
+/** Inverso do claro: índigo profundo, "a noite dentro do dia". */
+export const INVERSO_DO_CLARO: Paleta = {
   ...ESCURO,
-  fundo: '#25214F',
-  superficie: '#25214F',
-  superficieElevada: '#2C2862',
-  superficieRealce: '#332E6E',
-  chipFundo: 'rgba(255,138,101,0.24)',
+  fundo: '#1F1B4D',
+  superficie: '#1F1B4D',
+  superficieTranslucida: '#1F1B4D',
+  texto: '#F5F3FF',
+  textoSuave: '#C9C4EC',
+  destaque: '#FFB199',
+  quenteFundo: 'rgba(255,177,153,0.18)',
+  primaria: '#FF8A65',
+  sobrePrimaria: '#1A0F0A',
+  contorno: 'rgba(255,255,255,0.36)',
+  separador: 'rgba(255,255,255,0.10)',
 }
 
-/** Pares que precisam passar no contraste, e o mínimo de cada um. */
-export const PARES_OBRIGATORIOS: readonly [keyof Paleta, keyof Paleta, 'texto' | 'interface'][] = [
-  ['texto', 'fundo', 'texto'],
-  ['texto', 'superficie', 'texto'],
-  ['texto', 'superficieElevada', 'texto'],
-  ['textoSuave', 'fundo', 'texto'],
-  ['textoSuave', 'superficie', 'texto'],
-  ['textoSuave', 'superficieElevada', 'texto'],
-  ['sobrePrimaria', 'primaria', 'texto'],
-  ['sobreSecundaria', 'secundaria', 'texto'],
-  ['destaque', 'fundo', 'texto'],
-  ['destaque', 'superficie', 'texto'],
-  ['sucesso', 'superficie', 'texto'],
-  ['alerta', 'superficie', 'texto'],
-  ['erro', 'superficie', 'texto'],
-  ['erro', 'fundo', 'texto'],
-  // Selos de situação também aparecem direto sobre o fundo (ao vivo, listas).
-  ['sucesso', 'fundo', 'texto'],
-  ['alerta', 'fundo', 'texto'],
-  ['destaque', 'superficieElevada', 'texto'],
-  ['primaria', 'fundo', 'interface'],
-  ['borda', 'superficie', 'interface'],
-  ['foco', 'fundo', 'interface'],
-  ['foco', 'superficie', 'interface'],
-  // Selos e avisos também aparecem sobre a superfície elevada (cabeçalho, folhas).
-  ['sucesso', 'superficieElevada', 'texto'],
-  ['alerta', 'superficieElevada', 'texto'],
-  ['erro', 'superficieElevada', 'texto'],
-  ['foco', 'superficieElevada', 'interface'],
-  // Contorno de campo direto sobre o fundo (formulários fora de cartão).
-  ['borda', 'fundo', 'interface'],
-  // Marca de confirmação na cor da superfície sobre o destaque (caixa marcada, avatar escolhido).
-  ['superficie', 'destaque', 'interface'],
-  // Ícones e contornos na cor primária sobre o cartão.
-  ['primaria', 'superficie', 'interface'],
-  // Aba aberta no Android: ícone na cor do fundo sobre a pílula em destaque.
-  ['fundo', 'destaque', 'interface'],
-  // Linguagem Aurora: botão primário, chip e o que vai sobre os cartões translúcidos
-  // (os pares com cor translúcida são compostos no teste, ver `PARES_TRANSLUCIDOS`).
-  // Realce (item tocado ou escolhido, moldura de ícone): o que vai por cima continua legível.
-  ['texto', 'superficieRealce', 'texto'],
-  ['textoSuave', 'superficieRealce', 'texto'],
-  ['destaque', 'superficieRealce', 'texto'],
-  ['erro', 'superficieRealce', 'texto'],
-  ['sucesso', 'superficieRealce', 'texto'],
-  // Ícone e contorno de chip com tom de alerta sobre o realce.
-  ['alerta', 'superficieRealce', 'interface'],
-  ['foco', 'superficieRealce', 'interface'],
-]
+/** Paleta base e inversa de cada tema. O inverso se aplica por `ProvedorDeTemaInverso`. */
+export const TEMAS: Readonly<Record<NomeDoTema, { base: Paleta; inverso: Paleta }>> = {
+  escuro: { base: ESCURO, inverso: INVERSO_DO_ESCURO },
+  claro: { base: CLARO, inverso: INVERSO_DO_CLARO },
+}
 
-/**
- * Texto sobre o vidro (cabeçalho, barra de abas): o vidro é translúcido, então
- * o teste compõe `vidroFundo` sobre cada superfície que pode passar por baixo.
- */
-export const FUNDOS_SOB_O_VIDRO: readonly (keyof Paleta)[] = [
-  'fundo',
-  'superficie',
-  'superficieRealce',
-]
-export const TEXTOS_SOBRE_O_VIDRO: readonly (keyof Paleta)[] = ['texto', 'textoSuave', 'destaque']
-
-/**
- * Seleção nunca é sinalizada só por `superficieElevada` contra `superficie`
- * (no claro as duas são brancas): item escolhido usa `superficieRealce` e
- * forma (contorno, barra, marca).
- */
-export const PROIBIDO_COMO_SINAL_DE_SELECAO: readonly (keyof Paleta)[] = ['superficieElevada']
-
-/** Cores que a comunidade pode ter (ícone por cima em `corSobre`). A primeira é a padrão. */
+/** Cores que a comunidade pode ter (iniciais e ícone por cima em branco). A primeira é a padrão. */
 export const CORES_DA_COMUNIDADE = [
   { valor: '#5B4BDB', rotulo: 'Índigo' },
   { valor: '#C2410C', rotulo: 'Coral' },
@@ -218,35 +204,40 @@ export const CORES_DA_COMUNIDADE = [
 ] as const
 
 /**
- * Pares cuja cor de fundo é translúcida: o teste compõe o fundo sobre `base`
- * (e a base, se também translúcida, sobre `fundo`) antes de medir.
+ * Botão "Continuar com o Google": cores fixas da marca (não seguem o tema),
+ * como pede a diretriz do Google para o botão sobre fundo escuro.
  */
-export const PARES_TRANSLUCIDOS: readonly {
-  frente: keyof Paleta
-  fundo: keyof Paleta
-  base: keyof Paleta
-  tipo: 'texto' | 'interface'
-}[] = [
-  { frente: 'texto', fundo: 'cartaoVidro', base: 'fundo', tipo: 'texto' },
-  { frente: 'textoSuave', fundo: 'cartaoVidro', base: 'fundo', tipo: 'texto' },
-  { frente: 'destaque', fundo: 'cartaoVidro', base: 'fundo', tipo: 'texto' },
-  { frente: 'sucesso', fundo: 'cartaoVidro', base: 'fundo', tipo: 'texto' },
-  { frente: 'erro', fundo: 'cartaoVidro', base: 'fundo', tipo: 'texto' },
-  { frente: 'alerta', fundo: 'cartaoVidro', base: 'fundo', tipo: 'texto' },
-  { frente: 'chipTexto', fundo: 'chipFundo', base: 'fundo', tipo: 'texto' },
-  { frente: 'textoSuave', fundo: 'vidroFundo', base: 'fundo', tipo: 'texto' },
-  { frente: 'destaque', fundo: 'abaAtiva', base: 'vidroFundo', tipo: 'texto' },
-]
+export const MARCA_DO_GOOGLE = {
+  fundo: '#FFFFFF',
+  texto: '#1F1F1F',
+  borda: '#747775',
+  pressionado: '#F2F2F2',
+  textoInativo: '#767676',
+} as const
+
+/** Iniciais sobre as cores de comunidade e de pessoa: sempre branco (todas passam 4,5:1). */
+export const INICIAIS_SOBRE_COR = '#FFFFFF'
 
 /**
- * Geometria das auroras (mockup, artboard de 390 pt): o gradiente vai de
- * `aurora*` no centro a 0 em 70% do raio. A coral fica no canto superior
- * direito, atrás só do cabeçalho; o primeiro cartão começa onde ela já caiu
- * para no máximo `ALFA_DA_AURORA_SOB_CARTOES` do valor de pico.
+ * Vidro: só no que flutua (barra de abas, cabeçalho compacto, barra de ação,
+ * folha). Com "Reduzir transparência" vira `opaco` com a mesma borda; com
+ * "Aumentar contraste", opaco com borda de 2 na cor do texto.
  */
-export const AURORA = {
-  coral: { lado: 380, topo: -140, direita: -120 },
-  violeta: { lado: 360, topo: 120, esquerda: -160 },
-  paradaFinal: 0.7,
+export const VIDRO = {
+  barra: {
+    escuro: { fundo: 'rgba(30,27,62,0.86)', borda: 'rgba(255,255,255,0.16)', opaco: '#1E1B3E' },
+    claro: { fundo: 'rgba(255,255,255,0.80)', borda: 'rgba(27,24,56,0.10)', opaco: '#FFFFFF' },
+    desfoque: 20,
+  },
+  folha: {
+    escuro: { fundo: 'rgba(43,40,72,0.92)', borda: 'rgba(255,255,255,0.16)', opaco: '#2B2848' },
+    claro: { fundo: 'rgba(255,255,255,0.92)', borda: 'rgba(27,24,56,0.10)', opaco: '#FFFFFF' },
+    desfoque: 30,
+  },
+  /**
+   * Cartões de conteúdo: tinta translúcida do mockup (D32). O que tem fundo
+   * próprio dentro dele (chip, aviso, botão secundário) é composto sobre a
+   * superfície opaca, para o contraste não depender do ponto da Aurora.
+   */
+  conteudo: 'translucido',
 } as const
-export const ALFA_DA_AURORA_SOB_CARTOES = 0.55

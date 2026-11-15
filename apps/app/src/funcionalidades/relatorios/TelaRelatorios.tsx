@@ -190,7 +190,7 @@ function Inscricoes({ comunidadeId, filtros, fuso }: PropsDoRelatorio & { fuso: 
         <Numero rotulo="na lista de espera" valor={totais.espera} />
         <Numero rotulo="presentes sem inscrição" valor={totais.presentesSemInscricao} />
       </GradeDeNumeros>
-      <Texto variante="apoio" cor="textoSuave">
+      <Texto variante="legenda" cor="textoSuave">
         Faltas e comparecimento só contam eventos que já aconteceram.
       </Texto>
       <Cartao>
@@ -233,7 +233,7 @@ function Escalas({ comunidadeId, filtros }: PropsDoRelatorio) {
           }))}
         />
       </Cartao>
-      <Texto variante="apoio" cor="textoSuave">
+      <Texto variante="legenda" cor="textoSuave">
         Os números mostram participação, não desempenho: não há ranking entre pessoas.
       </Texto>
     </>

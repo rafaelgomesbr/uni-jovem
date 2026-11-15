@@ -14,6 +14,7 @@ import { useOpcoesDaPilha } from '@/funcionalidades/navegacao/opcoesDaPilha'
 import { ProvedorOffline } from '@/funcionalidades/offline/ProvedorOffline'
 import { ARQUIVOS_DE_FONTE } from '@/ui/fontes'
 import { Tela } from '@/ui/Tela'
+import { HospedeiroDeToast } from '@/ui/Toast'
 import { useTema } from '@/ui/tema'
 
 // A abertura fica na tela até as fontes carregarem e a sessão salva ser conferida.
@@ -59,7 +60,7 @@ function Navegacao({ fontesProntas }: { fontesProntas: boolean }) {
       background: cores.fundo,
       card: cores.superficie,
       text: cores.texto,
-      border: cores.borda,
+      border: cores.separador,
       notification: cores.primaria,
     },
   }
@@ -86,9 +87,12 @@ function Navegacao({ fontesProntas }: { fontesProntas: boolean }) {
         <Stack.Screen name="redefinir-senha" options={{ title: 'Senha nova' }} />
         <Stack.Screen name="primeiro-acesso" options={{ title: 'Primeiro acesso' }} />
         <Stack.Screen name="+not-found" options={{ title: 'Não encontrado' }} />
+        <Stack.Screen name="_catalogo" options={{ title: 'Catálogo' }} />
       </Stack>
       {/* Confirmações da web (no celular, o diálogo é o do sistema). */}
       <DialogoDeConfirmacao />
+      {/* Confirmações transitórias (um toast por vez, acima da barra de abas ou de ação). */}
+      <HospedeiroDeToast />
     </ThemeProvider>
   )
 }

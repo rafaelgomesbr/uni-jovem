@@ -14,7 +14,7 @@ export function EventosPreparados() {
   if (!offline.disponivel || !offline.pacotes.length) return null
   return (
     <Cartao titulo="Preparados para usar sem internet" icone="guardadoNoAparelho">
-      <Texto variante="apoio" cor="textoSuave">
+      <Texto variante="legenda" cor="textoSuave">
         Abrem mesmo sem conexão. O que você marcar vai para o servidor quando a internet voltar.
       </Texto>
       {offline.pacotes.map((p) => (

@@ -57,7 +57,7 @@ export function ProvaDeSegundoFator({ aoConfirmar, aoCancelar, motivo }: PropsDa
   if (conta && !conta.doisFatores) {
     return (
       <Cartao titulo="Ative a verificação em duas etapas" icone="seguranca">
-        <Texto variante="apoio">
+        <Texto variante="corpo">
           Ações da plataforma pedem um código do app autenticador. Ative a verificação em duas
           etapas e volte aqui.
         </Texto>
@@ -75,7 +75,7 @@ export function ProvaDeSegundoFator({ aoConfirmar, aoCancelar, motivo }: PropsDa
 
   return (
     <Cartao titulo="Confirme que é você" icone="seguranca">
-      <Texto variante="apoio">
+      <Texto variante="corpo">
         {motivo ? `${motivo}, digite` : 'Digite'} o código de 6 números do seu app autenticador.
         Ações da plataforma sempre pedem o código, mesmo com a sessão aberta.
       </Texto>
@@ -130,7 +130,7 @@ export function PedidoDeCodigo({
         style={{ flex: 1, backgroundColor: 'rgba(10,8,30,0.72)', justifyContent: 'center' }}
       >
         <ScrollView
-          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: ESPACO.x5 }}
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: ESPACO.e20 }}
           keyboardShouldPersistTaps="handled"
         >
           <View style={{ width: '100%', maxWidth: 480, alignSelf: 'center' }}>

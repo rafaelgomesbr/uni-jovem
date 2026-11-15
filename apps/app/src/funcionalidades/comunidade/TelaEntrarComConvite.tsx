@@ -71,7 +71,7 @@ export function TelaEntrarComConvite() {
           onSubmitEditing={continuar}
         />
         <Botao titulo="Continuar" icone="avancar" aoPressionar={continuar} />
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           Na próxima tela aparecem a comunidade e o papel do convite. Nada muda antes de você
           confirmar.
         </Texto>

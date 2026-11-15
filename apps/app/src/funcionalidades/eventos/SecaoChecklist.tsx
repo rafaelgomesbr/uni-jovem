@@ -57,12 +57,12 @@ export function SecaoChecklist({
         const itens = evento.checklist.filter((i) => i.tipo === tipo)
         const feitos = itens.filter((i) => i.marcadoEm).length
         return (
-          <View key={tipo} style={{ gap: ESPACO.x2 }}>
-            <Texto variante="corpoForte" accessibilityRole="header">
+          <View key={tipo} style={{ gap: ESPACO.e8 }}>
+            <Texto variante="tituloItem" accessibilityRole="header">
               {NOME_DO_CHECKLIST[tipo]} ({feitos} de {itens.length})
             </Texto>
             {itens.length === 0 ? (
-              <Texto variante="apoio" cor="textoSuave">
+              <Texto variante="legenda" cor="textoSuave">
                 Nenhum item de {NOME_DO_CHECKLIST[tipo].toLowerCase()}.
               </Texto>
             ) : (
@@ -80,7 +80,7 @@ export function SecaoChecklist({
                   .filter(Boolean)
                   .join('. ')
                 return (
-                  <View key={item.id} style={{ gap: ESPACO.x1 }}>
+                  <View key={item.id} style={{ gap: ESPACO.e4 }}>
                     <CaixaDeMarcar
                       rotulo={item.texto}
                       {...(descricao ? { descricao } : {})}
@@ -93,7 +93,7 @@ export function SecaoChecklist({
                     {gerenciar && !local ? (
                       <Botao
                         titulo="Remover"
-                        variante="discreto"
+                        variante="terciario"
                         icone="excluir"
                         larguraTotal={false}
                         rotuloAcessivel={`Remover o item ${item.texto}`}
@@ -192,24 +192,24 @@ export function SecaoNotas({ evento, comunidadeId }: Props) {
 
   return (
     <Cartao titulo="Notas internas" icone="nota">
-      <Texto variante="apoio" cor="textoSuave">
+      <Texto variante="legenda" cor="textoSuave">
         Só a organização vê estas notas. Membros não têm acesso.
       </Texto>
       {evento.notas.length === 0 ? (
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           Nenhuma nota ainda.
         </Texto>
       ) : (
         evento.notas.map((n) => (
-          <View key={n.id} style={{ gap: ESPACO.x1 }}>
+          <View key={n.id} style={{ gap: ESPACO.e4 }}>
             <Texto>{n.texto}</Texto>
-            <Texto variante="apoio" cor="textoSuave">
+            <Texto variante="legenda" cor="textoSuave">
               Em {formatarQuando(n.criadoEm, evento.fuso)}
             </Texto>
             {gerenciar ? (
               <Botao
                 titulo="Remover"
-                variante="discreto"
+                variante="terciario"
                 icone="excluir"
                 larguraTotal={false}
                 rotuloAcessivel="Remover esta nota"
@@ -262,12 +262,12 @@ export function SecaoAnexos({ evento, comunidadeId }: Props) {
   return (
     <Cartao titulo="Anexos e links" icone="link">
       {evento.anexos.length === 0 ? (
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           Nenhum link ainda. Coloque aqui a letra das músicas, a lição ou o roteiro.
         </Texto>
       ) : (
         evento.anexos.map((a) => (
-          <View key={a.id} style={{ gap: ESPACO.x1 }}>
+          <View key={a.id} style={{ gap: ESPACO.e4 }}>
             <Linha
               icone="link"
               titulo={a.titulo}
@@ -278,7 +278,7 @@ export function SecaoAnexos({ evento, comunidadeId }: Props) {
             {gerenciar ? (
               <Botao
                 titulo="Remover"
-                variante="discreto"
+                variante="terciario"
                 icone="excluir"
                 larguraTotal={false}
                 rotuloAcessivel={`Remover o link ${a.titulo}`}

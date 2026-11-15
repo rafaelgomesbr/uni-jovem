@@ -2,7 +2,7 @@ import { screen, userEvent, waitFor } from '@testing-library/react-native'
 import { router } from 'expo-router'
 
 import { DIA_DO_INICIO, INICIO } from '@/testes/fixturas'
-import { BASE, pedidosPara, renderizarTela } from '@/testes/telas'
+import { BASE, COMUNIDADE, pedidosPara, renderizarTela, respostaEu } from '@/testes/telas'
 import { formatarDataPorExtenso } from '@/utilidades/datas'
 
 import { TelaInicio } from '../TelaInicio'
@@ -150,5 +150,113 @@ describe('tela Início', () => {
       await screen.findByText('Algo deu errado do nosso lado. Tente de novo.'),
     ).toBeOnTheScreen()
     expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeOnTheScreen()
+  })
+
+  test('com inscrição próxima, mostra "Minhas inscrições" e abre o evento', async () => {
+    await renderizarTela(<TelaInicio />, {
+      rotas: {
+        [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: INICIO_CHEIO }),
+        [`GET ${BASE}/inscricoes/eu`]: () => ({
+          status: 200,
+          corpo: {
+            inscricoes: [
+              {
+                inscricaoId: 'i1',
+                estado: 'confirmada',
+                codigoCheckin: 'A1B2C3D4E5',
+                criadaEm: '2026-11-10T12:00:00.000Z',
+                presente: false,
+                evento: {
+                  id: 'e9',
+                  titulo: 'Retiro de verão',
+                  inicio: SABADO,
+                  duracaoMin: 120,
+                  fuso: 'America/Sao_Paulo',
+                  status: 'publicado',
+                  localNome: 'Sítio',
+                },
+              },
+            ],
+          },
+        }),
+      },
+    })
+
+    const linha = await screen.findByRole('button', {
+      name: /^Retiro de verão, .*Inscrição confirmada/,
+    })
+    expect(screen.getByText('Inscrito')).toBeOnTheScreen()
+    await userEvent.setup().press(linha)
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/evento/[eventoId]',
+      params: { eventoId: 'e9' },
+    })
+  })
+})
+
+describe('Início sem comunidade', () => {
+  beforeEach(() => jest.clearAllMocks())
+
+  function eu(criador: boolean, comunidades: unknown[] = []) {
+    const base = respostaEu('membro')
+    return () => ({
+      status: 200,
+      corpo: { ...base, conta: { ...base.conta, criador }, comunidades },
+    })
+  }
+
+  test('Criador: o destaque "Primeiros passos" cria a primeira comunidade e a Plataforma fica a um toque', async () => {
+    await renderizarTela(<TelaInicio />, { rotas: { 'GET /api/v1/eu': eu(true) } })
+
+    expect(await screen.findByText('Crie sua primeira comunidade')).toBeOnTheScreen()
+    const usuario = userEvent.setup()
+    await usuario.press(screen.getByRole('button', { name: 'Criar comunidade' }))
+    expect(router.push).toHaveBeenCalledWith('/plataforma/nova')
+    await usuario.press(screen.getByRole('button', { name: /^Plataforma/ }))
+    expect(router.push).toHaveBeenCalledWith('/plataforma')
+    // O versículo continua; não há status de sincronização sem comunidade.
+    expect(screen.getByText('Versículo do dia')).toBeOnTheScreen()
+  })
+
+  test('membro: estado vazio com ação para colar o convite e a explicação', async () => {
+    await renderizarTela(<TelaInicio />, { rotas: { 'GET /api/v1/eu': eu(false) } })
+
+    expect(await screen.findByText('Você ainda não participa de uma comunidade')).toBeOnTheScreen()
+    const usuario = userEvent.setup()
+    await usuario.press(screen.getByRole('button', { name: 'Colar link de convite' }))
+    expect(router.push).toHaveBeenCalledWith('/entrar-com-convite')
+    await usuario.press(screen.getByRole('button', { name: 'Como conseguir um convite' }))
+    expect(router.push).toHaveBeenCalledWith('/como-conseguir-convite')
+    expect(screen.queryByRole('button', { name: 'Criar comunidade' })).toBeNull()
+  })
+
+  test('várias comunidades e nenhuma escolhida: a lista escolhe direto', async () => {
+    const outra = '33333333-3333-4333-8333-333333333333'
+    const comunidades = [
+      {
+        id: COMUNIDADE,
+        nome: 'Jovens Centro',
+        cor: '#5B4BDB',
+        estado: 'ativa',
+        papel: 'membro',
+        designacoes: [],
+      },
+      {
+        id: outra,
+        nome: 'Jovens Vila Nova',
+        cor: '#15803D',
+        estado: 'ativa',
+        papel: 'admin',
+        designacoes: [],
+      },
+    ]
+    await renderizarTela(<TelaInicio />, { rotas: { 'GET /api/v1/eu': eu(false, comunidades) } })
+
+    expect(
+      await screen.findByRole('button', { name: /^Jovens Vila Nova, .*Escolher esta comunidade/ }),
+    ).toBeOnTheScreen()
+    expect(
+      screen.getByRole('button', { name: /^Jovens Centro, .*Escolher esta comunidade/ }),
+    ).toBeOnTheScreen()
   })
 })

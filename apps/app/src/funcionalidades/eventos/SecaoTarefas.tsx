@@ -66,17 +66,17 @@ export function SecaoTarefas({ evento, comunidadeId, local }: PropsDaSecao) {
   return (
     <Cartao titulo="Tarefas" icone="tarefas">
       {evento.tarefas.length === 0 ? (
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           Nenhuma tarefa ainda. Divida o que precisa ser feito antes do encontro.
         </Texto>
       ) : (
-        <View style={{ gap: ESPACO.x2 }}>
+        <View style={{ gap: ESPACO.e8 }}>
           {evento.tarefas.map((t) => {
             const podeMarcar = pode('tarefa', 'concluir', {
               proprio: eu !== null && t.responsavelVinculoId === eu,
             })
             return (
-              <View key={t.id} style={{ gap: ESPACO.x1 }}>
+              <View key={t.id} style={{ gap: ESPACO.e4 }}>
                 <CaixaDeMarcar
                   rotulo={t.titulo}
                   descricao={`${descricaoDaTarefa(t, evento.fuso)}${podeMarcar ? '' : `. ${MOTIVO_SO_RESPONSAVEL}`}${local?.pendentes.has(t.id) ? `. ${PENDENTE}` : ''}`}
@@ -89,7 +89,7 @@ export function SecaoTarefas({ evento, comunidadeId, local }: PropsDaSecao) {
                 {gerenciar && !local ? (
                   <Botao
                     titulo="Remover"
-                    variante="discreto"
+                    variante="terciario"
                     icone="excluir"
                     larguraTotal={false}
                     rotuloAcessivel={`Remover a tarefa ${t.titulo}`}
@@ -219,13 +219,13 @@ export function SecaoMateriais({ evento, comunidadeId, local }: PropsDaSecao) {
   return (
     <Cartao titulo="Materiais" icone="material">
       {evento.materiais.length === 0 ? (
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           Nenhum material listado. Anote o que precisa estar no lugar (som, cabos, lanche).
         </Texto>
       ) : (
-        <View style={{ gap: ESPACO.x2 }}>
+        <View style={{ gap: ESPACO.e8 }}>
           {evento.materiais.map((m) => (
-            <View key={m.id} style={{ gap: ESPACO.x1 }}>
+            <View key={m.id} style={{ gap: ESPACO.e4 }}>
               <CaixaDeMarcar
                 rotulo={m.nome}
                 descricao={`${descrever(m)}${local ? `. ${MENSAGEM_EXIGE_CONEXAO}` : ''}`}
@@ -236,7 +236,7 @@ export function SecaoMateriais({ evento, comunidadeId, local }: PropsDaSecao) {
               {gerenciar && !local ? (
                 <Botao
                   titulo="Remover"
-                  variante="discreto"
+                  variante="terciario"
                   icone="excluir"
                   larguraTotal={false}
                   rotuloAcessivel={`Remover o material ${m.nome}`}

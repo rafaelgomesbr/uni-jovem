@@ -47,13 +47,13 @@ function Detalhe({ comunidadeId, sugestaoId }: { comunidadeId: string; sugestaoI
   const s = sugestao.data
   return (
     <>
-      <View style={{ gap: ESPACO.x2 }}>
-        <Texto variante="titulo">{s.titulo}</Texto>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>
+      <View style={{ gap: ESPACO.e8 }}>
+        <Texto variante="tituloTela">{s.titulo}</Texto>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
           <Selo texto={NOME_DO_STATUS[s.status]} cor={corDoStatus(s.status)} />
           {s.anonima ? <Selo texto="Anônima" /> : null}
         </View>
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           {[
             s.minha
               ? 'Sua sugestão'
@@ -71,14 +71,14 @@ function Detalhe({ comunidadeId, sugestaoId }: { comunidadeId: string; sugestaoI
         {s.resposta ? (
           <>
             <Texto>{s.resposta}</Texto>
-            <Texto variante="apoio" cor="textoSuave">
+            <Texto variante="legenda" cor="textoSuave">
               {[s.respondidaPorNome, s.respondidaEm ? formatarData(s.respondidaEm) : null]
                 .filter(Boolean)
                 .join(' · ')}
             </Texto>
           </>
         ) : (
-          <Texto variante="apoio" cor="textoSuave">
+          <Texto variante="legenda" cor="textoSuave">
             Ainda sem resposta. Quando a organização responder, aparece aqui.
           </Texto>
         )}
@@ -133,7 +133,7 @@ function Moderacao({ comunidadeId, sugestao }: { comunidadeId: string; sugestao:
       />
       {moderar.error ? <AvisoDeErro erro={moderar.error} /> : null}
       {moderar.isSuccess && !mudou ? (
-        <TextoAnunciado variante="apoio" cor="sucesso">
+        <TextoAnunciado variante="corpo" cor="sucesso">
           Moderação salva.
         </TextoAnunciado>
       ) : null}
@@ -155,7 +155,7 @@ function Moderacao({ comunidadeId, sugestao }: { comunidadeId: string; sugestao:
       <Botao
         titulo="Excluir sugestão"
         icone="excluir"
-        variante="perigo"
+        variante="destrutivo"
         carregando={excluir.isPending}
         aoPressionar={() => void pedirExclusao()}
       />

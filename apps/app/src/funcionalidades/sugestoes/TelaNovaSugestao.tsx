@@ -69,7 +69,7 @@ function Formulario({ comunidadeId }: { comunidadeId: string }) {
           marcada={anonima}
           aoMudar={setAnonima}
         />
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           {anonima
             ? 'A sugestão vai aparecer como "Anônima" para todos, inclusive para a liderança. Só você a vê como sua.'
             : 'Seu nome aparece para quem organiza a comunidade.'}

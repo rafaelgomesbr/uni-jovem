@@ -1,15 +1,21 @@
 import { useMutation } from '@tanstack/react-query'
-import { Redirect, router } from 'expo-router'
+import { ESPACO } from '@uj/tokens'
+import { Redirect } from 'expo-router'
 import { useState } from 'react'
 
 import { NOME_DO_APP } from '@/constantes'
 import { useSessao } from '@/estado/sessao'
 import { AvisoDeErro } from '@/ui/AvisoDeErro'
+import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
-import { Cartao } from '@/ui/Cartao'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Tela } from '@/ui/Tela'
 
+/**
+ * Segundo fator (3.1.4): cabeçalho de pilha, cartão com o código de 6 e o
+ * terciário "Usar um código de recuperação", e a barra de ação com o primário.
+ */
 export function TelaSegundoFator() {
   const sessao = useSessao()
   const [codigo, setCodigo] = useState('')
@@ -35,46 +41,54 @@ export function TelaSegundoFator() {
 
   return (
     <Tela
-      cabecalhoNativo
+      pilha
+      aurora={1}
       titulo="Verificação em duas etapas"
       descricao={
         recuperacao
-          ? 'Digite um dos códigos de recuperação que você guardou (formato XXXX-XXXX). Cada código vale uma vez.'
-          : `Abra o seu app autenticador e digite o código de 6 números que aparece para o ${NOME_DO_APP}.`
+          ? 'Digite um dos códigos de recuperação que você guardou. Cada código vale uma vez.'
+          : `Abra o seu app autenticador e digite o código de 6 números do ${NOME_DO_APP}.`
+      }
+      barraDeAcao={
+        <BarraDeAcao>
+          <Botao
+            titulo="Confirmar"
+            tamanho="grande"
+            aoPressionar={enviar}
+            carregando={confirmar.isPending}
+          />
+        </BarraDeAcao>
       }
     >
-      <Cartao>
+      <CartaoDeVidro intervalo={ESPACO.e8}>
         <Campo
           key={recuperacao ? 'recuperacao' : 'autenticador'}
           rotulo={recuperacao ? 'Código de recuperação' : 'Código do autenticador'}
           value={codigo}
           onChangeText={setCodigo}
           erro={erro}
+          codigo={!recuperacao}
           autoCapitalize={recuperacao ? 'characters' : 'none'}
           autoCorrect={false}
           keyboardType={recuperacao ? 'default' : 'number-pad'}
           textContentType="oneTimeCode"
           autoComplete="one-time-code"
           maxLength={recuperacao ? 12 : 6}
+          {...(recuperacao ? { exemplo: 'XXXX-XXXX' } : {})}
           onSubmitEditing={enviar}
         />
-        {confirmar.error ? <AvisoDeErro erro={confirmar.error} /> : null}
-        <Botao titulo="Confirmar" aoPressionar={enviar} carregando={confirmar.isPending} />
         <Botao
           titulo={recuperacao ? 'Usar o app autenticador' : 'Usar um código de recuperação'}
-          variante="discreto"
+          variante="terciario"
+          alinhado
           aoPressionar={() => {
             setRecuperacao((v) => !v)
             setCodigo('')
             setErro(null)
           }}
         />
-        <Botao
-          titulo="Voltar para entrar"
-          variante="discreto"
-          aoPressionar={() => router.replace('/entrar')}
-        />
-      </Cartao>
+        {confirmar.error ? <AvisoDeErro erro={confirmar.error} /> : null}
+      </CartaoDeVidro>
     </Tela>
   )
 }

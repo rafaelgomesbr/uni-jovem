@@ -45,14 +45,14 @@ export function TelaEscalas() {
   const { comunidadeAtiva } = useSessao()
   if (!comunidadeAtiva) {
     return (
-      <Tela cabecalhoNativo>
+      <Tela pilha>
         <SemComunidade oQue="as suas escalas" />
       </Tela>
     )
   }
   const id = comunidadeAtiva.id
   return (
-    <Tela cabecalhoNativo titulo="Escalas" descricao={`Em ${comunidadeAtiva.nome}`}>
+    <Tela pilha titulo="Escalas" descricao={`Em ${comunidadeAtiva.nome}`}>
       <MinhasEscalas comunidadeId={id} />
       <SubstituicoesAbertas comunidadeId={id} />
       <MinhaDisponibilidade comunidadeId={id} />
@@ -81,7 +81,7 @@ function MinhasEscalas({ comunidadeId }: { comunidadeId: string }) {
           }}
         />
       ) : (
-        <View style={{ gap: ESPACO.x2 }}>
+        <View style={{ gap: ESPACO.e8 }}>
           {escalas.data.map((e) => (
             <CartaoDaEscala key={e.id} escala={e} comunidadeId={comunidadeId} fuso={fuso} />
           ))}
@@ -124,21 +124,21 @@ function SubstituicoesAbertas({ comunidadeId }: { comunidadeId: string }) {
       ) : lista.error ? (
         <AvisoDeErro erro={lista.error} aoTentarDeNovo={() => void lista.refetch()} />
       ) : visiveis.length === 0 ? (
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           Nenhum pedido aberto para você agora.
         </Texto>
       ) : (
-        <View style={{ gap: ESPACO.x3 }}>
+        <View style={{ gap: ESPACO.e12 }}>
           {(assumir.error ?? cancelar.error) ? (
             <AvisoDeErro erro={assumir.error ?? cancelar.error} />
           ) : null}
           {visiveis.map((s) => (
-            <View key={s.id} style={{ gap: ESPACO.x1 }}>
-              <Texto variante="corpoForte">
+            <View key={s.id} style={{ gap: ESPACO.e4 }}>
+              <Texto variante="tituloItem">
                 {s.evento.titulo}
                 {s.etapa ? ` · ${s.etapa}` : ''}
               </Texto>
-              <Texto variante="apoio" cor="textoSuave">
+              <Texto variante="legenda" cor="textoSuave">
                 {[
                   s.minha ? 'Seu pedido' : `Pedido por ${s.pedidaPor}`,
                   s.funcao,
@@ -150,7 +150,7 @@ function SubstituicoesAbertas({ comunidadeId }: { comunidadeId: string }) {
                     : 'aberto à equipe',
                 ].join(' · ')}
               </Texto>
-              {s.motivo ? <Texto variante="apoio">Motivo: {s.motivo}</Texto> : null}
+              {s.motivo ? <Texto variante="corpo">Motivo: {s.motivo}</Texto> : null}
               {s.possoAssumir ? (
                 <Botao
                   titulo="Assumir"
@@ -231,7 +231,7 @@ function MinhaDisponibilidade({ comunidadeId }: { comunidadeId: string }) {
 
   return (
     <Cartao titulo="Minha disponibilidade" icone="agenda">
-      <Texto variante="apoio" cor="textoSuave">
+      <Texto variante="legenda" cor="textoSuave">
         Diga em quais dias você pode ajudar. A organização vê isso ao montar as escalas.
       </Texto>
       {eventos.isPending || disponibilidade.isPending ? (
@@ -242,13 +242,13 @@ function MinhaDisponibilidade({ comunidadeId }: { comunidadeId: string }) {
           aoTentarDeNovo={() => void disponibilidade.refetch()}
         />
       ) : (
-        <View style={{ gap: ESPACO.x3 }}>
+        <View style={{ gap: ESPACO.e12 }}>
           {informar.error ? <AvisoDeErro erro={informar.error} /> : null}
           {datas.map((data) => {
             const valor = minhas.get(data)
             return (
-              <View key={data} style={{ gap: ESPACO.x1 }}>
-                <Texto variante="corpoForte">{formatarDataPorExtenso(data)}</Texto>
+              <View key={data} style={{ gap: ESPACO.e4 }}>
+                <Texto variante="tituloItem">{formatarDataPorExtenso(data)}</Texto>
                 <Segmentos
                   rotulo={`Disponibilidade em ${formatarDataPorExtenso(data)}`}
                   valor={valor === undefined ? null : valor ? 'sim' : 'nao'}
@@ -259,7 +259,7 @@ function MinhaDisponibilidade({ comunidadeId }: { comunidadeId: string }) {
                   ]}
                 />
                 {valor === undefined ? (
-                  <Texto variante="apoio" cor="textoSuave">
+                  <Texto variante="legenda" cor="textoSuave">
                     Ainda não informado.
                   </Texto>
                 ) : null}

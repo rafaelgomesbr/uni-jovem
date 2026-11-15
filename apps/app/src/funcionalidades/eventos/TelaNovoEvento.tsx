@@ -42,14 +42,14 @@ export function TelaNovoEvento() {
   const modelo = parametro(useLocalSearchParams<{ modelo?: string }>().modelo)
   if (!comunidadeAtiva) {
     return (
-      <Tela cabecalhoNativo>
+      <Tela pilha>
         <SemComunidade oQue="as programações" />
       </Tela>
     )
   }
   if (!pode('evento', 'criar')) {
     return (
-      <Tela cabecalhoNativo titulo="Nova programação">
+      <Tela pilha titulo="Nova programação">
         <Aviso tipo="info" titulo="Só a organização cria programações">
           Fale com quem organiza a sua comunidade para montar um encontro.
         </Aviso>
@@ -197,7 +197,7 @@ function NovoEvento({
   const temErro = Object.keys(erros).length > 0 || !!erroDoFim
 
   return (
-    <Tela cabecalhoNativo titulo="Nova programação">
+    <Tela pilha titulo="Nova programação">
       {pode('modelo', 'ler') ? (
         <Cartao titulo="Começar de" icone="modelo">
           {modelos.isPending ? (

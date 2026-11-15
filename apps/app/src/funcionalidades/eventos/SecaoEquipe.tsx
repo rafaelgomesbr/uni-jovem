@@ -22,16 +22,16 @@ export function SecaoEquipe({ evento }: { evento: DetalheDoEvento }) {
   return (
     <Cartao titulo="Equipe do evento" icone="escalas">
       {geral.length === 0 ? (
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           Ninguém escalado para o evento como um todo. Quem cuida de uma etapa aparece na
           programação.
         </Texto>
       ) : (
-        <View style={{ gap: ESPACO.x1 }}>
+        <View style={{ gap: ESPACO.e4 }}>
           {geral.map((a) => (
             <Linha
               key={a.id}
-              inicio={<Avatar nome={a.nome} tamanho="P" decorativo />}
+              inicio={<Avatar nome={a.nome} tamanho="pilula" decorativo />}
               titulo={a.nome}
               descricao={a.funcao}
               extra={

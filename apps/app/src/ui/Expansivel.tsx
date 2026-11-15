@@ -42,7 +42,7 @@ export function Expansivel({
     setFechamentos((n) => n + 1)
   }
   return (
-    <View style={{ gap: ESPACO.x3 }}>
+    <View style={{ gap: ESPACO.e12 }}>
       <Botao
         ref={botao}
         titulo={titulo}
@@ -55,7 +55,7 @@ export function Expansivel({
         {...(motivo ? { motivo } : {})}
       />
       {aberto ? (
-        <Aparecer style={{ gap: ESPACO.x3 }}>
+        <Aparecer style={{ gap: ESPACO.e12 }}>
           {children(fechar)}
           <Botao titulo="Fechar sem salvar" variante="terciario" aoPressionar={fechar} />
         </Aparecer>

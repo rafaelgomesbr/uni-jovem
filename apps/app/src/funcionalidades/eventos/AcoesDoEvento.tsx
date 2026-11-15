@@ -111,7 +111,7 @@ export function AcoesDoEvento({ evento, comunidadeId, aoSair }: Props) {
         </Aviso>
       ) : null}
       {erro ? <AvisoDeErro erro={erro} /> : null}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
         {podePublicar ? (
           <Botao
             titulo={evento.status === 'adiado' ? 'Publicar de novo' : 'Publicar'}
@@ -193,7 +193,7 @@ export function AcoesDoEvento({ evento, comunidadeId, aoSair }: Props) {
           <Botao
             titulo="Cancelar evento"
             icone="cancelar"
-            variante="perigo"
+            variante="destrutivo"
             larguraTotal={false}
             aoPressionar={() => irPara('cancelar')}
           />
@@ -202,7 +202,7 @@ export function AcoesDoEvento({ evento, comunidadeId, aoSair }: Props) {
           <Botao
             titulo="Excluir rascunho"
             icone="excluir"
-            variante="perigo"
+            variante="destrutivo"
             larguraTotal={false}
             carregando={excluir.isPending}
             aoPressionar={() => void pedirExclusao()}

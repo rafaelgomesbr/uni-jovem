@@ -64,7 +64,7 @@ export function SeletorDePeriodo({
   }
 
   return (
-    <View style={{ gap: ESPACO.x2 }}>
+    <View style={{ gap: ESPACO.e8 }}>
       <Segmentos
         rotulo="Período"
         valor={atalho}
@@ -77,7 +77,7 @@ export function SeletorDePeriodo({
         ]}
       />
       {atalho === 'outro' ? (
-        <View style={{ gap: ESPACO.x2 }}>
+        <View style={{ gap: ESPACO.e8 }}>
           <Campo
             rotulo="De"
             exemplo="01/09/2026"
@@ -98,7 +98,7 @@ export function SeletorDePeriodo({
           <Botao titulo="Aplicar datas" variante="secundario" aoPressionar={aplicar} />
         </View>
       ) : null}
-      <TextoAnunciado soMudancas variante="apoio" cor="textoSuave">
+      <TextoAnunciado soMudancas variante="legenda" cor="textoSuave">
         De {formatarDataLocal(periodo.de)} a {formatarDataLocal(periodo.ate)}
       </TextoAnunciado>
     </View>

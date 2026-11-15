@@ -40,9 +40,9 @@ export function AlteracoesDescartadas() {
           ? 'Esta alteração não chegou ao servidor e foi apagada deste aparelho. Copie se precisar refazer.'
           : `Estas ${descarte.itens.length} alterações não chegaram ao servidor e foram apagadas deste aparelho. Copie se precisar refazer.`}
       </Aviso>
-      <View style={{ gap: ESPACO.x1 }}>
+      <View style={{ gap: ESPACO.e4 }}>
         {linhas.map((l) => (
-          <Texto key={l.chave} variante="apoio">
+          <Texto key={l.chave} variante="corpo">
             • {l.texto}
           </Texto>
         ))}
@@ -52,7 +52,7 @@ export function AlteracoesDescartadas() {
           Lista copiada.
         </Aviso>
       ) : null}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
         <Botao
           titulo="Copiar a lista"
           icone="copiar"
@@ -64,7 +64,7 @@ export function AlteracoesDescartadas() {
         />
         <Botao
           titulo="Entendi"
-          variante="discreto"
+          variante="terciario"
           larguraTotal={false}
           rotuloAcessivel="Entendi, fechar este aviso"
           aoPressionar={dispensarDescarte}

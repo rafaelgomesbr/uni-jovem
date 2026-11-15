@@ -1,4 +1,4 @@
-import { ESPACO, RAIO, RITMO } from '@uj/tokens'
+import { ESPACO, RAIO } from '@uj/tokens'
 import { router } from 'expo-router'
 import { Pressable, View } from 'react-native'
 
@@ -98,7 +98,7 @@ export function TelaPlataforma() {
             />
           </Cartao>
         ) : (
-          <View style={{ gap: ESPACO.x3 }}>
+          <View style={{ gap: ESPACO.e12 }}>
             {comunidades.data.map((c) => (
               <CartaoDaComunidade key={c.id} comunidade={c} />
             ))}
@@ -137,18 +137,18 @@ function CartaoDaComunidade({ comunidade: c }: { comunidade: ComunidadeDaPlatafo
       style={({ pressed }) => ({
         flexDirection: 'row',
         alignItems: 'center',
-        gap: ESPACO.x3,
-        padding: RITMO.dentroDoCartao,
-        borderRadius: RAIO.grande,
-        backgroundColor: pressed ? cores.superficieRealce : cores.superficie,
+        gap: ESPACO.e12,
+        padding: ESPACO.e16,
+        borderRadius: RAIO.cartao,
+        backgroundColor: pressed ? cores.pressionado : cores.superficie,
         borderWidth: aumentarContraste ? 2 : 1,
-        borderColor: aumentarContraste ? cores.texto : cores.bordaSuave,
+        borderColor: aumentarContraste ? cores.texto : cores.separador,
         boxShadow: aumentarContraste ? elevacao.nenhuma : elevacao.cartao,
       })}
     >
       <MarcaDaComunidade cor={c.cor} tamanho={44} />
-      <View style={{ flex: 1, gap: ESPACO.x1 }}>
-        <Texto variante="subtitulo">{c.nome}</Texto>
+      <View style={{ flex: 1, gap: ESPACO.e4 }}>
+        <Texto variante="tituloItem">{c.nome}</Texto>
         <Chips>
           <Chip
             texto={estado}

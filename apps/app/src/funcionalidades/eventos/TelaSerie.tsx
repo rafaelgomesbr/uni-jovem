@@ -19,6 +19,8 @@ import {
   lerHoraDigitada,
   type DataLocal,
 } from '@/utilidades/datas'
+import { CampoDeData } from '@/ui/CampoDeMomento'
+import { mostrarToast } from '@/ui/Toast'
 import { parametro } from '@/utilidades/parametros'
 import { Aviso } from '@/ui/Aviso'
 import { AvisoDeErro } from '@/ui/AvisoDeErro'
@@ -48,14 +50,14 @@ export function TelaSerie() {
 
   if (!comunidadeAtiva || !serieId) {
     return (
-      <Tela cabecalhoNativo>
+      <Tela pilha>
         <SemComunidade oQue="a série" />
       </Tela>
     )
   }
   if (!pode('evento', 'editar')) {
     return (
-      <Tela cabecalhoNativo titulo="Série">
+      <Tela pilha titulo="Série">
         <Aviso tipo="info" titulo="Só a organização gerencia séries">
           Cada data da série aparece na agenda como um evento.
         </Aviso>
@@ -64,14 +66,14 @@ export function TelaSerie() {
   }
   if (serie.isPending) {
     return (
-      <Tela cabecalhoNativo>
+      <Tela pilha>
         <Carregando texto="Carregando a série" />
       </Tela>
     )
   }
   if (serie.error) {
     return (
-      <Tela cabecalhoNativo>
+      <Tela pilha>
         <AvisoDeErro erro={serie.error} aoTentarDeNovo={() => void serie.refetch()} />
       </Tela>
     )
@@ -83,10 +85,10 @@ function Serie({ serie, comunidadeId }: { serie: DetalheDaSerie; comunidadeId: s
   const pode = usePode()
   const hora = serie.hora_local.slice(0, 5)
   return (
-    <Tela cabecalhoNativo titulo={serie.titulo} descricao="Série de encontros">
+    <Tela pilha titulo={serie.titulo} descricao="Série de encontros">
       <Cartao titulo="Como repete" icone="repetir">
-        <Texto variante="corpoForte">{descreverRegra(serie.regra, hora)}</Texto>
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="tituloItem">{descreverRegra(serie.regra, hora)}</Texto>
+        <Texto variante="legenda" cor="textoSuave">
           Desde {formatarDataLocal(serie.inicio_em)}
           {serie.fim_em ? ` até ${formatarDataLocal(serie.fim_em)}` : ', sem data para acabar'}. As
           datas são criadas com 6 meses de antecedência.
@@ -94,13 +96,13 @@ function Serie({ serie, comunidadeId }: { serie: DetalheDaSerie; comunidadeId: s
       </Cartao>
       <Cartao titulo="Próximas datas" icone="agenda">
         {serie.ocorrencias.length === 0 ? (
-          <Texto variante="apoio" cor="textoSuave">
+          <Texto variante="legenda" cor="textoSuave">
             Nenhuma data futura nesta série.
           </Texto>
         ) : (
-          <View style={{ gap: ESPACO.x2 }}>
+          <View style={{ gap: ESPACO.e8 }}>
             {serie.ocorrencias.slice(0, 12).map((o) => (
-              <View key={o.id} style={{ gap: ESPACO.x1 }}>
+              <View key={o.id} style={{ gap: ESPACO.e4 }}>
                 <LinhaDoEvento
                   evento={{
                     id: o.id,
@@ -115,7 +117,7 @@ function Serie({ serie, comunidadeId }: { serie: DetalheDaSerie; comunidadeId: s
                   }
                 />
                 {o.editadoIndividualmente ? (
-                  <Texto variante="apoio" cor="textoSuave">
+                  <Texto variante="legenda" cor="textoSuave">
                     Editada à parte: mudanças na série toda não alteram esta data.
                   </Texto>
                 ) : null}
@@ -124,10 +126,23 @@ function Serie({ serie, comunidadeId }: { serie: DetalheDaSerie; comunidadeId: s
           </View>
         )}
       </Cartao>
-      <MudarRegra serie={serie} comunidadeId={comunidadeId} />
-      {pode('evento', 'cancelar_ou_adiar') ? (
-        <EncerrarSerie serie={serie} comunidadeId={comunidadeId} />
-      ) : null}
+      {serie.estado === 'encerrada' ? (
+        <Aviso tipo="info" titulo="Série encerrada">
+          {serie.encerrada_em
+            ? `Encerrada em ${formatarDataLocal(dataDoInstante(serie.encerrada_em, serie.fuso))}. Ela não recebe mais alterações; para continuar os encontros, crie uma série nova.`
+            : 'Ela não recebe mais alterações; para continuar os encontros, crie uma série nova.'}
+        </Aviso>
+      ) : (
+        <>
+          <MudarRegra serie={serie} comunidadeId={comunidadeId} />
+          {pode('evento', 'cancelar_ou_adiar') ? (
+            <EncerrarSerie serie={serie} comunidadeId={comunidadeId} />
+          ) : null}
+          {pode('evento', 'excluir') && soRascunhos(serie) ? (
+            <ExcluirSerie serie={serie} comunidadeId={comunidadeId} />
+          ) : null}
+        </>
+      )}
     </Tela>
   )
 }
@@ -187,7 +202,7 @@ function MudarRegra({ serie, comunidadeId }: { serie: DetalheDaSerie; comunidade
 
   return (
     <Cartao titulo="Mudar dia ou horário" icone="editar">
-      <Texto variante="apoio" cor="textoSuave">
+      <Texto variante="legenda" cor="textoSuave">
         As próximas datas que não foram editadas à parte são recriadas com a regra nova.
       </Texto>
       <Expansivel titulo="Mudar a regra" icone="editar">
@@ -254,40 +269,110 @@ function MudarRegra({ serie, comunidadeId }: { serie: DetalheDaSerie; comunidade
   )
 }
 
+/** Nenhuma ocorrência saiu do rascunho: a série pode ser excluída (senão, só encerrada). */
+function soRascunhos(serie: DetalheDaSerie): boolean {
+  return serie.ocorrencias.length > 0 && serie.ocorrencias.every((o) => o.status === 'rascunho')
+}
+
+/** A próxima data que ainda vai acontecer (o padrão de "encerrar a partir de"). */
+function proximaOcorrencia(serie: DetalheDaSerie): DataLocal {
+  const agora = Date.now()
+  const proxima = serie.ocorrencias.find(
+    (o) =>
+      new Date(o.inicio).getTime() >= agora &&
+      (o.status === 'rascunho' || o.status === 'publicado' || o.status === 'adiado'),
+  )
+  return proxima ? dataDoInstante(proxima.inicio, serie.fuso) : hojeNoFuso(serie.fuso)
+}
+
+/** "2 datas canceladas e 1 rascunho apagado", para a confirmação depois de encerrar. */
+function resumoDoEncerramento(r: { apagados: number; cancelados: number }): string {
+  const partes = [
+    r.cancelados
+      ? `${r.cancelados} ${r.cancelados === 1 ? 'data cancelada' : 'datas canceladas'}`
+      : null,
+    r.apagados
+      ? `${r.apagados} ${r.apagados === 1 ? 'rascunho apagado' : 'rascunhos apagados'}`
+      : null,
+  ].filter(Boolean)
+  return partes.length ? `Série encerrada: ${partes.join(' e ')}.` : 'Série encerrada.'
+}
+
+function ExcluirSerie({ serie, comunidadeId }: { serie: DetalheDaSerie; comunidadeId: string }) {
+  const invalidar = useInvalidarEventos(comunidadeId)
+  const excluir = useMutation({
+    mutationFn: () =>
+      api.delete<{ ok: boolean; apagados: number }>(
+        `${naComunidade(comunidadeId)}/series/${serie.id}`,
+      ),
+    onSuccess: async (r) => {
+      await invalidar()
+      mostrarToast({
+        texto:
+          r.apagados === 1
+            ? 'Série excluída com o rascunho dela.'
+            : `Série excluída com os ${r.apagados} rascunhos dela.`,
+      })
+      router.back()
+    },
+  })
+  return (
+    <Cartao titulo="Excluir a série">
+      <Texto variante="legenda" cor="textoSuave">
+        Nenhuma data desta série foi publicada: ela pode ser excluída inteira, sem avisar ninguém.
+      </Texto>
+      {excluir.error ? <AvisoDeErro erro={excluir.error} /> : null}
+      <Botao
+        titulo="Excluir série"
+        variante="destrutivo"
+        carregando={excluir.isPending}
+        aoPressionar={async () => {
+          const ok = await confirmar({
+            titulo: 'Excluir esta série?',
+            mensagem: 'A série e todas as datas em rascunho somem. Não dá para desfazer.',
+            confirmar: 'Excluir série',
+            destrutivo: true,
+          })
+          if (ok) excluir.mutate()
+        }}
+      />
+    </Cartao>
+  )
+}
+
 function EncerrarSerie({ serie, comunidadeId }: { serie: DetalheDaSerie; comunidadeId: string }) {
   const invalidar = useInvalidarEventos(comunidadeId)
-  const [data, setData] = useState(formatarDataLocal(hojeNoFuso(serie.fuso)))
+  const [data, setData] = useState<DataLocal | null>(() => proximaOcorrencia(serie))
   const [motivo, setMotivo] = useState('')
   const [erros, setErros] = useState<{ data?: string; motivo?: string }>({})
   const encerrar = useMutation({
     mutationFn: (corpo: { aPartirDe: string; motivo: string }) =>
-      api.post<{ apagados: number; cancelados: number }>(
+      api.post<{ apagados: number; cancelados: number; estado: 'ativa' | 'encerrada' }>(
         `${naComunidade(comunidadeId)}/series/${serie.id}/encerrar`,
         corpo,
       ),
-    onSuccess: async () => {
+    onSuccess: async (r) => {
       await invalidar()
+      mostrarToast({ texto: resumoDoEncerramento(r) })
       router.back()
     },
   })
 
   return (
     <Cartao titulo="Encerrar a série" icone="cancelar">
-      <Texto variante="apoio" cor="textoSuave">
+      <Texto variante="legenda" cor="textoSuave">
         A partir da data escolhida, rascunhos somem e eventos publicados são cancelados com o
         motivo, que vai para quem está escalado e inscrito.
       </Texto>
       <Expansivel titulo="Encerrar a série" icone="cancelar">
         {() => (
           <>
-            <Campo
+            <CampoDeData
               rotulo="A partir do dia"
-              value={data}
-              onChangeText={setData}
+              valor={data}
+              aoMudar={setData}
               erro={erros.data ?? null}
-              ajuda="Formato DD/MM/AAAA."
-              keyboardType="numbers-and-punctuation"
-              maxLength={10}
+              ajuda="Começa pela próxima data da série."
             />
             <Campo
               rotulo="Motivo"
@@ -301,12 +386,12 @@ function EncerrarSerie({ serie, comunidadeId }: { serie: DetalheDaSerie; comunid
             {encerrar.error ? <AvisoDeErro erro={encerrar.error} /> : null}
             <Botao
               titulo="Encerrar e avisar"
-              variante="perigo"
+              variante="destrutivo"
               carregando={encerrar.isPending}
               aoPressionar={async () => {
-                const d = lerDataDigitada(data)
+                const d = data ? lerDataDigitada(data) : null
                 const novos = {
-                  ...(d ? {} : { data: 'Use uma data real, no formato DD/MM/AAAA.' }),
+                  ...(d ? {} : { data: 'Escolha o dia a partir do qual a série acaba.' }),
                   ...(motivo.trim().length >= 3 ? {} : { motivo: 'Explique o motivo.' }),
                 }
                 setErros(novos)

@@ -1,7 +1,7 @@
 import * as Google from 'expo-auth-session/providers/google'
 import { useEffect, useEffectEvent } from 'react'
 
-import { Botao } from '@/ui/Botao'
+import { BotaoDeMarca } from '@/ui/BotaoDeMarca'
 
 import { googleConfigurado, idsDoGoogle, retornoDoGoogle } from './configuracao'
 
@@ -17,14 +17,18 @@ interface PropsDoBotaoGoogle {
   aoFalhar: (mensagem: string) => void
 }
 
-/** "Continuar com Google". Só existe quando o ID de cliente da plataforma está configurado. */
+/**
+ * "Continuar com o Google" (quadro 05): fundo branco, texto `#1F1F1F`, borda
+ * `#747775` e o "G" oficial, como pede a marca do Google sobre fundo escuro.
+ * Só existe quando o ID de cliente da plataforma está configurado.
+ */
 export function BotaoGoogle(props: PropsDoBotaoGoogle) {
   if (!googleConfigurado()) return null
   return <BotaoGoogleConfigurado {...props} />
 }
 
 function BotaoGoogleConfigurado({
-  titulo = 'Continuar com Google',
+  titulo = 'Continuar com o Google',
   carregando = false,
   desabilitado = false,
   motivo,
@@ -50,13 +54,14 @@ function BotaoGoogleConfigurado({
   })
   useEffect(() => aoResponder(), [resposta])
 
+  const inativo = desabilitado || !pedido || carregando
+  const motivoFinal = !pedido ? 'Preparando a entrada com o Google.' : motivo
   return (
-    <Botao
+    <BotaoDeMarca
       titulo={titulo}
-      variante="secundario"
       carregando={carregando}
-      desabilitado={desabilitado || !pedido}
-      {...(!pedido ? { motivo: 'Preparando a entrada com o Google.' } : motivo ? { motivo } : {})}
+      inativo={inativo}
+      {...(motivoFinal ? { motivo: motivoFinal } : {})}
       aoPressionar={() => void pedirAoGoogle()}
     />
   )

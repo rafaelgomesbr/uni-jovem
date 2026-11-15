@@ -59,7 +59,7 @@ export function EditorDeRegra({
   ]
 
   return (
-    <View style={{ gap: ESPACO.x3 }}>
+    <View style={{ gap: ESPACO.e12 }}>
       <Segmentos
         rotulo="Repetição"
         valor={r.repeticao}
@@ -68,9 +68,9 @@ export function EditorDeRegra({
       />
       {r.repeticao === 'semanal' ? (
         <>
-          <View accessibilityRole="none" style={{ gap: ESPACO.x1 }}>
-            <Texto variante="corpoForte">Dias da semana</Texto>
-            <Texto variante="apoio" cor="textoSuave">
+          <View accessibilityRole="none" style={{ gap: ESPACO.e4 }}>
+            <Texto variante="tituloItem">Dias da semana</Texto>
+            <Texto variante="legenda" cor="textoSuave">
               Sem marcar nenhum, vale o dia da data escolhida ({nomeDoDia}).
             </Texto>
             {ORDEM_DOS_DIAS.map((d) => (
@@ -155,10 +155,10 @@ export function EditorDeRegra({
             <View
               accessible
               accessibilityLabel={`${descreverRegra(regra, hora ?? undefined)}. Próximas datas: ${previa.map((d) => formatarDataPorExtenso(d)).join('; ')}`}
-              style={{ gap: ESPACO.x1 }}
+              style={{ gap: ESPACO.e4 }}
             >
-              <Texto variante="corpoForte">{descreverRegra(regra, hora ?? undefined)}</Texto>
-              <Texto variante="apoio" cor="textoSuave">
+              <Texto variante="tituloItem">{descreverRegra(regra, hora ?? undefined)}</Texto>
+              <Texto variante="legenda" cor="textoSuave">
                 Próximas datas:{' '}
                 {previa.length
                   ? previa.map((d) => formatarDataPorExtenso(d, false)).join('; ')
@@ -166,7 +166,7 @@ export function EditorDeRegra({
               </Texto>
             </View>
           ) : (
-            <Texto variante="apoio" cor="textoSuave">
+            <Texto variante="legenda" cor="textoSuave">
               Preencha a data para ver as próximas ocorrências.
             </Texto>
           )}

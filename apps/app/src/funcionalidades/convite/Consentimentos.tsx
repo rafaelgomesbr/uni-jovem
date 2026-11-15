@@ -1,13 +1,13 @@
-import { ESPACO, RAIO } from '@uj/tokens'
+import { ESPACO } from '@uj/tokens'
 import { View } from 'react-native'
 
+import { NOME_DO_APP } from '@/constantes'
 import type { FaixaEtaria } from '@/servicos/contratoDosModulos'
 import { Aviso } from '@/ui/Aviso'
 import { Botao } from '@/ui/Botao'
 import { CaixaDeMarcar } from '@/ui/CaixaDeMarcar'
-import { GrupoDeOpcoes } from '@/ui/GrupoDeOpcoes'
+import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
 import { Texto } from '@/ui/Texto'
-import { useTema } from '@/ui/tema'
 
 import { abrirDocumento } from '../privacidade/TelaPrivacidade'
 
@@ -21,16 +21,14 @@ export const OPCOES_DE_IDADE: { valor: FaixaEtaria; rotulo: string }[] = [
   { valor: '18_mais', rotulo: 'Tenho 18 anos ou mais.' },
   {
     valor: '16_17',
-    rotulo:
-      'Tenho 16 ou 17 anos, e meu pai, minha mãe ou meu responsável legal sabe que vou usar o Uni Jovem e concorda.',
+    rotulo: `Tenho 16 ou 17 anos, e meu pai, minha mãe ou meu responsável legal sabe que vou usar o ${NOME_DO_APP} e concorda.`,
   },
   { valor: 'menos_16', rotulo: 'Tenho menos de 16 anos.' },
 ]
 
-export const MENSAGEM_MENOR_DE_16 =
-  'Que bom que você quer participar! Para ter uma conta no Uni Jovem é preciso ter 16 anos ou mais. Fale com a liderança da sua comunidade: ela pode inscrever você nos eventos com a ajuda do seu responsável.'
+export const MENSAGEM_MENOR_DE_16 = `Que bom que você quer participar! Para ter uma conta no ${NOME_DO_APP} é preciso ter 16 anos ou mais. Fale com a liderança da sua comunidade: ela pode inscrever você nos eventos com a ajuda do seu responsável.`
 
-/** TC-01: escolha única, nenhuma opção pré-selecionada. */
+/** TC-01: escolha única (lista de opções), nenhuma opção pré-selecionada. */
 export function PerguntaDeIdade({
   valor,
   aoMudar,
@@ -39,14 +37,14 @@ export function PerguntaDeIdade({
   aoMudar: (v: FaixaEtaria) => void
 }) {
   return (
-    <View style={{ gap: ESPACO.x2 }}>
-      <GrupoDeOpcoes
+    <View style={{ gap: ESPACO.e8 }}>
+      <ListaDeOpcoes
         rotulo="Quantos anos você tem?"
         opcoes={OPCOES_DE_IDADE}
         valor={valor}
         aoMudar={aoMudar}
       />
-      <Texto variante="apoio" cor="textoSuave">
+      <Texto variante="legenda" cor="textoSuave">
         Não pedimos sua data de nascimento. Guardamos só a sua resposta.
       </Texto>
     </View>
@@ -71,23 +69,23 @@ export function AceiteDosTermos({
   aoMudar: (v: boolean) => void
 }) {
   return (
-    <View style={{ gap: ESPACO.x1 }}>
+    <View style={{ gap: ESPACO.e4 }}>
       <CaixaDeMarcar
         rotulo="Li e concordo com os Termos de Uso e a Política de Privacidade."
         marcada={marcada}
         aoMudar={aoMudar}
       />
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: ESPACO.e16 }}>
         <Botao
           titulo="Ler os Termos de Uso"
-          variante="discreto"
-          larguraTotal={false}
+          variante="terciario"
+          alinhado
           aoPressionar={() => void abrirDocumento('/termos')}
         />
         <Botao
           titulo="Ler a Política de Privacidade"
-          variante="discreto"
-          larguraTotal={false}
+          variante="terciario"
+          alinhado
           aoPressionar={() => void abrirDocumento('/privacidade')}
         />
       </View>
@@ -111,26 +109,16 @@ export function ConsentimentoDeFe({
   responsavel: boolean
   aoMudarResponsavel: (v: boolean) => void
 }) {
-  const { cores } = useTema()
+  // Sem caixa com borda dentro do cartão (2.12.9): o bloco se separa pelo título e pelo espaço.
   return (
-    <View
-      accessibilityRole="summary"
-      style={{
-        gap: ESPACO.x3,
-        padding: ESPACO.x3,
-        borderRadius: RAIO.medio,
-        borderWidth: 2,
-        borderColor: cores.destaque,
-        backgroundColor: cores.superficieElevada,
-      }}
-    >
-      <Texto variante="subtitulo">Sobre a sua fé</Texto>
-      <Texto variante="apoio">
-        Participar da {comunidade} no Uni Jovem mostra que você faz parte de uma comunidade de
+    <View accessibilityRole="summary" style={{ gap: ESPACO.e8 }}>
+      <Texto variante="tituloItem">Sobre a sua fé</Texto>
+      <Texto variante="corpo">
+        Participar da {comunidade} no {NOME_DO_APP} mostra que você faz parte de uma comunidade de
         igreja. A lei considera isso um dado sensível.
       </Texto>
       <CaixaDeMarcar
-        rotulo={`Concordo que a ${comunidade} e o Uni Jovem tratem meus dados para organizar a minha participação nesta comunidade: eventos, escalas, presença, avisos, sugestões e pedidos de oração. Sei que nome e papel ficam visíveis para os membros desta comunidade, e meu e-mail e WhatsApp só para organizadores e administradores.`}
+        rotulo={`Concordo que a ${comunidade} e o ${NOME_DO_APP} tratem meus dados para organizar a minha participação nesta comunidade: eventos, escalas, presença, avisos, sugestões e pedidos de oração. Sei que nome e papel ficam visíveis para os membros desta comunidade, e meu e-mail e WhatsApp só para organizadores e administradores.`}
         marcada={marcada}
         aoMudar={aoMudar}
       />
@@ -141,14 +129,14 @@ export function ConsentimentoDeFe({
           aoMudar={aoMudarResponsavel}
         />
       ) : null}
-      <Texto variante="apoio" cor="textoSuave">
+      <Texto variante="legenda" cor="textoSuave">
         Você pode desfazer isso quando quiser: em Perfil, Sair da comunidade, ou excluindo sua
         conta.
       </Texto>
       <Botao
         titulo="Saiba mais sobre a fé e seus dados"
-        variante="discreto"
-        larguraTotal={false}
+        variante="terciario"
+        alinhado
         aoPressionar={() => void abrirDocumento('/privacidade#fe')}
       />
     </View>

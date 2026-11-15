@@ -136,20 +136,20 @@ function ItemDaFila({ comunidadeId, denuncia: d }: { comunidadeId: string; denun
 
   return (
     <Cartao>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
         <Selo texto={NOME_DO_RECURSO[d.recursoTipo]} />
         <Selo texto={NOME_DO_MOTIVO[d.motivo]} cor="alerta" />
         {d.conteudoRetirado ? <Selo texto="Conteúdo retirado" cor="erro" /> : null}
       </View>
-      <Texto variante="apoio" cor="textoSuave">
+      <Texto variante="legenda" cor="textoSuave">
         Recebida em {formatarDataEHora(d.criadoEm)}
       </Texto>
       {d.detalhe ? <Texto>{d.detalhe}</Texto> : null}
-      {d.resolucao ? <Texto variante="apoio">Resolução: {d.resolucao}</Texto> : null}
+      {d.resolucao ? <Texto variante="corpo">Resolução: {d.resolucao}</Texto> : null}
       {abrir ? (
         <Botao titulo="Ver o conteúdo" icone="mostrar" variante="secundario" aoPressionar={abrir} />
       ) : (
-        <Texto variante="apoio" cor="textoSuave">
+        <Texto variante="legenda" cor="textoSuave">
           Pedidos de oração só abrem para quem pode lê-los. Se for da comunidade, ele está na tela
           Oração.
         </Texto>

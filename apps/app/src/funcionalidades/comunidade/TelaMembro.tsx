@@ -126,8 +126,8 @@ function EditarMembro({ membro, comunidade }: { membro: Membro; comunidade: Comu
 
   return (
     <TelaPropria>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.x4 }}>
-        <Avatar nome={nome} avatar={membro.avatar ?? null} tamanho="G" decorativo />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e16 }}>
+        <Avatar nome={nome} avatar={membro.avatar ?? null} tamanho="perfil" decorativo />
         <View style={{ flex: 1 }}>
           <CabecalhoDeTela sobrancelha={comunidade.nome} titulo={nome} />
         </View>
@@ -147,7 +147,7 @@ function EditarMembro({ membro, comunidade }: { membro: Membro; comunidade: Comu
           <Chip texto="Equipe de oração" icone="oracao" />
         ) : null}
       </Chips>
-      <Texto variante="apoio" cor="textoSuave">
+      <Texto variante="legenda" cor="textoSuave">
         Na comunidade desde {formatarData(membro.desde)}.
         {contato.length ? ` Contato: ${contato.join(' · ')}` : ''}
       </Texto>
@@ -217,7 +217,7 @@ function EditarMembro({ membro, comunidade }: { membro: Membro; comunidade: Comu
         <Cartao titulo="Situação" icone="pessoa">
           {membro.estado === 'ativo' ? (
             <>
-              <Texto variante="apoio" cor="textoSuave">
+              <Texto variante="legenda" cor="textoSuave">
                 Desativar tira o acesso, mas dá para reativar depois.
               </Texto>
               <Botao
@@ -238,7 +238,7 @@ function EditarMembro({ membro, comunidade }: { membro: Membro; comunidade: Comu
             </>
           ) : (
             <>
-              <Texto variante="apoio" cor="textoSuave">
+              <Texto variante="legenda" cor="textoSuave">
                 {membro.estado === 'desativado'
                   ? 'Reativar devolve o acesso com o mesmo papel.'
                   : 'Pessoa removida. Se a reativação for recusada, mande um convite novo.'}
@@ -263,7 +263,7 @@ function EditarMembro({ membro, comunidade }: { membro: Membro; comunidade: Comu
             <Botao
               titulo={`Remover ${nome} da comunidade`}
               icone="excluir"
-              variante="perigo"
+              variante="destrutivo"
               carregando={alterar.isPending && alterar.variables?.corpo.estado === 'removido'}
               aoPressionar={() =>
                 void pedir(
@@ -280,7 +280,7 @@ function EditarMembro({ membro, comunidade }: { membro: Membro; comunidade: Comu
       ) : null}
 
       {feito ? (
-        <TextoAnunciado variante="apoio" cor="textoSuave">
+        <TextoAnunciado variante="legenda" cor="textoSuave">
           As mudanças já valem para {nome}.
         </TextoAnunciado>
       ) : null}

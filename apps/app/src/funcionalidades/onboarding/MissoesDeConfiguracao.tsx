@@ -80,7 +80,7 @@ export function MissoesDeConfiguracao() {
   const restantes = missoes.filter((m) => !m.feita).length
   return (
     <>
-      <Texto variante="apoio" cor="textoSuave">
+      <Texto variante="legenda" cor="textoSuave">
         {restantes === 0
           ? 'Tudo configurado.'
           : `Opcional. ${restantes === 1 ? 'Falta 1 item' : `Faltam ${restantes} itens`}, no seu ritmo.`}
