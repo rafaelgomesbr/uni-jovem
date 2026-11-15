@@ -44,6 +44,9 @@ export const CHAVES = {
   denuncias: (id: string, estado: string) => ['c', id, 'denuncias', estado] as const,
   /** Preferências da conta (versículo) e o aparelho registrado para push. */
   notificacoesDaConta: ['eu', 'notificacoes'] as const,
+  /** Caixa de entrada do sino (todas as comunidades da conta) e o contador; prefixo ['eu', 'caixa']. */
+  paginasDaCaixa: ['eu', 'caixa', 'paginas'] as const,
+  notificacoesNaoLidas: ['eu', 'caixa', 'nao-lidas'] as const,
 }
 
 export function criarClienteDeConsulta(): QueryClient {

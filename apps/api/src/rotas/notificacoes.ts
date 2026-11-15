@@ -3,8 +3,8 @@ import type pg from 'pg'
 import { z } from 'zod'
 import { TIPOS_DE_NOTIFICACAO, VERSICULO_PADRAO } from '@uj/dominio'
 import { emTransacao } from '../banco/contexto.ts'
-import { ErroHttp, traduzirErroDoBanco, validar } from '../http.ts'
-import { exigir, naComunidade } from './contexto.ts'
+import { ErroHttp, NAO_ENCONTRADO, traduzirErroDoBanco, validar } from '../http.ts'
+import { exigir, idDoCaminho, naComunidade } from './contexto.ts'
 
 /**
  * Notificações (F14), lado das preferências e do aparelho. O envio em si é a
@@ -14,11 +14,90 @@ import { exigir, naComunidade } from './contexto.ts'
  *   aparelho): sair da conta ou revogar a sessão apaga o token no banco.
  * - Preferência por tipo e por comunidade fica numa rota de comunidade (a
  *   comunidade vem do caminho, nunca do corpo). A do versículo é da conta.
+ * - A caixa de entrada do sino (D42) é da conta: junta as comunidades com
+ *   vínculo ativo, pagina por cursor opaco e marca como lida (0020).
  */
 
 const hora = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Hora no formato HH:MM.')
 
 const tipo = z.enum(TIPOS_DE_NOTIFICACAO)
+
+/** Tamanho da página da caixa de entrada. */
+export const PAGINA_DA_CAIXA = 20
+
+interface LinhaDaCaixa {
+  id: string
+  tipo: string
+  recurso_tipo: string
+  titulo: string
+  corpo: string
+  lida_em: Date | null
+  criado_em: Date
+  micros: string
+  comunidade_id: string
+  comunidade_nome: string
+  alvo: string | null
+}
+
+/** A tela que a notificação abre no app. Nulo quando o alvo não existe mais. */
+export type DestinoDaNotificacao =
+  | { tela: 'aviso'; avisoId: string }
+  | { tela: 'avisos' }
+  | { tela: 'evento'; eventoId: string }
+  | { tela: 'escalas' }
+  | null
+
+function destinoDe(recursoTipo: string, alvo: string | null): DestinoDaNotificacao {
+  switch (recursoTipo) {
+    case 'aviso':
+      return alvo ? { tela: 'aviso', avisoId: alvo } : { tela: 'avisos' }
+    case 'evento':
+    case 'inscricao':
+      return alvo ? { tela: 'evento', eventoId: alvo } : null
+    case 'atribuicao':
+    case 'substituicao':
+      return { tela: 'escalas' }
+    default:
+      return null
+  }
+}
+
+/**
+ * Título e texto são os mesmos da notificação do aparelho, gravados pelos
+ * gatilhos (0011): genéricos, sem título de evento ou aviso e nunca com
+ * pedido de oração. A caixa só acrescenta o nome da comunidade.
+ */
+function itemDaCaixa(l: LinhaDaCaixa) {
+  return {
+    id: l.id,
+    tipo: l.tipo,
+    titulo: l.titulo,
+    texto: l.corpo,
+    comunidade: { id: l.comunidade_id, nome: l.comunidade_nome },
+    destino: destinoDe(l.recurso_tipo, l.alvo),
+    lida: l.lida_em !== null,
+    lidaEm: l.lida_em,
+    criadoEm: l.criado_em,
+  }
+}
+
+/**
+ * Cursor opaco (D41, D42): o instante em microssegundos e o id da última
+ * linha, em base64url. Microssegundos porque o `Date` do JavaScript corta em
+ * milissegundos e duas notificações do mesmo gatilho caem no mesmo milésimo.
+ */
+function escreverCursor(micros: string, id: string): string {
+  return Buffer.from(`${micros}:${id}`, 'utf8').toString('base64url')
+}
+
+function lerCursor(cursor: string): { micros: string; id: string } {
+  const texto = Buffer.from(cursor, 'base64url').toString('utf8')
+  const partes = /^(\d{1,19}):([0-9a-f-]{36})$/.exec(texto)
+  if (!partes || !z.uuid().safeParse(partes[2]).success) {
+    throw new ErroHttp('cursor_invalido', 400, 'A lista mudou. Abra as notificações de novo.')
+  }
+  return { micros: partes[1]!, id: partes[2]! }
+}
 
 export function registrarRotasDeNotificacoes(app: FastifyInstance, api: pg.Pool): void {
   const daConta = <T>(pedido: FastifyRequest, trabalho: (c: pg.PoolClient) => Promise<T>) =>
@@ -123,6 +202,74 @@ export function registrarRotasDeNotificacoes(app: FastifyInstance, api: pg.Pool)
         [pedido.sessao!.sessaoId],
       )
       return { ok: true }
+    }),
+  )
+
+  // ---------------------------------------------------------------- caixa de entrada (D42)
+
+  const caixa = '/api/v1/eu/notificacoes/caixa'
+
+  // Todas as comunidades com vínculo ativo de uma vez: a RLS (0020) entrega só
+  // as da conta, e só das comunidades em que ela continua.
+  app.get(caixa, sessao, async (pedido) => {
+    const { cursor } = validar(
+      z.object({ cursor: z.string().max(120).optional() }),
+      pedido.query ?? {},
+    )
+    const depois = cursor === undefined ? null : lerCursor(cursor)
+    return daConta(pedido, async (c) => {
+      const { rows } = await c.query<LinhaDaCaixa>(
+        `select n.id, n.tipo, n.recurso_tipo, n.titulo, n.corpo, n.lida_em, n.criado_em,
+                (extract(epoch from n.criado_em) * 1000000)::bigint::text as micros,
+                c.id as comunidade_id, c.nome as comunidade_nome,
+                uj.alvo_da_notificacao(n.id) as alvo
+           from uj.notificacoes n
+           join uj.comunidades c on c.id = n.comunidade_id
+          where $1::bigint is null
+             or (n.criado_em, n.id) < (timestamptz 'epoch' + $1::bigint * interval '1 microsecond',
+                                       $2::uuid)
+          order by n.criado_em desc, n.id desc
+          limit $3`,
+        [depois?.micros ?? null, depois?.id ?? null, PAGINA_DA_CAIXA + 1],
+      )
+      const pagina = rows.slice(0, PAGINA_DA_CAIXA)
+      const ultima = pagina.at(-1)
+      return {
+        notificacoes: pagina.map(itemDaCaixa),
+        proximoCursor:
+          rows.length > PAGINA_DA_CAIXA && ultima ? escreverCursor(ultima.micros, ultima.id) : null,
+      }
+    })
+  })
+
+  app.get(`${caixa}/nao-lidas`, sessao, async (pedido) =>
+    daConta(pedido, async (c) => {
+      const { rows } = await c.query<{ n: number }>(
+        'select count(*)::int as n from uj.notificacoes where lida_em is null',
+      )
+      return { naoLidas: rows[0]?.n ?? 0 }
+    }),
+  )
+
+  app.post(`${caixa}/:notificacaoId/lida`, sessao, async (pedido) => {
+    const notificacaoId = idDoCaminho(pedido, 'notificacaoId')
+    return daConta(pedido, async (c) => {
+      // De outra conta, de comunidade que a pessoa deixou ou inexistente: 404, igual.
+      const { rowCount } = await c.query(
+        'update uj.notificacoes set lida_em = coalesce(lida_em, now()) where id = $1',
+        [notificacaoId],
+      )
+      if (!rowCount) throw NAO_ENCONTRADO()
+      return { ok: true }
+    })
+  })
+
+  app.post(`${caixa}/lidas`, sessao, async (pedido) =>
+    daConta(pedido, async (c) => {
+      const { rowCount } = await c.query(
+        'update uj.notificacoes set lida_em = now() where lida_em is null',
+      )
+      return { marcadas: rowCount ?? 0 }
     }),
   )
 

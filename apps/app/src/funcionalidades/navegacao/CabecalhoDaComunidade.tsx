@@ -10,6 +10,7 @@ import { soNaWeb } from '@/ui/web'
 import { NOME_DO_ESTADO_DA_COMUNIDADE } from '../comunidade/nomes'
 import { logoDaComunidade } from '../perfil/imagens'
 import { IndicadorDeSincronizacao } from '../offline/IndicadorDeSincronizacao'
+import { SinoDeNotificacoes } from '../notificacoes/SinoDeNotificacoes'
 
 /** O que a pílula mostra e faz, a partir da sessão. */
 function usePilula() {
@@ -52,9 +53,10 @@ export function PilulaDaComunidade({ compacta = false }: { compacta?: boolean })
 }
 
 /**
- * Linha do topo das raízes de aba (M): pílula à esquerda e status à direita,
- * `space-between`, intervalo de 12. Sem comunidade, não há status. Com fonte
- * grande, o status desce para a linha de baixo.
+ * Linha do topo das raízes de aba (M): pílula à esquerda e, à direita, o
+ * status e o sino das notificações (D42), `space-between`, intervalo de 12.
+ * Sem comunidade, não há status nem sino. Com fonte grande, a direita desce
+ * para a linha de baixo.
  */
 export function CabecalhoDaComunidade({ compacto = false }: { compacto?: boolean }) {
   const { comunidades } = useSessao()
@@ -71,7 +73,12 @@ export function CabecalhoDaComunidade({ compacto = false }: { compacto?: boolean
       }}
     >
       <PilulaDaComunidade compacta={compacto} />
-      {comunidades.length ? <IndicadorDeSincronizacao /> : null}
+      {comunidades.length ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}>
+          <IndicadorDeSincronizacao />
+          <SinoDeNotificacoes />
+        </View>
+      ) : null}
     </View>
   )
 }

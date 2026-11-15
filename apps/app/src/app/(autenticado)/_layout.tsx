@@ -105,6 +105,7 @@ export default function LayoutAutenticado() {
         <Stack.Screen name="modelos" options={{ title: 'Modelos' }} />
         <Stack.Screen name="denuncias" options={{ title: 'Denúncias' }} />
         <Stack.Screen name="notificacoes" options={{ title: 'Notificações' }} />
+        <Stack.Screen name="caixa-de-notificacoes" options={{ title: 'Notificações' }} />
         <Stack.Screen name="versiculo/index" options={{ title: 'Versículo do dia' }} />
         <Stack.Screen name="versiculo/traducao" options={{ title: 'Sobre a tradução' }} />
         <Stack.Screen name="missao" options={{ title: 'Mapa da missão' }} />
