@@ -39,14 +39,14 @@ export function TelaLerQr() {
   const pode = usePode()
   if (!comunidadeAtiva || !eventoId) {
     return (
-      <Tela pilha titulo="Ler QR">
+      <Tela pilha modal titulo="Ler QR">
         <SemComunidade oQue="o check-in" />
       </Tela>
     )
   }
   if (!pode('presenca', 'registrar')) {
     return (
-      <Tela pilha titulo="Ler QR">
+      <Tela pilha modal titulo="Ler QR">
         <Aviso tipo="info" titulo="Só a organização registra presença">
           Mostre o seu código para quem está fazendo o check-in.
         </Aviso>

@@ -4,6 +4,7 @@ import { useState } from 'react'
 
 import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
+import { AvisoDeFalha } from '@/ui/Falha'
 import { parametro } from '@/utilidades/parametros'
 import { Aviso } from '@/ui/Aviso'
 import { BarraDeAcao } from '@/ui/BarraDeAcao'
@@ -14,7 +15,6 @@ import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 
-import { AvisoDeFalha } from '../agenda/ErroAoCarregar'
 import { useFusoDaComunidade, useMeuVinculo } from '../comunidade/consultas'
 import { SeletorDePessoa } from '../comunidade/SeletorDePessoa'
 import { naComunidade } from '../eventos/consultas'
@@ -30,7 +30,7 @@ export function TelaPedirSubstituicao() {
   const atribuicaoId = parametro(useLocalSearchParams<{ atribuicaoId: string }>().atribuicaoId)
   if (!comunidadeAtiva || !atribuicaoId) {
     return (
-      <Tela pilha titulo="Pedir substituição">
+      <Tela pilha modal titulo="Pedir substituição">
         <SemComunidade oQue="as suas escalas" />
       </Tela>
     )
@@ -84,6 +84,7 @@ function PedirSubstituicao({
   return (
     <Tela
       pilha
+      modal
       titulo="Pedir substituição"
       descricao="Você continua na escala até alguém assumir. Quem assume fica registrado no seu lugar."
       barraDeAcao={

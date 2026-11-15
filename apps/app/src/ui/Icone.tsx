@@ -108,6 +108,9 @@ export const ICONES = {
   pessoas: { ios: 'person.2', android: 'group', web: 'group' },
   calendario: { ios: 'calendar', android: 'calendar_today', web: 'calendar_today' },
   limpar: { ios: 'xmark.circle.fill', android: 'cancel', web: 'cancel' },
+  // Foto de perfil e logotipo (D33): "Tirar foto" e "Escolher da galeria".
+  camera: { ios: 'camera', android: 'photo_camera', web: 'photo_camera' },
+  galeria: { ios: 'photo.on.rectangle', android: 'photo_library', web: 'photo_library' },
 } as const
 
 export type NomeDoIcone = keyof typeof ICONES

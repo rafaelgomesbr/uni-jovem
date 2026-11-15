@@ -3,7 +3,7 @@ import { Redirect, Stack } from 'expo-router'
 import { useSessao } from '@/estado/sessao'
 import { useOpcoesDaPilha } from '@/funcionalidades/navegacao/opcoesDaPilha'
 import { AgendadorDoAparelho } from '@/funcionalidades/notificacoes/AgendadorDoAparelho'
-import { Carregando } from '@/ui/Carregando'
+import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { Tela } from '@/ui/Tela'
 import { useTema } from '@/ui/tema'
 
@@ -12,11 +12,22 @@ export default function LayoutAutenticado() {
   const { estado } = useSessao()
   const opcoesDaPilha = useOpcoesDaPilha()
   const { cores } = useTema()
+  // Folha nativa (2.12.19): grabber do sistema, raio 28 e a superfície elevada nas outras plataformas.
+  const folha = {
+    presentation: 'formSheet',
+    sheetGrabberVisible: true,
+    sheetCornerRadius: 28,
+    contentStyle: { backgroundColor: cores.superficieElevada },
+  } as const
+  // Formulário longo e câmera (3.4.3 e 3.5.3): tela cheia, com "Fechar" no lugar de "Voltar".
+  const telaCheia = { presentation: 'fullScreenModal' } as const
   if (estado === 'anonimo') return <Redirect href="/entrar" />
   if (estado === 'carregando') {
     return (
       <Tela rolar={false}>
-        <Carregando texto="Abrindo o app" />
+        <Esqueleto rotulo="Abrindo o app">
+          <CartaoDeEsqueleto titulo />
+        </Esqueleto>
       </Tela>
     )
   }
@@ -29,17 +40,14 @@ export default function LayoutAutenticado() {
         <Stack.Screen name="(abas)" options={{ headerShown: false, title: 'Início' }} />
         <Stack.Screen
           name="trocar-comunidade"
-          options={{ title: 'Comunidade', presentation: 'modal' }}
+          options={{ title: 'Comunidade', ...folha, sheetAllowedDetents: [0.5, 1] }}
         />
         <Stack.Screen
           name="como-conseguir-convite"
           options={{
             title: 'Como conseguir um convite',
-            presentation: 'formSheet',
+            ...folha,
             sheetAllowedDetents: 'fitToContents',
-            sheetGrabberVisible: true,
-            sheetCornerRadius: 28,
-            contentStyle: { backgroundColor: cores.superficieElevada },
           }}
         />
         <Stack.Screen name="convidar" options={{ title: 'Convidar' }} />
@@ -49,14 +57,17 @@ export default function LayoutAutenticado() {
         <Stack.Screen name="plataforma/index" options={{ title: 'Plataforma' }} />
         <Stack.Screen name="plataforma/nova" options={{ title: 'Nova comunidade' }} />
         <Stack.Screen name="plataforma/[comunidadeId]" options={{ title: 'Comunidade' }} />
-        <Stack.Screen name="evento/novo" options={{ title: 'Nova programação' }} />
+        <Stack.Screen name="evento/novo" options={{ title: 'Nova programação', ...telaCheia }} />
         <Stack.Screen name="evento/[eventoId]/index" options={{ title: 'Programação' }} />
-        <Stack.Screen name="evento/[eventoId]/editar" options={{ title: 'Editar' }} />
+        <Stack.Screen name="evento/[eventoId]/editar" options={{ title: 'Editar', ...telaCheia }} />
         <Stack.Screen
           name="evento/[eventoId]/status"
           options={{ title: 'Cancelar ou adiar', presentation: 'modal' }}
         />
-        <Stack.Screen name="evento/[eventoId]/duplicar" options={{ title: 'Duplicar' }} />
+        <Stack.Screen
+          name="evento/[eventoId]/duplicar"
+          options={{ title: 'Duplicar', ...telaCheia }}
+        />
         <Stack.Screen
           name="evento/[eventoId]/etapa/[etapaId]"
           options={{ title: 'Etapa e equipe' }}
@@ -64,10 +75,7 @@ export default function LayoutAutenticado() {
         <Stack.Screen name="evento/[eventoId]/ao-vivo" options={{ title: 'Ao vivo' }} />
         <Stack.Screen name="evento/[eventoId]/inscricoes" options={{ title: 'Inscrições' }} />
         <Stack.Screen name="evento/[eventoId]/checkin" options={{ title: 'Check-in' }} />
-        <Stack.Screen
-          name="evento/[eventoId]/ler-qr"
-          options={{ title: 'Ler QR', presentation: 'modal' }}
-        />
+        <Stack.Screen name="evento/[eventoId]/ler-qr" options={{ title: 'Ler QR', ...telaCheia }} />
         <Stack.Screen name="serie/[serieId]" options={{ title: 'Série' }} />
         <Stack.Screen name="agenda/[data]" options={{ title: 'Linha do tempo do dia' }} />
         <Stack.Screen name="escalas/index" options={{ title: 'Escalas' }} />

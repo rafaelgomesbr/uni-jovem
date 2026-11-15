@@ -7,12 +7,12 @@ import { useEffect, useState } from 'react'
 
 import { criarClienteDeConsulta, ligarGerentesDoReactQuery } from '@/estado/clienteDeConsulta'
 import { ProvedorDeSessao, useSessao } from '@/estado/sessao'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { DialogoDeConfirmacao } from '@/ui/DialogoDeConfirmacao'
 import { EstilosDaWeb } from '@/ui/EstilosDaWeb'
 import { useDestinoDepoisDeEntrar } from '@/funcionalidades/autenticacao/destinoDepoisDeEntrar'
 import { useOpcoesDaPilha } from '@/funcionalidades/navegacao/opcoesDaPilha'
 import { ProvedorOffline } from '@/funcionalidades/offline/ProvedorOffline'
+import { AvisoDeFalha } from '@/ui/Falha'
 import { ARQUIVOS_DE_FONTE } from '@/ui/fontes'
 import { Tela } from '@/ui/Tela'
 import { HospedeiroDeToast } from '@/ui/Toast'
@@ -73,7 +73,7 @@ function Navegacao({ fontesProntas }: { fontesProntas: boolean }) {
       <ThemeProvider value={tema}>
         <EstilosDaWeb />
         <Tela titulo="Não foi possível abrir">
-          <AvisoDeErro erro={sessao.falhaAoIniciar} aoTentarDeNovo={sessao.tentarDeNovo} />
+          <AvisoDeFalha erro={sessao.falhaAoIniciar} aoTentarDeNovo={sessao.tentarDeNovo} />
         </Tela>
       </ThemeProvider>
     )

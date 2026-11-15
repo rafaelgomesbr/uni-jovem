@@ -10,9 +10,9 @@ import type {
   ConfiguracaoDoAutenticador,
 } from '@/servicos/contrato'
 import { ehErroDaApi } from '@/servicos/erros'
+import { AvisoDeFalha } from '@/ui/Falha'
 import { useTokenDoFragmento } from '@/utilidades/fragmento'
 import { Aviso } from '@/ui/Aviso'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
@@ -147,7 +147,7 @@ export function TelaPrimeiroAcesso() {
           <Aviso tipo="info" titulo="Tenha um app autenticador à mão">
             {`No próximo passo você cadastra o ${NOME_DO_APP} num app como o Google Authenticator ou o app Senhas do iPhone. Ele gera o código de 6 números que protege a conta.`}
           </Aviso>
-          {iniciar.error ? <AvisoDeErro erro={iniciar.error} /> : null}
+          {iniciar.error ? <AvisoDeFalha erro={iniciar.error} /> : null}
         </>
       ) : atual === 2 && iniciar.data ? (
         <ConfigurarAutenticador uri={iniciar.data.uri} segredo={iniciar.data.segredo} />
@@ -187,7 +187,7 @@ export function TelaPrimeiroAcesso() {
             maxLength={6}
             onSubmitEditing={enviar}
           />
-          {concluir.error && !senhaFraca ? <AvisoDeErro erro={concluir.error} /> : null}
+          {concluir.error && !senhaFraca ? <AvisoDeFalha erro={concluir.error} /> : null}
         </CartaoDeVidro>
       )}
     </Tela>

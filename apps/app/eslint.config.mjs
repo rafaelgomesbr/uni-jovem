@@ -28,6 +28,26 @@ const LITERAL_DE_ESTILO = {
     'Nada de número solto no estilo da tela: use ESPACO, ALTURA, RAIO ou TIPO de @uj/tokens.',
 }
 
+// Critério da D4 (docs/design 4.2): as fachadas do D0 foram apagadas e não
+// voltam. Cada uma tem um substituto do design system em `src/ui`.
+const FACHADAS_APAGADAS = [
+  ['Cartao', 'Use CartaoDeVidro ou CartaoDeDestaque.'],
+  ['Linha', 'Use LinhaDeLista e Lista.'],
+  ['Selo', 'Use Chip, com o tom do mapa de estados (2.12.12).'],
+  ['GrupoDeOpcoes', 'Use ListaDeOpcoes.'],
+  ['Carregando', 'Use Esqueleto (2.12.22); o indicador giratório fica só dentro de botões.'],
+  ['AvisoDeErro', 'Use AvisoDeFalha ou ErroDaTela, de @/ui/Falha.'],
+]
+
+/** Proíbe importar as fachadas pelos caminhos dados (o alias em todo lugar; o relativo dentro de `src/ui`). */
+function semFachadas(prefixos) {
+  return {
+    paths: FACHADAS_APAGADAS.flatMap(([nome, message]) =>
+      prefixos.map((prefixo) => ({ name: `${prefixo}${nome}`, message })),
+    ),
+  }
+}
+
 const OPACIDADE_COMO_ESTADO = {
   selector: "Property[key.name='opacity']",
   message:
@@ -81,6 +101,7 @@ export default tseslint.config(
       'react-hooks/exhaustive-deps': 'error',
       'react-hooks/incompatible-library': 'error',
       'react-hooks/unsupported-syntax': 'error',
+      'no-restricted-imports': ['error', semFachadas(['@/ui/'])],
     },
   },
   {
@@ -102,6 +123,11 @@ export default tseslint.config(
     files: ['src/funcionalidades/**/*.tsx', 'src/app/**/*.tsx'],
     ignores: ['**/__tests__/**'],
     rules: { 'no-restricted-syntax': ['error', ESPACO_FINO, LITERAL_DE_ESTILO] },
+  },
+  {
+    // Dentro de `src/ui` (e dos testes dele) as fachadas também não voltam por caminho relativo.
+    files: ['src/ui/**/*.{ts,tsx}'],
+    rules: { 'no-restricted-imports': ['error', semFachadas(['@/ui/', './', '../'])] },
   },
   {
     // Componentes de base: estado é desenhado em cor, nunca com `opacity`.

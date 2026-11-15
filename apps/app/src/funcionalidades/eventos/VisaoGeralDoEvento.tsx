@@ -58,11 +58,11 @@ export function metaDoEvento(evento: Pick<DetalheDoEvento, 'inicio' | 'fuso' | '
 /**
  * Logo abaixo do título: a meta em `corpo` suave e a linha de chips
  * (situação, se não estiver publicado; Interna ou Pública; Série). O título
- * é o da tela; este bloco sobe 8 para ficar a 8 dele (quadro 03).
+ * é o da tela; o cabeçalho põe este bloco a 8 dele (quadro 03).
  */
 export function MetaDoEvento({ evento, extra }: { evento: DetalheDoEvento; extra?: string }) {
   return (
-    <View style={{ gap: ESPACO.e8, marginTop: -ESPACO.e8 }}>
+    <View style={{ gap: ESPACO.e8 }}>
       <Texto
         variante="corpo"
         cor="textoSuave"

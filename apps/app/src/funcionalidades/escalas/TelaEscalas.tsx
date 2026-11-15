@@ -7,6 +7,7 @@ import { View } from 'react-native'
 import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
 import type { Substituicao } from '@/servicos/contratoDosEventos'
+import { AvisoDeFalha, ErroDaTela } from '@/ui/Falha'
 import { confirmar } from '@/utilidades/confirmar'
 import {
   DIAS_CURTOS,
@@ -31,7 +32,6 @@ import { Segmentos } from '@/ui/Segmentos'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 
-import { AvisoDeFalha, ErroAoCarregar } from '../agenda/ErroAoCarregar'
 import { useFusoDaComunidade, useMeuVinculo } from '../comunidade/consultas'
 import { naComunidade, useEventosNoPeriodo } from '../eventos/consultas'
 import { SemComunidade } from '../navegacao/SemComunidade'
@@ -100,7 +100,7 @@ function Proximas({ comunidadeId, aoInformar }: { comunidadeId: string; aoInform
           <CartaoDeEsqueleto titulo />
         </Esqueleto>
       ) : escalas.error ? (
-        <ErroAoCarregar
+        <ErroDaTela
           erro={escalas.error}
           oQue="as suas escalas"
           aoTentarDeNovo={() => void escalas.refetch()}
@@ -344,7 +344,7 @@ function MinhaDisponibilidade({ comunidadeId }: { comunidadeId: string }) {
           <CartaoDeEsqueleto />
         </Esqueleto>
       ) : disponibilidade.error ? (
-        <ErroAoCarregar
+        <ErroDaTela
           erro={disponibilidade.error}
           oQue="a sua disponibilidade"
           aoTentarDeNovo={() => void disponibilidade.refetch()}
@@ -354,7 +354,12 @@ function MinhaDisponibilidade({ comunidadeId }: { comunidadeId: string }) {
           <PilulasDeFiltro
             rotulo="Dias em que posso ajudar"
             multipla
-            pilulas={datas.map((d) => ({ valor: d, rotulo: rotuloDaData(d) }))}
+            // "sáb 21 nov" cabe na pílula; o leitor de tela ouve "sábado, 21 de novembro".
+            pilulas={datas.map((d) => ({
+              valor: d,
+              rotulo: rotuloDaData(d),
+              rotuloAcessivel: formatarDataPorExtenso(d, false),
+            }))}
             selecionadas={marcadas}
             aoMudar={aoMudar}
           />

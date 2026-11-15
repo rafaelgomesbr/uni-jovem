@@ -9,7 +9,9 @@ import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Chip } from '@/ui/Chip'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
+import { ErroDaTela } from '@/ui/Falha'
 import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
+import { Numeros } from '@/ui/Numeros'
 import { Secao } from '@/ui/Secao'
 import { Tela } from '@/ui/Tela'
 
@@ -17,8 +19,6 @@ import {
   CHIP_DO_ESTADO_DA_COMUNIDADE,
   NOME_CURTO_DO_ESTADO_DA_COMUNIDADE,
 } from '../comunidade/nomes'
-import { ErroDaTela } from '../eventos/Falha'
-import { Numeros } from '../eventos/Numeros'
 import { useComunidadesDaPlataforma } from './consultas'
 import { exigeProvaDeSegundoFator, ProvaDeSegundoFator } from './ProvaDeSegundoFator'
 

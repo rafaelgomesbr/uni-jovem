@@ -1,4 +1,4 @@
-import { RAIO, type Paleta } from '@uj/tokens'
+import { ALTURA, BORDA, RAIO, type Paleta } from '@uj/tokens'
 import { View } from 'react-native'
 
 import { usePreferenciasDeAcessibilidade } from './acessibilidade'
@@ -10,17 +10,33 @@ interface PropsDaBarra {
   /** Texto lido pelo leitor de tela (ex.: "3 de 7 etapas concluídas"). */
   rotulo: string
   cor?: keyof Paleta
+  /** Padrão: 6 (3.3.4 e 3.5.1). */
   altura?: number
+  /**
+   * `tonal`: trilho em `tonal`, sem borda (3.3.4 e quadro 09), quando o
+   * número também está escrito ao lado. `contorno`: trilho elevado com borda
+   * de 1 em `campoBorda`, quando a barra precisa se destacar sozinha.
+   */
+  trilho?: 'tonal' | 'contorno'
 }
 
 /**
  * Barra de progresso estática (sem animação: respeita Reduzir movimento por
- * construção). O número vai sempre em texto ao lado ou no rótulo.
+ * construção). O número vai sempre em texto ao lado ou no rótulo. Com
+ * "Aumentar contraste", o trilho ganha borda na cor do texto.
  */
-export function BarraDeProgresso({ fracao, rotulo, cor = 'destaque', altura = 8 }: PropsDaBarra) {
-  const { cores } = useTema()
+export function BarraDeProgresso({
+  fracao,
+  rotulo,
+  cor = 'destaque',
+  altura = ALTURA.progresso,
+  trilho = 'contorno',
+}: PropsDaBarra) {
+  const { cores, solido } = useTema()
   const { aumentarContraste } = usePreferenciasDeAcessibilidade()
   const valor = Math.min(1, Math.max(0, Number.isFinite(fracao) ? fracao : 0))
+  const tonal = trilho === 'tonal'
+  const comBorda = aumentarContraste || !tonal
   return (
     <View
       accessible
@@ -33,14 +49,21 @@ export function BarraDeProgresso({ fracao, rotulo, cor = 'destaque', altura = 8 
       style={{
         height: altura,
         borderRadius: RAIO.pilula,
-        borderWidth: 1,
+        borderWidth: comBorda ? BORDA.fina : 0,
         borderColor: aumentarContraste ? cores.texto : cores.campoBorda,
-        backgroundColor: cores.superficieElevada,
+        backgroundColor: tonal ? solido(cores.tonal) : cores.superficieElevada,
         overflow: 'hidden',
         alignSelf: 'stretch',
       }}
     >
-      <View style={{ width: `${valor * 100}%`, height: '100%', backgroundColor: cores[cor] }} />
+      <View
+        style={{
+          width: `${valor * 100}%`,
+          height: '100%',
+          borderRadius: RAIO.pilula,
+          backgroundColor: cores[cor],
+        }}
+      />
     </View>
   )
 }

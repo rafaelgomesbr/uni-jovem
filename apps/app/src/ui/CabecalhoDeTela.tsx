@@ -16,6 +16,11 @@ export interface PropsDoCabecalhoDeTela {
   titulo?: string
   /** Subtítulo em `corpo` suave, 4 abaixo do título (no máximo 2 linhas na pilha). */
   subtitulo?: string
+  /**
+   * Bloco próprio 8 abaixo do título (ou do subtítulo), como a meta e os
+   * chips do detalhe do evento (quadro 03).
+   */
+  abaixoDoTitulo?: ReactNode
   /** Raiz: a linha de 44 com a pílula e o status. */
   linhaDoTopo?: ReactNode
   /** Raiz: só ícone de 44 à direita do título ("+", "Convidar"). */
@@ -24,6 +29,11 @@ export interface PropsDoCabecalhoDeTela {
   acoes?: ReactNode
   /** Pilha sem voltar (o link é a entrada, como no convite). */
   semVoltar?: boolean
+  /**
+   * Pilha aberta como modal (`fullScreenModal`, `modal`): o botão da esquerda
+   * é "Fechar" (`xmark`) em vez de "Voltar", e fecha o modal.
+   */
+  modal?: boolean
   aoVoltar?: () => void
   /** Folha: o fechar (`xmark`, 44) à direita do título. */
   aoFechar?: () => void
@@ -41,18 +51,20 @@ export function voltar() {
 /**
  * Cabeçalho de tela próprio (seção 2.12.16), no lugar do cabeçalho nativo:
  * - raiz: linha de 44 (pílula e status), 20, `display` 34/38;
- * - pilha: linha de 44 com o voltar circular (rótulo "Voltar") e ações, 12,
- *   `tituloTela` 28/32 e subtítulo 4 abaixo;
+ * - pilha: linha de 44 com o voltar circular (rótulo "Voltar"; "Fechar" no
+ *   modal) e ações, 12, `tituloTela` 28/32 e subtítulo 4 abaixo;
  * - folha: título `tituloCartao` à esquerda e o fechar à direita.
  */
 export function CabecalhoDeTela({
   tipo,
   titulo,
   subtitulo,
+  abaixoDoTitulo,
   linhaDoTopo,
   acaoDoTitulo,
   acoes,
   semVoltar = false,
+  modal = false,
   aoVoltar = voltar,
   aoFechar,
   passos,
@@ -84,11 +96,7 @@ export function CabecalhoDeTela({
           gap: ESPACO.e8,
         }}
       >
-        {semVoltar ? (
-          <View />
-        ) : (
-          <BotaoIcone icone="voltar" rotulo="Voltar" circular aoPressionar={aoVoltar} />
-        )}
+        {semVoltar ? <View /> : <BotaoDeSaida modal={modal} aoPressionar={aoVoltar} />}
         {acoes ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}>
             {acoes}
@@ -133,7 +141,23 @@ export function CabecalhoDeTela({
           {subtitulo}
         </Texto>
       ) : null}
+      {abaixoDoTitulo ? <View style={{ marginTop: ESPACO.e8 }}>{abaixoDoTitulo}</View> : null}
     </View>
+  )
+}
+
+/** O botão da esquerda da pilha: "Voltar" (`chevron.left`) ou, no modal, "Fechar" (`xmark`). */
+export function BotaoDeSaida({
+  modal,
+  aoPressionar,
+}: {
+  modal: boolean
+  aoPressionar: () => void
+}) {
+  return modal ? (
+    <BotaoIcone icone="fechar" rotulo="Fechar" circular aoPressionar={aoPressionar} />
+  ) : (
+    <BotaoIcone icone="voltar" rotulo="Voltar" circular aoPressionar={aoPressionar} />
   )
 }
 

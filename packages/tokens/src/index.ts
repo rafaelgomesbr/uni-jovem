@@ -60,6 +60,8 @@ export const ALTURA = {
   controle: 48,
   /** Botão médio, dentro de cartão: 44 no iOS e na web, 48 no Android. */
   controleCompacto: ALVO_MINIMO,
+  /** Controles do Ao vivo (3.5.1): a tela é usada sob pressão, os alvos crescem. */
+  controleAlto: 56,
   /** Botão só ícone. */
   iconeSo: 44,
   /** Item da barra de abas (M). */
@@ -73,8 +75,12 @@ export const ALTURA = {
   chip: 24,
   /** Campo multilinha. */
   multilinha: 120,
+  /** Multilinha de texto longo em `leitura` (pedido de oração, 3.7.1). */
+  multilinhaLonga: 160,
   /** Ladrilho de ícone à esquerda da linha. */
   ladrilho: 32,
+  /** Barra de progresso (3.3.4 e 3.5.1). */
+  progresso: 6,
 } as const
 
 /**
@@ -187,6 +193,8 @@ export const TIPO = {
   tituloCartao: papel('titulo', '800', 24, 28, { espacamento: -0.2, teto: 2, nivel: 2 }),
   /** Números de relatório e contador do check-in. */
   numero: papel('titulo', '800', 28, 32, { teto: 1.6, tabular: true }),
+  /** Código de entrada, dia do bloco de data e campo de código: algarismos largos (tabulares). */
+  codigo: papel('titulo', '800', 20, 24, { teto: 1.6, tabular: true }),
   /** Ao vivo. */
   cronometro: papel('titulo', '800', 64, 68, { espacamento: -1, teto: 1.4, tabular: true }),
   /** Versículo, pedido de oração, descrição de evento, corpo de aviso. */

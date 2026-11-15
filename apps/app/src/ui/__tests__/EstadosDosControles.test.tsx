@@ -91,6 +91,25 @@ describe('Botão: estados desenhados (2.12.1)', () => {
     expect(screen.getByRole('button', { name: 'Excluir' })).toBeEnabled()
   })
 
+  test('alto (Ao vivo): 56 de altura e ícone de 24', async () => {
+    await render(
+      <Botao titulo="Avançar etapa" tamanho="alto" icone="proximaEtapa" aoPressionar={() => {}} />,
+    )
+    expect(estilo(screen.getByRole('button', { name: 'Avançar etapa' })).minHeight).toBe(56)
+  })
+
+  test('marcado (alternável): fundo quente, borda e texto em destaque', async () => {
+    await render(
+      <Botao titulo="Orando" variante="secundario" icone="check" marcado aoPressionar={() => {}} />,
+    )
+    const botao = screen.getByRole('button', { name: 'Orando' })
+    expect(estilo(botao)).toMatchObject({
+      borderColor: C.destaque,
+      backgroundColor: C.quenteFundo,
+    })
+    expect(screen.getByText('Orando')).toHaveStyle({ color: C.destaque })
+  })
+
   test('largura automática por padrão (só formulário e barra usam a largura total)', async () => {
     await render(<Botao titulo="Ver todos" variante="terciario" aoPressionar={() => {}} />)
     // A raiz do botão é a caixa que o posiciona (o Pressable fica dentro dela).

@@ -10,6 +10,8 @@ import { Aviso } from '@/ui/Aviso'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
+import { AvisoDeFalha, ErroDaTela } from '@/ui/Falha'
+import { MenuDeAcoes } from '@/ui/FolhaNaTela'
 import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
 import { Secao } from '@/ui/Secao'
 import { Tela } from '@/ui/Tela'
@@ -20,8 +22,6 @@ import { formatarDuracao } from '@/utilidades/datas'
 import { usePode } from '../comunidade/permissoes'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { naComunidade, useModelos } from './consultas'
-import { AvisoDeFalha, ErroDaTela } from './Falha'
-import { MenuDeAcoes } from './FolhaNaTela'
 
 function resumo(etapas: readonly { duracaoMin: number }[]): string {
   const total = etapas.reduce((s, e) => s + e.duracaoMin, 0)

@@ -1,4 +1,4 @@
-import { RITMO } from '@uj/tokens'
+import { ESPACO, RITMO } from '@uj/tokens'
 import { router } from 'expo-router'
 import { useState, type ReactNode } from 'react'
 import { View } from 'react-native'
@@ -11,6 +11,7 @@ import { Aviso } from '@/ui/Aviso'
 import { BotaoIcone } from '@/ui/Botao'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
+import { AvisoDeFalha, ErroDaTela } from '@/ui/Falha'
 import { Segmentos, type Segmento } from '@/ui/Segmentos'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
@@ -22,7 +23,6 @@ import { useEstaOnline, usePacoteDoEvento } from '../offline/ProvedorOffline'
 import { AcoesNoPainel, BarraDoEvento, useAcoesDoEvento } from './BarraDoEvento'
 import { useEvento } from './consultas'
 import { DestaqueDoEvento } from './DestaqueDoEvento'
-import { AvisoDeFalha, ErroDaTela } from './Falha'
 import { SecaoAnexos, SecaoChecklist, SecaoNotas } from './SecaoChecklist'
 import { SecaoEquipe } from './SecaoEquipe'
 import { SecaoEtapas } from './SecaoEtapas'
@@ -113,12 +113,14 @@ export function DetalheDoEvento({
 function Moldura({
   painel,
   titulo,
+  abaixoDoTitulo,
   acoes,
   barra,
   children,
 }: {
   painel: boolean
   titulo?: string
+  abaixoDoTitulo?: ReactNode
   acoes?: ReactNode
   barra?: ReactNode
   children: ReactNode
@@ -128,6 +130,7 @@ function Moldura({
     <Tela
       pilha
       {...(titulo ? { titulo } : {})}
+      {...(abaixoDoTitulo ? { abaixoDoTitulo } : {})}
       {...(acoes ? { acoes } : {})}
       {...(barra ? { barraDeAcao: barra } : {})}
     >
@@ -238,13 +241,16 @@ function Conteudo({
   if (painel) {
     return (
       <View style={{ gap: RITMO.entreSecoes }}>
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: RITMO.entreItens }}>
-          <Texto variante="tituloTela" style={{ flex: 1 }}>
-            {e.titulo}
-          </Texto>
-          {doTopo}
+        {/* A meta fica a 8 do título, como no cabeçalho da tela (quadro 03). */}
+        <View style={{ gap: ESPACO.e8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: RITMO.entreItens }}>
+            <Texto variante="tituloTela" style={{ flex: 1 }}>
+              {e.titulo}
+            </Texto>
+            {doTopo}
+          </View>
+          {meta}
         </View>
-        {meta}
         <AcoesNoPainel acoes={acoes} />
         {corpo}
       </View>
@@ -254,10 +260,10 @@ function Conteudo({
     <Moldura
       painel={false}
       titulo={e.titulo}
+      abaixoDoTitulo={meta}
       {...(doTopo ? { acoes: doTopo } : {})}
       {...(acoes.organiza ? { barra: <BarraDoEvento acoes={acoes} /> } : {})}
     >
-      {meta}
       {corpo}
     </Moldura>
   )

@@ -16,8 +16,7 @@ import { LARGURA_MAXIMA_DO_CONTEUDO, LARGURA_MAXIMA_LARGA } from '@/constantes'
 
 import { usePreferenciasDeAcessibilidade } from './acessibilidade'
 import { fimComBarraDeAcao } from './BarraDeAcao'
-import { BotaoIcone } from './Botao'
-import { CabecalhoDeTela, voltar } from './CabecalhoDeTela'
+import { BotaoDeSaida, CabecalhoDeTela, voltar } from './CabecalhoDeTela'
 import type { NoDeTexto } from './foco'
 import { FundoAurora } from './FundoAurora'
 import { Texto } from './Texto'
@@ -35,8 +34,12 @@ interface PropsDaTela {
   /** Raiz: `display` 34/38. Pilha: `tituloTela` 28/32. Anunciado como cabeçalho de nível 1. */
   titulo?: string
   descricao?: string
+  /** Bloco próprio 8 abaixo do título (meta e chips do detalhe do evento). */
+  abaixoDoTitulo?: ReactNode
   /** Tela de pilha: voltar circular de 44, título 28/32 e Aurora a 60%. */
   pilha?: boolean
+  /** Pilha aberta como modal (`fullScreenModal`, `modal`): "Fechar" no lugar de "Voltar". */
+  modal?: boolean
   /** Raiz de aba: a linha de 44 com a pílula e o status. */
   topo?: ReactNode
   /** Raiz: a mesma linha em versão compacta, no cabeçalho que aparece ao rolar. */
@@ -71,7 +74,9 @@ export function Tela({
   children,
   titulo,
   descricao,
+  abaixoDoTitulo,
   pilha = false,
+  modal = false,
   topo,
   topoCompacto,
   acaoDoTitulo,
@@ -110,6 +115,8 @@ export function Tela({
         tipo={pilha ? 'pilha' : 'raiz'}
         {...(titulo ? { titulo } : {})}
         {...(descricao ? { subtitulo: descricao } : {})}
+        {...(abaixoDoTitulo ? { abaixoDoTitulo } : {})}
+        {...(modal ? { modal } : {})}
         {...(topo ? { linhaDoTopo: topo } : {})}
         {...(acaoDoTitulo ? { acaoDoTitulo } : {})}
         {...(acoes ? { acoes } : {})}
@@ -185,6 +192,7 @@ export function Tela({
           titulo={titulo}
           topoCompacto={topoCompacto}
           semVoltar={!!semVoltar}
+          modal={modal}
         />
       ) : null}
     </View>
@@ -204,6 +212,7 @@ function CabecalhoCompacto({
   titulo,
   topoCompacto,
   semVoltar,
+  modal,
 }: {
   altura: number
   topo: number
@@ -211,6 +220,7 @@ function CabecalhoCompacto({
   titulo: string
   topoCompacto: ReactNode
   semVoltar: boolean
+  modal: boolean
 }) {
   const { elevacao } = useTema()
   const { reduzirMovimento } = usePreferenciasDeAcessibilidade()
@@ -252,7 +262,7 @@ function CabecalhoCompacto({
               {semVoltar ? (
                 <View style={{ width: 44 }} />
               ) : (
-                <BotaoIcone icone="voltar" rotulo="Voltar" circular aoPressionar={voltar} />
+                <BotaoDeSaida modal={modal} aoPressionar={voltar} />
               )}
               <Texto
                 variante="tituloItem"

@@ -13,6 +13,7 @@ import type {
   RetratoAoVivo,
   SituacaoDaEtapaAoVivo,
 } from '@/servicos/contratoDosEventos'
+import { AvisoDeFalha, ErroDaTela } from '@/ui/Falha'
 import {
   dataValidaOuNula,
   formatarDataPorExtenso,
@@ -31,6 +32,7 @@ import { Chip } from '@/ui/Chip'
 import { CartaoDeEsqueleto, Esqueleto, LinhasDeEsqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
 import { Icone } from '@/ui/Icone'
+import { LARGURA_DA_HORA } from '@/ui/LinhaDeLista'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
@@ -41,9 +43,8 @@ import { NOME_DO_STATUS } from '../eventos/nomes'
 import { podeIrAoVivo } from '../eventos/regras'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { limitesParaApi } from './calendario'
-import { AvisoDeFalha, ErroAoCarregar } from './ErroAoCarregar'
 import { TOM_DO_STATUS } from './ListaDoDia'
-import { ALTURA_DO_PROGRESSO, COLUNA_DA_HORA, LINHA_DO_TEMPO } from './medidas'
+import { LINHA_DO_TEMPO } from './medidas'
 
 /** Rota `/agenda/[data]`: as etapas de cada evento do dia, com hora, duração e progresso. */
 export function TelaTimelineDoDia() {
@@ -130,7 +131,7 @@ function Timeline({
           <CartaoDeEsqueleto titulo />
         </Esqueleto>
       ) : eventos.error ? (
-        <ErroAoCarregar
+        <ErroDaTela
           erro={eventos.error}
           oQue="o dia"
           aoTentarDeNovo={() => void eventos.refetch()}
@@ -290,7 +291,7 @@ function Etapas({ evento, retrato }: { evento: DetalheDoEvento; retrato: Retrato
             fracao={concluidas / total}
             rotulo={`${concluidas} de ${total} etapas concluídas`}
             cor="primaria"
-            altura={ALTURA_DO_PROGRESSO}
+            trilho="tonal"
           />
           <Texto variante="legenda" cor="textoSuave" tabular>
             {resumo}
@@ -367,7 +368,7 @@ function LinhaDaEtapa({
   return (
     <View accessible accessibilityLabel={rotulo} style={{ flexDirection: 'row', gap: ESPACO.e12 }}>
       {/* Largura mínima, não fixa: com fonte grande, a hora cresce sem cortar. */}
-      <Texto variante="lista" peso="forte" tabular style={{ minWidth: COLUNA_DA_HORA }}>
+      <Texto variante="lista" peso="forte" tabular style={{ minWidth: LARGURA_DA_HORA }}>
         {hora}
       </Texto>
       <View style={{ alignItems: 'center', width: LINHA_DO_TEMPO.no }}>

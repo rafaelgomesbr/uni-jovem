@@ -10,7 +10,7 @@ import { render, screen } from '@testing-library/react-native'
 import { BarraDeProgresso } from '../BarraDeProgresso'
 import { Botao } from '../Botao'
 import { CaixaDeMarcar } from '../CaixaDeMarcar'
-import { GrupoDeOpcoes } from '../GrupoDeOpcoes'
+import { ListaDeOpcoes } from '../ListaDeOpcoes'
 import { Segmentos } from '../Segmentos'
 
 describe('estado acessível em aria-*', () => {
@@ -21,10 +21,10 @@ describe('estado acessível em aria-*', () => {
     expect(caixa).toBeDisabled()
   })
 
-  test('grupo de opções e segmentos: aria-checked só na escolhida', async () => {
+  test('lista de opções e segmentos: aria-checked só na escolhida', async () => {
     await render(
       <>
-        <GrupoDeOpcoes
+        <ListaDeOpcoes
           rotulo="Papel"
           valor="membro"
           aoMudar={() => {}}
@@ -55,6 +55,25 @@ describe('estado acessível em aria-*', () => {
     const botao = screen.getByRole('button', { name: 'Salvar' })
     expect(botao).toBeBusy()
     expect(botao).toBeDisabled()
+  })
+
+  test('botão alternável: aria-pressed diz se está marcado', async () => {
+    await render(
+      <>
+        <Botao titulo="Orando" variante="secundario" marcado aoPressionar={() => {}} />
+        <Botao
+          titulo="Estou orando"
+          variante="secundario"
+          marcado={false}
+          aoPressionar={() => {}}
+        />
+        <Botao titulo="Salvar" aoPressionar={() => {}} />
+      </>,
+    )
+    expect(screen.getByRole('button', { name: 'Orando' }).props['aria-pressed']).toBe(true)
+    expect(screen.getByRole('button', { name: 'Estou orando' }).props['aria-pressed']).toBe(false)
+    // Botão comum não é alternável: nada de aria-pressed.
+    expect(screen.getByRole('button', { name: 'Salvar' }).props['aria-pressed']).toBeUndefined()
   })
 
   test('barra de progresso: aria-valuenow, mínimo, máximo e texto', async () => {

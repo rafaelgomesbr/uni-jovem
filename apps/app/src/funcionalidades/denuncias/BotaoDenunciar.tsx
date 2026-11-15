@@ -3,13 +3,13 @@ import { useState } from 'react'
 
 import { api } from '@/servicos/api'
 import type { MotivoDaDenuncia, RecursoDenunciavel } from '@/servicos/contratoDosModulos'
+import { AvisoDeFalha } from '@/ui/Falha'
 import { confirmar } from '@/utilidades/confirmar'
 import { Aviso } from '@/ui/Aviso'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
 import { Expansivel } from '@/ui/Expansivel'
-import { GrupoDeOpcoes, type Opcao } from '@/ui/GrupoDeOpcoes'
+import { ListaDeOpcoes, type Opcao } from '@/ui/ListaDeOpcoes'
 import { Texto } from '@/ui/Texto'
 import { mostrarToast } from '@/ui/Toast'
 
@@ -103,7 +103,7 @@ export function BotaoDenunciar({
             <Texto variante="legenda" cor="textoSuave">
               A administração da comunidade vai analisar {descricao}. Ela não vê quem denunciou.
             </Texto>
-            <GrupoDeOpcoes
+            <ListaDeOpcoes
               rotulo="Qual é o problema?"
               opcoes={OPCOES}
               valor={motivo}
@@ -116,7 +116,7 @@ export function BotaoDenunciar({
               multiline
               maxLength={500}
             />
-            {enviar.error ? <AvisoDeErro erro={enviar.error} /> : null}
+            {enviar.error ? <AvisoDeFalha erro={enviar.error} /> : null}
             <Botao
               titulo="Enviar denúncia"
               variante="destrutivo"
@@ -192,7 +192,9 @@ function BloquearPessoa({
 
   return (
     <>
-      {bloquear.error ? <AvisoDeErro erro={bloquear.error} titulo="Não deu para bloquear" /> : null}
+      {bloquear.error ? (
+        <AvisoDeFalha erro={bloquear.error} titulo="Não deu para bloquear" />
+      ) : null}
       <Botao
         titulo="Bloquear esta pessoa"
         icone="ocultar"

@@ -1,15 +1,12 @@
-import { BORDA, ESPACO } from '@uj/tokens'
+import { ESPACO } from '@uj/tokens'
 import { Fragment, useState, type ReactNode } from 'react'
 import { View } from 'react-native'
 
-import { usePreferenciasDeAcessibilidade } from '@/ui/acessibilidade'
 import { Botao, BotaoIcone } from '@/ui/Botao'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
-import { Lista } from '@/ui/LinhaDeLista'
+import { AvisoDeFalha } from '@/ui/Falha'
+import { Lista, RECUO_DA_LISTA } from '@/ui/LinhaDeLista'
 import { Texto } from '@/ui/Texto'
-import { useTema } from '@/ui/tema'
-
-import { AvisoDeFalha } from './Falha'
 
 export interface ItemDaPreparacao {
   chave: string
@@ -22,8 +19,8 @@ interface Props {
   /** Uma linha quando não há nada ("Nenhuma tarefa ainda."). */
   vazio: string
   itens: readonly ItemDaPreparacao[]
-  /** `marcar`: caixas de marcar; `lista`: linhas de lista (anexos). */
-  tipo?: 'marcar' | 'lista'
+  /** `marcar`: caixas de marcar; `lista`: linhas de lista (anexos); `texto`: blocos de texto (notas). */
+  tipo?: 'marcar' | 'lista' | 'texto'
   /** Terciário "+ Adicionar ..." do rodapé; com `motivo`, desabilitado com a explicação. */
   adicionar?: { titulo: string; aoPressionar: () => void; motivo?: string } | null
   /** Quem gerencia pode entrar em edição (Remover em cada item). */
@@ -89,7 +86,12 @@ export function CartaoDePreparacao({
       // As linhas chegam com a própria chave: a `Lista` lê as props delas para recuar o separador.
       <Lista>{itens.map((i) => i.no(emEdicao))}</Lista>
     ) : (
-      <ItensComSeparador itens={itens} editando={emEdicao} />
+      // Separador recuado até o texto: depois da caixa de 22 e do intervalo de 12 (quadro 03b).
+      <Lista recuo={tipo === 'marcar' ? RECUO_DA_LISTA.caixa : RECUO_DA_LISTA.texto}>
+        {itens.map((i) => (
+          <Fragment key={i.chave}>{i.no(emEdicao)}</Fragment>
+        ))}
+      </Lista>
     )
 
   return (
@@ -109,36 +111,6 @@ export function CartaoDePreparacao({
         {conteudo}
       </CartaoDeVidro>
     </>
-  )
-}
-
-/** Caixas de marcar com o separador recuado até o texto (quadro 03b). */
-function ItensComSeparador({
-  itens,
-  editando,
-}: {
-  itens: readonly ItemDaPreparacao[]
-  editando: boolean
-}) {
-  const { cores } = useTema()
-  const { aumentarContraste } = usePreferenciasDeAcessibilidade()
-  return (
-    <View>
-      {itens.map((i, n) => (
-        <Fragment key={i.chave}>
-          {n > 0 ? (
-            <View
-              style={{
-                height: BORDA.fina,
-                marginLeft: ESPACO.e32,
-                backgroundColor: aumentarContraste ? cores.campoBorda : cores.separador,
-              }}
-            />
-          ) : null}
-          {i.no(editando)}
-        </Fragment>
-      ))}
-    </View>
   )
 }
 

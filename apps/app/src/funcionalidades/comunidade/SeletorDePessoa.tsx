@@ -5,10 +5,10 @@ import { View } from 'react-native'
 import type { Membro } from '@/servicos/contrato'
 import { CampoDeBusca } from '@/ui/Campo'
 import { BlocoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
+import { AvisoDeFalha } from '@/ui/Falha'
 import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
 import { Texto } from '@/ui/Texto'
 
-import { AvisoDeFalha } from '../eventos/Falha'
 import { usePessoasAtivas } from './consultas'
 
 const MAXIMO_VISIVEL = 8

@@ -3,8 +3,8 @@
  * com o item ativo selecionado; o voltar do cabeçalho de pilha se chama
  * "Voltar"; a raiz anuncia o título como cabeçalho de nível 1.
  */
-import { render, screen } from '@testing-library/react-native'
-import { View } from 'react-native'
+import { fireEvent, render, screen } from '@testing-library/react-native'
+import { Text, View } from 'react-native'
 
 import { CabecalhoDeTela } from '../CabecalhoDeTela'
 import { ItemDaBarraDeAbas } from '../ItemDaBarraDeAbas'
@@ -38,6 +38,26 @@ describe('casca', () => {
     await render(<CabecalhoDeTela tipo="pilha" titulo="Sábado Jovem" subtitulo="Sábado · 16:00" />)
     expect(screen.getByRole('button', { name: 'Voltar' })).toBeOnTheScreen()
     expect(screen.getByRole('header', { name: 'Sábado Jovem' })).toBeOnTheScreen()
+  })
+
+  test('cabeçalho de modal: "Fechar" no lugar de "Voltar", que fecha o modal', async () => {
+    const fechar = jest.fn()
+    await render(<CabecalhoDeTela tipo="pilha" modal titulo="Nova programação" aoVoltar={fechar} />)
+    expect(screen.queryByRole('button', { name: 'Voltar' })).toBeNull()
+    await fireEvent.press(screen.getByRole('button', { name: 'Fechar' }))
+    expect(fechar).toHaveBeenCalledTimes(1)
+  })
+
+  test('bloco abaixo do título: 8 abaixo dele, sem margem negativa', async () => {
+    await render(
+      <CabecalhoDeTela
+        tipo="pilha"
+        titulo="Sábado Jovem"
+        abaixoDoTitulo={<Text>Sábado, 28 de nov. · 16:00 · 60 min</Text>}
+      />,
+    )
+    const meta = screen.getByText('Sábado, 28 de nov. · 16:00 · 60 min')
+    expect(meta.parent).toHaveStyle({ marginTop: 8 })
   })
 
   test('cabeçalho com passos: "Passo 2 de 3" escrito e anunciado', async () => {

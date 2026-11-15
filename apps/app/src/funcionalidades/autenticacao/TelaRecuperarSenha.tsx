@@ -3,12 +3,12 @@ import { router } from 'expo-router'
 import { useState } from 'react'
 
 import { api } from '@/servicos/api'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
 import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { AvisoDeFalha } from '@/ui/Falha'
 import { Tela } from '@/ui/Tela'
 
 /**
@@ -87,7 +87,7 @@ export function TelaRecuperarSenha() {
           textContentType="emailAddress"
           onSubmitEditing={enviar}
         />
-        {recuperar.error ? <AvisoDeErro erro={recuperar.error} /> : null}
+        {recuperar.error ? <AvisoDeFalha erro={recuperar.error} /> : null}
       </CartaoDeVidro>
     </Tela>
   )

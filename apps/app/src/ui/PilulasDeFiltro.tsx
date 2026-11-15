@@ -1,5 +1,13 @@
-import { ALTURA, ESPACO, RAIO, RITMO } from '@uj/tokens'
-import { Pressable, ScrollView } from 'react-native'
+import { ALTURA, BORDA, ESPACO, RAIO, RITMO } from '@uj/tokens'
+import {
+  Children,
+  createContext,
+  Fragment,
+  isValidElement,
+  useContext,
+  type ReactNode,
+} from 'react'
+import { Pressable, ScrollView, View } from 'react-native'
 
 import { usePreferenciasDeAcessibilidade } from './acessibilidade'
 import { Icone } from './Icone'
@@ -11,6 +19,8 @@ export interface Pilula<T extends string> {
   rotulo: string
   /** Contador opcional ("Rascunhos 2"). */
   contagem?: number
+  /** Nome para o leitor de tela quando o rótulo é curto ("Seg" vira "Segunda-feira"). */
+  rotuloAcessivel?: string
 }
 
 interface PropsDasPilulas<T extends string> {
@@ -22,11 +32,19 @@ interface PropsDasPilulas<T extends string> {
   /** Várias ao mesmo tempo (papel `checkbox`); por padrão, uma só (papel `radio`). */
   multipla?: boolean
   /**
+   * Uma só ou nenhuma (papel `checkbox`): tocar na ativa desmarca e o filtro
+   * volta a mostrar tudo ("Em oração" e "Respondidos"; "Publicados" e "Cancelados").
+   */
+  opcional?: boolean
+  /**
    * A linha encosta nas bordas da tela e rola por baixo da margem: o primeiro
    * item fica em x=20 e sobra 20 no fim. Desligue dentro de cartão.
    */
   sangrar?: boolean
 }
+
+/** Dentro de `LinhaDePilulas`: o grupo não rola sozinho, a linha rola por todos. */
+const ContextoDaLinha = createContext(false)
 
 /**
  * Pílulas de filtro (seção 2.12.5): 36 de altura visual com folga de toque
@@ -39,26 +57,53 @@ export function PilulasDeFiltro<T extends string>({
   selecionadas,
   aoMudar,
   multipla = false,
+  opcional = false,
   sangrar = true,
 }: PropsDasPilulas<T>) {
-  const { cores, solido } = useTema()
-  const { aumentarContraste } = usePreferenciasDeAcessibilidade()
-  const margem = sangrar ? RITMO.margemDaTela : 0
+  const naLinha = useContext(ContextoDaLinha)
+  const alternavel = multipla || opcional
 
   function alternar(valor: T) {
-    if (!multipla) return aoMudar([valor])
-    aoMudar(
-      selecionadas.includes(valor)
-        ? selecionadas.filter((v) => v !== valor)
-        : [...selecionadas, valor],
+    const ativa = selecionadas.includes(valor)
+    if (multipla) {
+      aoMudar(ativa ? selecionadas.filter((v) => v !== valor) : [...selecionadas, valor])
+      return
+    }
+    aoMudar(opcional && ativa ? [] : [valor])
+  }
+
+  const itens = pilulas.map((p) => (
+    <ItemDePilula
+      key={p.valor}
+      pilula={p}
+      ativa={selecionadas.includes(p.valor)}
+      papel={alternavel ? 'checkbox' : 'radio'}
+      aoPressionar={() => alternar(p.valor)}
+    />
+  ))
+  // Escolha única é um grupo de rádio; as que ligam e desligam, um grupo simples.
+  const papelDoGrupo = alternavel
+    ? { role: 'group' as const }
+    : { accessibilityRole: 'radiogroup' as const }
+
+  if (naLinha) {
+    return (
+      <View
+        {...papelDoGrupo}
+        aria-label={rotulo}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}
+      >
+        {itens}
+      </View>
     )
   }
 
+  const margem = sangrar ? RITMO.margemDaTela : 0
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      accessibilityRole={multipla ? undefined : 'radiogroup'}
+      {...papelDoGrupo}
       aria-label={rotulo}
       style={{ marginHorizontal: -margem, flexGrow: 0 }}
       contentContainerStyle={{
@@ -67,50 +112,104 @@ export function PilulasDeFiltro<T extends string>({
         gap: ESPACO.e8,
       }}
     >
-      {pilulas.map((p) => {
-        const ativa = selecionadas.includes(p.valor)
-        const texto = p.contagem !== undefined ? `${p.rotulo} ${p.contagem}` : p.rotulo
-        return (
-          <Pressable
-            key={p.valor}
-            accessibilityRole={multipla ? 'checkbox' : 'radio'}
-            accessibilityLabel={texto}
-            aria-checked={ativa}
-            hitSlop={{ top: 4, bottom: 4 }}
-            onPress={() => alternar(p.valor)}
-            style={({ pressed }) => ({
-              minHeight: ALTURA.filtro,
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: ESPACO.e6,
-              paddingHorizontal: ESPACO.e14,
-              borderRadius: RAIO.pilula,
-              borderWidth: aumentarContraste ? 2 : 1,
-              borderColor: ativa
-                ? cores.destaque
-                : aumentarContraste
-                  ? cores.texto
-                  : cores.tonalBorda,
-              backgroundColor: ativa
-                ? solido(cores.quenteFundo)
-                : pressed
-                  ? solido(cores.pressionado)
-                  : 'transparent',
-            })}
-          >
-            {ativa ? <Icone nome="check" cor={cores.destaque} tamanho={14} peso="forte" /> : null}
-            <Texto
-              variante="lista"
-              peso={ativa ? 'forte' : 'medio'}
-              cor={ativa ? 'destaque' : 'textoSuave'}
-              tabular={p.contagem !== undefined}
-              numberOfLines={1}
-            >
-              {texto}
-            </Texto>
-          </Pressable>
-        )
+      {itens}
+    </ScrollView>
+  )
+}
+
+function ItemDePilula<T extends string>({
+  pilula: p,
+  ativa,
+  papel,
+  aoPressionar,
+}: {
+  pilula: Pilula<T>
+  ativa: boolean
+  papel: 'radio' | 'checkbox'
+  aoPressionar: () => void
+}) {
+  const { cores, solido } = useTema()
+  const { aumentarContraste } = usePreferenciasDeAcessibilidade()
+  const texto = p.contagem !== undefined ? `${p.rotulo} ${p.contagem}` : p.rotulo
+  const falado =
+    p.rotuloAcessivel !== undefined
+      ? p.contagem !== undefined
+        ? `${p.rotuloAcessivel} ${p.contagem}`
+        : p.rotuloAcessivel
+      : texto
+  return (
+    <Pressable
+      accessibilityRole={papel}
+      accessibilityLabel={falado}
+      aria-checked={ativa}
+      hitSlop={{ top: 4, bottom: 4 }}
+      onPress={aoPressionar}
+      style={({ pressed }) => ({
+        minHeight: ALTURA.filtro,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: ESPACO.e6,
+        paddingHorizontal: ESPACO.e14,
+        borderRadius: RAIO.pilula,
+        borderWidth: aumentarContraste ? 2 : 1,
+        borderColor: ativa ? cores.destaque : aumentarContraste ? cores.texto : cores.tonalBorda,
+        backgroundColor: ativa
+          ? solido(cores.quenteFundo)
+          : pressed
+            ? solido(cores.pressionado)
+            : 'transparent',
       })}
+    >
+      {ativa ? <Icone nome="check" cor={cores.destaque} tamanho={14} peso="forte" /> : null}
+      <Texto
+        variante="lista"
+        peso={ativa ? 'forte' : 'medio'}
+        cor={ativa ? 'destaque' : 'textoSuave'}
+        tabular={p.contagem !== undefined}
+        numberOfLines={1}
+      >
+        {texto}
+      </Texto>
+    </Pressable>
+  )
+}
+
+/**
+ * Vários grupos de pílulas numa linha só (3.4.1 e 3.7.1), rolando juntos por
+ * baixo da margem, com um separador vertical de 1 por 20 entre eles. Cada
+ * grupo mantém o próprio nome e papel para o leitor de tela; o separador é
+ * só desenho.
+ */
+export function LinhaDePilulas({ children }: { children: ReactNode }) {
+  const { cores } = useTema()
+  const grupos = Children.toArray(children).filter(isValidElement)
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={{ marginHorizontal: -RITMO.margemDaTela, flexGrow: 0 }}
+      contentContainerStyle={{
+        paddingHorizontal: RITMO.margemDaTela,
+        paddingVertical: ESPACO.e4,
+        alignItems: 'center',
+        gap: ESPACO.e8,
+      }}
+    >
+      <ContextoDaLinha.Provider value>
+        {grupos.map((grupo, i) => (
+          <Fragment key={grupo.key ?? i}>
+            {i > 0 ? (
+              <View
+                aria-hidden
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                style={{ width: BORDA.fina, height: ESPACO.e20, backgroundColor: cores.tonalBorda }}
+              />
+            ) : null}
+            {grupo}
+          </Fragment>
+        ))}
+      </ContextoDaLinha.Provider>
     </ScrollView>
   )
 }

@@ -9,6 +9,7 @@ import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
 import type { DetalheDaSerie, DetalheDoEvento } from '@/servicos/contratoDosEventos'
 import { ehErroDaApi } from '@/servicos/erros'
+import { AvisoDeFalha, ErroDaTela } from '@/ui/Falha'
 import { confirmar } from '@/utilidades/confirmar'
 import { dataDoInstante, formatarDataLocal, formatarHora } from '@/utilidades/datas'
 import { parametro } from '@/utilidades/parametros'
@@ -33,7 +34,6 @@ import {
   useRefsDosCampos,
 } from './CamposDoEvento'
 import { naComunidade, useEvento, useInvalidarEventos } from './consultas'
-import { AvisoDeFalha, ErroDaTela } from './Falha'
 import {
   LOCAL_NOVO,
   mudancasDoEvento,
@@ -74,14 +74,14 @@ export function TelaEditarEvento() {
 
   if (!comunidadeAtiva || !eventoId) {
     return (
-      <Tela pilha>
+      <Tela pilha modal>
         <SemComunidade oQue="a programação" />
       </Tela>
     )
   }
   if (!pode('evento', 'editar')) {
     return (
-      <Tela pilha titulo="Editar programação">
+      <Tela pilha modal titulo="Editar programação">
         <Aviso tipo="info" titulo="Só a organização edita programações">
           Você pode ver a programação, mas não alterar.
         </Aviso>
@@ -90,7 +90,7 @@ export function TelaEditarEvento() {
   }
   if (evento.isPending) {
     return (
-      <Tela pilha titulo="Editar programação">
+      <Tela pilha modal titulo="Editar programação">
         <Esqueleto rotulo="Carregando a programação">
           <CartaoDeEsqueleto titulo />
           <CartaoDeEsqueleto />
@@ -100,7 +100,7 @@ export function TelaEditarEvento() {
   }
   if (evento.error) {
     return (
-      <Tela pilha titulo="Editar programação">
+      <Tela pilha modal titulo="Editar programação">
         <ErroDaTela erro={evento.error} aoTentarDeNovo={() => void evento.refetch()} />
       </Tela>
     )
@@ -278,6 +278,7 @@ function EditarEvento({
   return (
     <Tela
       pilha
+      modal
       titulo="Editar programação"
       descricao={inicial.titulo}
       barraDeAcao={

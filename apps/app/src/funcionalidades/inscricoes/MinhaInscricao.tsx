@@ -7,6 +7,7 @@ import { CHAVES } from '@/estado/clienteDeConsulta'
 import { api } from '@/servicos/api'
 import type { DetalheDoEvento, MinhaInscricao as Inscricao } from '@/servicos/contratoDosEventos'
 import { SemConexao } from '@/servicos/erros'
+import { AvisoDeFalha } from '@/ui/Falha'
 import { confirmar } from '@/utilidades/confirmar'
 import { Aviso } from '@/ui/Aviso'
 import { Botao } from '@/ui/Botao'
@@ -19,7 +20,6 @@ import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
 import { soNaWeb } from '@/ui/web'
 
-import { AvisoDeFalha } from '../agenda/ErroAoCarregar'
 import { useMeuVinculo } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
 import { naComunidade, useInvalidarEventos } from '../eventos/consultas'
@@ -256,7 +256,7 @@ function EntradaComQR({
         />
       </View>
       <View style={{ gap: ESPACO.e4 }}>
-        <Texto variante="tituloCartao" accessibilityRole="text" tabular centralizado selectable>
+        <Texto variante="codigo" centralizado selectable>
           {formatarCodigo(ativa.codigoCheckin)}
         </Texto>
         <Texto variante="legenda" cor="textoSuave" centralizado>

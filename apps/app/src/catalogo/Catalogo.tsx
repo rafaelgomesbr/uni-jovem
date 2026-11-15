@@ -12,6 +12,7 @@ import { View } from 'react-native'
 import { Avatar } from '@/ui/Avatar'
 import { Aviso } from '@/ui/Aviso'
 import { BarraDeAcao } from '@/ui/BarraDeAcao'
+import { BarraDeProgresso } from '@/ui/BarraDeProgresso'
 import { Botao, BotaoIcone, ParDeBotoes, type VarianteDoBotao } from '@/ui/Botao'
 import { CabecalhoDeTela } from '@/ui/CabecalhoDeTela'
 import { CaixaDeMarcar } from '@/ui/CaixaDeMarcar'
@@ -23,9 +24,10 @@ import { Chip } from '@/ui/Chip'
 import { BlocoDeEsqueleto, CartaoDeEsqueleto, LinhasDeEsqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
 import { Interruptor } from '@/ui/Interruptor'
-import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
+import { LinhaDeLista, Lista, RECUO_DA_LISTA } from '@/ui/LinhaDeLista'
 import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
-import { PilulasDeFiltro } from '@/ui/PilulasDeFiltro'
+import { Numeros } from '@/ui/Numeros'
+import { LinhaDePilulas, PilulasDeFiltro } from '@/ui/PilulasDeFiltro'
 import { Secao } from '@/ui/Secao'
 import { Segmentos } from '@/ui/Segmentos'
 import { StatusDoCabecalho } from '@/ui/StatusDoCabecalho'
@@ -123,6 +125,23 @@ function Botoes() {
           aoPressionar={nada}
         />
       </Grupo>
+      <Grupo titulo="Alternável e alto (Ao vivo)">
+        <Linha>
+          <Botao
+            titulo="Estou orando"
+            icone="oracao"
+            variante="secundario"
+            marcado={false}
+            aoPressionar={nada}
+          />
+          <Botao titulo="Orando" icone="check" variante="secundario" marcado aoPressionar={nada} />
+        </Linha>
+        <Linha>
+          <BotaoIcone icone="etapaAnterior" rotulo="Voltar etapa" lado={56} aoPressionar={nada} />
+          <Botao titulo="Avançar etapa" tamanho="alto" style={{ flex: 1 }} aoPressionar={nada} />
+          <BotaoIcone icone="pausar" rotulo="Pausar" lado={56} aoPressionar={nada} />
+        </Linha>
+      </Grupo>
     </>
   )
 }
@@ -156,6 +175,14 @@ function Campos() {
         <Campo rotulo="Duração" value="60" onChangeText={nada} sufixo="min" validando />
         <Campo rotulo="Descrição" opcional multiline exemplo="O que vai acontecer" />
         <Campo rotulo="Código de 6 números" codigo value="123456" onChangeText={nada} />
+        <Campo rotulo="Seu pedido" leitura maxLength={2000} mostrarContador value="" />
+        <Campo
+          rotulo="Código de entrada"
+          value="XYZ"
+          onChangeText={nada}
+          erro="Use 10 letras e números, como aparece abaixo do QR."
+          botao={<Botao titulo="Marcar" tamanho="grande" aoPressionar={nada} />}
+        />
         <CampoDeBusca rotulo="Buscar pelo nome" valor={busca} aoMudar={setBusca} />
         <View style={{ flexDirection: 'row', gap: ESPACO.e12 }}>
           <View style={{ flex: 1.4 }}>
@@ -201,6 +228,27 @@ function Selecao() {
             { valor: 'cancelados', rotulo: 'Cancelados' },
           ]}
         />
+        <LinhaDePilulas>
+          <PilulasDeFiltro
+            rotulo="Período"
+            selecionadas={['proximos']}
+            aoMudar={nada}
+            pilulas={[
+              { valor: 'proximos', rotulo: 'Próximos' },
+              { valor: 'passados', rotulo: 'Passados' },
+            ]}
+          />
+          <PilulasDeFiltro
+            rotulo="Situação"
+            opcional
+            selecionadas={[]}
+            aoMudar={nada}
+            pilulas={[
+              { valor: 'publicado', rotulo: 'Publicados' },
+              { valor: 'cancelados', rotulo: 'Cancelados' },
+            ]}
+          />
+        </LinhaDePilulas>
       </Grupo>
       <Grupo titulo="Chips de estado">
         <Linha>
@@ -290,6 +338,50 @@ function ListasECartoes() {
               aoPressionar={nada}
             />
           </Lista>
+        </CartaoDeVidro>
+        <CartaoDeVidro lista>
+          <Lista>
+            <LinhaDeLista hora="16:00" titulo="Boas-vindas" descricao="Concluída em 6 min" />
+            <LinhaDeLista
+              hora="16:05"
+              titulo="Louvor"
+              descricao="15 min · Com Ana (violão)"
+              atual
+              extra={<Chip texto="Agora" tom="neutro" />}
+            />
+            <LinhaDeLista hora="16:20" titulo="Oração intercessora" descricao="10 min" />
+          </Lista>
+        </CartaoDeVidro>
+        <CartaoDeVidro lista sobrancelha="Tarefas">
+          <Lista recuo={RECUO_DA_LISTA.caixa}>
+            <CaixaDeMarcar
+              rotulo="Comprar o brinde"
+              descricao="Ana · até sexta, 27/11"
+              marcada={false}
+              aoMudar={nada}
+            />
+            <CaixaDeMarcar
+              rotulo="Imprimir a lição"
+              descricao="Felipe · feito em 18/11"
+              marcada
+              aoMudar={nada}
+            />
+          </Lista>
+        </CartaoDeVidro>
+        <BarraDeProgresso
+          fracao={2 / 7}
+          rotulo="2 de 7 etapas concluídas"
+          cor="primaria"
+          trilho="tonal"
+        />
+        <CartaoDeVidro sobrancelha="Visão geral">
+          <Numeros
+            itens={[
+              { numero: 3, rotulo: 'comunidades' },
+              { numero: 48, rotulo: 'pessoas ativas' },
+              { numero: 0, rotulo: 'sem administrador' },
+            ]}
+          />
         </CartaoDeVidro>
       </Grupo>
       <Grupo titulo="Cartões">
@@ -418,6 +510,14 @@ function ListasECartoes() {
         </CartaoDeVidro>
         <CartaoDeVidro>
           <CabecalhoDeTela tipo="folha" titulo="Trocar de comunidade" aoFechar={nada} />
+        </CartaoDeVidro>
+        <CartaoDeVidro>
+          <CabecalhoDeTela
+            tipo="pilha"
+            modal
+            titulo="Nova programação"
+            abaixoDoTitulo={<Chip texto="Rascunho" tom="neutro" />}
+          />
         </CartaoDeVidro>
       </Grupo>
     </>

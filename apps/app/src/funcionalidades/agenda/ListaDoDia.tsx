@@ -20,7 +20,6 @@ import { useTema } from '@/ui/tema'
 import { rotuloFaladoDoEvento } from '../eventos/LinhaDoEvento'
 import { NOME_DO_STATUS } from '../eventos/nomes'
 import { contarEventos } from './calendario'
-import { COLUNA_DA_HORA, RECUO_COM_HORA } from './medidas'
 
 /** Chip da situação (mapa da 2.12.12). "Publicado" não ganha chip. */
 export const TOM_DO_STATUS: Readonly<Record<StatusDoEvento, TomDoChip>> = {
@@ -52,16 +51,7 @@ export function nomeDoDia(dia: DataLocal, hoje: DataLocal): string {
 export function LinhaDoEventoNaAgenda({ evento }: { evento: ResumoDoEvento }) {
   return (
     <LinhaDeLista
-      inicio={
-        <Texto
-          variante="lista"
-          peso="forte"
-          tabular
-          style={{ minWidth: COLUNA_DA_HORA, alignSelf: 'flex-start' }}
-        >
-          {formatarHora(evento.inicio, evento.fuso)}
-        </Texto>
-      }
+      hora={formatarHora(evento.inicio, evento.fuso)}
       titulo={evento.titulo}
       descricao={[formatarDuracao(evento.duracaoMin), evento.localNome].filter(Boolean).join(' · ')}
       {...(evento.status !== 'publicado'
@@ -181,7 +171,7 @@ export function CartaoDoDia({
           }
         : {})}
     >
-      <Lista recuo={RECUO_COM_HORA}>
+      <Lista>
         {eventos.map((e) => (
           <LinhaDoEventoNaAgenda key={e.id} evento={e} />
         ))}

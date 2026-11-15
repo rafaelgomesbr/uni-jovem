@@ -1,4 +1,4 @@
-import { ALTURA, ESPACO, RAIO } from '@uj/tokens'
+import { ALTURA, ESPACO, RAIO, TAMANHO_DO_AVATAR, TIPO } from '@uj/tokens'
 import { Children, Fragment, isValidElement, type ReactNode } from 'react'
 import { Pressable, View, type ViewStyle } from 'react-native'
 
@@ -8,6 +8,29 @@ import { useNoCartaoLista } from './CartaoDeVidro'
 import { Icone, type NomeDoIcone } from './Icone'
 import { Texto } from './Texto'
 import { useTema } from './tema'
+import { soNaWeb } from './web'
+
+/** Coluna de hora (M): largura mínima de 44, que cresce com a fonte. */
+export const LARGURA_DA_HORA = 44
+
+/**
+ * Recuo do separador até o texto da linha de baixo (quadro 01c): 18 de
+ * padding, o elemento da esquerda e 12. Dentro do cartão lista é o valor
+ * cheio; fora dele, a `Lista` desconta os 18 do padding do cartão.
+ */
+export const RECUO_DA_LISTA = {
+  /** Ladrilho de 32. */
+  ladrilho: 18 + ALTURA.ladrilho + 12,
+  /** Avatar de 40. */
+  avatar: 18 + TAMANHO_DO_AVATAR.linha + 12,
+  /** Bloco de data ou coluna de hora, de 44. */
+  data: 18 + LARGURA_DA_HORA + 12,
+  hora: 18 + LARGURA_DA_HORA + 12,
+  /** Rádio ou caixa de marcar, de 22. */
+  caixa: 18 + 22 + 12,
+  /** Sem elemento à esquerda (interruptor, texto). */
+  texto: 18,
+} as const
 
 export interface DataDaLinha {
   /** "15". */
@@ -26,6 +49,8 @@ export interface PropsDaLinhaDeLista {
   avatar?: { nome: string; dados?: DadosDoAvatar | null; cor?: string }
   /** À esquerda: bloco de data de 44 de largura (evento). */
   data?: DataDaLinha
+  /** À esquerda: a hora em coluna de 44 (`lista` 600, `tabular-nums`), alinhada ao título ("16:05"). */
+  hora?: string
   /** À esquerda, qualquer outro elemento (legado). */
   inicio?: ReactNode
   /** À direita: valor ("07:00"), em `corpo` suave, `tabular-nums`. */
@@ -43,6 +68,8 @@ export interface PropsDaLinhaDeLista {
   destrutivo?: boolean
   /** Item escolhido numa lista de navegação (web larga). */
   selecionado?: boolean
+  /** O item em curso numa sequência (a etapa de agora): fundo quente e `aria-current` na web. */
+  atual?: boolean
   linhasDaDescricao?: number
 }
 
@@ -58,6 +85,7 @@ export function LinhaDeLista({
   icone,
   avatar,
   data,
+  hora,
   inicio,
   valor,
   extra,
@@ -68,6 +96,7 @@ export function LinhaDeLista({
   semSeta = false,
   destrutivo = false,
   selecionado,
+  atual = false,
   linhasDaDescricao = 2,
 }: PropsDaLinhaDeLista) {
   const { cores, solido, superficie } = useTema()
@@ -91,19 +120,29 @@ export function LinhaDeLista({
       decorativo
     />
   ) : data ? (
-    <View style={{ width: 44, alignItems: 'center' }}>
-      <Texto
-        variante="tituloCartao"
-        tabular
-        accessibilityRole="text"
-        style={{ fontSize: 20, lineHeight: 24 }}
-      >
+    <View style={{ width: LARGURA_DA_HORA, alignItems: 'center' }}>
+      <Texto variante="codigo" accessibilityRole="text">
         {data.dia}
       </Texto>
       <Texto variante="sobrancelha" cor="textoSuave" accessibilityRole="text">
         {data.mes}
       </Texto>
     </View>
+  ) : hora ? (
+    <Texto
+      variante="lista"
+      peso="forte"
+      tabular
+      accessibilityRole="text"
+      style={{
+        minWidth: LARGURA_DA_HORA,
+        alignSelf: 'flex-start',
+        // A hora alinha com a primeira linha do título (16/22), não com o centro da linha.
+        lineHeight: TIPO.tituloItem.altura,
+      }}
+    >
+      {hora}
+    </Texto>
   ) : icone ? (
     <View
       style={{
@@ -129,7 +168,9 @@ export function LinhaDeLista({
     paddingVertical: ESPACO.e10,
     paddingHorizontal: ESPACO.e18,
     ...(noCartaoLista ? {} : { marginHorizontal: -ESPACO.e18, borderRadius: RAIO.controle }),
+    ...(atual ? { backgroundColor: solido(cores.quenteFundo) } : {}),
   }
+  const marcaDeAtual = atual ? soNaWeb({ 'aria-current': 'step' }) : {}
 
   const conteudo = (
     <>
@@ -174,17 +215,29 @@ export function LinhaDeLista({
     </>
   )
 
-  if (!aoPressionar) return <View style={estilo}>{conteudo}</View>
+  if (!aoPressionar) {
+    // Sem toque, o rótulo próprio faz a linha ser lida de uma vez (a hora, quem cuida, a situação).
+    return (
+      <View
+        {...(rotuloAcessivel ? { accessible: true, accessibilityLabel: rotuloAcessivel } : {})}
+        {...marcaDeAtual}
+        style={estilo}
+      >
+        {conteudo}
+      </View>
+    )
+  }
   return (
     <Pressable
       accessibilityRole={externo ? 'link' : 'button'}
       accessibilityLabel={rotuloAcessivel ?? [titulo, descricao, valor].filter(Boolean).join('. ')}
       accessibilityHint={dica}
       {...(selecionado !== undefined ? { 'aria-selected': selecionado } : {})}
+      {...marcaDeAtual}
       onPress={aoPressionar}
       style={({ pressed }) => [
         estilo,
-        { backgroundColor: pressed || selecionado ? cores.pressionado : 'transparent' },
+        pressed || selecionado ? { backgroundColor: cores.pressionado } : null,
       ]}
     >
       {conteudo}
@@ -192,12 +245,13 @@ export function LinhaDeLista({
   )
 }
 
-/** Recuo do separador: 18 + 32 + 12 com ladrilho; 18 + 40 + 12 com avatar; 18 + 44 + 12 com data. */
+/** Recuo do separador pelo elemento à esquerda da linha de cima (`RECUO_DA_LISTA`). */
 function recuoDoSeparador(props: Partial<PropsDaLinhaDeLista> | undefined): number {
-  if (props?.avatar) return 70
-  if (props?.data) return 74
-  if (props?.icone || props?.inicio) return 62
-  return ESPACO.e18
+  if (props?.avatar) return RECUO_DA_LISTA.avatar
+  if (props?.data) return RECUO_DA_LISTA.data
+  if (props?.hora) return RECUO_DA_LISTA.hora
+  if (props?.icone || props?.inicio) return RECUO_DA_LISTA.ladrilho
+  return RECUO_DA_LISTA.texto
 }
 
 interface PropsDaLista {

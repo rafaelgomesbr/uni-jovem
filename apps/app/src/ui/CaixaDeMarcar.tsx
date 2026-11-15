@@ -1,6 +1,7 @@
 import { ESPACO, RAIO } from '@uj/tokens'
 import { Pressable, View } from 'react-native'
 
+import { useNoCartaoLista } from './CartaoDeVidro'
 import { ALFA_DESABILITADO, comOpacidade } from './cor'
 import { useAnelDeFoco } from './foco'
 import { Icone } from './Icone'
@@ -19,10 +20,13 @@ interface PropsDaCaixa {
  * Caixa de marcar (seção 2.12.7): 22×22, raio 6, borda de 1,5; marcada,
  * fundo primário com check de 14 em negrito. A caixa fica no topo da primeira
  * linha do rótulo (entrelinha 22, a mesma altura). Para consentimentos,
- * tarefas e checklist; liga e desliga é `Interruptor`.
+ * tarefas e checklist; liga e desliga é `Interruptor`. Dentro do cartão
+ * lista, ganha o padding de 18 da linha e o separador recua 52
+ * (`RECUO_DA_LISTA.caixa`).
  */
 export function CaixaDeMarcar({ rotulo, descricao, marcada, aoMudar, desabilitada }: PropsDaCaixa) {
   const { cores, semFundo } = useTema()
+  const noCartaoLista = useNoCartaoLista()
   const anel = useAnelDeFoco(cores.foco)
   const corDoRotulo = desabilitada ? comOpacidade(cores.texto, ALFA_DESABILITADO) : cores.texto
   return (
@@ -43,7 +47,8 @@ export function CaixaDeMarcar({ rotulo, descricao, marcada, aoMudar, desabilitad
           alignItems: 'flex-start',
           gap: ESPACO.e12,
           paddingVertical: 13,
-          borderRadius: RAIO.controle,
+          paddingHorizontal: noCartaoLista ? ESPACO.e18 : 0,
+          borderRadius: noCartaoLista ? 0 : RAIO.controle,
         },
         anel.estilo,
       ]}

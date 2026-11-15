@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { View } from 'react-native'
 
 import type { PedidoDeOracao } from '@/servicos/contratoDosModulos'
+import { AvisoDeFalha } from '@/ui/Falha'
+import { type AcaoDoMenu, MenuDeAcoes } from '@/ui/FolhaNaTela'
 import { confirmar } from '@/utilidades/confirmar'
 import { primeiroNome } from '@/utilidades/formatos'
 import { Botao, BotaoIcone } from '@/ui/Botao'
@@ -11,11 +13,8 @@ import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Chip } from '@/ui/Chip'
 import { Texto } from '@/ui/Texto'
 
-import { AvisoDeFalha } from '../agenda/ErroAoCarregar'
 import { BotaoDenunciar } from '../denuncias/BotaoDenunciar'
-import { BotaoEstouOrando } from './BotaoEstouOrando'
 import { useEstouOrando, useExcluirPedido, useMarcarRespondido } from './consultas'
-import { FolhaDeAcoes, type AcaoDaFolha } from './FolhaDeAcoes'
 import { NOME_DA_VISIBILIDADE } from './visibilidade'
 
 /** Linhas do texto na lista antes do "Ler tudo" (3.7.1). */
@@ -86,7 +85,7 @@ export function MaisAcoesDoPedido({
     if (ok) excluir.mutate(pedido.id, { onSuccess: aoExcluir })
   }
 
-  const acoes: AcaoDaFolha[] = pedido.minha
+  const acoes: AcaoDoMenu[] = pedido.minha
     ? [
         {
           titulo: pedido.respondidoEm ? 'Desmarcar respondido' : 'Marcar como respondido',
@@ -117,7 +116,13 @@ export function MaisAcoesDoPedido({
       {(respondido.error ?? excluir.error) ? (
         <AvisoDeFalha erro={respondido.error ?? excluir.error} />
       ) : null}
-      <FolhaDeAcoes titulo="Mais ações" aberta={aberta} aoFechar={aoFechar} acoes={acoes}>
+      <MenuDeAcoes
+        titulo="Mais ações"
+        aberto={aberta}
+        aoFechar={aoFechar}
+        acoes={acoes}
+        esperarAcao
+      >
         {podeDenunciar(pedido) ? (
           <BotaoDenunciar
             comunidadeId={comunidadeId}
@@ -127,7 +132,7 @@ export function MaisAcoesDoPedido({
             {...(aoBloquear ? { aoBloquear } : {})}
           />
         ) : null}
-      </FolhaDeAcoes>
+      </MenuDeAcoes>
     </>
   )
 }
@@ -188,8 +193,12 @@ export function CartaoDoPedido({
         : {
             acoes: (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e12 }}>
-                <BotaoEstouOrando
-                  orando={pedido.orando.euEstouOrando}
+                {/* Alternável (3.7.1): marcado, vira "Orando" com o check; o sinal é o rótulo e o ícone. */}
+                <Botao
+                  titulo={pedido.orando.euEstouOrando ? 'Orando' : 'Estou orando'}
+                  icone={pedido.orando.euEstouOrando ? 'check' : 'oracao'}
+                  variante="secundario"
+                  marcado={pedido.orando.euEstouOrando}
                   rotuloAcessivel={
                     pedido.orando.euEstouOrando
                       ? `Deixar de marcar que estou orando pelo ${autor.toLowerCase()}`

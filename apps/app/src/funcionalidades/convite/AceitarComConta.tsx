@@ -7,11 +7,11 @@ import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
 import type { FaixaEtaria } from '@/servicos/contratoDosModulos'
 import { ehErroDaApi } from '@/servicos/erros'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
 import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { AvisoDeFalha } from '@/ui/Falha'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 
@@ -145,7 +145,7 @@ export function AceitarComConta({ token, comunidade, papel, cartaoDoConvite }: P
           />
         </CartaoDeVidro>
       )}
-      {erroParaMostrar ? <AvisoDeErro erro={erroParaMostrar} /> : null}
+      {erroParaMostrar ? <AvisoDeFalha erro={erroParaMostrar} /> : null}
     </Tela>
   )
 }

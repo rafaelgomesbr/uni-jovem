@@ -9,6 +9,8 @@ import { Campo } from '@/ui/Campo'
 import { CampoDeData, CampoDeHora } from '@/ui/CampoDeMomento'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
+import { AvisoDeFalha } from '@/ui/Falha'
+import { FolhaNaTela } from '@/ui/FolhaNaTela'
 import { Interruptor } from '@/ui/Interruptor'
 import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
 import { PilulasDeFiltro } from '@/ui/PilulasDeFiltro'
@@ -17,8 +19,6 @@ import { Segmentos } from '@/ui/Segmentos'
 import { Texto } from '@/ui/Texto'
 
 import { useLocais } from './consultas'
-import { AvisoDeFalha } from './Falha'
-import { FolhaNaTela } from './FolhaNaTela'
 import {
   LOCAL_NOVO,
   type ErrosDoRascunho,

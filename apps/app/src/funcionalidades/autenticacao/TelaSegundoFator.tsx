@@ -5,11 +5,11 @@ import { useState } from 'react'
 
 import { NOME_DO_APP } from '@/constantes'
 import { useSessao } from '@/estado/sessao'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { AvisoDeFalha } from '@/ui/Falha'
 import { Tela } from '@/ui/Tela'
 
 /**
@@ -87,7 +87,7 @@ export function TelaSegundoFator() {
             setErro(null)
           }}
         />
-        {confirmar.error ? <AvisoDeErro erro={confirmar.error} /> : null}
+        {confirmar.error ? <AvisoDeFalha erro={confirmar.error} /> : null}
       </CartaoDeVidro>
     </Tela>
   )

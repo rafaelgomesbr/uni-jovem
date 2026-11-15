@@ -6,13 +6,13 @@ import { useSessao } from '@/estado/sessao'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
+import { AvisoDeFalha } from '@/ui/Falha'
 import { Interruptor } from '@/ui/Interruptor'
 import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
 import { PilulasDeFiltro } from '@/ui/PilulasDeFiltro'
 import { Secao } from '@/ui/Secao'
 import { Tela } from '@/ui/Tela'
 
-import { AvisoDeFalha } from '../agenda/ErroAoCarregar'
 import {
   usePreferenciasDaComunidade,
   usePreferenciasDaConta,

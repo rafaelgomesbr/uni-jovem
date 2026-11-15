@@ -35,12 +35,6 @@ export const ESQUELETO_DA_GRADE = {
   semana: 18 * 2 + CALENDARIO.alturaDaSemana,
 } as const
 
-/** Coluna de hora (M): largura mínima de 44, que cresce com a fonte. */
-export const COLUNA_DA_HORA = 44
-
-/** Separador alinhado ao título da linha: 18 de padding + a coluna de hora + 12. */
-export const RECUO_COM_HORA = 18 + COLUNA_DA_HORA + ESPACO.e12
-
 /** Nó da linha do tempo (3.3.4): 12, com trilho vertical de 2. */
 export const LINHA_DO_TEMPO = {
   no: ESPACO.e12,
@@ -53,6 +47,3 @@ export const LINHA_DO_TEMPO = {
   /** Próxima: anel de 1,5. */
   anelProximo: 1.5,
 } as const
-
-/** Barra de progresso do dia: 6 de altura (3.3.4). */
-export const ALTURA_DO_PROGRESSO = 6

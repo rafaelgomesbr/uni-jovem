@@ -5,6 +5,7 @@ import { useWindowDimensions, View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
 import type { ResumoDoEvento } from '@/servicos/contratoDosEventos'
+import { ErroDaTela } from '@/ui/Falha'
 import { hojeNoFuso, type DataLocal } from '@/utilidades/datas'
 import { Aviso } from '@/ui/Aviso'
 import { Botao, BotaoIcone } from '@/ui/Botao'
@@ -29,7 +30,6 @@ import {
   periodoTemHoje,
   type ModoDaAgenda,
 } from './calendario'
-import { ErroAoCarregar } from './ErroAoCarregar'
 import { CartaoDoDia, SobrancelhaDoDia } from './ListaDoDia'
 import { ESQUELETO_DA_GRADE } from './medidas'
 import { VistaDaSemana } from './VistaDaSemana'
@@ -116,7 +116,7 @@ function Agenda({ comunidadeId }: { comunidadeId: string }) {
       <EsqueletoDaAgenda modo={modo} />
     )
   ) : eventos.error ? (
-    <ErroAoCarregar
+    <ErroDaTela
       erro={eventos.error}
       oQue="a agenda"
       aoTentarDeNovo={() => void eventos.refetch()}

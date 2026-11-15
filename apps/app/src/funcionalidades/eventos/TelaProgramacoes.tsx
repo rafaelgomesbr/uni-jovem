@@ -1,23 +1,22 @@
-import { ALTURA, BORDA, ESPACO, RAIO, RITMO } from '@uj/tokens'
+import { ESPACO } from '@uj/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
-import { Pressable, ScrollView, View } from 'react-native'
+import { View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
 import type { ResumoDoEvento } from '@/servicos/contratoDosEventos'
-import { usePreferenciasDeAcessibilidade } from '@/ui/acessibilidade'
 import { BotaoIcone } from '@/ui/Botao'
 import { CampoDeBusca } from '@/ui/Campo'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
-import { Icone } from '@/ui/Icone'
+import { ErroDaTela } from '@/ui/Falha'
+import { MenuDeAcoes } from '@/ui/FolhaNaTela'
 import { LayoutDividido, useLayoutLargo } from '@/ui/LayoutDividido'
 import { Lista } from '@/ui/LinhaDeLista'
+import { LinhaDePilulas, PilulasDeFiltro } from '@/ui/PilulasDeFiltro'
 import { Secao } from '@/ui/Secao'
-import { Texto } from '@/ui/Texto'
 import { TextoAnunciado } from '@/ui/TextoAnunciado'
-import { useTema } from '@/ui/tema'
 import {
   dataDoInstante,
   hojeNoFuso,
@@ -33,8 +32,6 @@ import { SemComunidade } from '../navegacao/SemComunidade'
 import { TelaDoApp } from '../navegacao/TelaDoApp'
 import { useEventosNoPeriodo } from './consultas'
 import { DetalheDoEvento } from './DetalheDoEvento'
-import { ErroDaTela } from './Falha'
-import { MenuDeAcoes } from './FolhaNaTela'
 import { linhaDoEventoNaLista } from './LinhaDoEvento'
 
 export type Periodo = 'proximos' | 'passados'
@@ -322,114 +319,31 @@ function Filtros({
   aoMudarPeriodo,
   aoMudarStatus,
 }: PropsDosFiltros) {
-  const { cores } = useTema()
   const situacoes: { valor: Exclude<FiltroDeStatus, 'todos'>; rotulo: string }[] = [
     ...(verRascunhos ? [{ valor: 'rascunho' as const, rotulo: 'Rascunhos' }] : []),
     { valor: 'publicado', rotulo: 'Publicados' },
     { valor: 'cancelados', rotulo: 'Cancelados' },
   ]
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={{ marginHorizontal: -RITMO.margemDaTela, flexGrow: 0 }}
-      contentContainerStyle={{
-        paddingHorizontal: RITMO.margemDaTela,
-        paddingVertical: ESPACO.e4,
-        gap: ESPACO.e8,
-        alignItems: 'center',
-      }}
-    >
-      <View
-        accessibilityRole="radiogroup"
-        aria-label="Período"
-        style={{ flexDirection: 'row', gap: ESPACO.e8 }}
-      >
-        {(
-          [
-            { valor: 'proximos', rotulo: 'Próximos' },
-            { valor: 'passados', rotulo: 'Passados' },
-          ] as const
-        ).map((p) => (
-          <Pilula
-            key={p.valor}
-            rotulo={p.rotulo}
-            ativa={periodo === p.valor}
-            papel="radio"
-            aoPressionar={() => aoMudarPeriodo(p.valor)}
-          />
-        ))}
-      </View>
-      <View
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        style={{ width: BORDA.fina, height: ESPACO.e20, backgroundColor: cores.tonalBorda }}
+    <LinhaDePilulas>
+      <PilulasDeFiltro
+        rotulo="Período"
+        selecionadas={[periodo]}
+        aoMudar={(v) => {
+          if (v[0]) aoMudarPeriodo(v[0])
+        }}
+        pilulas={[
+          { valor: 'proximos', rotulo: 'Próximos' },
+          { valor: 'passados', rotulo: 'Passados' },
+        ]}
       />
-      <View role="group" aria-label="Situação" style={{ flexDirection: 'row', gap: ESPACO.e8 }}>
-        {situacoes.map((s) => (
-          <Pilula
-            key={s.valor}
-            rotulo={s.rotulo}
-            ativa={status === s.valor}
-            papel="checkbox"
-            aoPressionar={() => aoMudarStatus(status === s.valor ? 'todos' : s.valor)}
-          />
-        ))}
-      </View>
-    </ScrollView>
-  )
-}
-
-/**
- * Pílula de filtro (2.12.5): 36 de altura visual com folga de toque de 4 (44
- * efetivo), borda de 1; a ativa tem fundo quente, borda coral e o check de
- * 14 (forma além da cor).
- */
-function Pilula({
-  rotulo,
-  ativa,
-  papel,
-  aoPressionar,
-}: {
-  rotulo: string
-  ativa: boolean
-  papel: 'radio' | 'checkbox'
-  aoPressionar: () => void
-}) {
-  const { cores, solido } = useTema()
-  const { aumentarContraste } = usePreferenciasDeAcessibilidade()
-  return (
-    <Pressable
-      accessibilityRole={papel}
-      accessibilityLabel={rotulo}
-      aria-checked={ativa}
-      hitSlop={{ top: ESPACO.e4, bottom: ESPACO.e4 }}
-      onPress={aoPressionar}
-      style={({ pressed }) => ({
-        minHeight: ALTURA.filtro,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: ESPACO.e4,
-        paddingHorizontal: ESPACO.e12,
-        borderRadius: RAIO.pilula,
-        borderWidth: aumentarContraste ? 2 : 1,
-        borderColor: ativa ? cores.destaque : aumentarContraste ? cores.texto : cores.tonalBorda,
-        backgroundColor: ativa
-          ? solido(cores.quenteFundo)
-          : pressed
-            ? solido(cores.pressionado)
-            : 'transparent',
-      })}
-    >
-      {ativa ? <Icone nome="check" cor={cores.destaque} tamanho={14} peso="forte" /> : null}
-      <Texto
-        variante="lista"
-        peso={ativa ? 'forte' : 'medio'}
-        cor={ativa ? 'destaque' : 'textoSuave'}
-        numberOfLines={1}
-      >
-        {rotulo}
-      </Texto>
-    </Pressable>
+      <PilulasDeFiltro
+        rotulo="Situação"
+        opcional
+        selecionadas={status === 'todos' ? [] : [status]}
+        aoMudar={(v) => aoMudarStatus(v[0] ?? 'todos')}
+        pilulas={situacoes}
+      />
+    </LinhaDePilulas>
   )
 }

@@ -5,8 +5,8 @@ import { useState } from 'react'
 
 import { api } from '@/servicos/api'
 import { ehErroDaApi } from '@/servicos/erros'
+import { AvisoDeFalha } from '@/ui/Falha'
 import { useTokenDoFragmento } from '@/utilidades/fragmento'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
@@ -112,7 +112,7 @@ export function TelaRedefinirSenha() {
           textContentType="newPassword"
           onSubmitEditing={enviar}
         />
-        {redefinir.error && !erroDaSenha ? <AvisoDeErro erro={redefinir.error} /> : null}
+        {redefinir.error && !erroDaSenha ? <AvisoDeFalha erro={redefinir.error} /> : null}
       </CartaoDeVidro>
     </Tela>
   )

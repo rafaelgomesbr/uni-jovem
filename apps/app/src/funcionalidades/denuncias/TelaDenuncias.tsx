@@ -7,18 +7,18 @@ import { View } from 'react-native'
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { api } from '@/servicos/api'
 import type { Denuncia, EstadoDaDenuncia, RecursoDenunciavel } from '@/servicos/contratoDosModulos'
+import { AvisoDeFalha } from '@/ui/Falha'
 import { formatarDataEHora } from '@/utilidades/formatos'
 import { Aviso } from '@/ui/Aviso'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { Botao } from '@/ui/Botao'
 import { CaixaDeMarcar } from '@/ui/CaixaDeMarcar'
 import { Campo } from '@/ui/Campo'
-import { Carregando } from '@/ui/Carregando'
-import { Cartao } from '@/ui/Cartao'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { Chip } from '@/ui/Chip'
+import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
-import { GrupoDeOpcoes } from '@/ui/GrupoDeOpcoes'
+import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
 import { Segmentos } from '@/ui/Segmentos'
-import { Selo } from '@/ui/Selo'
 import { Texto } from '@/ui/Texto'
 
 import { usePode } from '../comunidade/permissoes'
@@ -81,11 +81,13 @@ function Fila({ comunidadeId }: { comunidadeId: string }) {
         }))}
       />
       {lista.isPending ? (
-        <Carregando texto="Carregando as denúncias" />
+        <Esqueleto rotulo="Carregando as denúncias">
+          <CartaoDeEsqueleto titulo />
+        </Esqueleto>
       ) : lista.error ? (
-        <AvisoDeErro erro={lista.error} aoTentarDeNovo={() => void lista.refetch()} />
+        <AvisoDeFalha erro={lista.error} aoTentarDeNovo={() => void lista.refetch()} />
       ) : lista.data.length === 0 ? (
-        <Cartao>
+        <CartaoDeVidro>
           <EstadoVazio
             icone="denuncia"
             titulo={estado === 'aberta' ? 'Nenhuma denúncia aberta' : 'Nada por aqui'}
@@ -96,7 +98,7 @@ function Fila({ comunidadeId }: { comunidadeId: string }) {
               aoPressionar: () => router.push('/avisos'),
             }}
           />
-        </Cartao>
+        </CartaoDeVidro>
       ) : (
         lista.data.map((d) => <ItemDaFila key={d.id} comunidadeId={comunidadeId} denuncia={d} />)
       )}
@@ -135,11 +137,11 @@ function ItemDaFila({ comunidadeId, denuncia: d }: { comunidadeId: string; denun
         : null
 
   return (
-    <Cartao>
+    <CartaoDeVidro>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
-        <Selo texto={NOME_DO_RECURSO[d.recursoTipo]} />
-        <Selo texto={NOME_DO_MOTIVO[d.motivo]} cor="alerta" />
-        {d.conteudoRetirado ? <Selo texto="Conteúdo retirado" cor="erro" /> : null}
+        <Chip texto={NOME_DO_RECURSO[d.recursoTipo]} tom="neutro" />
+        <Chip texto={NOME_DO_MOTIVO[d.motivo]} tom="alerta" />
+        {d.conteudoRetirado ? <Chip texto="Conteúdo retirado" tom="erro" /> : null}
       </View>
       <Texto variante="legenda" cor="textoSuave">
         Recebida em {formatarDataEHora(d.criadoEm)}
@@ -156,7 +158,7 @@ function ItemDaFila({ comunidadeId, denuncia: d }: { comunidadeId: string; denun
       )}
       {d.estado === 'aberta' ? (
         <>
-          <GrupoDeOpcoes
+          <ListaDeOpcoes
             rotulo="Decisão"
             valor={decisao}
             aoMudar={setDecisao}
@@ -188,7 +190,7 @@ function ItemDaFila({ comunidadeId, denuncia: d }: { comunidadeId: string; denun
             multiline
             maxLength={500}
           />
-          {resolver.error ? <AvisoDeErro erro={resolver.error} /> : null}
+          {resolver.error ? <AvisoDeFalha erro={resolver.error} /> : null}
           <Botao
             titulo="Registrar decisão"
             desabilitado={decisao === null}
@@ -198,6 +200,6 @@ function ItemDaFila({ comunidadeId, denuncia: d }: { comunidadeId: string; denun
           />
         </>
       ) : null}
-    </Cartao>
+    </CartaoDeVidro>
   )
 }

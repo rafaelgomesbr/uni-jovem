@@ -6,6 +6,7 @@ import { View } from 'react-native'
 import { useSessao } from '@/estado/sessao'
 import type { Aviso } from '@/servicos/contratoDosModulos'
 import { mensagemDoErro, SemConexao } from '@/servicos/erros'
+import { MenuDeAcoes } from '@/ui/FolhaNaTela'
 import { confirmar } from '@/utilidades/confirmar'
 import { formatarData } from '@/utilidades/formatos'
 import { parametro } from '@/utilidades/parametros'
@@ -24,7 +25,6 @@ import { useFusoDaComunidade } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
 import { BotaoDenunciar } from '../denuncias/BotaoDenunciar'
 import { SemComunidade } from '../navegacao/SemComunidade'
-import { FolhaDeAcoes } from '../oracao/FolhaDeAcoes'
 import { useAviso, useEditarAviso, useExcluirAviso, usePublicacaoDoAviso } from './consultas'
 import { CamposDoAviso, lerFormulario, valoresIniciais } from './TelaNovoAviso'
 
@@ -267,9 +267,10 @@ function Gestao({ comunidadeId, aviso }: { comunidadeId: string; aviso: Aviso })
         {situacao}
       </Texto>
       {erro ? <ErroDaAcao erro={erro} /> : null}
-      <FolhaDeAcoes
+      <MenuDeAcoes
         titulo="Mais ações"
-        aberta={maisAcoes}
+        aberto={maisAcoes}
+        esperarAcao
         aoFechar={() => setMaisAcoes(false)}
         acoes={[
           { titulo: 'Editar', icone: 'editar', aoPressionar: () => setEditando(true) },

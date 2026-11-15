@@ -12,9 +12,8 @@ import { usePreferenciasDeAcessibilidade } from '@/ui/acessibilidade'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
 import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
+import { AvisoDeFalha } from '@/ui/Falha'
 import { useTema } from '@/ui/tema'
-
-import { AvisoDeFalha } from '../eventos/Falha'
 
 /** A API pede prova recente de 2FA antes de ações de plataforma (D12, D31). */
 export function exigeProvaDeSegundoFator(erro: unknown): boolean {

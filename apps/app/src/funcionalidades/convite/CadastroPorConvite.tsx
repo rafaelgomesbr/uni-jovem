@@ -9,8 +9,8 @@ import { api } from '@/servicos/api'
 import type { SessaoAberta } from '@/servicos/contrato'
 import type { FaixaEtaria } from '@/servicos/contratoDosModulos'
 import { ehErroDaApi } from '@/servicos/erros'
+import { AvisoDeFalha } from '@/ui/Falha'
 import { normalizarWhatsApp } from '@/utilidades/formatos'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
@@ -238,7 +238,7 @@ export function CadastroPorConvite({
             <AceiteDosTermos marcada={termos} aoMudar={setTermos} />
           </CartaoDeVidro>
         )}
-        {iniciar.error ? <AvisoDeErro erro={iniciar.error} /> : null}
+        {iniciar.error ? <AvisoDeFalha erro={iniciar.error} /> : null}
         <Botao
           titulo="Já tenho conta: entrar"
           variante="terciario"
@@ -293,7 +293,7 @@ export function CadastroPorConvite({
             onSubmitEditing={enviarCodigo}
           />
         </CartaoDeVidro>
-        {iniciar.error ? <AvisoDeErro erro={iniciar.error} /> : null}
+        {iniciar.error ? <AvisoDeFalha erro={iniciar.error} /> : null}
         <Botao
           titulo="Corrigir meus dados"
           variante="terciario"
@@ -365,7 +365,7 @@ export function CadastroPorConvite({
           aoMudarResponsavel={setResponsavel}
         />
       </CartaoDeVidro>
-      {outroErro ? <AvisoDeErro erro={concluir.error} /> : null}
+      {outroErro ? <AvisoDeFalha erro={concluir.error} /> : null}
       <Botao
         titulo="Voltar ao código"
         variante="terciario"

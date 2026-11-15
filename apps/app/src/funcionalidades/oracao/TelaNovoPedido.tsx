@@ -4,6 +4,7 @@ import { useState } from 'react'
 
 import { useSessao } from '@/estado/sessao'
 import { origemPublica } from '@/servicos/enderecos'
+import { AvisoDeFalha } from '@/ui/Falha'
 import { abrirLink } from '@/utilidades/compartilhar'
 import { confirmar } from '@/utilidades/confirmar'
 import { Aviso } from '@/ui/Aviso'
@@ -16,7 +17,6 @@ import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { TextoAnunciado } from '@/ui/TextoAnunciado'
 
-import { AvisoDeFalha } from '../agenda/ErroAoCarregar'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { useCriarPedido } from './consultas'
 import {
@@ -122,7 +122,7 @@ function FormularioDoPedido({
           value={texto}
           onChangeText={setTexto}
           erro={erro}
-          multiline
+          leitura
           maxLength={2000}
           mostrarContador
         />

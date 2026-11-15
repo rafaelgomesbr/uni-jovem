@@ -1,4 +1,4 @@
-import { ESPACO, RAIO, RITMO } from '@uj/tokens'
+import { BORDA, ESPACO, RAIO, RITMO } from '@uj/tokens'
 import { useEffect, useRef, type ReactNode } from 'react'
 import {
   KeyboardAvoidingView,
@@ -11,13 +11,13 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { usePreferenciasDeAcessibilidade } from '@/ui/acessibilidade'
-import { CabecalhoDeTela } from '@/ui/CabecalhoDeTela'
-import { Chip } from '@/ui/Chip'
-import { focar, type NoDeTexto } from '@/ui/foco'
-import type { NomeDoIcone } from '@/ui/Icone'
-import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
-import { ProvedorDeSuperficie, sombra, useTema } from '@/ui/tema'
+import { usePreferenciasDeAcessibilidade } from './acessibilidade'
+import { CabecalhoDeTela } from './CabecalhoDeTela'
+import { Chip } from './Chip'
+import { focar, type NoDeTexto } from './foco'
+import type { NomeDoIcone } from './Icone'
+import { LinhaDeLista, Lista } from './LinhaDeLista'
+import { ProvedorDeSuperficie, sombra, useTema } from './tema'
 
 /**
  * Tempo da folha sair da tela no iOS. A ação escolhida espera esse tempo:
@@ -42,8 +42,10 @@ interface PropsDaFolhaNaTela {
  * própria: "Mais ações", ações de uma linha e formulários curtos. Superfície
  * opaca `superficieElevada`, topo com raio 28, padding de 20 nas laterais e a
  * área segura mais 16 embaixo. Fechar existe sempre (botão de 44, voltar do
- * Android e toque no véu): nada fica só em gesto. Ao abrir, o leitor de tela
- * vai para o título.
+ * Android e toque no véu): nada fica só em gesto. Com "Reduzir movimento", a
+ * folha só dissolve. Ao abrir, o leitor de tela vai para o título.
+ *
+ * A folha com rota própria é a `Folha`, aberta como `formSheet` nativo.
  */
 export function FolhaNaTela({ aberta, titulo, aoFechar, children }: PropsDaFolhaNaTela) {
   const { cores, elevacao } = useTema()
@@ -65,6 +67,7 @@ export function FolhaNaTela({ aberta, titulo, aoFechar, children }: PropsDaFolha
       statusBarTranslucent
     >
       <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+        {/* O véu fecha ao toque, mas não é um alvo para o leitor de tela: o "Fechar" é. */}
         <Pressable
           accessible={false}
           importantForAccessibility="no"
@@ -72,21 +75,22 @@ export function FolhaNaTela({ aberta, titulo, aoFechar, children }: PropsDaFolha
           style={[StyleSheet.absoluteFill, { backgroundColor: cores.veu }]}
         />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ProvedorDeSuperficie superficie="opaca">
-            <View
-              accessibilityViewIsModal
-              style={[
-                {
-                  maxHeight: '92%',
-                  backgroundColor: cores.superficieElevada,
-                  borderTopLeftRadius: RAIO.barra,
-                  borderTopRightRadius: RAIO.barra,
-                  borderTopWidth: aumentarContraste ? 2 : 0,
-                  borderColor: cores.texto,
-                },
-                sombra(elevacao.folha),
-              ]}
-            >
+          <View
+            accessibilityViewIsModal
+            aria-modal
+            style={[
+              {
+                maxHeight: '92%',
+                backgroundColor: cores.superficieElevada,
+                borderTopLeftRadius: RAIO.barra,
+                borderTopRightRadius: RAIO.barra,
+                borderTopWidth: aumentarContraste ? BORDA.contraste : 0,
+                borderColor: cores.texto,
+              },
+              sombra(elevacao.folha),
+            ]}
+          >
+            <ProvedorDeSuperficie superficie="opaca">
               <ScrollView
                 keyboardShouldPersistTaps="handled"
                 contentContainerStyle={{
@@ -104,8 +108,8 @@ export function FolhaNaTela({ aberta, titulo, aoFechar, children }: PropsDaFolha
                 />
                 {children}
               </ScrollView>
-            </View>
-          </ProvedorDeSuperficie>
+            </ProvedorDeSuperficie>
+          </View>
         </KeyboardAvoidingView>
       </View>
     </Modal>
@@ -115,7 +119,8 @@ export function FolhaNaTela({ aberta, titulo, aoFechar, children }: PropsDaFolha
 export interface AcaoDoMenu {
   titulo: string
   icone: NomeDoIcone
-  aoPressionar: () => void
+  /** Com `esperarAcao`, a folha espera a promessa (a confirmação nativa) antes de fechar. */
+  aoPressionar: () => void | Promise<unknown>
   /** Uma linha de apoio (o estado, a consequência). */
   descricao?: string
   /** Apaga, cancela ou encerra: em vermelho, no grupo de baixo. */
@@ -133,46 +138,69 @@ interface PropsDoMenu {
   titulo: string
   acoes: readonly (AcaoDoMenu | null | false)[]
   aoFechar: () => void
+  /** Conteúdo próprio acima do menu (um formulário curto, como a denúncia). */
+  children?: ReactNode
+  /**
+   * A ação roda com a folha aberta (a confirmação nativa aparece por cima
+   * dela) e a folha fecha quando a ação termina. Sem isto, a folha fecha
+   * primeiro e a ação roda quando ela termina de sair.
+   */
+  esperarAcao?: boolean
 }
 
 /**
  * Menu de ações numa folha (seção 2.12.19): linhas de lista; as destrutivas
  * em vermelho, por último, separadas por 8. Tocar fecha a folha e executa.
  */
-export function MenuDeAcoes({ aberto, titulo, acoes, aoFechar }: PropsDoMenu) {
+export function MenuDeAcoes({
+  aberto,
+  titulo,
+  acoes,
+  aoFechar,
+  children,
+  esperarAcao = false,
+}: PropsDoMenu) {
   const validas = acoes.filter((a): a is AcaoDoMenu => !!a)
   const grupos = [validas.filter((a) => !a.destrutiva), validas.filter((a) => a.destrutiva)]
 
-  function escolher(a: AcaoDoMenu) {
+  async function escolher(a: AcaoDoMenu) {
+    if (esperarAcao) {
+      await a.aoPressionar()
+      aoFechar()
+      return
+    }
     aoFechar()
-    depoisDeFechar(a.aoPressionar)
+    depoisDeFechar(() => void a.aoPressionar())
   }
 
   return (
     <FolhaNaTela aberta={aberto} titulo={titulo} aoFechar={aoFechar}>
-      {grupos.map((grupo, i) =>
-        grupo.length ? (
-          <View key={i} style={i > 0 && grupos[0]!.length ? { marginTop: -ESPACO.e8 } : null}>
-            <Lista>
-              {grupo.map((a) => {
-                const apoio = a.motivo ?? a.descricao
-                return (
-                  <LinhaDeLista
-                    key={a.titulo}
-                    icone={a.icone}
-                    titulo={a.titulo}
-                    {...(apoio ? { descricao: apoio } : {})}
-                    destrutivo={!!a.destrutiva}
-                    semSeta={!a.navega}
-                    {...(a.chip ? { extra: <Chip texto={a.chip} tom="quente" /> } : {})}
-                    {...(a.motivo ? {} : { aoPressionar: () => escolher(a) })}
-                  />
-                )
-              })}
-            </Lista>
-          </View>
-        ) : null,
-      )}
+      {children}
+      {validas.length ? (
+        <View style={{ gap: ESPACO.e8 }}>
+          {grupos.map((grupo, i) =>
+            grupo.length ? (
+              <Lista key={i}>
+                {grupo.map((a) => {
+                  const apoio = a.motivo ?? a.descricao
+                  return (
+                    <LinhaDeLista
+                      key={a.titulo}
+                      icone={a.icone}
+                      titulo={a.titulo}
+                      {...(apoio ? { descricao: apoio } : {})}
+                      destrutivo={!!a.destrutiva}
+                      semSeta={!a.navega}
+                      {...(a.chip ? { extra: <Chip texto={a.chip} tom="quente" /> } : {})}
+                      {...(a.motivo ? {} : { aoPressionar: () => void escolher(a) })}
+                    />
+                  )
+                })}
+              </Lista>
+            ) : null,
+          )}
+        </View>
+      ) : null}
     </FolhaNaTela>
   )
 }

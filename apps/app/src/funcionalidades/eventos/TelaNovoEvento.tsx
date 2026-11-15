@@ -13,6 +13,7 @@ import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
+import { AvisoDeFalha } from '@/ui/Falha'
 import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
 import { Secao } from '@/ui/Secao'
 import { Tela } from '@/ui/Tela'
@@ -36,7 +37,6 @@ import {
 } from './CamposDoEvento'
 import { naComunidade, useInvalidarEventos, useModelos } from './consultas'
 import { EditorDeRegra } from './EditorDeRegra'
-import { AvisoDeFalha } from './Falha'
 import {
   LOCAL_NOVO,
   proximoSabado,
@@ -62,14 +62,14 @@ export function TelaNovoEvento() {
   const data = dataValidaOuNula(parametro(params.data))
   if (!comunidadeAtiva) {
     return (
-      <Tela pilha>
+      <Tela pilha modal>
         <SemComunidade oQue="as programações" />
       </Tela>
     )
   }
   if (!pode('evento', 'criar')) {
     return (
-      <Tela pilha titulo="Nova programação">
+      <Tela pilha modal titulo="Nova programação">
         <Aviso tipo="info" titulo="Só a organização cria programações">
           Fale com quem organiza a sua comunidade para montar um encontro.
         </Aviso>
@@ -226,6 +226,7 @@ function NovoEvento({
   return (
     <Tela
       pilha
+      modal
       titulo="Nova programação"
       barraDeAcao={
         <BarraDeAcao>

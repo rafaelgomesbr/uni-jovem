@@ -94,6 +94,7 @@ export function EscolhaDeImagem({
         <ParDeBotoes>
           <Botao
             titulo={naWeb ? 'Escolher imagem' : 'Escolher da galeria'}
+            icone="galeria"
             variante="secundario"
             carregando={enviar.isPending && enviar.variables === 'galeria'}
             desabilitado={ocupado}
@@ -102,6 +103,7 @@ export function EscolhaDeImagem({
           {naWeb ? null : (
             <Botao
               titulo="Tirar foto"
+              icone="camera"
               variante="secundario"
               carregando={enviar.isPending && enviar.variables === 'camera'}
               desabilitado={ocupado}

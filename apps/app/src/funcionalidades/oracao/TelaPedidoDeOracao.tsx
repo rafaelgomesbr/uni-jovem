@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { useSessao } from '@/estado/sessao'
 import type { PedidoDeOracao } from '@/servicos/contratoDosModulos'
 import { ehErroDaApi } from '@/servicos/erros'
+import { AvisoDeFalha, ErroDaTela } from '@/ui/Falha'
 import { confirmar } from '@/utilidades/confirmar'
 import { parametro } from '@/utilidades/parametros'
 import { Aviso } from '@/ui/Aviso'
@@ -22,7 +23,6 @@ import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { mostrarToast } from '@/ui/Toast'
 
-import { AvisoDeFalha, ErroAoCarregar } from '../agenda/ErroAoCarregar'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import {
   autorDoPedido,
@@ -147,7 +147,7 @@ function DetalheDoPedido({ comunidadeId, pedidoId }: PropsDoPedido) {
           <CartaoDeEsqueleto titulo />
         </Esqueleto>
       ) : pedido.error ? (
-        <ErroAoCarregar
+        <ErroDaTela
           erro={pedido.error}
           oQue="o pedido"
           aoTentarDeNovo={() => void pedido.refetch()}
@@ -205,7 +205,7 @@ function EditarPedido(props: PropsDoPedido) {
           <CartaoDeEsqueleto />
         </Esqueleto>
       ) : pedido.error ? (
-        <ErroAoCarregar
+        <ErroDaTela
           erro={pedido.error}
           oQue="o pedido"
           aoTentarDeNovo={() => void pedido.refetch()}

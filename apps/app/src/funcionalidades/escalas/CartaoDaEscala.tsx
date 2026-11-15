@@ -6,6 +6,8 @@ import { View } from 'react-native'
 
 import { api } from '@/servicos/api'
 import type { EscalaDoInicio, MinhaEscala } from '@/servicos/contratoDosEventos'
+import { AvisoDeFalha } from '@/ui/Falha'
+import { MenuDeAcoes } from '@/ui/FolhaNaTela'
 import { confirmar } from '@/utilidades/confirmar'
 import { dataDoInstante, falarQuando, formatarHora } from '@/utilidades/datas'
 import { Botao, BotaoIcone, ParDeBotoes } from '@/ui/Botao'
@@ -15,10 +17,8 @@ import { focar, type NoDeView } from '@/ui/foco'
 import { Texto } from '@/ui/Texto'
 import { soNaWeb } from '@/ui/web'
 
-import { AvisoDeFalha } from '../agenda/ErroAoCarregar'
 import { naComunidade } from '../eventos/consultas'
 import { NOME_DO_ESTADO_DA_ATRIBUICAO } from '../eventos/nomes'
-import { FolhaDeAcoes } from '../oracao/FolhaDeAcoes'
 import { useInvalidarEscalas, useResponderEscala } from './consultas'
 
 /** Chip de cada estado da escala (mapa da 2.12.12). */
@@ -168,9 +168,10 @@ export function CartaoDaEscala({ escala, comunidadeId, fuso, primario = false }:
       </View>
       {erro ? <AvisoDeFalha erro={erro} /> : null}
       {podeRecusar ? (
-        <FolhaDeAcoes
+        <MenuDeAcoes
           titulo="Mais ações"
-          aberta={folhaAberta}
+          aberto={folhaAberta}
+          esperarAcao
           aoFechar={() => setFolhaAberta(false)}
           acoes={[
             {

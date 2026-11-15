@@ -1,4 +1,4 @@
-import { ALTURA, ESPACO, RAIO } from '@uj/tokens'
+import { ALTURA, ESPACO, RAIO, TIPO } from '@uj/tokens'
 import { useId, useState, type ComponentRef, type ReactNode, type Ref } from 'react'
 import {
   ActivityIndicator,
@@ -20,11 +20,18 @@ import { soNaWeb } from './web'
 /** Estado visual da caixa (tabela de estados da 2.12.2). */
 export type EstadoDaCaixa = 'normal' | 'foco' | 'erro' | 'desabilitado' | 'somenteLeitura'
 
-/** Borda, anel interno e fundo da caixa em cada estado: o foco não desloca o texto. */
-export function useEstiloDaCaixa(estado: EstadoDaCaixa, multilinha = false): ViewStyle {
+/**
+ * Borda, anel interno e fundo da caixa em cada estado: o foco não desloca o
+ * texto. `alturaMinima` muda a altura do multilinha (160 no texto longo).
+ */
+export function useEstiloDaCaixa(
+  estado: EstadoDaCaixa,
+  multilinha = false,
+  alturaMinima?: number,
+): ViewStyle {
   const { cores, solido } = useTema()
   const base: ViewStyle = {
-    minHeight: multilinha ? ALTURA.multilinha : ALTURA.controle,
+    minHeight: alturaMinima ?? (multilinha ? ALTURA.multilinha : ALTURA.controle),
     borderRadius: RAIO.controle,
     flexDirection: 'row',
     alignItems: multilinha ? 'flex-start' : 'center',
@@ -185,6 +192,11 @@ export interface PropsDoCampo extends Omit<
   erro?: string | null
   /** Orientação curta abaixo do campo. Some quando há erro (o erro diz como corrigir). */
   ajuda?: string
+  /**
+   * Nome para o leitor de tela quando o rótulo visível é curto fora do
+   * contexto ("Nome" no cartão "Chegou sem inscrição" vira "Nome de quem chegou").
+   */
+  rotuloAcessivel?: string
   /** Campo de senha, com o botão "Mostrar senha". */
   senha?: boolean
   /** Só exemplo ("ana@exemplo.com"), nunca instrução. */
@@ -206,6 +218,16 @@ export interface PropsDoCampo extends Omit<
   acao?: { icone: NomeDoIcone; rotulo: string; aoPressionar: () => void }
   /** Código de 6 dígitos: algarismos largos e espaçados. */
   codigo?: boolean
+  /**
+   * Texto longo de quem escreve (pedido de oração, 3.7.1): multilinha de 160
+   * em `leitura` 17/26, o mesmo papel em que o texto vai ser lido.
+   */
+  leitura?: boolean
+  /**
+   * Campo e botão na mesma linha (2.12.2): os dois com 48, alinhados pela
+   * base; o rótulo fica sobre o campo e a ajuda ou o erro abaixo da linha inteira.
+   */
+  botao?: ReactNode
   /** Contador de caracteres à direita da linha de apoio (precisa de `maxLength`). */
   mostrarContador?: boolean
   rotuloOculto?: boolean
@@ -217,6 +239,7 @@ export interface PropsDoCampo extends Omit<
 
 export function Campo({
   rotulo,
+  rotuloAcessivel,
   opcional,
   erro,
   ajuda: ajudaDoCampo,
@@ -230,11 +253,13 @@ export function Campo({
   icone,
   acao,
   codigo = false,
+  leitura = false,
+  botao,
   mostrarContador = false,
   rotuloOculto = false,
   reservarApoio,
   estadoDeVitrine,
-  multiline,
+  multiline: multilinhaPedido,
   onFocus,
   onBlur,
   ref,
@@ -242,6 +267,8 @@ export function Campo({
 }: PropsDoCampo) {
   const { cores } = useTema()
   const id = useId()
+  const multiline = multilinhaPedido || leitura
+  const nomeAcessivel = rotuloAcessivel ?? rotulo
   const [focado, setFocado] = useState(false)
   const [visivel, setVisivel] = useState(false)
   const ajudaDoFormato =
@@ -256,7 +283,7 @@ export function Campo({
       ? `${(resto.value ?? '').length}/${resto.maxLength}`
       : undefined
   // No iOS a região viva não fala: o erro novo é anunciado (nas três plataformas).
-  useAnunciar(erro ? `${rotulo}: ${erro}` : null)
+  useAnunciar(erro ? `${nomeAcessivel}: ${erro}` : null)
 
   const estado: EstadoDaCaixa = desabilitado
     ? 'desabilitado'
@@ -267,8 +294,91 @@ export function Campo({
         : focado || estadoDeVitrine === 'foco'
           ? 'foco'
           : 'normal'
-  const estiloDaCaixa = useEstiloDaCaixa(estado, !!multiline)
+  const alturaMinima = leitura ? ALTURA.multilinhaLonga : undefined
+  const estiloDaCaixa = useEstiloDaCaixa(estado, !!multiline, alturaMinima)
   const temAcaoDireita = senha || !!acao
+
+  const caixa = (
+    <View style={estiloDaCaixa} {...(resto.testID ? { testID: `${resto.testID}-caixa` } : {})}>
+      {icone ? (
+        <View
+          style={{ position: 'absolute', left: 14, top: 0, bottom: 0, justifyContent: 'center' }}
+        >
+          <Icone nome={icone} cor={cores.textoSuave} tamanho={18} />
+        </View>
+      ) : null}
+      <TextInput
+        ref={ref}
+        accessibilityLabel={nomeAcessivel}
+        {...(rotuloOculto || rotuloAcessivel ? {} : { accessibilityLabelledBy: idDoRotulo })}
+        accessibilityHint={descricao || undefined}
+        aria-disabled={desabilitado}
+        {...soNaWeb({
+          'aria-describedby': (erro ? idDoErro : ajuda ? idDaAjuda : undefined) || undefined,
+          'aria-invalid': erro ? true : undefined,
+        })}
+        placeholder={exemplo}
+        placeholderTextColor={cores.textoSuave}
+        secureTextEntry={senha && !visivel}
+        editable={!desabilitado && !somenteLeitura}
+        selectTextOnFocus={somenteLeitura}
+        multiline={multiline}
+        {...resto}
+        onFocus={(e) => {
+          setFocado(true)
+          onFocus?.(e)
+        }}
+        onBlur={(e) => {
+          setFocado(false)
+          onBlur?.(e)
+        }}
+        style={[
+          {
+            flex: 1,
+            alignSelf: 'stretch',
+            minHeight: alturaMinima ?? (multiline ? ALTURA.multilinha : ALTURA.controle - 2),
+            paddingLeft: icone ? 40 : ESPACO.e16,
+            paddingRight: temAcaoDireita ? 48 : sufixo || validando ? ESPACO.e8 : ESPACO.e16,
+            paddingVertical: multiline ? 13 : 0,
+            color: desabilitado ? cores.textoSuave : cores.texto,
+            fontFamily: codigo ? FAMILIA.textoForte : FAMILIA.texto,
+            // 16 evita o zoom automático do Safari ao focar o campo.
+            fontSize: codigo ? TIPO.codigo.tamanho : leitura ? TIPO.leitura.tamanho : 16,
+            ...(multiline
+              ? {
+                  lineHeight: leitura ? TIPO.leitura.altura : 22,
+                  textAlignVertical: 'top' as const,
+                }
+              : {}),
+            ...(codigo ? { letterSpacing: 8, fontVariant: ['tabular-nums' as const] } : {}),
+          },
+          Platform.OS === 'web' ? { outlineWidth: 0 } : null,
+        ]}
+      />
+      {validando ? (
+        <View style={{ paddingRight: sufixo ? ESPACO.e8 : ESPACO.e16 }}>
+          <ActivityIndicator size="small" color={cores.textoSuave} />
+        </View>
+      ) : null}
+      {sufixo ? (
+        <Texto
+          variante="legenda"
+          cor="textoSuave"
+          style={{ paddingRight: ESPACO.e16 }}
+          importantForAccessibility="no"
+        >
+          {sufixo}
+        </Texto>
+      ) : null}
+      {temAcaoDireita ? (
+        <AcaoDoCampo
+          icone={senha ? (visivel ? 'ocultar' : 'mostrar') : acao!.icone}
+          rotulo={senha ? (visivel ? 'Ocultar senha' : 'Mostrar senha') : acao!.rotulo}
+          aoPressionar={senha ? () => setVisivel((v) => !v) : acao!.aoPressionar}
+        />
+      ) : null}
+    </View>
+  )
 
   return (
     <BlocoDoCampo
@@ -283,80 +393,14 @@ export function Campo({
       contador={contador}
       reservarApoio={reservarApoio}
     >
-      <View style={estiloDaCaixa} {...(resto.testID ? { testID: `${resto.testID}-caixa` } : {})}>
-        {icone ? (
-          <View
-            style={{ position: 'absolute', left: 14, top: 0, bottom: 0, justifyContent: 'center' }}
-          >
-            <Icone nome={icone} cor={cores.textoSuave} tamanho={18} />
-          </View>
-        ) : null}
-        <TextInput
-          ref={ref}
-          accessibilityLabel={rotulo}
-          {...(rotuloOculto ? {} : { accessibilityLabelledBy: idDoRotulo })}
-          accessibilityHint={descricao || undefined}
-          aria-disabled={desabilitado}
-          {...soNaWeb({
-            'aria-describedby': (erro ? idDoErro : ajuda ? idDaAjuda : undefined) || undefined,
-            'aria-invalid': erro ? true : undefined,
-          })}
-          placeholder={exemplo}
-          placeholderTextColor={cores.textoSuave}
-          secureTextEntry={senha && !visivel}
-          editable={!desabilitado && !somenteLeitura}
-          selectTextOnFocus={somenteLeitura}
-          multiline={multiline}
-          {...resto}
-          onFocus={(e) => {
-            setFocado(true)
-            onFocus?.(e)
-          }}
-          onBlur={(e) => {
-            setFocado(false)
-            onBlur?.(e)
-          }}
-          style={[
-            {
-              flex: 1,
-              alignSelf: 'stretch',
-              minHeight: multiline ? ALTURA.multilinha : ALTURA.controle - 2,
-              paddingLeft: icone ? 40 : ESPACO.e16,
-              paddingRight: temAcaoDireita ? 48 : sufixo || validando ? ESPACO.e8 : ESPACO.e16,
-              paddingVertical: multiline ? 13 : 0,
-              color: desabilitado ? cores.textoSuave : cores.texto,
-              fontFamily: codigo ? FAMILIA.textoForte : FAMILIA.texto,
-              // 16 evita o zoom automático do Safari ao focar o campo.
-              fontSize: codigo ? 20 : 16,
-              ...(multiline ? { lineHeight: 22, textAlignVertical: 'top' as const } : {}),
-              ...(codigo ? { letterSpacing: 8, fontVariant: ['tabular-nums' as const] } : {}),
-            },
-            Platform.OS === 'web' ? { outlineWidth: 0 } : null,
-          ]}
-        />
-        {validando ? (
-          <View style={{ paddingRight: sufixo ? ESPACO.e8 : ESPACO.e16 }}>
-            <ActivityIndicator size="small" color={cores.textoSuave} />
-          </View>
-        ) : null}
-        {sufixo ? (
-          <Texto
-            variante="legenda"
-            cor="textoSuave"
-            style={{ paddingRight: ESPACO.e16 }}
-            importantForAccessibility="no"
-          >
-            {sufixo}
-          </Texto>
-        ) : null}
-        {temAcaoDireita ? (
-          <AcaoDoCampo
-            icone={senha ? (visivel ? 'ocultar' : 'mostrar') : acao!.icone}
-            rotulo={senha ? (visivel ? 'Ocultar senha' : 'Mostrar senha') : acao!.rotulo}
-            aoPressionar={senha ? () => setVisivel((v) => !v) : acao!.aoPressionar}
-          />
-        ) : null}
-      </View>
+      {botao ? (
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: ESPACO.e12 }}>
+          <View style={{ flex: 1 }}>{caixa}</View>
+          {botao}
+        </View>
+      ) : (
+        caixa
+      )}
     </BlocoDoCampo>
   )
 }

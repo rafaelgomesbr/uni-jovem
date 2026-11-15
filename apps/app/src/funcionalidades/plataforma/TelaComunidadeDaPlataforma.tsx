@@ -16,6 +16,8 @@ import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Chip } from '@/ui/Chip'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
+import { AvisoDeFalha, ErroDaTela } from '@/ui/Falha'
+import { depoisDeFechar, FolhaNaTela, MenuDeAcoes } from '@/ui/FolhaNaTela'
 import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
 import { Tela } from '@/ui/Tela'
 import { mostrarToast } from '@/ui/Toast'
@@ -28,8 +30,6 @@ import {
   NOME_CURTO_DO_ESTADO_DA_COMUNIDADE,
   NOME_DO_ESTADO_DA_COMUNIDADE,
 } from '../comunidade/nomes'
-import { AvisoDeFalha, ErroDaTela } from '../eventos/Falha'
-import { depoisDeFechar, FolhaNaTela, MenuDeAcoes } from '../eventos/FolhaNaTela'
 import { useAcaoDePlataforma } from './acaoDePlataforma'
 import { useComunidadesDaPlataforma } from './consultas'
 import {

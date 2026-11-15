@@ -14,6 +14,7 @@ import { Campo } from '@/ui/Campo'
 import { CampoDeData, CampoDeHora } from '@/ui/CampoDeMomento'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
+import { AvisoDeFalha, ErroDaTela } from '@/ui/Falha'
 import { Tela } from '@/ui/Tela'
 import { mostrarToast } from '@/ui/Toast'
 import { instanteDeDataEHora, lerDataDigitada, lerHoraDigitada } from '@/utilidades/datas'
@@ -22,7 +23,6 @@ import { parametro } from '@/utilidades/parametros'
 import { usePode } from '../comunidade/permissoes'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { naComunidade, useEvento, useInvalidarEventos } from './consultas'
-import { AvisoDeFalha, ErroDaTela } from './Falha'
 import { acoesDeStatus } from './regras'
 
 type Acao = 'cancelar' | 'adiar'
@@ -73,14 +73,14 @@ export function TelaMudarStatus() {
 
   if (!comunidadeAtiva || !eventoId) {
     return (
-      <Tela pilha>
+      <Tela pilha modal>
         <SemComunidade oQue="a programação" />
       </Tela>
     )
   }
   if (evento.isPending) {
     return (
-      <Tela pilha titulo={titulo}>
+      <Tela pilha modal titulo={titulo}>
         <Esqueleto rotulo="Carregando a programação">
           <CartaoDeEsqueleto />
         </Esqueleto>
@@ -89,7 +89,7 @@ export function TelaMudarStatus() {
   }
   if (evento.error) {
     return (
-      <Tela pilha titulo={titulo}>
+      <Tela pilha modal titulo={titulo}>
         <ErroDaTela erro={evento.error} aoTentarDeNovo={() => void evento.refetch()} />
       </Tela>
     )
@@ -101,7 +101,7 @@ export function TelaMudarStatus() {
 
   if (!permitido) {
     return (
-      <Tela pilha titulo={titulo}>
+      <Tela pilha modal titulo={titulo}>
         <Aviso tipo="info" titulo="Não dá para fazer isso agora">
           {pode('evento', 'cancelar_ou_adiar')
             ? 'A situação atual do evento não permite esta mudança.'
@@ -135,6 +135,7 @@ export function TelaMudarStatus() {
   return (
     <Tela
       pilha
+      modal
       titulo={titulo}
       descricao={e.titulo}
       barraDeAcao={

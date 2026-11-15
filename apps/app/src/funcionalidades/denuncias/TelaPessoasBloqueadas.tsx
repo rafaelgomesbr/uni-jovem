@@ -3,14 +3,14 @@ import { router } from 'expo-router'
 
 import { useSessao } from '@/estado/sessao'
 import type { ComunidadeDoVinculo } from '@/servicos/contrato'
+import { AvisoDeFalha } from '@/ui/Falha'
 import { formatarData } from '@/utilidades/formatos'
 import { confirmar } from '@/utilidades/confirmar'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { Botao } from '@/ui/Botao'
-import { Carregando } from '@/ui/Carregando'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
-import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
+import { LinhaDeLista, Lista, RECUO_DA_LISTA } from '@/ui/LinhaDeLista'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { mostrarToast } from '@/ui/Toast'
@@ -37,9 +37,15 @@ export function TelaPessoasBloqueadas() {
 
 function ListaDeBloqueios({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
   const lista = useBloqueios(comunidade.id)
-  if (lista.isPending) return <Carregando texto="Carregando as pessoas bloqueadas" />
+  if (lista.isPending) {
+    return (
+      <Esqueleto rotulo="Carregando as pessoas bloqueadas">
+        <CartaoDeEsqueleto titulo />
+      </Esqueleto>
+    )
+  }
   if (lista.error) {
-    return <AvisoDeErro erro={lista.error} aoTentarDeNovo={() => void lista.refetch()} />
+    return <AvisoDeFalha erro={lista.error} aoTentarDeNovo={() => void lista.refetch()} />
   }
   if (lista.data.length === 0) {
     return (
@@ -61,10 +67,10 @@ function ListaDeBloqueios({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
         {`Em ${comunidade.nome}, você não vê os pedidos de oração nem as sugestões com nome destas pessoas. Avisos e programação continuam aparecendo, e o papel de ninguém muda.`}
       </Texto>
       <CartaoDeVidro lista>
-        {/* 70 = 18 + avatar de 40 + 12: o separador começa no texto, como na Equipe. */}
-        <Lista recuo={70}>
+        {/* O separador começa no texto, depois do avatar de 40, como na Equipe. */}
+        <Lista recuo={RECUO_DA_LISTA.avatar}>
           {lista.data.map((p) => (
-            <Linha key={p.id} comunidadeId={comunidade.id} pessoa={p} />
+            <LinhaDaPessoa key={p.id} comunidadeId={comunidade.id} pessoa={p} />
           ))}
         </Lista>
       </CartaoDeVidro>
@@ -72,7 +78,13 @@ function ListaDeBloqueios({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
   )
 }
 
-function Linha({ comunidadeId, pessoa }: { comunidadeId: string; pessoa: PessoaBloqueada }) {
+function LinhaDaPessoa({
+  comunidadeId,
+  pessoa,
+}: {
+  comunidadeId: string
+  pessoa: PessoaBloqueada
+}) {
   const consultas = useQueryClient()
   const desbloquear = useDesbloquear(comunidadeId)
 
@@ -129,7 +141,7 @@ function Linha({ comunidadeId, pessoa }: { comunidadeId: string; pessoa: PessoaB
         }
       />
       {desbloquear.error ? (
-        <AvisoDeErro erro={desbloquear.error} titulo="Não deu para desbloquear" />
+        <AvisoDeFalha erro={desbloquear.error} titulo="Não deu para desbloquear" />
       ) : null}
     </>
   )

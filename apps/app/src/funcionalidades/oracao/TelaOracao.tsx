@@ -1,18 +1,15 @@
-import { ALTURA, BORDA, ESPACO, RITMO } from '@uj/tokens'
 import { router } from 'expo-router'
 import { useState } from 'react'
-import { ScrollView, View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
 import type { FiltroDeOracao, FiltroDeRespondidos } from '@/servicos/contratoDosModulos'
 import { BotaoIcone } from '@/ui/Botao'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
-import { PilulasDeFiltro } from '@/ui/PilulasDeFiltro'
+import { ErroDaTela } from '@/ui/Falha'
+import { LinhaDePilulas, PilulasDeFiltro } from '@/ui/PilulasDeFiltro'
 import { Tela } from '@/ui/Tela'
-import { useTema } from '@/ui/tema'
 
-import { ErroAoCarregar } from '../agenda/ErroAoCarregar'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { CartaoDoPedido } from './CartaoDoPedido'
 import { usePedidosDeOracao } from './consultas'
@@ -56,7 +53,7 @@ export function TelaOracao() {
 
 /**
  * Pílulas "Todos", "Meus", "De outras pessoas", separador, "Em oração" e
- * "Respondidos". A segunda turma liga e desliga: nenhuma marcada mostra
+ * "Respondidos". A segunda turma é uma só ou nenhuma: nenhuma marcada mostra
  * todos. Uma linha só, rolando por baixo da margem.
  */
 function Filtros({
@@ -70,22 +67,11 @@ function Filtros({
   respondidos: FiltroDeRespondidos
   aoMudarRespondidos: (r: FiltroDeRespondidos) => void
 }) {
-  const { cores } = useTema()
   const situacao = respondidos === 'incluir' ? [] : [respondidos]
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={{ marginHorizontal: -RITMO.margemDaTela, flexGrow: 0 }}
-      contentContainerStyle={{
-        paddingHorizontal: RITMO.margemDaTela,
-        alignItems: 'center',
-        gap: ESPACO.e8,
-      }}
-    >
+    <LinhaDePilulas>
       <PilulasDeFiltro
         rotulo="De quem"
-        sangrar={false}
         selecionadas={[filtro]}
         aoMudar={(v) => {
           if (v[0]) aoMudarFiltro(v[0])
@@ -96,28 +82,18 @@ function Filtros({
           { valor: 'outros', rotulo: 'De outras pessoas' },
         ]}
       />
-      <View
-        aria-hidden
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        style={{ width: BORDA.fina, height: ALTURA.chip, backgroundColor: cores.tonalBorda }}
-      />
       <PilulasDeFiltro
         rotulo="Situação"
-        sangrar={false}
-        multipla
+        opcional
         selecionadas={situacao}
-        aoMudar={(v) => {
-          // Uma de cada vez: a recém-tocada vale; desmarcar volta para todos.
-          const nova = v.find((x) => !situacao.includes(x))
-          aoMudarRespondidos(nova ?? 'incluir')
-        }}
+        // Desmarcar a ativa volta para todos.
+        aoMudar={(v) => aoMudarRespondidos(v[0] ?? 'incluir')}
         pilulas={[
           { valor: 'ocultar' as const, rotulo: 'Em oração' },
           { valor: 'somente' as const, rotulo: 'Respondidos' },
         ]}
       />
-    </ScrollView>
+    </LinhaDePilulas>
   )
 }
 
@@ -140,7 +116,7 @@ function ListaDeOracao({ comunidadeId }: { comunidadeId: string }) {
           <CartaoDeEsqueleto />
         </Esqueleto>
       ) : pedidos.error ? (
-        <ErroAoCarregar
+        <ErroDaTela
           erro={pedidos.error}
           oQue="os pedidos"
           aoTentarDeNovo={() => void pedidos.refetch()}

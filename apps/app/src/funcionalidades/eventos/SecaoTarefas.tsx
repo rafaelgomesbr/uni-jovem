@@ -6,6 +6,8 @@ import { Botao } from '@/ui/Botao'
 import { CaixaDeMarcar } from '@/ui/CaixaDeMarcar'
 import { Campo } from '@/ui/Campo'
 import { CampoDeData } from '@/ui/CampoDeMomento'
+import { AvisoDeFalha } from '@/ui/Falha'
+import { FolhaNaTela } from '@/ui/FolhaNaTela'
 import { mostrarToast } from '@/ui/Toast'
 import {
   dataDoInstante,
@@ -22,8 +24,6 @@ import { useMarcarNoEvento } from '../offline/acoes'
 import { MENSAGEM_EXIGE_CONEXAO } from '../offline/mensagens'
 import type { ModoLocal } from '../offline/vistaLocal'
 import { CartaoDePreparacao, ComRemover } from './CartaoDePreparacao'
-import { AvisoDeFalha } from './Falha'
-import { FolhaNaTela } from './FolhaNaTela'
 import { useMudancaNoEvento, useRemocaoNoEvento } from './mutacoes'
 
 interface Props {

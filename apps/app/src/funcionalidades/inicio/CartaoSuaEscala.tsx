@@ -4,8 +4,8 @@ import { useRef } from 'react'
 import { View } from 'react-native'
 
 import type { EscalaDoInicio } from '@/servicos/contratoDosEventos'
+import { AvisoDeFalha } from '@/ui/Falha'
 import { dataDoInstante, falarQuando, formatarHora } from '@/utilidades/datas'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { Botao, ParDeBotoes } from '@/ui/Botao'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Chip, type TomDoChip } from '@/ui/Chip'
@@ -121,7 +121,7 @@ export function CartaoSuaEscala({ escala, total, comunidadeId, fuso }: Props) {
           {escala.eventoTitulo} · {quandoCurto(escala.eventoInicio, fuso)}
         </Texto>
       </View>
-      {responder.error ? <AvisoDeErro erro={responder.error} /> : null}
+      {responder.error ? <AvisoDeFalha erro={responder.error} /> : null}
     </CartaoDeVidro>
   )
 }

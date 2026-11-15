@@ -11,6 +11,7 @@ import { Botao } from '@/ui/Botao'
 import { CampoDeData, CampoDeHora } from '@/ui/CampoDeMomento'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
+import { AvisoDeFalha, ErroDaTela } from '@/ui/Falha'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { mostrarToast } from '@/ui/Toast'
@@ -26,7 +27,6 @@ import { parametro } from '@/utilidades/parametros'
 
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { naComunidade, useEvento, useInvalidarEventos } from './consultas'
-import { AvisoDeFalha, ErroDaTela } from './Falha'
 
 /** Rota `/evento/[eventoId]/duplicar`: copia etapas, checklist, tarefas e materiais para outra data. */
 export function TelaDuplicar() {
@@ -35,14 +35,14 @@ export function TelaDuplicar() {
   const evento = useEvento(comunidadeAtiva?.id ?? null, eventoId)
   if (!comunidadeAtiva || !eventoId) {
     return (
-      <Tela pilha>
+      <Tela pilha modal>
         <SemComunidade oQue="a programação" />
       </Tela>
     )
   }
   if (evento.isPending) {
     return (
-      <Tela pilha titulo="Duplicar">
+      <Tela pilha modal titulo="Duplicar">
         <Esqueleto rotulo="Carregando a programação">
           <CartaoDeEsqueleto />
         </Esqueleto>
@@ -51,7 +51,7 @@ export function TelaDuplicar() {
   }
   if (evento.error) {
     return (
-      <Tela pilha titulo="Duplicar">
+      <Tela pilha modal titulo="Duplicar">
         <ErroDaTela erro={evento.error} aoTentarDeNovo={() => void evento.refetch()} />
       </Tela>
     )
@@ -108,6 +108,7 @@ function Duplicar(p: {
   return (
     <Tela
       pilha
+      modal
       titulo="Duplicar"
       descricao={p.titulo}
       barraDeAcao={

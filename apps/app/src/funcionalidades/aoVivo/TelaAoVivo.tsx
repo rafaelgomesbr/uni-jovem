@@ -1,8 +1,8 @@
-import { ALTURA, BORDA, ESPACO, RAIO, TIPO } from '@uj/tokens'
+import { ALTURA, BORDA, ESPACO, TIPO } from '@uj/tokens'
 import { useKeepAwake } from 'expo-keep-awake'
 import { useLocalSearchParams } from 'expo-router'
 import { useEffect, useState, type ReactNode } from 'react'
-import { ActivityIndicator, Pressable, useWindowDimensions, View } from 'react-native'
+import { useWindowDimensions, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useSessao } from '@/estado/sessao'
@@ -10,12 +10,13 @@ import type { ComandoDoAoVivo, EtapaAoVivo, RetratoAoVivo } from '@/servicos/con
 import { ehErroDaApi, SemConexao } from '@/servicos/erros'
 import { Aviso } from '@/ui/Aviso'
 import { BarraDeProgresso } from '@/ui/BarraDeProgresso'
-import { aparenciaDoBotao, Botao, BotaoIcone } from '@/ui/Botao'
+import { Botao, BotaoIcone } from '@/ui/Botao'
 import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Chip } from '@/ui/Chip'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
-import { useAnelDeFoco } from '@/ui/foco'
+import { AvisoDeFalha, ErroDaTela } from '@/ui/Falha'
+import { MenuDeAcoes } from '@/ui/FolhaNaTela'
 import { Icone } from '@/ui/Icone'
 import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
 import { Secao } from '@/ui/Secao'
@@ -37,8 +38,6 @@ import { parametro } from '@/utilidades/parametros'
 
 import { useFusoDaComunidade } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
-import { AvisoDeFalha, ErroDaTela } from '../eventos/Falha'
-import { MenuDeAcoes } from '../eventos/FolhaNaTela'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { useEstaOnline } from '../offline/ProvedorOffline'
 import { useAoVivoLocal } from '../offline/useAoVivoLocal'
@@ -51,11 +50,8 @@ import {
 } from './tempo'
 import { useAgora, useAoVivo } from './useAoVivo'
 
-/** Controles do ao vivo: 56 de altura (a mesma da linha), porque a tela é usada sob pressão (3.5.1). */
-const ALTURA_DO_CONTROLE = ALTURA.linha
-
-/** Separador da lista de etapas recuado até o texto, depois da coluna de hora. */
-const RECUO_DA_HORA = ALTURA.iconeSo + ESPACO.e12 + ESPACO.e16
+/** Controles do ao vivo: 56 de altura, porque a tela é usada sob pressão (3.5.1). */
+const ALTURA_DO_CONTROLE = ALTURA.controleAlto
 
 /** Rota `/evento/[eventoId]/ao-vivo`. */
 export function TelaAoVivo() {
@@ -378,7 +374,7 @@ function Painel({ r, conexao, comandar, enviando, erro }: PropsDoPainel) {
 
       <Secao titulo="Todas as etapas">
         <CartaoDeVidro lista opaco>
-          <Lista recuo={RECUO_DA_HORA}>
+          <Lista>
             {r.etapas.map((e, i) => (
               <LinhaDaEtapaAoVivo key={e.id} etapa={e} posicao={i} etapas={r.etapas} fuso={fuso} />
             ))}
@@ -552,7 +548,12 @@ function LinhaDoAtraso({ atrasoMin, final }: { atrasoMin: number | null; final: 
 function Trilho({ fracao }: { fracao: number }) {
   return (
     <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <BarraDeProgresso fracao={fracao} rotulo="Progresso das etapas" cor="primaria" altura={6} />
+      <BarraDeProgresso
+        fracao={fracao}
+        rotulo="Progresso das etapas"
+        cor="primaria"
+        trilho="tonal"
+      />
     </View>
   )
 }
@@ -576,7 +577,7 @@ function LinhaDaEtapaAoVivo({
   etapas: readonly EtapaAoVivo[]
   fuso: string
 }) {
-  const { cores, solido } = useTema()
+  const { cores } = useTema()
   const real = e.situacao === 'concluida' ? duracaoReal(etapas, posicao) : null
   const descricao =
     e.situacao === 'concluida'
@@ -590,37 +591,20 @@ function LinhaDaEtapaAoVivo({
       : e.situacao === 'atual'
         ? 'Em curso agora'
         : 'A seguir'
+  // A linha atual tem fundo quente e o chip "Agora"; a situação também vai escrita no rótulo.
   return (
-    <View
-      accessible
-      accessibilityLabel={`Etapa ${posicao + 1} de ${etapas.length}: ${e.titulo}, ${formatarDuracao(e.duracaoMin)}, prevista às ${formatarHora(e.inicioPrevisto, fuso)}. ${situacao}.`}
-      {...(e.situacao === 'atual' ? { 'aria-current': 'step' as const } : {})}
-      style={e.situacao === 'atual' ? { backgroundColor: solido(cores.quenteFundo) } : null}
-    >
-      <LinhaDeLista
-        inicio={
-          <Texto
-            variante="lista"
-            peso="forte"
-            tabular
-            style={{
-              minWidth: ALTURA.iconeSo,
-              alignSelf: 'flex-start',
-              lineHeight: TIPO.tituloItem.altura,
-            }}
-          >
-            {formatarHora(e.inicioPrevisto, fuso)}
-          </Texto>
-        }
-        titulo={e.titulo}
-        descricao={descricao}
-        {...(e.situacao === 'concluida'
-          ? { extra: <Icone nome="check" cor={cores.sucesso} tamanho={18} peso="forte" /> }
-          : e.situacao === 'atual'
-            ? { extra: <Chip texto="Agora" tom="neutro" /> }
-            : {})}
-      />
-    </View>
+    <LinhaDeLista
+      hora={formatarHora(e.inicioPrevisto, fuso)}
+      titulo={e.titulo}
+      descricao={descricao}
+      atual={e.situacao === 'atual'}
+      rotuloAcessivel={`Etapa ${posicao + 1} de ${etapas.length}: ${e.titulo}, ${formatarDuracao(e.duracaoMin)}, prevista às ${formatarHora(e.inicioPrevisto, fuso)}. ${situacao}.`}
+      {...(e.situacao === 'concluida'
+        ? { extra: <Icone nome="check" cor={cores.sucesso} tamanho={18} peso="forte" /> }
+        : e.situacao === 'atual'
+          ? { extra: <Chip texto="Agora" tom="neutro" /> }
+          : {})}
+    />
   )
 }
 
@@ -652,7 +636,7 @@ function BarraDeControle({ children }: { children: ReactNode }) {
   )
 }
 
-/** O primário da barra de controle: 56 de altura e `flex: 1`. */
+/** O primário da barra de controle: o botão alto (56) com `flex: 1`. */
 function BotaoDoControle({
   titulo,
   controle,
@@ -666,42 +650,19 @@ function BotaoDoControle({
   enviando: ComandoDoAoVivo | null
   executar: (c: ControleDoAoVivo) => void
 }) {
-  const tema = useTema()
-  const anel = useAnelDeFoco(tema.cores.foco)
   const motivo = recusa(controle)
   const carregando = enviando === controle
-  const inativo = motivo !== null || enviando !== null
-  const aparencia = aparenciaDoBotao('primario', motivo !== null, tema)
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={titulo}
-      accessibilityHint={motivo ?? undefined}
-      aria-disabled={inativo}
-      aria-busy={carregando}
-      disabled={inativo}
-      onPress={() => executar(controle)}
-      onFocus={anel.onFocus}
-      onBlur={anel.onBlur}
-      style={({ pressed }) => [
-        {
-          flex: 1,
-          minHeight: ALTURA_DO_CONTROLE,
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: ESPACO.e8,
-          paddingHorizontal: ESPACO.e8,
-          borderRadius: RAIO.controle,
-          backgroundColor: pressed && !inativo ? aparencia.fundoPressionado : aparencia.fundo,
-        },
-        anel.estilo,
-      ]}
-    >
-      {carregando ? <ActivityIndicator color={aparencia.texto} /> : null}
-      <Texto variante="botao" style={{ color: aparencia.texto }} centralizado>
-        {titulo}
-      </Texto>
-    </Pressable>
+    <Botao
+      titulo={titulo}
+      tamanho="alto"
+      larguraTotal
+      style={{ flex: 1 }}
+      carregando={carregando}
+      // Outro comando a caminho também trava este: nada sai duas vezes.
+      desabilitado={motivo !== null || (enviando !== null && !carregando)}
+      {...(motivo ? { dica: motivo } : {})}
+      aoPressionar={() => executar(controle)}
+    />
   )
 }

@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import { ALTURA, ESPACO } from '@uj/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
-import { useRef, useState, type ComponentRef, type ReactNode } from 'react'
+import { useRef, useState, type ComponentRef } from 'react'
 import { type TextInput, View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
@@ -14,6 +14,8 @@ import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Chip } from '@/ui/Chip'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
+import { AvisoDeFalha } from '@/ui/Falha'
+import { MenuDeAcoes } from '@/ui/FolhaNaTela'
 import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
@@ -23,8 +25,6 @@ import { parametro } from '@/utilidades/parametros'
 
 import { usePode } from '../comunidade/permissoes'
 import { useEvento } from '../eventos/consultas'
-import { AvisoDeFalha } from '../eventos/Falha'
-import { MenuDeAcoes } from '../eventos/FolhaNaTela'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { horaNoAparelho } from '../offline/formatos'
 import { MENSAGEM_SEM_PREPARO } from '../offline/mensagens'
@@ -387,9 +387,17 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
         </>
       ) : null}
 
-      <CartaoDeVidro sobrancelha="Pelo código" opaco intervalo={ESPACO.e8}>
-        <CampoEBotao
+      <CartaoDeVidro sobrancelha="Pelo código" opaco>
+        <Campo
           rotulo="Código de entrada"
+          value={codigo}
+          onChangeText={setCodigo}
+          erro={erroDoCodigo}
+          ajuda="10 letras e números, como aparece abaixo do QR."
+          autoCapitalize="characters"
+          autoCorrect={false}
+          maxLength={12}
+          onSubmitEditing={marcarPeloCodigo}
           botao={
             <Botao
               titulo="Marcar"
@@ -399,25 +407,21 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
               aoPressionar={marcarPeloCodigo}
             />
           }
-        >
-          <Campo
-            rotulo="Código de entrada"
-            rotuloOculto
-            value={codigo}
-            onChangeText={setCodigo}
-            erro={erroDoCodigo}
-            ajuda="10 letras e números, como aparece abaixo do QR."
-            autoCapitalize="characters"
-            autoCorrect={false}
-            maxLength={12}
-            onSubmitEditing={marcarPeloCodigo}
-          />
-        </CampoEBotao>
+        />
       </CartaoDeVidro>
 
-      <CartaoDeVidro sobrancelha="Chegou sem inscrição" opaco intervalo={ESPACO.e8}>
-        <CampoEBotao
+      <CartaoDeVidro sobrancelha="Chegou sem inscrição" opaco>
+        <Campo
+          ref={campoDoAvulso}
           rotulo="Nome"
+          rotuloAcessivel="Nome de quem chegou"
+          value={avulso}
+          onChangeText={setAvulso}
+          erro={erroDoAvulso}
+          ajuda="Para visitantes sem inscrição e sem conta: só o nome."
+          autoCapitalize="words"
+          maxLength={120}
+          onSubmitEditing={registrarAvulso}
           botao={
             <Botao
               titulo="Registrar"
@@ -426,20 +430,7 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
               aoPressionar={registrarAvulso}
             />
           }
-        >
-          <Campo
-            ref={campoDoAvulso}
-            rotulo="Nome de quem chegou"
-            rotuloOculto
-            value={avulso}
-            onChangeText={setAvulso}
-            erro={erroDoAvulso}
-            ajuda="Para visitantes sem inscrição e sem conta: só o nome."
-            autoCapitalize="words"
-            maxLength={120}
-            onSubmitEditing={registrarAvulso}
-          />
-        </CampoEBotao>
+        />
       </CartaoDeVidro>
 
       <MenuDeAcoes
@@ -467,37 +458,6 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
         }
       />
     </Tela>
-  )
-}
-
-/**
- * Campo e botão na mesma linha (2.12.2): o rótulo fica só sobre o campo e os
- * dois têm 48, alinhados pela caixa. A ajuda e o erro ficam abaixo do campo.
- */
-function CampoEBotao({
-  rotulo,
-  botao,
-  children,
-}: {
-  rotulo: string
-  botao: ReactNode
-  children: ReactNode
-}) {
-  return (
-    <>
-      <Texto
-        variante="rotulo"
-        cor="textoSuave"
-        importantForAccessibility="no"
-        accessibilityElementsHidden
-      >
-        {rotulo}
-      </Texto>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: ESPACO.e12 }}>
-        <View style={{ flex: 1 }}>{children}</View>
-        {botao}
-      </View>
-    </>
   )
 }
 

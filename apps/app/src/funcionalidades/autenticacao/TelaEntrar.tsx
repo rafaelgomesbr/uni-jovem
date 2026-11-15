@@ -7,10 +7,10 @@ import { View } from 'react-native'
 import { NOME_DO_APP } from '@/constantes'
 import { useSessao, type ResultadoDeEntrar } from '@/estado/sessao'
 import { Aviso } from '@/ui/Aviso'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { Botao, BotaoIcone, EmPar } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { AvisoDeFalha } from '@/ui/Falha'
 import { IconeDoApp } from '@/ui/IconeDoApp'
 import { useSemConexao } from '@/ui/IndicadorDeConexao'
 import { Tela } from '@/ui/Tela'
@@ -86,9 +86,9 @@ export function TelaEntrar() {
   }
 
   const erroDeEntrada = entrar.error ? (
-    <AvisoDeErro erro={entrar.error} />
+    <AvisoDeFalha erro={entrar.error} />
   ) : falhaDoProvedor ? (
-    <AvisoDeErro mensagem={falhaDoProvedor} />
+    <AvisoDeFalha mensagem={falhaDoProvedor} />
   ) : null
 
   return (

@@ -4,6 +4,7 @@ import { Alert } from 'react-native'
 
 import { DIA_DO_INICIO, INICIO } from '@/testes/fixturas'
 import { BASE, pedidosPara, PESSOAS, renderizarTela } from '@/testes/telas'
+import { formatarDataPorExtenso } from '@/utilidades/datas'
 
 import { datasParaDisponibilidade, rotuloDaData, TelaEscalas } from '../TelaEscalas'
 import { TelaPedirSubstituicao } from '../TelaPedirSubstituicao'
@@ -149,8 +150,11 @@ describe('escalas', () => {
 
     const usuario = userEvent.setup()
     await usuario.press(await screen.findByRole('radio', { name: 'Disponibilidade' }))
-    // Cada data é uma pílula: ativa quer dizer "posso ajudar".
-    const dia = await screen.findByRole('checkbox', { name: rotuloDaData(DIA_DO_INICIO) })
+    // Cada data é uma pílula ("sáb 21 nov"), lida por extenso: ativa quer dizer "posso ajudar".
+    const dia = await screen.findByRole('checkbox', {
+      name: formatarDataPorExtenso(DIA_DO_INICIO, false),
+    })
+    expect(screen.getByText(rotuloDaData(DIA_DO_INICIO))).toBeOnTheScreen()
     expect(dia).not.toBeChecked()
     await usuario.press(dia)
 

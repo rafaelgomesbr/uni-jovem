@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { duracaoTotal } from '@uj/dominio'
-import { ALTURA, ESPACO, TIPO } from '@uj/tokens'
+import { ESPACO } from '@uj/tokens'
 import { router } from 'expo-router'
 import { useState } from 'react'
 import { View } from 'react-native'
@@ -15,6 +15,8 @@ import { BotoesDeOrdem, mover } from '@/ui/BotoesDeOrdem'
 import { Campo } from '@/ui/Campo'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { EstadoVazio } from '@/ui/EstadoVazio'
+import { AvisoDeFalha } from '@/ui/Falha'
+import { FolhaNaTela } from '@/ui/FolhaNaTela'
 import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
 import { Texto } from '@/ui/Texto'
 import { mostrarToast } from '@/ui/Toast'
@@ -22,12 +24,7 @@ import { formatarDuracao, formatarHora } from '@/utilidades/datas'
 
 import { usePode } from '../comunidade/permissoes'
 import { naComunidade, useInvalidarEventos } from './consultas'
-import { AvisoDeFalha } from './Falha'
-import { FolhaNaTela } from './FolhaNaTela'
 import { reordenarEtapas } from './regras'
-
-/** Separador recuado até o texto, depois da coluna de hora (quadro 03). */
-const RECUO_DA_HORA = ALTURA.iconeSo + ESPACO.e12 + ESPACO.e16
 
 interface Props {
   evento: DetalheDoEvento
@@ -162,7 +159,7 @@ export function SecaoEtapas({ evento, comunidadeId, aoVerVisaoGeral }: Props) {
           </View>
         }
       >
-        <Lista recuo={RECUO_DA_HORA}>
+        <Lista>
           {evento.etapas.map((etapa, i) => (
             <LinhaDaEtapa
               key={etapa.id}
@@ -215,24 +212,10 @@ function LinhaDaEtapa({
   const quem = pessoas.map((p) => `${p.nome} (${p.funcao})`).join(', ')
   const nomes = pessoas.map((p) => p.nome.split(' ')[0]).join(', ')
   const falado = `Etapa ${posicao + 1} de ${quantas}: ${etapa.titulo}. Das ${horario}, ${formatarDuracao(etapa.duracaoMin)}.${quem ? ` Com ${quem}.` : ' Ninguém escalado.'}`
-  const hora = (
-    <Texto
-      variante="lista"
-      peso="forte"
-      tabular
-      accessibilityRole="text"
-      style={{
-        minWidth: ALTURA.iconeSo,
-        alignSelf: 'flex-start',
-        lineHeight: TIPO.tituloItem.altura,
-      }}
-    >
-      {formatarHora(etapa.inicioPrevisto, evento.fuso)}
-    </Texto>
-  )
-  const linha = (
+  // Fora da edição, a etapa é lida de uma vez (com toque ou sem), com a hora e quem cuida.
+  return (
     <LinhaDeLista
-      inicio={hora}
+      hora={formatarHora(etapa.inicioPrevisto, evento.fuso)}
       titulo={etapa.titulo}
       descricao={`${formatarDuracao(etapa.duracaoMin)} · ${nomes ? `Com ${nomes}` : 'Ninguém escalado'}`}
       {...(editando
@@ -253,18 +236,9 @@ function LinhaDaEtapa({
               rotuloAcessivel: falado,
               dica: 'Abre a etapa para editar e escalar.',
             }
-          : {})}
+          : { rotuloAcessivel: falado })}
     />
   )
-  // Sem toque e fora da edição, a etapa é lida de uma vez, com a hora e quem cuida.
-  if (!editando && !abrir) {
-    return (
-      <View accessible accessibilityLabel={falado}>
-        {linha}
-      </View>
-    )
-  }
-  return linha
 }
 
 /** "Adicionar etapa" numa folha: Nome e Duração lado a lado (2 para 1) e "Salvar etapa". */

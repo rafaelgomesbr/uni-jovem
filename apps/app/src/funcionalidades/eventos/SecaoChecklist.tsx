@@ -7,6 +7,8 @@ import type { DetalheDoEvento, TipoDeChecklist } from '@/servicos/contratoDosEve
 import { Botao, BotaoIcone } from '@/ui/Botao'
 import { CaixaDeMarcar } from '@/ui/CaixaDeMarcar'
 import { Campo } from '@/ui/Campo'
+import { AvisoDeFalha } from '@/ui/Falha'
+import { FolhaNaTela } from '@/ui/FolhaNaTela'
 import { LinhaDeLista } from '@/ui/LinhaDeLista'
 import { Segmentos } from '@/ui/Segmentos'
 import { Texto } from '@/ui/Texto'
@@ -20,8 +22,6 @@ import { useMarcarNoEvento } from '../offline/acoes'
 import { MENSAGEM_EXIGE_CONEXAO } from '../offline/mensagens'
 import type { ModoLocal } from '../offline/vistaLocal'
 import { CartaoDePreparacao, ComRemover, type ItemDaPreparacao } from './CartaoDePreparacao'
-import { AvisoDeFalha } from './Falha'
-import { FolhaNaTela } from './FolhaNaTela'
 import { useMudancaNoEvento, useRemocaoNoEvento } from './mutacoes'
 import { NOME_DO_CHECKLIST } from './nomes'
 
@@ -210,6 +210,7 @@ export function SecaoNotas({ evento, comunidadeId }: Props) {
       <CartaoDePreparacao
         sobrancelha="Notas internas"
         apoio="Só a organização vê estas notas."
+        tipo="texto"
         vazio="Nenhuma nota ainda."
         erro={remover.error}
         editavel={gerenciar}

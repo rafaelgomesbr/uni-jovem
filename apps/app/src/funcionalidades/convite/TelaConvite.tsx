@@ -8,9 +8,9 @@ import { View } from 'react-native'
 import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
 import type { ConsultaDeConvite, SituacaoDoConvite } from '@/servicos/contrato'
+import { AvisoDeFalha } from '@/ui/Falha'
 import { useTokenDoFragmento } from '@/utilidades/fragmento'
 import { Avatar } from '@/ui/Avatar'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
 import { Chip } from '@/ui/Chip'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
@@ -134,7 +134,7 @@ export function TelaConvite() {
   if (consulta.error) {
     return (
       <Tela pilha semVoltar={!conectado} aurora={1}>
-        <AvisoDeErro erro={consulta.error} aoTentarDeNovo={() => void consulta.refetch()} />
+        <AvisoDeFalha erro={consulta.error} aoTentarDeNovo={() => void consulta.refetch()} />
       </Tela>
     )
   }

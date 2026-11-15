@@ -35,8 +35,12 @@ import { soNaWeb } from './web'
 export type VarianteDoBotao =
   'primario' | 'secundario' | 'terciario' | 'destrutivo' | 'destrutivoCheio'
 
-/** `grande` (48): formulários, barra de ação, entrada. `medio` (44; 48 no Android): dentro de cartão. */
-export type TamanhoDoBotao = 'grande' | 'medio'
+/**
+ * `grande` (48): formulários, barra de ação, entrada. `medio` (44; 48 no
+ * Android): dentro de cartão. `alto` (56, ícone de 24): controles do Ao vivo,
+ * usados sob pressão.
+ */
+export type TamanhoDoBotao = 'grande' | 'medio' | 'alto'
 
 export interface PropsDoBotao {
   titulo: string
@@ -62,6 +66,13 @@ export interface PropsDoBotao {
   style?: StyleProp<ViewStyle>
   /** Botão que abre e fecha um bloco: o leitor de tela anuncia aberto ou fechado. */
   expandido?: boolean
+  /**
+   * Botão alternável ("Estou orando"): o leitor de tela ouve se está marcado
+   * (`aria-pressed`). Marcado, o secundário ganha fundo quente, borda e texto
+   * em destaque. Quem chama troca também o rótulo e o ícone ("Orando" com o
+   * check): a cor nunca é o único sinal.
+   */
+  marcado?: boolean
   /** Só o catálogo: desenha o estado pressionado ou o anel de foco sem toque nem teclado. */
   estadoDeVitrine?: 'pressionado' | 'foco'
   ref?: Ref<NoDeView>
@@ -79,6 +90,7 @@ export function aparenciaDoBotao(
   variante: VarianteDoBotao,
   inativo: boolean,
   { cores, semFundo, solido }: Pick<Tema, 'cores' | 'semFundo' | 'solido'>,
+  marcado = false,
 ): Aparencia {
   const textoInativo = comOpacidade(cores.texto, ALFA_DESABILITADO)
   if (inativo) {
@@ -99,6 +111,14 @@ export function aparenciaDoBotao(
         borda: null,
       }
     case 'secundario':
+      if (marcado) {
+        return {
+          fundo: solido(cores.quenteFundo),
+          fundoPressionado: solido(cores.quenteFundo),
+          texto: cores.destaque,
+          borda: cores.destaque,
+        }
+      }
       return {
         fundo: semFundo,
         fundoPressionado: solido(cores.pressionado),
@@ -137,9 +157,15 @@ function ANEL_DE_VITRINE(cor: string): ViewStyle {
   return { outlineWidth: 2, outlineStyle: 'solid', outlineColor: cor, outlineOffset: 2 }
 }
 
-/** Altura do tamanho: grande 48; médio 44 no iOS e na web, 48 no Android. */
+/** Altura do tamanho: grande 48; médio 44 no iOS e na web, 48 no Android; alto 56. */
 export function alturaDoBotao(tamanho: TamanhoDoBotao): number {
+  if (tamanho === 'alto') return ALTURA.controleAlto
   return tamanho === 'grande' ? ALTURA.controle : ALVO
+}
+
+/** Ícone de 18 nos botões; 24 nos de 56, para o ícone crescer com o alvo. */
+function ladoDoIcone(altura: number): number {
+  return altura >= ALTURA.controleAlto ? 24 : 18
 }
 
 export function Botao({
@@ -157,6 +183,7 @@ export function Botao({
   alinhado = false,
   style,
   expandido,
+  marcado,
   estadoDeVitrine,
   ref,
 }: PropsDoBotao) {
@@ -170,10 +197,19 @@ export function Botao({
   const [larguraNormal, setLarguraNormal] = useState<number | null>(null)
   const anel = useAnelDeFoco(cores.foco)
   const inativo = desabilitado || carregando
-  const aparencia = aparenciaDoBotao(variante, desabilitado && !carregando, tema)
+  const aparencia = aparenciaDoBotao(variante, desabilitado && !carregando, tema, !!marcado)
   const mostrarMotivo = desabilitado && !carregando && motivo
   // Em par (`flex: 1`) o padding cai para 6, como no quadro: "Pedir substituição" cabe em 152.
-  const padding = alinhado ? 0 : noPar ? ESPACO.e6 : tamanho === 'grande' ? ESPACO.e20 : ESPACO.e16
+  // No alto (Ao vivo), o rótulo mais longo ("Concluir a última etapa") cabe entre dois controles de 56.
+  const padding = alinhado
+    ? 0
+    : noPar
+      ? ESPACO.e6
+      : tamanho === 'alto'
+        ? ESPACO.e8
+        : tamanho === 'medio'
+          ? ESPACO.e16
+          : ESPACO.e20
 
   return (
     <View style={[larguraTotal ? { alignSelf: 'stretch' } : { alignSelf: 'flex-start' }, style]}>
@@ -184,6 +220,7 @@ export function Botao({
         ref={ref}
         aria-disabled={inativo}
         {...(expandido !== undefined ? { 'aria-expanded': expandido } : {})}
+        {...(marcado !== undefined ? { 'aria-pressed': marcado } : {})}
         aria-busy={carregando}
         {...(mostrarMotivo ? soNaWeb({ 'aria-describedby': idDoMotivo }) : {})}
         disabled={inativo}
@@ -231,7 +268,7 @@ export function Botao({
             importantForAccessibility="no-hide-descendants"
           />
         ) : icone ? (
-          <Icone nome={icone} cor={aparencia.texto} tamanho={18} />
+          <Icone nome={icone} cor={aparencia.texto} tamanho={ladoDoIcone(alturaDoBotao(tamanho))} />
         ) : null}
         <Texto variante="botao" style={{ color: aparencia.texto }} centralizado>
           {titulo}
@@ -260,7 +297,7 @@ export interface PropsDoBotaoIcone {
   desabilitado?: boolean
   /** Circular (raio 22): o voltar e as ações do cabeçalho. */
   circular?: boolean
-  /** 44 por padrão; 48 na barra de ação. */
+  /** 44 por padrão; 48 na barra de ação; 56 nos controles do Ao vivo (ícone de 24). */
   lado?: number
   ref?: Ref<NoDeView>
 }
@@ -309,7 +346,7 @@ export function BotaoIcone({
         anel.estilo,
       ]}
     >
-      <Icone nome={icone} cor={cor} tamanho={18} peso="semibold" />
+      <Icone nome={icone} cor={cor} tamanho={ladoDoIcone(lado)} peso="semibold" />
     </Pressable>
   )
 }

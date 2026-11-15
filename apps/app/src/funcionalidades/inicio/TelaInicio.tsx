@@ -6,10 +6,10 @@ import { CHAVES } from '@/estado/clienteDeConsulta'
 import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
 import type { RespostaDoInicio, TarefaDoInicio } from '@/servicos/contratoDosEventos'
+import { AvisoDeFalha } from '@/ui/Falha'
 import { formatarDataLocal, dataDoInstante } from '@/utilidades/datas'
 import { primeiroNome } from '@/utilidades/formatos'
 import { Aviso } from '@/ui/Aviso'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { CaixaDeMarcar } from '@/ui/CaixaDeMarcar'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
@@ -125,7 +125,7 @@ function Inicio({
     return (
       <>
         <CartaoDoVersiculo />
-        <AvisoDeErro erro={inicio.error} aoTentarDeNovo={() => void inicio.refetch()} />
+        <AvisoDeFalha erro={inicio.error} aoTentarDeNovo={() => void inicio.refetch()} />
         <EventosPreparados />
       </>
     )
@@ -264,7 +264,7 @@ function TarefaDoInicio({
         desabilitada={concluir.isPending || concluir.isSuccess}
         aoMudar={() => concluir.mutate()}
       />
-      {concluir.error ? <AvisoDeErro erro={concluir.error} /> : null}
+      {concluir.error ? <AvisoDeFalha erro={concluir.error} /> : null}
     </>
   )
 }
