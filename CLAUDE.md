@@ -53,7 +53,7 @@ Este arquivo vale para toda sessão de agente neste repositório, inclusive suba
 - Alvos de toque de no mínimo **44 pt**.
 - **Cor nunca é o único sinal:** sempre texto, ícone ou forma junto.
 - Respeitar Reduzir transparência, Aumentar contraste, Reduzir movimento e o tamanho de fonte do sistema.
-- Vidro só em superfícies flutuantes (barra de abas, folhas, cabeçalho), com fallback opaco; conteúdo sempre em superfície opaca.
+- Vidro com desfoque só em superfícies flutuantes (barra de abas, folhas, cabeçalho), com fallback opaco. Cartões de conteúdo podem usar a tinta translúcida do mockup aprovado (sem desfoque, D32), sempre com contraste AA medido sobre o fundo real e versão opaca quando "Reduzir transparência" estiver ligado.
 - Estados vazios com ação; mensagens de erro em linguagem humana, sem termo técnico.
 - Nada essencial escondido em gesto. Reordenar sempre tem botões subir e descer acessíveis.
 
