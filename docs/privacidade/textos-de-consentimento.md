@@ -1,13 +1,13 @@
 # Textos de consentimento e avisos de tela
 
-> **Rascunho para revisão jurídica, sem validade até a revisão.** Versão 0.1, de 14/11/2026.
-> Textos curtos que aparecem nas telas do app e nas páginas públicas. Cada um tem um identificador com versão (`TC-nn.vN`). Mudou o texto de um consentimento, muda a versão, e quem aceitou a versão anterior continua registrado com ela.
+> **Em uso em produção, com revisão jurídica pendente (PH-11).** Versão 0.2 deste arquivo, de 15/11/2026, conferida contra o código na mesma data. Os textos TC-01 a TC-04 vigentes são a versão 1 (`VERSAO_DO_TEXTO` em `apps/api/src/privacidade/consentimentos.ts`).
+> Textos curtos que aparecem nas telas do app e nas páginas públicas. Cada um tem um identificador com versão (`TC-nn.vN`). Mudou o texto de um consentimento, muda a versão (aqui e em `VERSAO_DO_TEXTO`), e quem aceitou a versão anterior continua registrado com ela.
 
 ## Regras que valem para todos
 
 1. **Caixa desmarcada.** Nenhum consentimento vem pré-marcado. O botão de continuar fica desabilitado até marcar, e o motivo aparece em texto (não só pela cor do botão).
 2. **Separado dos Termos.** O consentimento sobre a fé (art. 11, I) aparece em bloco próprio, com título, e não é misturado ao "li e aceito os Termos".
-3. **Registro.** Cada aceite grava: quem (conta ou inscrição), qual comunidade, o identificador e a versão do texto, data e hora, e a forma (tela e plataforma: `ios`, `android`, `web`, `pagina_publica`). [IMPLEMENTAÇÃO: hoje só existe `inscricoes.consentimento_em`, sem versão; contas e vínculos não têm registro. Proposta no `mapa-de-dados.md`, seção "Lacunas".]
+3. **Registro.** Cada aceite grava uma linha em `uj.consentimentos` (migração 0012): quem (conta ou inscrição), qual comunidade e vínculo (TC-03), o identificador e a versão do texto, data e hora (`concedido_em`), a forma (plataforma: `ios`, `android`, `web`, `pagina_publica`), a faixa de idade (TC-01) e a confirmação adicional (ciência do responsável no TC-03 de quem tem 16 ou 17 anos; idade ou responsável no TC-04). Sair da comunidade, excluir a conta ou apagar a inscrição pública preenche `revogado_em`.
 4. **Revogar com o mesmo esforço.** Todo consentimento diz em uma frase como desfazer.
 5. **Acessibilidade.** Texto do consentimento como rótulo da caixa (leitor de tela lê tudo), alvo de toque de 44 pt, link "Saiba mais" com texto descritivo, sem depender de cor.
 6. **Linguagem.** Frases curtas, segunda pessoa, sem juridiquês. Sem travessão.
@@ -87,13 +87,9 @@ O convite **não** é consumido (pode ser usado por outra pessoa a quem a lidera
 
 **Onde aparece:** formulário público de inscrição, acima do botão "Confirmar inscrição".
 
-**Texto atual no código (14/11/2026, `apps/api/src/publico/rotas.ts`):**
+**Texto (em uso desde a migração 0012, em `apps/api/src/publico/rotas.ts`; as duas caixas são obrigatórias e começam desmarcadas):**
 
-> Concordo que {comunidade} use meu nome e WhatsApp só para organizar este evento. Os dados ficam guardados por tempo limitado e depois são apagados. Saiba mais.
-
-**Problema:** não menciona o caráter religioso (dado sensível), não cita o e-mail opcional, não diz o prazo nem como desfazer, e não trata menores de 16. **Substituir por:**
-
-> [ ] Concordo que a _{nome da comunidade}_ use meu nome, WhatsApp e e-mail (se eu informar) só para organizar este evento. Sei que me inscrever num evento de igreja mostra que participo de uma comunidade religiosa. Meus dados são apagados {N} dias depois do evento. Posso cancelar e apagar antes pelo link que recebo ao me inscrever. [Saiba mais](/privacidade#inscricao)
+> [ ] Concordo que a _{nome da comunidade}_ use meu nome, WhatsApp e e-mail (se eu informar) só para organizar este evento. Sei que me inscrever num evento de igreja mostra que participo de uma comunidade religiosa. Meus dados são apagados {N} dias depois do evento. Posso cancelar e apagar antes pelo link que recebo ao me inscrever. [Saiba mais sobre a privacidade](/privacidade#inscricao)
 >
 > [ ] A pessoa inscrita tem 16 anos ou mais, ou eu sou o pai, a mãe ou o responsável legal dela e informei o meu WhatsApp como contato.
 
@@ -104,9 +100,9 @@ O convite **não** é consumido (pode ser usado por outra pessoa a quem a lidera
 - "Para se inscrever, marque a concordância com o uso dos seus dados."
 - "Para se inscrever, confirme a idade ou que você é o responsável."
 
-**O que é registrado:** `inscricoes.consentimento_em` (já existe) mais o identificador `TC-04.v1` e a confirmação da idade ou responsável [IMPLEMENTAÇÃO: colunas novas].
+**O que é registrado:** `inscricoes.consentimento_em` e uma linha em `uj.consentimentos` com `TC-04`, a versão, a forma `pagina_publica` e a confirmação da idade ou do responsável (`uj.inscrever_publico`, que recusa sem a confirmação).
 
-**Revogação:** o link de cancelamento da confirmação passa a oferecer "Cancelar e apagar meus dados agora" [IMPLEMENTAÇÃO].
+**Revogação:** a página do link de cancelamento oferece "Cancelar e apagar meus dados agora" (`uj.apagar_inscricao_publica`), que anonimiza a inscrição na hora e revoga o TC-04.
 
 ---
 
@@ -210,7 +206,7 @@ Não é consentimento (não há tratamento de dado pessoal). A notificação loc
 
 ## TC-12.v1: Sair da comunidade
 
-**Onde aparece:** Perfil > Comunidades > _{comunidade}_ > Sair.
+**Onde aparece:** aba Equipe > "Sair de _{comunidade}_" (o Perfil lista as comunidades e leva à mesma tela). Em 15/11/2026 o app usa um texto mais curto (`apps/app/src/funcionalidades/comunidade/sairDaComunidade.ts`): "Você deixa de ver a agenda e as programações desta comunidade. Para voltar, vai precisar de um convite novo.", mais a lista do que não foi enviado.
 
 > **Sair da _{comunidade}_?**
 >
@@ -227,7 +223,7 @@ Não é consentimento (não há tratamento de dado pessoal). A notificação loc
 
 ## TC-13.v1: Excluir conta
 
-**Onde aparece:** Perfil > Excluir conta (app e web) e `/excluir-conta`. Exige a senha (e o código de segundo fator, se ligado).
+**Onde aparece:** Perfil > Privacidade e dados > Excluir minha conta (app e web, rota `/excluir-conta` do app, `/app/excluir-conta` na web); a página pública `/excluir-conta` leva até ela. Exige a senha (e o código de segundo fator, se ligado).
 
 > **Excluir sua conta?**
 > Isso não pode ser desfeito.
@@ -235,7 +231,7 @@ Não é consentimento (não há tratamento de dado pessoal). A notificação loc
 > - Você sai de todas as comunidades e é desconectado de todos os aparelhos.
 > - Seus pedidos de oração e sua disponibilidade são apagados.
 > - Seu nome, e-mail, WhatsApp e senha são apagados. Onde você aparecia (escalas passadas, presenças, sugestões, avisos), passa a aparecer "Pessoa removida". Os números da comunidade continuam.
-> - Cópias de segurança cifradas com seus dados se apagam sozinhas em até 100 dias.
+> - Cópias de segurança com seus dados se apagam sozinhas em até cerca de 100 dias.
 > - Antes, se quiser, [baixe uma cópia dos seus dados].
 >   [Cancelar] [Excluir minha conta]
 
@@ -243,9 +239,9 @@ Não é consentimento (não há tratamento de dado pessoal). A notificação loc
 
 ## TC-14.v1: Exportar meus dados
 
-**Onde aparece:** Perfil > Exportar meus dados.
+**Onde aparece:** Perfil > Privacidade e dados > Exportar meus dados. A API gera o arquivo na hora (D26), então o texto não fala em prazo de 24 horas.
 
-> Vamos gerar um arquivo com os seus dados: conta, comunidades, escalas, inscrições, presenças, seus pedidos de oração e suas sugestões. Ele fica disponível por 24 horas e só pode ser baixado por você. Guarde-o com cuidado: ele contém seus pedidos de oração sem cifragem.
+> Vamos gerar um arquivo com os seus dados: conta, comunidades, escalas, inscrições, presenças, seus pedidos de oração e suas sugestões. Só você pode gerar o seu. Guarde-o com cuidado: ele contém seus pedidos de oração sem cifragem.
 > [Gerar arquivo]
 
 ---

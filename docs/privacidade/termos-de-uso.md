@@ -1,21 +1,23 @@
 # Termos de Uso do Uni Jovem
 
-> **Rascunho para revisão jurídica, sem validade até a revisão.**
-> Versão 0.1, escrita em 14/11/2026. Não publicar em `/termos` nem nas lojas antes da revisão (PH-11).
-> `[PREENCHER: ...]` depende do dono; `[REVISÃO JURÍDICA: ...]` é dúvida para o advogado e sai do texto publicado.
+> **Texto publicado em `/termos`, com revisão jurídica ainda pendente (PH-11).**
+> Versão 0.2, de 15/11/2026. A publicação em produção foi autorizada pelo dono em 15/11/2026. Conferido contra o código na mesma data.
+> `[REVISÃO JURÍDICA: ...]` é dúvida para o advogado e `[IMPLEMENTAÇÃO: ...]` é algo que o texto afirma e o código ainda não faz por completo; os dois saem do texto publicado.
 
-Estes termos são o acordo entre você e o operador do Uni Jovem. Leia junto com a [Política de Privacidade](politica-de-privacidade.md), que explica o que fazemos com seus dados.
+Versão de 15/11/2026.
+
+Estes termos são o acordo entre você e o operador do Uni Jovem. Leia junto com a [Política de Privacidade](/privacidade), que explica o que fazemos com seus dados.
 
 ## 1. Quem somos
 
-O Uni Jovem é operado por [PREENCHER: nome completo ou razão social], [PREENCHER: CPF ou CNPJ], [PREENCHER: endereço para correspondência], chamado aqui de "operador". Contato: [PREENCHER: e-mail de contato].
+O Uni Jovem é operado por Rafael Gomes, pessoa física, chamado aqui de "operador". Contato: [contact@solerte.com.br](mailto:contact@solerte.com.br).
 
 ## 2. O que é o Uni Jovem
 
 Um aplicativo gratuito para comunidades jovens de igreja organizarem eventos, programações, escalas, tarefas, inscrições, presença, avisos, sugestões, conteúdos e pedidos de oração. Funciona no iPhone, no Android e na web.
 
 - Cada **comunidade** é um espaço separado, criado pelo operador a pedido de uma igreja ou ministério, e administrado por pessoas dessa comunidade.
-- Só entra quem recebe um **convite**. Não existe cadastro aberto.
+- Só entra quem recebe um **convite**. Não existe cadastro aberto. Entrar com Google ou com a Apple só funciona para quem já tem conta criada por convite.
 - Páginas públicas de evento permitem que pessoas sem conta se inscrevam num evento.
 - O app não tem anúncios, não vende nada e não cobra nada.
 
@@ -32,21 +34,19 @@ O motivo dessa regra está na seção 12 da Política de Privacidade.
 
 - Use dados verdadeiros: nome, e-mail e, se quiser, WhatsApp.
 - A senha é só sua. Não compartilhe. Recomendamos ligar a verificação em duas etapas, principalmente se você é administrador.
-- Você pode ver e desconectar os aparelhos conectados em **Perfil > Aparelhos**.
+- Você pode ver e desconectar os aparelhos conectados em **Perfil > Segurança > Aparelhos conectados**, e conectar ou desconectar sua conta do Google ou da Apple em **Perfil > Segurança > Contas conectadas**.
 - Se suspeitar que alguém usou sua conta, troque a senha (isso desconecta todos os aparelhos) e avise o administrador da sua comunidade ou o contato acima.
 - Uma conta pode participar de várias comunidades, com papéis diferentes em cada uma.
 
 ## 5. Papéis nas comunidades
 
-| Papel                                      | O que pode fazer, em resumo                                                                                                                                    |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Membro                                     | Ver eventos e avisos, confirmar escalas, informar disponibilidade, se inscrever, enviar sugestões, fazer pedidos de oração                                     |
-| Organizador                                | Tudo do membro, mais criar e conduzir eventos, gerenciar escalas, tarefas, conteúdos e avisos, registrar presença, ver contatos, gerar relatórios sem contatos |
-| Administrador                              | Tudo do organizador, mais configurar a comunidade, convidar, mudar papéis, desativar ou remover pessoas, ver a auditoria e exportar com contatos               |
-| Equipe de oração (designação)              | Ler os pedidos de oração marcados para a equipe                                                                                                                |
-| Criador (da plataforma, não da comunidade) | Criar, suspender, arquivar e excluir comunidades e nomear administradores. Não tem acesso automático aos dados das comunidades nem aos pedidos de oração       |
-
-A lista completa de permissões está na matriz de permissões do projeto.
+| Papel                                      | O que pode fazer, em resumo                                                                                                                                                       |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Membro                                     | Ver eventos e avisos, confirmar escalas, informar disponibilidade, se inscrever, enviar sugestões, fazer pedidos de oração, denunciar conteúdo                                    |
+| Organizador                                | Tudo do membro, mais criar e conduzir eventos, gerenciar escalas, tarefas, conteúdos e avisos, registrar presença, ver contatos, moderar sugestões, gerar relatórios sem contatos |
+| Administrador                              | Tudo do organizador, mais configurar a comunidade, convidar, mudar papéis, desativar ou remover pessoas, analisar denúncias, ver a auditoria e exportar com contatos              |
+| Equipe de oração (designação)              | Ler os pedidos de oração marcados para a equipe                                                                                                                                   |
+| Criador (da plataforma, não da comunidade) | Criar, suspender, arquivar e excluir comunidades e nomear administradores. Não tem acesso automático aos dados das comunidades nem aos pedidos de oração                          |
 
 ## 6. Regras de convivência
 
@@ -58,10 +58,13 @@ Ao usar o Uni Jovem, você concorda em **não**:
 4. Tentar acessar dados de outra comunidade, de outra pessoa ou áreas que o seu papel não permite.
 5. Atrapalhar o funcionamento do serviço (robôs, inscrições falsas, sobrecarga).
 6. Se passar por outra pessoa.
+7. Fazer denúncias falsas ou repetidas para prejudicar alguém.
 
 Adultos não devem usar o Uni Jovem para contato privado e individual com adolescentes fora das finalidades da comunidade.
 
-[IMPLEMENTAÇÃO: as lojas (Apple, diretriz 1.2) exigem, em apps com conteúdo de usuários, um jeito de **denunciar** conteúdo e de **bloquear** quem abusa. O app ainda não tem "denunciar". Proposta: botão "Denunciar" em pedido de oração público, sugestão e aviso, que avisa os administradores da comunidade e, em caso grave, o operador; administradores já podem desativar ou remover pessoas.]
+**Como denunciar.** Em um pedido de oração visível à comunidade, numa sugestão ou num aviso, toque em **Denunciar**, escolha o motivo e, se quiser, conte o que aconteceu. A denúncia vai para os administradores da comunidade, que veem o conteúdo e o motivo, mas não quem denunciou. Eles podem retirar o conteúdo (o pedido de oração volta a ficar visível só para quem o escreveu, o aviso é despublicado e a sugestão é apagada) e podem desativar ou remover da comunidade quem abusa. Se o caso for grave, envolver criança ou adolescente, ou a administração não resolver, escreva para [contact@solerte.com.br](mailto:contact@solerte.com.br): o operador analisa e retira o conteúdo ilegal assim que souber, sem esperar ordem judicial.
+
+[IMPLEMENTAÇÃO: a diretriz 1.2 da App Store pede, em apps com conteúdo de usuários, filtro, denúncia, bloqueio de quem abusa e contato publicado. Denúncia, remoção pelo administrador e contato existem; não existe bloqueio individual (uma pessoa esconder outra só para si). Confirmar se a remoção pelo administrador basta para a revisão da Apple.]
 
 ## 7. O que você publica
 
@@ -70,10 +73,11 @@ Adultos não devem usar o Uni Jovem para contato privado e individual com adoles
 - Administradores e organizadores podem despublicar avisos e moderar sugestões da comunidade. O operador pode remover conteúdo que viole a lei ou estes termos, e vai avisar a comunidade quando fizer isso.
 - **Pedidos de oração:** você escolhe quem vê ("Somente eu", "Equipe de oração" ou "Comunidade"), e o app mostra quem vai ver antes de publicar. O texto é guardado cifrado, mas **não** com criptografia de ponta a ponta: quem controla o servidor tem capacidade técnica de ler (Política de Privacidade, seção 10). Escreva só o necessário.
 - **Sugestões anônimas:** ficam anônimas para todos da comunidade. O sistema guarda quem enviou, para segurança, sem mostrar em nenhuma tela.
+- **Foto de perfil:** só envie uma foto sua e que você tenha direito de usar. Ela aparece para as pessoas das comunidades em que você está ativo.
 
 ## 8. Versículo do dia
 
-Os versículos vêm da **Bíblia Livre (BLIVRE)**, © 2018 Diego Santos, Mario Sérgio e Marco Teles, publicada sob a licença Creative Commons Atribuição 4.0 Brasil (CC BY 4.0 BR). Os créditos, a data da versão e o link da licença estão em **Perfil > Sobre a tradução**. O versículo é agendado no próprio aparelho e pode ser desligado ou mudado de horário.
+Os versículos vêm da **Bíblia Livre (BLIVRE)**, © 2018 Diego Santos, Mario Sérgio e Marco Teles, publicada sob a licença Creative Commons Atribuição 4.0 Brasil (CC BY 4.0 BR). Os créditos, a data da versão e o link da licença estão em **Perfil > Versículo do dia > Sobre a tradução**. O versículo é agendado no próprio aparelho e pode ser desligado ou mudado de horário.
 
 ## 9. Para administradores de comunidade
 
@@ -84,9 +88,10 @@ Se você administra uma comunidade, você age em nome dela, e ela é a **control
 3. Planilhas exportadas são de responsabilidade da comunidade: guardar com cuidado, não repassar e apagar quando não forem mais necessárias.
 4. A comunidade responde aos pedidos das pessoas sobre os dados dela, com apoio do operador, e encaminha ao operador o que for da plataforma.
 5. O prazo de retenção das inscrições públicas (padrão de 90 dias depois do evento) pode ser ajustado entre 30 e 365 dias, e a comunidade é responsável pelo prazo que escolher.
-6. Se a comunidade souber de um incidente de segurança, avisa o operador imediatamente.
+6. A comunidade analisa as denúncias que receber no app e avisa o operador de imediato quando houver risco a criança ou adolescente.
+7. Se a comunidade souber de um incidente de segurança, avisa o operador imediatamente.
 
-O operador, por sua vez, se compromete a tratar os dados da comunidade só para prestar o serviço e segundo as instruções da comunidade, manter as medidas de segurança descritas na Política de Privacidade, avisar a comunidade sobre incidentes que a afetem, não usar subprocessador novo sem atualizar a lista pública, e, quando a comunidade for excluída, entregar antes uma exportação ao administrador e apagar os dados depois da carência de 30 dias.
+O operador, por sua vez, se compromete a tratar os dados da comunidade só para prestar o serviço e segundo as instruções da comunidade, manter as medidas de segurança descritas na Política de Privacidade, avisar a comunidade sobre incidentes que a afetem, não usar subprocessador novo sem atualizar a lista da Política de Privacidade e, quando a comunidade for excluída, avisar a administração antes, para que ela exporte o que precisar, e apagar os dados depois da carência de 30 dias. [IMPLEMENTAÇÃO: a rotina que apaga os dados da comunidade ao fim da carência não existe; hoje a exclusão só fica agendada.]
 
 [REVISÃO JURÍDICA: estas obrigações são o mínimo do art. 39 da LGPD. Avaliar se devem virar um acordo de tratamento de dados separado, aceito pela igreja (ou pelo representante legal dela) quando a comunidade é criada, em vez de cláusula aceita pelo administrador como pessoa física. Avaliar se o administrador tem poderes para obrigar a igreja.]
 
@@ -94,14 +99,14 @@ O operador, por sua vez, se compromete a tratar os dados da comunidade só para 
 
 - O Uni Jovem é oferecido gratuitamente e "no estado em que se encontra". Ele roda num servidor próprio, sem garantia de funcionamento contínuo. Fazemos cópias de segurança diárias e testamos a restauração, mas pode haver interrupções.
 - Funções podem mudar, ser acrescentadas ou retiradas. Mudança que afete seus dados segue a seção 16 da Política de Privacidade.
-- Use o modo sem internet do dia do evento como apoio: confira a programação antes de sair de casa.
+- Use o modo sem internet do dia do evento (no celular) como apoio: confira a programação antes de sair de casa.
 
 ## 11. Suspensão e encerramento
 
-- Você pode sair de uma comunidade ou excluir sua conta quando quiser, pelo app ou em `https://unijovem.solerte.com.br/excluir-conta`. Veja o que acontece com cada dado em `exclusao-de-conta.md` [PREENCHER: publicar como página de ajuda].
+- Você pode sair de uma comunidade ou excluir sua conta quando quiser, pelo app (**Perfil > Privacidade e dados > Excluir minha conta**) ou seguindo o passo a passo de [unijovem.solerte.com.br/excluir-conta](/excluir-conta), que também explica o que acontece com cada dado.
 - O administrador da comunidade pode desativar (reversível) ou remover você da comunidade.
 - O operador pode suspender ou encerrar uma conta que viole estes termos ou a lei, ou que pertença a alguém com menos de 16 anos, avisando por e-mail sempre que possível.
-- Uma comunidade pode ser suspensa (só leitura), arquivada ou excluída pelo operador. A exclusão tem 30 dias de carência e gera antes uma exportação para o administrador.
+- Uma comunidade pode ser suspensa (só leitura), arquivada ou excluída pelo operador. A exclusão tem 30 dias de carência, e a administração é avisada antes para exportar o que precisar.
 - Se o operador decidir encerrar o Uni Jovem, avisa com pelo menos 60 dias de antecedência, para que as comunidades exportem seus dados, e depois apaga tudo, exceto o que a lei obrigar a guardar.
 
 ## 12. Responsabilidade
@@ -110,11 +115,11 @@ O operador, por sua vez, se compromete a tratar os dados da comunidade só para 
 - O operador não responde pelo conteúdo publicado pelas pessoas nem pelo uso que as comunidades fazem das planilhas exportadas.
 - Nada nestes termos limita direitos que a lei garante a você e que não podem ser afastados por contrato.
 
-[REVISÃO JURÍDICA: avaliar se o Código de Defesa do Consumidor se aplica a um serviço gratuito sem remuneração indireta, e ajustar a limitação de responsabilidade conforme a resposta. Avaliar a responsabilidade do operador por conteúdo de terceiros à luz do art. 19 do Marco Civil e do dever de remoção de conteúdo de exploração de crianças e adolescentes da Lei nº 15.211/2025.]
+[REVISÃO JURÍDICA: avaliar se o Código de Defesa do Consumidor se aplica a um serviço gratuito sem remuneração indireta, e ajustar a limitação de responsabilidade conforme a resposta. Avaliar a responsabilidade do operador por conteúdo de terceiros à luz do art. 19 do Marco Civil e do dever de retirada de conteúdo que viole direitos de crianças e adolescentes dos arts. 28 a 33 da Lei nº 15.211/2025.]
 
 ## 13. Mudanças nestes termos
 
-Mudanças aparecem em `https://unijovem.solerte.com.br/termos`, com a data. Mudança relevante é avisada no app antes de valer. Se você não concordar, pode excluir sua conta; continuar usando depois do prazo indicado significa aceitar a nova versão.
+Mudanças aparecem em [unijovem.solerte.com.br/termos](/termos), com a data. Mudança relevante é avisada no app antes de valer. Se você não concordar, pode excluir sua conta; continuar usando depois do prazo indicado significa aceitar a nova versão.
 
 ## 14. Lei aplicável e foro
 
@@ -124,4 +129,4 @@ Estes termos seguem as leis do Brasil. Fica eleito o foro do domicílio de quem 
 
 ## 15. Contato
 
-[PREENCHER: e-mail de contato]. Para assuntos de dados pessoais: encarregado, [PREENCHER: e-mail do encarregado].
+[contact@solerte.com.br](mailto:contact@solerte.com.br), para suporte, denúncias e assuntos de dados pessoais. O encarregado pelo tratamento de dados é Rafael Gomes, no mesmo e-mail.
