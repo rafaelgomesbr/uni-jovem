@@ -83,4 +83,38 @@ describe('carregarConfig', () => {
       }),
     ).toEqual([])
   })
+
+  it('push: arquivo exige caminho e só vale em desenvolvimento; APNs completo ou nada', () => {
+    expect(problemas({ ...base, PUSH_MODO: 'arquivo' }).join()).toMatch(/PUSH_ARQUIVO/)
+    expect(problemas({ ...base, PUSH_MODO: 'arquivo', PUSH_ARQUIVO: '/tmp/p' })).toEqual([])
+    expect(
+      problemas({
+        ...base,
+        UJ_AMBIENTE: 'homologacao',
+        URL_PUBLICA: 'https://unijovem-hml.solerte.com.br',
+        TURNSTILE_SEGREDO: 'x',
+        PUSH_MODO: 'arquivo',
+        PUSH_ARQUIVO: '/tmp/p',
+      }).join(),
+    ).toMatch(/PUSH_MODO=arquivo não é permitido/)
+    expect(problemas({ ...base, APNS_CHAVE_ID: 'FXV5399926' }).join()).toMatch(/APNs exige/)
+    expect(problemas({ ...base, PUSH_MODO: 'real' }).join()).toMatch(/PUSH_MODO=real exige/)
+    expect(
+      problemas({
+        ...base,
+        PUSH_MODO: 'real',
+        APNS_CHAVE_ARQUIVO: '/chaves/apns.p8',
+        APNS_CHAVE_ID: 'FXV5399926',
+        APNS_TIME_ID: '8DVJ2U5ZKX',
+        APNS_TOPICO: 'com.solerte.unijovem.hml',
+      }),
+    ).toEqual([])
+  })
+
+  it('impressões Android no formato SHA-256 com dois-pontos; vazio vira lista vazia', () => {
+    expect(carregarConfig(base).ANDROID_SHA256_IMPRESSOES).toEqual([])
+    expect(problemas({ ...base, ANDROID_SHA256_IMPRESSOES: 'AB:CD' }).join()).toMatch(
+      /ANDROID_SHA256_IMPRESSOES/,
+    )
+  })
 })

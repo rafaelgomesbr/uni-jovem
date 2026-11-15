@@ -34,6 +34,7 @@ da plataforma, um atributo global e não um papel de comunidade. Tudo que não e
 | evento | publicar | Organizador ou acima |
 | evento | cancelar_ou_adiar | Organizador ou acima |
 | evento | excluir | Organizador ou acima |
+| evento | ler_pacote_offline | Membro ou acima |
 | modelo | ler | Organizador ou acima |
 | modelo | gerenciar | Organizador ou acima |
 | etapa | ler | Membro ou acima |
@@ -83,6 +84,12 @@ da plataforma, um atributo global e não um papel de comunidade. Tudo que não e
 | exportacao | com_contatos | Administrador ou acima |
 | exportacao | baixar | Organizador ou acima, só o próprio |
 | auditoria | ler | Administrador ou acima |
+| denuncia | criar | Membro ou acima |
+| denuncia | ler | Administrador ou acima |
+| denuncia | resolver | Administrador ou acima |
+| notificacao | configurar_proprias | Membro ou acima |
+| sincronizacao | ler_mudancas | Membro ou acima |
+| sincronizacao | enviar_operacoes | Membro ou acima |
 
 ## Pedidos de oração
 

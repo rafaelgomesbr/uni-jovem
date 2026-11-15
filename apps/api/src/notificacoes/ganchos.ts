@@ -1,12 +1,17 @@
 /**
- * Ganchos para as notificações da F14. Hoje ninguém escuta: as rotas só
- * anunciam o que aconteceu, depois que a transação confirmou.
+ * Ganchos de notificação, anunciados pelas rotas DEPOIS do commit.
  *
- * Regras para quem implementar o envio (plano, seção 8):
- * - O gancho leva só identificadores. O conteúdo é resolvido NO ENVIO, sob a
- *   RLS de cada destinatário, para respeitar isolamento e preferências.
- * - Tela bloqueada com texto genérico para tipos sensíveis. Pedido de oração
- *   nunca vira notificação com conteúdo (por isso não há gancho de oração).
+ * Desde a F14 o enfileiramento acontece no banco, por gatilhos na mesma
+ * transação do fato (migração 0011: aviso publicado, evento cancelado ou
+ * adiado, escala atribuída, substituição pedida e aceita, inscrição promovida).
+ * Assim nada se perde entre o commit e o envio, e o papel do aplicativo não
+ * consegue enfileirar nada por conta própria. O gancho serve só para ACORDAR o
+ * trabalhador da fila (src/notificacoes/trabalhador.ts) antes do próximo ciclo.
+ *
+ * Regras que continuam valendo (plano, seção 8):
+ * - O gancho leva só identificadores.
+ * - Tela bloqueada com texto genérico. Pedido de oração nunca vira
+ *   notificação (por isso não há gancho nem gatilho de oração).
  */
 
 export interface EventosDeNotificacao {

@@ -494,6 +494,12 @@ export async function materializarTodas(dono: pg.Pool): Promise<number> {
     for (const serie of rows) {
       await c.query('begin')
       try {
+        // Sem usuário no job: a autoria das ocorrências (criado_por, que vem do
+        // contexto) é de quem criou a série.
+        await c.query(
+          "select set_config('app.conta_id', (select criado_por::text from uj.series where id = $1), true)",
+          [serie.id],
+        )
         total += await materializar(c, serie, limiteDaJanela(serie.fuso))
         await c.query('commit')
       } catch (e) {

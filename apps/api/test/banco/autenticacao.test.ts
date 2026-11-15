@@ -18,6 +18,8 @@ import {
 
 const config = carregarConfig(envDeTeste())
 const SENHA = 'luau na praia de sábado'
+/** TC-01, TC-02 e TC-03 aceitos (o app só envia com as caixas marcadas). */
+const ACEITES = { faixaEtaria: '18_mais', aceiteTermos: true, consentimentoFe: true }
 
 let b: BancoDeTeste
 let app: ReturnType<typeof criarServidor>
@@ -76,6 +78,7 @@ async function cadastrar(
   })
   expect(ini.statusCode).toBe(200)
   const fim = await post('/api/auth/convite/concluir', {
+    ...ACEITES,
     token,
     verificacaoId: ini.json().verificacaoId,
     codigo: ultimoCodigo(),
@@ -110,6 +113,7 @@ describe('cadastro por convite', () => {
     const errado = codigo === '000000' ? '111111' : '000000'
 
     const base = {
+      ...ACEITES,
       token,
       verificacaoId: ini.json().verificacaoId,
       nome: 'Bruna Lima',
@@ -148,6 +152,7 @@ describe('cadastro por convite', () => {
     const certo = ultimoCodigo()
     const errado = certo === '000000' ? '111111' : '000000'
     const corpo = {
+      ...ACEITES,
       token,
       verificacaoId: ini.json().verificacaoId,
       nome: 'Caio',
@@ -169,6 +174,7 @@ describe('cadastro por convite', () => {
       email: 'davi@exemplo.test',
     })
     const r = await post('/api/auth/convite/concluir', {
+      ...ACEITES,
       token,
       verificacaoId: ini.json().verificacaoId,
       codigo: ultimoCodigo(),
@@ -206,6 +212,7 @@ describe('cadastro por convite', () => {
     expect(caixa.at(-1)!.corpo).toContain('já tem conta')
     // O identificador não corresponde a nenhuma verificação: concluir não cria nada.
     const r3 = await post('/api/auth/convite/concluir', {
+      ...ACEITES,
       token: tokenExistente,
       verificacaoId: r2.json().verificacaoId,
       codigo: '123456',
@@ -244,13 +251,13 @@ describe('cadastro por convite', () => {
     const auth = { authorization: `Bearer ${sessao.acesso}` }
     const generico = await post(
       '/api/auth/convite/aceitar',
-      { token: await convite('organizador') },
+      { token: await convite('organizador'), consentimentoFe: true },
       auth,
     )
     expect(generico.json().erro).toBe('convite_indisponivel')
     const dirigido = await post(
       '/api/auth/convite/aceitar',
-      { token: await convite('membro', 'desativado@exemplo.test') },
+      { token: await convite('membro', 'desativado@exemplo.test'), consentimentoFe: true },
       auth,
     )
     expect(dirigido.statusCode).toBe(200)
@@ -267,7 +274,7 @@ describe('cadastro por convite', () => {
     )
     const r = await post(
       '/api/auth/convite/aceitar',
-      { token: tk },
+      { token: tk, consentimentoFe: true },
       { authorization: `Bearer ${sessao.acesso}` },
     )
     expect(r.statusCode).toBe(200)

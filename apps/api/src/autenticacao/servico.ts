@@ -18,6 +18,12 @@ import {
 } from './cripto.ts'
 import { emitirAcesso, emitirDesafio, verificarDesafio } from './jwt.ts'
 import { MENSAGEM_DO_PROBLEMA, problemasDaSenha } from './senha.ts'
+import {
+  MENSAGEM_MENOR_DE_16,
+  MENSAGEM_SEM_RESPONSAVEL,
+  VERSAO_DO_TEXTO,
+  type FaixaEtaria,
+} from '../privacidade/consentimentos.ts'
 import { base32, gerarSegredoTotp, uriDeConfiguracao, verificarTotp } from './totp.ts'
 
 /**
@@ -633,6 +639,8 @@ function traduzirErroDeConvite(e: unknown): never {
   throw e
 }
 
+export const MENOR_DE_16 = () => new ErroDeAuth('menor_de_16', 422, MENSAGEM_MENOR_DE_16)
+
 const COTA_ESGOTADA = () =>
   new ErroDeAuth(
     'cota_de_envio',
@@ -650,8 +658,16 @@ const COTA_ESGOTADA = () =>
  */
 export async function iniciarCadastroPorConvite(
   d: DependenciasAuth,
-  pedido: { token: string; nome: string; email: string; whatsapp: string | null },
+  pedido: {
+    token: string
+    nome: string
+    email: string
+    whatsapp: string | null
+    faixaEtaria?: FaixaEtaria | 'menos_16' | undefined
+  },
 ): Promise<{ verificacaoId: string }> {
+  // TC-01: menor de 16 para aqui, sem gravar nada e sem consumir o convite.
+  if (pedido.faixaEtaria === 'menos_16') throw MENOR_DE_16()
   const email = normalizarEmail(pedido.email)
   const primeiroNome = pedido.nome.trim().split(/\s+/)[0]
   const { rows } = await d.auth.query<{
@@ -733,6 +749,9 @@ export async function concluirCadastroPorConvite(
     senha: string
     aparelho: string | null
     plataforma: Plataforma
+    /** TC-01 (a rota já recusou menos de 16), TC-02 e TC-03 aceitos na tela. */
+    faixaEtaria: FaixaEtaria
+    responsavelCiente: boolean
   },
 ): Promise<SessaoAberta> {
   // Primeiro o código, numa transação curta (a tentativa errada precisa ficar gravada).
@@ -790,34 +809,266 @@ export async function concluirCadastroPorConvite(
       traduzirErroDeConvite({ code: 'UJ001' })
     }
     let contaId: string
+    let vinculoId: string
     try {
-      const { rows } = await c.query<{ conta_id: string }>(
-        'select conta_id from uj.criar_conta_por_convite($1, $2, $3, $4, $5)',
+      const { rows } = await c.query<{ conta_id: string; vinculo_id: string }>(
+        'select conta_id, vinculo_id from uj.criar_conta_por_convite($1, $2, $3, $4, $5)',
         [hmacDoConvite(d, pedido.token), pedido.nome, email, pedido.whatsapp, senhaHash],
       )
       contaId = rows[0]!.conta_id
+      vinculoId = rows[0]!.vinculo_id
     } catch (e) {
       traduzirErroDeConvite(e)
     }
+    // Registro versionado: idade (TC-01), termos (TC-02) e fé na comunidade (TC-03).
+    await c.query('select uj.declarar_faixa_etaria($1, $2, $3, $4)', [
+      contaId,
+      pedido.faixaEtaria,
+      VERSAO_DO_TEXTO['TC-01'],
+      pedido.plataforma,
+    ])
+    await registrarConsentimento(c, contaId, null, 'TC-02', pedido.plataforma, null)
+    await registrarConsentimento(
+      c,
+      contaId,
+      vinculoId,
+      'TC-03',
+      pedido.plataforma,
+      pedido.faixaEtaria === '16_17' ? pedido.responsavelCiente : null,
+    )
     return abrirSessao(d, c, contaId, { aparelho: pedido.aparelho, plataforma: pedido.plataforma })
   })
 }
 
-/** Conta existente aceita o convite (já autenticada). */
+async function registrarConsentimento(
+  c: pg.PoolClient,
+  contaId: string,
+  vinculoId: string | null,
+  texto: 'TC-02' | 'TC-03',
+  forma: Plataforma,
+  confirmacao: boolean | null,
+): Promise<void> {
+  await c.query('select uj.registrar_consentimento($1, null, $2, $3, $4, $5, null, $6)', [
+    contaId,
+    vinculoId,
+    texto,
+    VERSAO_DO_TEXTO[texto],
+    forma,
+    confirmacao,
+  ])
+}
+
+/**
+ * Conta existente aceita o convite (já autenticada), com o consentimento sobre
+ * a fé daquela comunidade (TC-03). Conta criada antes da F18 declara a idade
+ * aqui (TC-01); 16 e 17 anos confirmam a ciência do responsável.
+ */
 export async function aceitarConviteComConta(
   d: DependenciasAuth,
-  contaId: string,
-  token: string,
+  pedido: {
+    contaId: string
+    sessaoId: string
+    token: string
+    faixaEtaria: FaixaEtaria | 'menos_16' | undefined
+    responsavelCiente: boolean
+  },
 ): Promise<{ vinculoId: string }> {
-  try {
-    const { rows } = await d.auth.query<{ v: string }>('select uj.aceitar_convite($1, $2) as v', [
-      hmacDoConvite(d, token),
-      contaId,
-    ])
-    return { vinculoId: rows[0]!.v }
-  } catch (e) {
-    traduzirErroDeConvite(e)
+  if (pedido.faixaEtaria === 'menos_16') throw MENOR_DE_16()
+  const declarada: FaixaEtaria | undefined = pedido.faixaEtaria
+  return emTx(d.auth, async (c) => {
+    const conta = (
+      await c.query<{ faixa_etaria: FaixaEtaria | null; plataforma: Plataforma | null }>(
+        `select a.faixa_etaria, (select plataforma from uj.sessoes where id = $2) as plataforma
+           from uj.contas a where a.id = $1`,
+        [pedido.contaId, pedido.sessaoId],
+      )
+    ).rows[0]
+    const forma = conta?.plataforma ?? 'web'
+    let faixa = conta?.faixa_etaria ?? null
+    if (!faixa) {
+      if (!declarada) {
+        throw new ErroDeAuth(
+          'faixa_etaria_necessaria',
+          422,
+          'Antes de entrar na comunidade, informe a sua faixa de idade.',
+        )
+      }
+      faixa = declarada
+      await c.query('select uj.declarar_faixa_etaria($1, $2, $3, $4)', [
+        pedido.contaId,
+        faixa,
+        VERSAO_DO_TEXTO['TC-01'],
+        forma,
+      ])
+    }
+    if (faixa === '16_17' && !pedido.responsavelCiente) {
+      throw new ErroDeAuth('responsavel_necessario', 422, MENSAGEM_SEM_RESPONSAVEL)
+    }
+    let vinculoId: string
+    try {
+      const { rows } = await c.query<{ v: string }>('select uj.aceitar_convite($1, $2) as v', [
+        hmacDoConvite(d, pedido.token),
+        pedido.contaId,
+      ])
+      vinculoId = rows[0]!.v
+    } catch (e) {
+      traduzirErroDeConvite(e)
+    }
+    await registrarConsentimento(
+      c,
+      pedido.contaId,
+      vinculoId,
+      'TC-03',
+      forma,
+      faixa === '16_17' ? true : null,
+    )
+    return { vinculoId }
+  })
+}
+
+// ------------------------------------------------------------ reautenticação e exclusão
+
+/**
+ * Confere senha e, se ligado, o segundo fator, para ações irreversíveis da
+ * própria conta (excluir conta). Mesma resposta genérica do login para senha
+ * errada; a falha de código conta no bloqueio por conta (falhas_2fa).
+ */
+export async function reautenticar(
+  d: DependenciasAuth,
+  pedido: { contaId: string; senha: string; codigo: string | null },
+): Promise<void> {
+  const conta = (
+    await d.auth.query<{ senha_hash: string | null; totp_ativado_em: Date | null }>(
+      "select senha_hash, totp_ativado_em from uj.contas where id = $1 and estado = 'ativa'",
+      [pedido.contaId],
+    )
+  ).rows[0]
+  if (!conta?.senha_hash) {
+    await gastarTempoDeVerificacao(pedido.senha)
+    throw CREDENCIAIS()
   }
+  if (!(await senhaConfere(conta.senha_hash, pedido.senha))) throw CREDENCIAIS()
+  if (!conta.totp_ativado_em) return
+  if (!pedido.codigo) {
+    throw new ErroDeAuth(
+      'segundo_fator_necessario',
+      401,
+      'Informe o código do seu autenticador para continuar.',
+    )
+  }
+  const codigo = pedido.codigo
+  const r = await emTx(d.auth, (c) => conferirSegundoFator(d, c, pedido.contaId, codigo))
+  lancarSeNaoOk(r)
+}
+
+export interface ComunidadeSemOutroAdmin {
+  id: string
+  nome: string
+}
+
+/**
+ * A comunidade não fica sem administrador, mas a exclusão não pode travar sem
+ * saída: a resposta diz o que fazer e leva as comunidades (com o id, para o
+ * app abrir a lista de membros e oferecer "nomear administrador").
+ */
+export class ErroUnicoAdmin extends ErroDeAuth {
+  constructor(public readonly comunidades: ComunidadeSemOutroAdmin[]) {
+    super(
+      'unico_admin',
+      409,
+      `Você é a única pessoa administradora de ${comunidades.map((c) => c.nome).join(', ')}. ` +
+        'Antes de excluir a conta, abra a lista de membros e nomeie outra pessoa como administradora.',
+    )
+    this.name = 'ErroUnicoAdmin'
+  }
+
+  get extra() {
+    return { acao: 'nomear_admin', comunidades: this.comunidades }
+  }
+}
+
+async function comunidadesSemOutroAdmin(
+  d: DependenciasAuth,
+  contaId: string,
+): Promise<ComunidadeSemOutroAdmin[]> {
+  return (
+    await d.auth.query<ComunidadeSemOutroAdmin>(
+      'select id, nome from uj.comunidades_em_que_e_unico_admin($1)',
+      [contaId],
+    )
+  ).rows
+}
+
+/**
+ * Exclusão de conta (docs/privacidade/exclusao-de-conta.md, caso 1): depois
+ * da reautenticação, `uj.excluir_conta` faz tudo numa transação. O e-mail
+ * antigo volta só para o aviso de confirmação, enviado depois da resposta.
+ */
+export async function excluirConta(
+  d: DependenciasAuth,
+  pedido: { contaId: string; senha: string; codigo: string | null },
+): Promise<void> {
+  await reautenticar(d, pedido)
+  const unicas = await comunidadesSemOutroAdmin(d, pedido.contaId)
+  if (unicas.length > 0) throw new ErroUnicoAdmin(unicas)
+  let emailAntigo: string
+  try {
+    emailAntigo = (
+      await d.auth.query<{ email: string }>('select uj.excluir_conta($1) as email', [
+        pedido.contaId,
+      ])
+    ).rows[0]!.email
+  } catch (e) {
+    const codigo = (e as { code?: string }).code
+    if (codigo === 'UJ040') {
+      throw new ErroDeAuth(
+        'conta_do_criador',
+        409,
+        'Você é o Criador do Uni Jovem. Transfira a propriedade antes de excluir sua conta.',
+      )
+    }
+    if (codigo === 'UJ041')
+      throw new ErroUnicoAdmin(await comunidadesSemOutroAdmin(d, pedido.contaId))
+    if (codigo === 'UJ004') throw SESSAO_INVALIDA()
+    throw e
+  }
+  d.emSegundoPlano(
+    d.correio.enviar({
+      para: emailAntigo,
+      assunto: 'Sua conta no Uni Jovem foi excluída',
+      corpo: [
+        'Olá!',
+        '',
+        'Sua conta no Uni Jovem foi excluída, como você pediu. Seus dados pessoais foram apagados',
+        'e, onde você aparecia, agora aparece "Pessoa removida".',
+        '',
+        'Se não foi você, responda a este e-mail o quanto antes.',
+      ].join('\n'),
+    }),
+  )
+}
+
+/** Declaração de idade de conta já existente (TC-01). */
+export async function declararFaixaEtaria(
+  d: DependenciasAuth,
+  pedido: { contaId: string; sessaoId: string; faixa: FaixaEtaria | 'menos_16' },
+): Promise<void> {
+  if (pedido.faixa === 'menos_16') throw MENOR_DE_16()
+  await emTx(d.auth, async (c) => {
+    const forma =
+      (
+        await c.query<{ plataforma: Plataforma }>(
+          'select plataforma from uj.sessoes where id = $1',
+          [pedido.sessaoId],
+        )
+      ).rows[0]?.plataforma ?? 'web'
+    await c.query('select uj.declarar_faixa_etaria($1, $2, $3, $4)', [
+      pedido.contaId,
+      pedido.faixa,
+      VERSAO_DO_TEXTO['TC-01'],
+      forma,
+    ])
+  })
 }
 
 // ------------------------------------------------------------ 2FA (TOTP)

@@ -7,6 +7,7 @@ import { Limitador, truncarIp } from '../autenticacao/limitador.ts'
 import type { Config } from '../config.ts'
 import { CSP_PUBLICA, ESTILO, Seguro, SCRIPT_CANCELAR, html, pagina } from './html.ts'
 import { dataPorExtenso, normalizarTelefone, verificarTurnstile } from './apoio.ts'
+import { VERSAO_DO_TEXTO } from '../privacidade/consentimentos.ts'
 
 /**
  * Páginas públicas de evento (F12): `/e/:idPublico`, inscrição, confirmação e
@@ -37,6 +38,7 @@ interface EventoPublico {
   vagas_restantes: number | null
   lista_de_espera: boolean
   inscricoes_abertas: boolean
+  retencao_dias: number
 }
 
 const idPublico = z.string().regex(/^[0-9a-f]{32}$/)
@@ -165,9 +167,18 @@ export function registrarPaginasPublicas(app: FastifyInstance, o: OpcoesPublicas
         <div class="caixa">
           <input id="consentimento" name="consentimento" type="checkbox" value="sim" required />
           <label for="consentimento"
-            >Concordo que ${e.comunidade_nome} use meu nome e WhatsApp só para organizar este
-            evento. Os dados ficam guardados por tempo limitado e depois são apagados.
-            <a href="/privacidade">Saiba mais</a>.</label
+            >Concordo que a ${e.comunidade_nome} use meu nome, WhatsApp e e-mail (se eu informar) só
+            para organizar este evento. Sei que me inscrever num evento de igreja mostra que
+            participo de uma comunidade religiosa. Meus dados são apagados ${e.retencao_dias} dias
+            depois do evento. Posso cancelar e apagar antes pelo link que recebo ao me inscrever.
+            <a href="/privacidade#inscricao">Saiba mais sobre a privacidade</a>.</label
+          >
+        </div>
+        <div class="caixa">
+          <input id="idade" name="idade" type="checkbox" value="sim" required />
+          <label for="idade"
+            >A pessoa inscrita tem 16 anos ou mais, ou eu sou o pai, a mãe ou o responsável legal
+            dela e informei o meu WhatsApp como contato.</label
           >
         </div>
         ${o.chaveDoSiteTurnstile ? html`<div class="cf-turnstile" data-sitekey="${o.chaveDoSiteTurnstile}"></div>` : ''}
@@ -264,17 +275,23 @@ export function registrarPaginasPublicas(app: FastifyInstance, o: OpcoesPublicas
     if (corpo['consentimento'] !== 'sim') {
       return comErro(400, 'Para se inscrever, marque a concordância com o uso dos seus dados.')
     }
+    if (corpo['idade'] !== 'sim') {
+      return comErro(400, 'Para se inscrever, confirme a idade ou que você é o responsável.')
+    }
 
     const token = gerarToken()
     let r: { estado: string; codigo_checkin: string; ja_existia: boolean } | undefined
     try {
       r = (
-        await o.api.query('select * from uj.inscrever_publico($1, $2, $3, $4, $5)', [
+        await o.api.query('select * from uj.inscrever_publico($1, $2, $3, $4, $5, $6, $7, $8)', [
           id.data,
           nome,
           telefone,
           email || null,
           hashDeToken(token),
+          'TC-04',
+          VERSAO_DO_TEXTO['TC-04'],
+          true,
         ])
       ).rows[0]
     } catch (err) {
@@ -310,7 +327,7 @@ export function registrarPaginasPublicas(app: FastifyInstance, o: OpcoesPublicas
             </div>
             <p>Código: <strong>${r.codigo_checkin}</strong></p>
           </div>
-          ${r.ja_existia ? '' : html`<p>Guarde este link para cancelar, se precisar: <a href="${cancelar}">cancelar minha inscrição</a>. Ele não aparece de novo.</p>`}
+          ${r.ja_existia ? '' : html`<p>Guarde este link para cancelar ou apagar seus dados, se precisar: <a href="${cancelar}">cancelar minha inscrição</a>. Ele não aparece de novo.</p>`}
           <p>
             <a class="botao" href="${compartilhar}" rel="noopener noreferrer"
               >Convidar alguém pelo WhatsApp</a
@@ -344,7 +361,18 @@ export function registrarPaginasPublicas(app: FastifyInstance, o: OpcoesPublicas
           <form method="post" action="/e/${id.data}/cancelar" class="cartao">
             <input type="hidden" id="token" name="token" />
             <p>Ao cancelar, sua vaga fica livre para outra pessoa.</p>
-            <button type="submit">Cancelar minha inscrição</button>
+            <p>
+              <button type="submit" name="acao" value="cancelar">Cancelar minha inscrição</button>
+            </p>
+            <p>
+              Se preferir, cancele e apague agora seu nome, WhatsApp e e-mail, sem esperar o prazo
+              de retenção. Depois disso este link deixa de funcionar.
+            </p>
+            <p>
+              <button type="submit" name="acao" value="apagar">
+                Cancelar e apagar meus dados agora
+              </button>
+            </p>
           </form>`,
         { titulo: 'Cancelar inscrição', scripts: ['/publico/cancelar.js'] },
       ),
@@ -365,11 +393,14 @@ export function registrarPaginasPublicas(app: FastifyInstance, o: OpcoesPublicas
         ),
       )
     }
-    const token = String((pedido.body as Record<string, unknown> | undefined)?.['token'] ?? '')
+    const corpoDoPedido = (pedido.body as Record<string, unknown> | undefined) ?? {}
+    const token = String(corpoDoPedido['token'] ?? '')
+    const apagar = corpoDoPedido['acao'] === 'apagar'
+    const funcao = apagar ? 'uj.apagar_inscricao_publica' : 'uj.cancelar_inscricao_publica'
     const ok =
       /^[\w-]{20,200}$/.test(token) &&
       (
-        await o.api.query<{ ok: boolean }>('select uj.cancelar_inscricao_publica($1, $2) as ok', [
+        await o.api.query<{ ok: boolean }>(`select ${funcao}($1, $2) as ok`, [
           id.data,
           hashDeToken(token),
         ])
@@ -379,10 +410,17 @@ export function registrarPaginasPublicas(app: FastifyInstance, o: OpcoesPublicas
       ok ? 200 : 404,
       pagina(
         ok
-          ? html`<h1>Inscrição cancelada</h1>
-              <p>Obrigado por avisar. A vaga ficou livre para outra pessoa.</p>`
+          ? apagar
+            ? html`<h1>Inscrição cancelada e dados apagados</h1>
+                <p>Apagamos seu nome, WhatsApp e e-mail desta inscrição. Obrigado por avisar.</p>`
+            : html`<h1>Inscrição cancelada</h1>
+                <p>Obrigado por avisar. A vaga ficou livre para outra pessoa.</p>
+                <p class="suave">
+                  Seus dados serão apagados no prazo informado. Para apagar agora, abra o mesmo link
+                  de novo e escolha "Cancelar e apagar meus dados agora".
+                </p>`
           : html`<h1>Não encontramos esta inscrição</h1>
-              <p class="suave">Ela pode já ter sido cancelada.</p>`,
+              <p class="suave">Ela pode já ter sido cancelada ou apagada.</p>`,
         { titulo: 'Cancelar inscrição' },
       ),
     )

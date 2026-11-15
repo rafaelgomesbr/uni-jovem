@@ -15,6 +15,7 @@ import {
   iniciarCadastroPorConvite,
   iniciarPrimeiroAcesso,
   iniciarTotp,
+  MENOR_DE_16,
   normalizarEmail,
   pedirRecuperacao,
   provarSegundoFator,
@@ -25,7 +26,12 @@ import {
   type DependenciasAuth,
   type SessaoAberta,
 } from '../autenticacao/servico.ts'
-import { validar } from '../http.ts'
+import { ErroHttp, validar } from '../http.ts'
+import {
+  MENSAGEM_SEM_CONSENTIMENTO_DE_FE,
+  MENSAGEM_SEM_RESPONSAVEL,
+  MENSAGEM_SEM_TERMOS,
+} from '../privacidade/consentimentos.ts'
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -58,6 +64,12 @@ export const whatsapp = z
 export const nome = z.string().trim().min(1, 'Informe seu nome.').max(120)
 const senha = z.string().min(1).max(256)
 const token = z.string().trim().min(20).max(200)
+/** TC-01: escolha única. `menos_16` existe para a API responder com a mensagem certa. */
+export const faixaEtaria = z.enum(['menos_16', '16_17', '18_mais'], {
+  error: 'Informe a sua faixa de idade.',
+})
+/** Caixa marcada de verdade (nunca pré-marcada no app): só `true` passa. */
+const marcado = (mensagem: string) => z.literal(true, { error: mensagem })
 
 /**
  * Limites por finalidade (ADR 0003). Contra força bruta de código, o limite
@@ -257,7 +269,10 @@ export function registrarRotasDeAutenticacao(
   })
 
   app.post('/api/auth/convite/iniciar', async (pedido, resposta) => {
-    const corpo = validar(z.object({ token, nome, email, whatsapp }), pedido.body)
+    const corpo = validar(
+      z.object({ token, nome, email, whatsapp, faixaEtaria: faixaEtaria.optional() }),
+      pedido.body,
+    )
     limitar(lim.conviteIniciarIp, ip(pedido), resposta)
     limitar(lim.conviteIniciarEmail, normalizarEmail(corpo.email), resposta)
     return iniciarCadastroPorConvite(d, {
@@ -265,6 +280,7 @@ export function registrarRotasDeAutenticacao(
       nome: corpo.nome,
       email: corpo.email,
       whatsapp: corpo.whatsapp ?? null,
+      faixaEtaria: corpo.faixaEtaria,
     })
   })
 
@@ -282,21 +298,52 @@ export function registrarRotasDeAutenticacao(
         senha,
         aparelho,
         plataforma,
+        // TC-01, TC-02 e TC-03 (textos-de-consentimento.md): sem eles, nada é criado.
+        faixaEtaria,
+        aceiteTermos: marcado(MENSAGEM_SEM_TERMOS),
+        consentimentoFe: marcado(MENSAGEM_SEM_CONSENTIMENTO_DE_FE),
+        responsavelCiente: z.boolean().default(false),
       }),
       pedido.body,
     )
     limitar(lim.conviteConcluirIp, ip(pedido), resposta)
+    if (corpo.faixaEtaria === 'menos_16') throw MENOR_DE_16()
+    if (corpo.faixaEtaria === '16_17' && !corpo.responsavelCiente) {
+      throw new ErroHttp('responsavel_necessario', 422, MENSAGEM_SEM_RESPONSAVEL)
+    }
     const sessao = await concluirCadastroPorConvite(d, {
-      ...corpo,
+      token: corpo.token,
+      verificacaoId: corpo.verificacaoId,
+      codigo: corpo.codigo,
+      nome: corpo.nome,
+      senha: corpo.senha,
+      plataforma: corpo.plataforma,
       whatsapp: corpo.whatsapp ?? null,
       aparelho: corpo.aparelho ?? null,
+      faixaEtaria: corpo.faixaEtaria,
+      responsavelCiente: corpo.responsavelCiente,
     })
     return responderSessao(sessao, corpo.plataforma, resposta)
   })
 
   app.post('/api/auth/convite/aceitar', { preHandler: exigirSessao }, async (pedido) => {
-    const corpo = validar(z.object({ token }), pedido.body)
-    return aceitarConviteComConta(d, pedido.sessao!.contaId, corpo.token)
+    const corpo = validar(
+      z.object({
+        token,
+        // TC-03 desta comunidade; a idade só é pedida a conta que ainda não declarou.
+        consentimentoFe: marcado(MENSAGEM_SEM_CONSENTIMENTO_DE_FE),
+        faixaEtaria: faixaEtaria.optional(),
+        responsavelCiente: z.boolean().default(false),
+      }),
+      pedido.body,
+    )
+    return aceitarConviteComConta(d, {
+      contaId: pedido.sessao!.contaId,
+      sessaoId: pedido.sessao!.sessaoId,
+      token: corpo.token,
+      faixaEtaria: corpo.faixaEtaria,
+      responsavelCiente: corpo.responsavelCiente,
+    })
   })
 
   // ---------------------------------------------------------------- 2FA

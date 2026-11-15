@@ -70,7 +70,7 @@ const inscrever = (idPublico: string, dados: Record<string, string>) =>
     method: 'POST',
     url: `/e/${idPublico}/inscricao`,
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    payload: new URLSearchParams({ consentimento: 'sim', ...dados }).toString(),
+    payload: new URLSearchParams({ consentimento: 'sim', idade: 'sim', ...dados }).toString(),
   })
 
 describe('página pública', () => {
@@ -109,6 +109,8 @@ describe('página pública', () => {
         'local_nome',
         'local_tipo',
         'motivo_status',
+        // Prazo de retenção da comunidade (o consentimento TC-04 cita os dias).
+        'retencao_dias',
         'status',
         'titulo',
         'vagas_restantes',

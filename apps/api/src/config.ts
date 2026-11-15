@@ -60,6 +60,46 @@ const esquema = z
     TURNSTILE_SEGREDO: z.string().optional(),
     // Chave PÚBLICA do widget (vai no HTML); a secreta é TURNSTILE_SEGREDO.
     TURNSTILE_CHAVE_DO_SITE: z.string().optional(),
+
+    // Notificações push (F14). `arquivo` grava o que seria enviado (só
+    // desenvolvimento e testes); `real` fala com FCM e APNs. As chaves ficam em
+    // ARQUIVOS fora do git, lidos pelo caminho: o valor nunca passa pelo ambiente.
+    PUSH_MODO: z.enum(['desligado', 'arquivo', 'real']).default('desligado'),
+    PUSH_ARQUIVO: z.string().optional(),
+    // JSON da conta de serviço do Firebase (projeto do D21), só com envio FCM.
+    FCM_CONTA_SERVICO_ARQUIVO: z.string().optional(),
+    // Chave .p8 do APNs (D22), seu ID, o time e o tópico (bundle do app deste ambiente).
+    APNS_CHAVE_ARQUIVO: z.string().optional(),
+    APNS_CHAVE_ID: z
+      .string()
+      .regex(/^[A-Z0-9]{10}$/, 'APNS_CHAVE_ID tem 10 letras ou números')
+      .optional(),
+    APNS_TIME_ID: z
+      .string()
+      .regex(/^[A-Z0-9]{10}$/, 'APNS_TIME_ID tem 10 letras ou números')
+      .optional(),
+    APNS_TOPICO: z
+      .string()
+      .regex(/^[a-z0-9.-]{3,120}$/, 'APNS_TOPICO é o bundle do app, ex.: com.solerte.unijovem')
+      .optional(),
+
+    // Página /suporte: sem valor, a página mostra o marcador [PREENCHER].
+    SUPORTE_EMAIL: z.email('SUPORTE_EMAIL precisa ser um e-mail').optional(),
+    // Impressões SHA-256 dos certificados de assinatura Android (assetlinks.json),
+    // separadas por vírgula. Sem valor, a lista sai vazia.
+    ANDROID_SHA256_IMPRESSOES: z
+      .string()
+      .default('')
+      .transform((v) =>
+        v
+          .split(',')
+          .map((s) => s.trim().toUpperCase())
+          .filter(Boolean),
+      )
+      .refine(
+        (l) => l.every((x) => /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/.test(x)),
+        'ANDROID_SHA256_IMPRESSOES: use o formato AA:BB:... (32 pares hexadecimais)',
+      ),
   })
   .superRefine((c, ctx) => {
     const falha = (mensagem: string) => ctx.addIssue({ code: 'custom', message: mensagem })
@@ -77,7 +117,21 @@ const esquema = z
       falha('EMAIL_MODO=arquivo exige NOTIFICADOR_ARQUIVO')
     }
 
+    if (c.PUSH_MODO === 'arquivo' && !c.PUSH_ARQUIVO) {
+      falha('PUSH_MODO=arquivo exige PUSH_ARQUIVO')
+    }
+    const apns = [c.APNS_CHAVE_ARQUIVO, c.APNS_CHAVE_ID, c.APNS_TIME_ID, c.APNS_TOPICO]
+    if (apns.some(Boolean) && !apns.every(Boolean)) {
+      falha('APNs exige APNS_CHAVE_ARQUIVO, APNS_CHAVE_ID, APNS_TIME_ID e APNS_TOPICO juntos')
+    }
+    if (c.PUSH_MODO === 'real' && !c.FCM_CONTA_SERVICO_ARQUIVO && !apns.every(Boolean)) {
+      falha('PUSH_MODO=real exige FCM_CONTA_SERVICO_ARQUIVO ou a configuração do APNs')
+    }
+
     if (c.UJ_AMBIENTE !== 'desenvolvimento') {
+      if (c.PUSH_MODO === 'arquivo') {
+        falha(`PUSH_MODO=arquivo não é permitido em ${c.UJ_AMBIENTE}`)
+      }
       if (!c.URL_PUBLICA.startsWith('https://')) {
         falha(`URL_PUBLICA precisa ser https em ${c.UJ_AMBIENTE}`)
       }

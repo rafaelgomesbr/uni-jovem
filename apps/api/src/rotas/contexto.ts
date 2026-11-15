@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type pg from 'pg'
 import { z } from 'zod'
 import { doisFatoresRecente } from '../autenticacao/jwt.ts'
+import { truncarIp } from '../autenticacao/limitador.ts'
 import { emTransacao } from '../banco/contexto.ts'
 import {
   ehPapel,
@@ -160,7 +161,8 @@ export async function auditar(
       recurso.tipo ?? null,
       recurso.id ?? null,
       JSON.stringify(detalhes),
-      null,
+      // IP truncado (/24, /48): o mapa de dados promete parte do endereço, nunca ele inteiro.
+      pedido.ip ? truncarIp(pedido.ip) : null,
     ],
   )
 }

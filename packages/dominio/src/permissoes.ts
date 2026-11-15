@@ -64,6 +64,8 @@ export const MATRIZ = {
     publicar: [papel('organizador')],
     cancelar_ou_adiar: [papel('organizador')],
     excluir: [papel('organizador')],
+    // Pacote para uso sem internet (F13): o mesmo que a pessoa já lê, com validade.
+    ler_pacote_offline: [papel('membro')],
   },
   modelo: {
     ler: [papel('organizador')],
@@ -154,6 +156,21 @@ export const MATRIZ = {
   },
   auditoria: {
     ler: [papel('admin')],
+  },
+  denuncia: {
+    // Só conteúdo que a pessoa vê (o banco confere); quem denunciou não aparece na fila.
+    criar: [papel('membro')],
+    ler: [papel('admin')],
+    resolver: [papel('admin')],
+  },
+  notificacao: {
+    // Preferências e lista das PRÓPRIAS notificações nesta comunidade.
+    configurar_proprias: [papel('membro')],
+  },
+  sincronizacao: {
+    // O log já vem filtrado pelo que a pessoa pode ver; cada operação revalida a própria regra.
+    ler_mudancas: [papel('membro')],
+    enviar_operacoes: [papel('membro')],
   },
 } as const satisfies Record<string, Record<string, readonly Exigencia[]>>
 

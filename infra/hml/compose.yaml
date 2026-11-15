@@ -46,6 +46,10 @@ services:
     environment:
       HOST: 0.0.0.0
       PORTA: '3000'
+    # Chaves de push (FCM e APNs) em arquivos ao lado do .env, permissão 600,
+    # fora do git. No .env: FCM_CONTA_SERVICO_ARQUIVO=/run/uj-chaves/<arquivo>.
+    volumes:
+      - ./chaves:/run/uj-chaves:ro
     depends_on:
       banco: { condition: service_healthy }
     networks: [interna, edge]
@@ -57,6 +61,26 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+
+  # Tarefas diárias (retenção, séries, poda do log de mudanças): a mesma imagem
+  # da API, só na rede interna, uma rodada na subida e depois a cada 24 h. O
+  # relatório (só contagens) fica no log do contêiner.
+  tarefas:
+    <<: *padrao
+    image: unijovem-api:hml
+    pull_policy: never
+    container_name: unijovem-hml-tarefas
+    env_file: .env
+    depends_on:
+      banco: { condition: service_healthy }
+      api: { condition: service_started }
+    networks: [interna]
+    mem_limit: 192m
+    read_only: true
+    tmpfs: [/tmp]
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - 'while true; do node --import tsx apps/api/src/cli/tarefas-diarias.ts; sleep 86400; done'
 
 volumes:
   banco: { name: unijovem_hml_banco }

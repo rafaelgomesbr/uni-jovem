@@ -1,5 +1,5 @@
 /**
- * Dados fictícios de demonstração: uma comunidade com admin, organizadora e
+ * Dados fictícios de demonstração: uma comunidade com duas admins, organizador e
  * membro, um local e dois eventos (um "Sábado padrão" público, com etapas,
  * escala e tarefa). Serve para testar a homologação e para a conta de
  * demonstração dos revisores das lojas.
@@ -63,6 +63,9 @@ try {
       papel: 'organizador',
     },
     { nome: 'Carla Demonstração', email: 'demo.membro@unijovem.invalid', papel: 'membro' },
+    // Segunda administradora: a conta de revisão das lojas (qualquer uma das
+    // outras) pode ser excluída sem esbarrar na regra do último administrador.
+    { nome: 'Diana Demonstração', email: 'demo.admin2@unijovem.invalid', papel: 'admin2' },
   ] as const
   const comunidade = (
     await c.query<{ id: string }>(
@@ -78,8 +81,8 @@ try {
     const senha = senhaAleatoria()
     const conta = (
       await c.query<{ id: string }>(
-        `insert into uj.contas (nome, email, email_verificado_em, senha_hash)
-         values ($1, $2, now(), $3) returning id`,
+        `insert into uj.contas (nome, email, email_verificado_em, senha_hash, faixa_etaria)
+         values ($1, $2, now(), $3, '18_mais') returning id`,
         [p.nome, p.email, await hashDeSenha(senha)],
       )
     ).rows[0]!.id
@@ -87,7 +90,7 @@ try {
     vinculos[p.papel] = (
       await c.query<{ id: string }>(
         'insert into uj.vinculos (conta_id, comunidade_id, papel) values ($1, $2, $3) returning id',
-        [conta, comunidade, p.papel],
+        [conta, comunidade, p.papel === 'admin2' ? 'admin' : p.papel],
       )
     ).rows[0]!.id
     credenciais.push(`${p.papel.padEnd(12)} ${p.email}  senha: ${senha}`)

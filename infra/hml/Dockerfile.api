@@ -26,6 +26,8 @@ COPY apps/api/src apps/api/src
 COPY apps/api/migracoes apps/api/migracoes
 COPY apps/api/tsconfig.json apps/api/tsconfig.json
 COPY tsconfig.base.json tsconfig.base.json
+# Fonte das páginas públicas /privacidade, /termos e /excluir-conta.
+COPY docs/privacidade docs/privacidade
 
 # @uj/dominio aponta para o código-fonte do pacote, como no monorepo.
 RUN mkdir -p node_modules/@uj && ln -s /srv/uj/packages/dominio node_modules/@uj/dominio

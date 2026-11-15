@@ -343,6 +343,9 @@ export function registrarRotasDeComunidade(app: FastifyInstance, d: Dependencias
           [pedido.sessao!.contaId, pedido.comunidade!.id],
         )
         if (!r.rowCount) throw NAO_ENCONTRADO()
+        // Art. 16 (exclusao-de-conta.md, caso 2): oração, disponibilidade e escalas
+        // futuras saem, e o histórico daqui passa a ser de "Pessoa removida".
+        await c.query('select uj.efeitos_da_saida()')
         await auditar(c, pedido, 'vinculo.saiu', { tipo: 'vinculo', id: r.rows[0].id as string })
         return { ok: true }
       } catch (e) {

@@ -3,6 +3,7 @@ import formbody from '@fastify/formbody'
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify'
 import type pg from 'pg'
 import { ErroHttp } from './http.ts'
+import { opcoesDoLog } from './log.ts'
 import type { Config } from './config.ts'
 import type { Correio } from './correio/correio.ts'
 import { registrarRotasDeAutenticacao } from './rotas/autenticacao.ts'
@@ -21,6 +22,10 @@ import { registrarRotasDeSugestoes } from './rotas/sugestoes.ts'
 import { registrarRotasDeConteudos } from './rotas/conteudos.ts'
 import { registrarRotasDeAvisos } from './rotas/avisos.ts'
 import { registrarRotasDeRelatorios } from './rotas/relatorios.ts'
+import { registrarRotasDeNotificacoes } from './rotas/notificacoes.ts'
+import { registrarRotasDePrivacidade } from './rotas/privacidade.ts'
+import { registrarRotasDeSincronizacao } from './rotas/sincronizacao.ts'
+import { registrarDocumentosPublicos } from './publico/documentos.ts'
 
 export interface Recursos {
   api: pg.Pool
@@ -42,18 +47,9 @@ export function criarServidor(
   rotas: () => { metodo: string; url: string }[]
 } {
   const app = Fastify({
-    logger:
-      config.UJ_AMBIENTE === 'desenvolvimento'
-        ? false
-        : {
-            level: 'info',
-            // Nada de cabeçalho de autorização, cookie ou corpo em log.
-            redact: [
-              'req.headers.authorization',
-              'req.headers.cookie',
-              'res.headers["set-cookie"]',
-            ],
-          },
+    // Fora de desenvolvimento: IP truncado, sem cabeçalho, consulta ou corpo, e
+    // redação de e-mail, telefone e token (src/log.ts).
+    logger: config.UJ_AMBIENTE === 'desenvolvimento' ? false : opcoesDoLog(),
     // Só o proxy configurado (o Caddy) pode informar o IP do cliente.
     trustProxy: config.PROXIES_CONFIAVEIS,
     bodyLimit: 64 * 1024,
@@ -97,7 +93,10 @@ export function criarServidor(
     if (erro instanceof ErroHttp) {
       // Conflito de edição leva a versão atual, para o app mostrar as duas.
       const atual = (erro as ErroHttp & { atual?: unknown }).atual
+      // `extra`: o que a tela precisa para oferecer a saída (ex.: nomear admin).
+      const extra = (erro as ErroHttp & { extra?: Record<string, unknown> }).extra
       return resposta.code(erro.status).send({
+        ...(extra ?? {}),
         erro: erro.codigo,
         mensagem: erro.message,
         ...(atual === undefined ? {} : { atual }),
@@ -143,6 +142,16 @@ export function criarServidor(
       registrarRotasDeConteudos(app, recursos.api)
       registrarRotasDeAvisos(app, recursos.api)
       registrarRotasDeRelatorios(app, recursos.api)
+      registrarRotasDeNotificacoes(app, recursos.api)
+      registrarRotasDePrivacidade(app, {
+        config,
+        api: recursos.api,
+        auth: recursos.auth,
+        correio: recursos.correio,
+        emSegundoPlano,
+      })
+      registrarRotasDeSincronizacao(app, recursos.api)
+      registrarDocumentosPublicos(app, { config })
       registrarPaginasPublicas(app, {
         config,
         api: recursos.api,

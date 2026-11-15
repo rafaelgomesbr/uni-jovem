@@ -25,6 +25,103 @@ function traduzir(e: unknown): never {
   traduzirErroDoBanco(e)
 }
 
+export const dadosDaPresenca = z
+  .object({
+    chaveIdempotencia: z.uuid(),
+    origem: z.enum(['qr', 'manual', 'offline']),
+    codigo: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^[0-9A-F]{10}$/)
+      .optional(),
+    inscricaoId: z.uuid().optional(),
+    vinculoId: z.uuid().optional(),
+    nomeAvulso: z.string().trim().min(1).max(120).optional(),
+    ocorridaEm: z.iso.datetime({ offset: true }).optional(),
+  })
+  .refine(
+    (x) => [x.codigo, x.inscricaoId, x.vinculoId, x.nomeAvulso].filter(Boolean).length === 1,
+    'Informe exatamente um: código, inscrição, pessoa ou nome.',
+  )
+export type DadosDaPresenca = z.infer<typeof dadosDaPresenca>
+
+/**
+ * Registra a presença na transação dada (contexto da comunidade). Usada pela
+ * rota de check-in e pela sincronização offline (F13), com a mesma regra.
+ */
+export async function registrarPresenca(
+  c: pg.PoolClient,
+  comunidadeId: string,
+  eventoId: string,
+  p: DadosDaPresenca,
+): Promise<{ id: string; jaRegistrada: boolean }> {
+  const evento = await c.query('select id from uj.eventos where id = $1 and comunidade_id = $2', [
+    eventoId,
+    comunidadeId,
+  ])
+  if (!evento.rows[0]) throw NAO_ENCONTRADO()
+  // Repetição do mesmo envio: devolve o que já foi gravado.
+  const repetida = (
+    await c.query('select id from uj.presencas where chave_idempotencia = $1 and evento_id = $2', [
+      p.chaveIdempotencia,
+      eventoId,
+    ])
+  ).rows[0]
+  if (repetida) return { id: repetida.id as string, jaRegistrada: true }
+
+  let inscricaoId = p.inscricaoId ?? null
+  let vinculoId = p.vinculoId ?? null
+  if (p.codigo || inscricaoId) {
+    const i = (
+      await c.query<{ id: string; vinculo_id: string | null; estado: string }>(
+        `select id, vinculo_id, estado from uj.inscricoes
+          where evento_id = $1 and (codigo_checkin = $2 or id = $3::uuid)`,
+        [eventoId, p.codigo ?? null, inscricaoId],
+      )
+    ).rows[0]
+    if (!i || i.estado === 'cancelada') {
+      throw new ErroHttp('codigo_invalido', 404, 'Código não encontrado neste evento.')
+    }
+    inscricaoId = i.id
+    vinculoId = i.vinculo_id
+  }
+  const ja = (
+    await c.query(
+      `select id from uj.presencas where evento_id = $1
+         and ((inscricao_id = $2::uuid) or (vinculo_id = $3::uuid))`,
+      [eventoId, inscricaoId, vinculoId],
+    )
+  ).rows[0]
+  if (ja) return { id: ja.id as string, jaRegistrada: true }
+  const { rows } = await c.query(
+    `insert into uj.presencas (comunidade_id, evento_id, inscricao_id, vinculo_id, nome_avulso, origem,
+       registrada_por, ocorrida_em, chave_idempotencia)
+     values ($1, $2, $3, $4, $5, $6, (select uj.vinculo_da_conta_no_contexto()), coalesce($7::timestamptz, now()), $8)
+     on conflict do nothing returning id`,
+    [
+      comunidadeId,
+      eventoId,
+      inscricaoId,
+      vinculoId,
+      p.nomeAvulso ?? null,
+      p.origem,
+      p.ocorridaEm ?? null,
+      p.chaveIdempotencia,
+    ],
+  )
+  if (rows[0]) return { id: rows[0].id as string, jaRegistrada: false }
+  // Corrida com outro aparelho: alguém registrou entre a checagem e o insert.
+  const vencedor = (
+    await c.query(
+      `select id from uj.presencas where chave_idempotencia = $1
+          or (evento_id = $2 and (inscricao_id = $3::uuid or vinculo_id = $4::uuid))`,
+      [p.chaveIdempotencia, eventoId, inscricaoId, vinculoId],
+    )
+  ).rows[0]
+  return { id: vencedor?.id as string, jaRegistrada: true }
+}
+
 export function registrarRotasDeInscricoes(app: FastifyInstance, api: pg.Pool): void {
   const naCom = { preHandler: app.comComunidade }
   const ev = '/api/v1/c/:comunidadeId/eventos/:eventoId'
@@ -140,90 +237,8 @@ export function registrarRotasDeInscricoes(app: FastifyInstance, api: pg.Pool): 
   app.post(`${ev}/presencas`, naCom, async (pedido) => {
     exigir(pedido, 'presenca', 'registrar')
     const eventoId = idDoCaminho(pedido, 'eventoId')
-    const p = validar(
-      z
-        .object({
-          chaveIdempotencia: z.uuid(),
-          origem: z.enum(['qr', 'manual', 'offline']),
-          codigo: z
-            .string()
-            .trim()
-            .toUpperCase()
-            .regex(/^[0-9A-F]{10}$/)
-            .optional(),
-          inscricaoId: z.uuid().optional(),
-          vinculoId: z.uuid().optional(),
-          nomeAvulso: z.string().trim().min(1).max(120).optional(),
-          ocorridaEm: z.iso.datetime({ offset: true }).optional(),
-        })
-        .refine(
-          (x) => [x.codigo, x.inscricaoId, x.vinculoId, x.nomeAvulso].filter(Boolean).length === 1,
-          'Informe exatamente um: código, inscrição, pessoa ou nome.',
-        ),
-      pedido.body,
-    )
-    return tx(pedido, async (c) => {
-      await exigirEvento(c, pedido, eventoId)
-      // Repetição do mesmo envio: devolve o que já foi gravado.
-      const repetida = (
-        await c.query(
-          'select id from uj.presencas where chave_idempotencia = $1 and evento_id = $2',
-          [p.chaveIdempotencia, eventoId],
-        )
-      ).rows[0]
-      if (repetida) return { id: repetida.id as string, jaRegistrada: true }
-
-      let inscricaoId = p.inscricaoId ?? null
-      let vinculoId = p.vinculoId ?? null
-      if (p.codigo || inscricaoId) {
-        const i = (
-          await c.query<{ id: string; vinculo_id: string | null; estado: string }>(
-            `select id, vinculo_id, estado from uj.inscricoes
-              where evento_id = $1 and (codigo_checkin = $2 or id = $3::uuid)`,
-            [eventoId, p.codigo ?? null, inscricaoId],
-          )
-        ).rows[0]
-        if (!i || i.estado === 'cancelada') {
-          throw new ErroHttp('codigo_invalido', 404, 'Código não encontrado neste evento.')
-        }
-        inscricaoId = i.id
-        vinculoId = i.vinculo_id
-      }
-      const ja = (
-        await c.query(
-          `select id from uj.presencas where evento_id = $1
-             and ((inscricao_id = $2::uuid) or (vinculo_id = $3::uuid))`,
-          [eventoId, inscricaoId, vinculoId],
-        )
-      ).rows[0]
-      if (ja) return { id: ja.id as string, jaRegistrada: true }
-      const { rows } = await c.query(
-        `insert into uj.presencas (comunidade_id, evento_id, inscricao_id, vinculo_id, nome_avulso, origem,
-           registrada_por, ocorrida_em, chave_idempotencia)
-         values ($1, $2, $3, $4, $5, $6, (select uj.vinculo_da_conta_no_contexto()), coalesce($7::timestamptz, now()), $8)
-         on conflict do nothing returning id`,
-        [
-          pedido.comunidade!.id,
-          eventoId,
-          inscricaoId,
-          vinculoId,
-          p.nomeAvulso ?? null,
-          p.origem,
-          p.ocorridaEm ?? null,
-          p.chaveIdempotencia,
-        ],
-      )
-      if (rows[0]) return { id: rows[0].id as string, jaRegistrada: false }
-      // Corrida com outro aparelho: alguém registrou entre a checagem e o insert.
-      const vencedor = (
-        await c.query(
-          `select id from uj.presencas where chave_idempotencia = $1
-              or (evento_id = $2 and (inscricao_id = $3::uuid or vinculo_id = $4::uuid))`,
-          [p.chaveIdempotencia, eventoId, inscricaoId, vinculoId],
-        )
-      ).rows[0]
-      return { id: vencedor?.id as string, jaRegistrada: true }
-    })
+    const p = validar(dadosDaPresenca, pedido.body)
+    return tx(pedido, (c) => registrarPresenca(c, pedido.comunidade!.id, eventoId, p))
   })
 
   app.delete(`${ev}/presencas/:presencaId`, naCom, async (pedido) => {

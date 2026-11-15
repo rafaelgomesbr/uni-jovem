@@ -188,6 +188,35 @@ const CASOS: Record<string, Record<string, unknown> | undefined> = {
   'POST /api/v1/c/:comunidadeId/exportacoes': { tipo: 'membros', comContatos: true },
   'POST /api/v1/c/:comunidadeId/exportacoes/:exportacaoId/arquivo': { token: TOKEN_DE_B },
   'DELETE /api/v1/c/:comunidadeId/exportacoes/:exportacaoId': undefined,
+  // F14: notificações (preferências e lista própria)
+  'GET /api/v1/c/:comunidadeId/notificacoes': undefined,
+  'GET /api/v1/c/:comunidadeId/notificacoes/preferencias': undefined,
+  'PUT /api/v1/c/:comunidadeId/notificacoes/preferencias': { tipos: { avisos: false } },
+  // F18: denúncias
+  'POST /api/v1/c/:comunidadeId/denuncias': {
+    recursoTipo: 'aviso',
+    recursoId: '00000000-0000-4000-8000-000000000000',
+    motivo: 'spam',
+  },
+  'GET /api/v1/c/:comunidadeId/denuncias': undefined,
+  'PATCH /api/v1/c/:comunidadeId/denuncias/:denunciaId': {
+    estado: 'procedente',
+    retirarConteudo: true,
+  },
+  // F13: sincronização
+  'POST /api/v1/c/:comunidadeId/sync/operacoes': {
+    operacoes: [
+      {
+        chave: '00000000-0000-7000-8000-000000000001',
+        vinculoId: '00000000-0000-4000-8000-000000000000',
+        criadaEm: '2026-11-14T10:00:00-03:00',
+        tipo: 'inscricao.intencao',
+        dados: { eventoId: '00000000-0000-4000-8000-000000000000' },
+      },
+    ],
+  },
+  'GET /api/v1/c/:comunidadeId/sync/mudancas': undefined,
+  'GET /api/v1/c/:comunidadeId/eventos/:eventoId/pacote-offline': undefined,
 }
 
 interface Rota {
@@ -323,6 +352,16 @@ beforeAll(async () => {
      values ($1, $2, 'membros', true, sha256(convert_to($3, 'UTF8')), 'membros.csv', 'Nome;E-mail', 0) returning id`,
     [comB, adminB.id, TOKEN_DE_B],
   )
+  idsDeB['denunciaId'] = await um(
+    `insert into uj.denuncias (comunidade_id, recurso_tipo, recurso_id, denunciante_conta_id, motivo)
+     values ($1, 'aviso', $2, $3, 'spam') returning id`,
+    [comB, idsDeB['avisoId'], adminB.id],
+  )
+  await b.dono.query(
+    `insert into uj.preferencias_notificacao (comunidade_id, conta_id, tipo, ativo)
+     values ($1, $2, 'avisos', true)`,
+    [comB, adminB.id],
+  )
   idsDeB['anexoId'] = await um(
     "insert into uj.anexos (comunidade_id, evento_id, titulo, url, criado_por) values ($1, $2, 'Link de B', 'https://exemplo.test/b', $3) returning id",
     [comB, eventoId, adminB.id],
@@ -386,7 +425,11 @@ async function estadoDeB() {
             (select json_agg(row(nome, versao) order by id) from uj.palestrantes where comunidade_id = $1) as pa,
             (select json_agg(row(titulo, versao) order by id) from uj.dinamicas where comunidade_id = $1) as di,
             (select json_agg(row(titulo, estado, fixado, versao) order by id) from uj.avisos where comunidade_id = $1) as av,
-            (select json_agg(row(downloads, baixada_em) order by id) from uj.exportacoes where comunidade_id = $1) as ex`,
+            (select json_agg(row(downloads, baixada_em) order by id) from uj.exportacoes where comunidade_id = $1) as ex,
+            (select json_agg(row(estado, conteudo_retirado) order by id) from uj.denuncias where comunidade_id = $1) as dn,
+            (select json_agg(row(tipo, ativo) order by id) from uj.preferencias_notificacao where comunidade_id = $1) as pn,
+            (select count(*) from uj.sync_operacoes where comunidade_id = $1) as so,
+            (select count(*) from uj.andamento_comandos where comunidade_id = $1) as ac`,
     [comB],
   )
   return rows[0]
@@ -447,5 +490,84 @@ describe('isolamento entre comunidades', () => {
       const resposta = await pedir(r, comA, null)
       expect(resposta.statusCode, `${r.metodo} ${r.url}`).toBe(401)
     }
+  })
+})
+
+describe('isolamento no corpo e nos filtros (F13, F14, F18)', () => {
+  it('fila offline em A citando recursos de B: tudo rejeitado, B intacto', async () => {
+    const antes = await estadoDeB()
+    const vinculoA = (
+      await b.su.query<{ id: string }>(
+        'select id from uj.vinculos where conta_id = $1 and comunidade_id = $2',
+        [adminA.id, comA],
+      )
+    ).rows[0]!.id
+    const env = (n: number) => ({
+      chave: `00000000-0000-7000-8000-00000000010${n}`,
+      vinculoId: vinculoA,
+      criadaEm: new Date().toISOString(),
+    })
+    const r = await app.inject({
+      method: 'POST',
+      url: `/api/v1/c/${comA}/sync/operacoes`,
+      headers: adminA.auth,
+      payload: {
+        operacoes: [
+          {
+            ...env(1),
+            tipo: 'tarefa.concluir',
+            dados: { tarefaId: idsDeB['tarefaId'], concluida: true },
+          },
+          {
+            ...env(2),
+            tipo: 'checklist.marcar',
+            dados: { itemId: idsDeB['itemId'], marcado: true },
+          },
+          {
+            ...env(3),
+            tipo: 'presenca.registrar',
+            dados: { eventoId: idsDeB['eventoId'], inscricaoId: idsDeB['inscricaoId'] },
+          },
+          { ...env(4), tipo: 'inscricao.intencao', dados: { eventoId: idsDeB['eventoId'] } },
+          {
+            ...env(5),
+            tipo: 'ao_vivo.proposta',
+            dados: {
+              eventoId: idsDeB['eventoId'],
+              versaoBase: 0,
+              comandos: [{ comando: 'iniciar', ocorridoEm: new Date().toISOString() }],
+            },
+          },
+        ],
+      },
+    })
+    expect(r.statusCode).toBe(200)
+    const status = (r.json().resultados as { status: string }[]).map((x) => x.status)
+    expect(status).toEqual(['rejeitada', 'rejeitada', 'rejeitada', 'rejeitada', 'rejeitada'])
+    expect(await estadoDeB()).toEqual(antes)
+  })
+
+  it('denunciar em A um aviso de B: 404, nada gravado', async () => {
+    const antes = await estadoDeB()
+    const r = await app.inject({
+      method: 'POST',
+      url: `/api/v1/c/${comA}/denuncias`,
+      headers: adminA.auth,
+      payload: { recursoTipo: 'aviso', recursoId: idsDeB['avisoId'], motivo: 'spam' },
+    })
+    expect(r.statusCode).toBe(404)
+    expect(await estadoDeB()).toEqual(antes)
+  })
+
+  it('o log de mudanças de A nunca traz registro de B', async () => {
+    const r = await app.inject({
+      method: 'GET',
+      url: `/api/v1/c/${comA}/sync/mudancas?limite=1000`,
+      headers: adminA.auth,
+    })
+    expect(r.statusCode).toBe(200)
+    const ids = new Set((r.json().mudancas as { id: string }[]).map((m) => m.id))
+    for (const id of Object.values(idsDeB)) expect(ids.has(id)).toBe(false)
+    expect(ids.has(comB)).toBe(false)
   })
 })

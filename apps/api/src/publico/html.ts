@@ -39,6 +39,8 @@ export interface OpcoesDaPagina {
   urlCanonica?: string
   cor?: string
   scripts?: string[]
+  /** Páginas de política e suporte podem ser indexadas; as de evento, não. */
+  indexavel?: boolean
 }
 
 export function pagina(corpo: Seguro, o: OpcoesDaPagina): string {
@@ -47,7 +49,7 @@ export function pagina(corpo: Seguro, o: OpcoesDaPagina): string {
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="robots" content="noindex, nofollow" />
+        ${o.indexavel ? '' : html`<meta name="robots" content="noindex, nofollow" />`}
         <meta name="referrer" content="no-referrer" />
         <title>${o.titulo}</title>
         <meta name="description" content="${o.descricao ?? ''}" />
@@ -61,7 +63,10 @@ export function pagina(corpo: Seguro, o: OpcoesDaPagina): string {
       </head>
       <body>
         <main class="folha">${corpo}</main>
-        <footer class="rodape"><a href="/privacidade">Privacidade</a> · Uni Jovem</footer>
+        <footer class="rodape">
+          <a href="/privacidade">Privacidade</a> · <a href="/termos">Termos</a> ·
+          <a href="/suporte">Suporte</a> · Uni Jovem
+        </footer>
       </body>
     </html>`.texto
 }
@@ -94,6 +99,9 @@ button,.botao{display:inline-block;min-height:48px;padding:12px 20px;border:0;bo
 .isca{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
 .qr{background:#fff;padding:12px;border-radius:12px;display:inline-block}.qr svg{width:200px;height:200px}
 .rodape{text-align:center;color:var(--suave);font-size:.85rem;padding:24px 16px}.rodape a{color:var(--suave)}
+.aviso{border-width:2px}.documento{overflow-wrap:anywhere}blockquote{margin:16px 0;padding:4px 16px;border-left:4px solid var(--borda)}
+.tabela{overflow-x:auto;margin:16px 0}table{border-collapse:collapse;width:100%;font-size:.95rem}th,td{border:1px solid var(--borda);padding:8px;text-align:left;vertical-align:top}
+code{font-family:ui-monospace,Consolas,monospace;font-size:.9em}a{color:var(--texto)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}`
 
 /** Lê o token do fragmento (#t=...) e preenche o formulário de cancelamento. */

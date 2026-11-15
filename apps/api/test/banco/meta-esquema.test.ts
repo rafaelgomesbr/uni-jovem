@@ -8,7 +8,9 @@ import { novoBanco, type BancoDeTeste } from '../apoio/banco.ts'
  */
 
 // Tabelas com comunidade_id que, por desenho, não entram no log de mudanças.
-const SEM_LOG = new Set(['auditoria', 'mudancas'])
+// `sync_operacoes` é o registro de idempotência da fila offline: anunciá-lo no
+// log faria cada envio gerar uma mudança só para quem enviou, sem utilidade.
+const SEM_LOG = new Set(['auditoria', 'mudancas', 'sync_operacoes'])
 
 let b: BancoDeTeste
 beforeAll(async () => {

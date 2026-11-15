@@ -48,7 +48,7 @@ function paraEstado(l: Linha | undefined): EstadoAoVivo & { versao: number } {
   }
 }
 
-async function montarRetrato(c: pg.PoolClient, comunidadeId: string, eventoId: string) {
+export async function montarRetrato(c: pg.PoolClient, comunidadeId: string, eventoId: string) {
   const evento = (
     await c.query<{ inicio: Date; titulo: string; status: string }>(
       'select inicio, titulo, status from uj.eventos where id = $1 and comunidade_id = $2',

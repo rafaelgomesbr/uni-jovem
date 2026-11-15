@@ -46,6 +46,7 @@ const ESPERADO: Record<string, string> = {
   'evento.publicar': 'O',
   'evento.cancelar_ou_adiar': 'O',
   'evento.excluir': 'O',
+  'evento.ler_pacote_offline': 'M',
   'modelo.ler': 'O',
   'modelo.gerenciar': 'O',
   'etapa.ler': 'M',
@@ -95,6 +96,12 @@ const ESPERADO: Record<string, string> = {
   'exportacao.com_contatos': 'A',
   'exportacao.baixar': 'O:p',
   'auditoria.ler': 'A',
+  'denuncia.criar': 'M',
+  'denuncia.ler': 'A',
+  'denuncia.resolver': 'A',
+  'notificacao.configurar_proprias': 'M',
+  'sincronizacao.ler_mudancas': 'M',
+  'sincronizacao.enviar_operacoes': 'M',
 }
 
 const NIVEL_LETRA: Record<string, number> = { M: 10, O: 20, A: 30 }
