@@ -32,7 +32,7 @@
 | Google | Apps governamentais                       | Preenchida                     | Não                                                                                                                                                           |
 | Google | Recursos financeiros                      | Preenchida                     | "Meu app não oferece recursos financeiros"                                                                                                                    |
 | Google | Apps de saúde                             | Preenchida                     | "Meu app não tem recursos de saúde"                                                                                                                           |
-| Google | Status de comerciante e Termos de Serviço | Preenchida em parte            | Status de comerciante confirmado (herdado da conta). URL dos termos tirada, porque o Console não salva com a URL respondendo 404                              |
+| Google | Status de comerciante e Termos de Serviço | Preenchida (15/11/2026)        | Status de comerciante herdado da conta; Termos `https://unijovem.solerte.com.br/termos`, aceitos pelo Console                                                 |
 | Google | Apps de notícias                          | Não apareceu                   | O Console não pediu essa declaração para este app em 15/11/2026                                                                                               |
 | Google | Teste interno                             | **Ativo (15/11/2026, 17:21)**  | Versão 3 (1.0.0), `uni-jovem-1.0.0-3.aab`, notas "Primeira versão de teste". Testador: lista "Uni Jovem - dono" (só o dono). Nome temporário "(unreviewed)"   |
 | Google | Assinatura de apps                        | Ativa (Play App Signing)       | SHA-256 da chave de assinatura do app na seção 7.3                                                                                                            |
@@ -113,7 +113,7 @@ A prévia do Console mostra "Os dados não são compartilhados com terceiros".
 2. **Apple, Privacidade do app:** clicar em "Publish" na página App Privacy depois de conferir os 10 tipos. As respostas já estão salvas.
 3. **Apple, informações para a revisão:** informar telefone de contato (o App Store Connect exige), colar o contato (Rafael Gomes, `contact@solerte.com.br`), marcar "Sign-in required", preencher usuário e senha da conta demo de admin e colar as notas da seção 5 com as credenciais da conta de membro. Anexar o PNG do QR de check-in da comunidade demo.
 4. **Credenciais da conta demo** (admin e membro): hoje "[a definir]" no Google; nada salvo na Apple. Gerar no roteiro da comunidade demo (T8 de [`revisao-apple.md`](revisao-apple.md)) e colar à mão; nunca no git.
-5. **Produção no ar:** o Google avisou que `/excluir-conta` e `/termos` respondem 404 em 15/11/2026. Antes de enviar, conferir que `/`, `/privacidade`, `/termos` e `/excluir-conta` abrem. Depois disso, colocar `https://unijovem.solerte.com.br/termos` em "Status de comerciante e Termos de Serviço" no Google.
+5. **Produção no ar:** feito. Em 15/11/2026, às 18:32, `/`, `/privacidade`, `/termos` e `/excluir-conta` respondem 200 com o título certo (seção 7.4), e os Termos entraram em "Status de comerciante e Termos de Serviço".
 6. **Capturas de tela, ícone 512 e imagem de destaque:** feito no Google Play em 15/11/2026 (seção 7.1).
 7. **Build:** o AAB 1.0.0 (3) está no teste interno desde 15/11/2026, e a SHA-256 da chave de assinatura do Google Play está no `.env` de produção desde a mesma data (seção 7.3).
 8. **Google, países:** ao criar a versão de produção, escolher só o Brasil (o App Store já está só no Brasil).
@@ -236,3 +236,18 @@ E-mail de contato: `contact@solerte.com.br`. Categoria: "Todos os Outros Tipos d
   `E3:99:6F:07:5D:EC:1A:DF:84:4A:AF:54:00:A3:09:1B:08:C5:92:7C:12:99:41:40:4F:2B:4D:B5:34:89:98:4F`
 
   Fonte: Console > Proteger com o Google Play > Assinatura de apps, snippet "JSON do protocolo Digital Asset Links". É diferente da SHA-256 da chave de upload (`55:93:38:...:CB:47`), que já estava no `.env` de produção. **Feito em 15/11/2026:** a SHA-256 do Google Play entrou em `ANDROID_SHA256_IMPRESSOES` no `.env` de produção (no Mac, só essa linha editada, cópia anterior em `.env.antes-impressao-play-20261115`, permissão 600 mantida), e a API e as tarefas foram recriadas com `docker compose up -d --no-deps --force-recreate api tarefas`. Evidência: `/api/saude` responde 200, os contêineres ficam `healthy`, e `https://unijovem.solerte.com.br/.well-known/assetlinks.json` lista as duas impressões (upload e Google Play).
+
+### 7.4 "Página não encontrada" na visão geral da publicação (15/11/2026, noite)
+
+Ao pedir o envio para revisão, o Console listou 3 problemas: política de privacidade, exclusão de conta e exclusão de dados com "Página não encontrada". As URLs cadastradas estavam certas (`/privacidade` e `/excluir-conta`). Às 18:32 as páginas respondiam 200 com o título certo, de dentro e de fora do Brasil, com HEAD, HTTP/1.0 e agentes do Google. Mesmo assim, a checagem rápida refeita depois de regravar as mesmas URLs voltou com os 3 problemas: o Google usava uma cópia guardada de antes do domínio público responder (PH-04).
+
+O que resolveu foi cadastrar uma URL que o Google ainda não conhecia, que aponta para a mesma página:
+
+- Política de Privacidade: `https://unijovem.solerte.com.br/privacidade?origem=play`.
+- Segurança dos dados, exclusão de conta e exclusão de dados: `https://unijovem.solerte.com.br/excluir-conta?origem=play`.
+
+Com isso, a checagem rápida passou ("As mudanças podem ser enviadas para revisão"). O parâmetro `origem` é ignorado pela API. Pode voltar à URL sem parâmetro mais tarde, quando o Google tiver visitado a página de novo.
+
+**Envio para revisão das 9 mudanças: pendente do dono.** A trava de segurança do agente bloqueou o clique em "Enviar 9 mudanças para revisão"; o dono clica em Visão geral da publicação.
+
+A variante com barra final (`/privacidade/`, `/excluir-conta/`, `/termos/`) responde 404. Não está cadastrada em lugar nenhum, mas fica registrada caso alguém digite assim.
