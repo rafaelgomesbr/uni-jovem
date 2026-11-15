@@ -3,7 +3,8 @@
 - **Data:** 15/11/2026.
 - **Quem preencheu:** agente, no Chrome do dono (conta Apple "Rafael Gomes" e conta Google Play "Rafael Gomes", já logadas), a pedido do dono.
 - **Fonte do conteúdo:** [`metadados.md`](metadados.md), [`declaracao-de-dados.md`](declaracao-de-dados.md) (versão 2, de 15/11/2026), [`revisao-apple.md`](revisao-apple.md), [`docs/privacidade/`](../privacidade/) e `docs/DECISOES.md` (D3, D27, D31, D33).
-- **O que não foi feito, de propósito:** nenhum build anexado, nada enviado para revisão, nada publicado, nenhuma versão criada no Google Play, nenhum contrato ou termo novo aceito, nenhuma senha digitada, nenhuma chave de API criada.
+- **O que não foi feito, de propósito (primeira rodada, 15/11/2026):** nenhum build anexado, nada enviado para revisão, nada publicado, nenhuma versão criada no Google Play, nenhum contrato ou termo novo aceito, nenhuma senha digitada, nenhuma chave de API criada.
+- **Segunda rodada no Google Play (15/11/2026, 16:50 a 17:25), a pedido e com autorização do dono:** gráficos da ficha, classificação IARC (termos da IARC aceitos com autorização do dono), lista de testadores e versão 1.0.0 (3) lançada no teste interno. Nada foi enviado para produção nem para teste fechado. Detalhes na seção 7.
 
 ## 1. Resumo
 
@@ -18,13 +19,13 @@
 | Apple  | Capturas de tela                          | Pendente                       | Ficam para depois do redesign                                                                                                                                 |
 | Apple  | Build                                     | Pendente                       | Não anexado, por regra                                                                                                                                        |
 | Google | Ficha principal (padrão, pt-BR)           | Preenchida (rascunho salvo)    | Nome, descrição curta, descrição completa                                                                                                                     |
-| Google | Ícone 512, imagem de destaque, capturas   | Pendente                       | Ficam para outro passo                                                                                                                                        |
+| Google | Ícone 512, imagem de destaque, capturas   | Preenchida (15/11/2026)        | `arte/icone-play-512.png`, `arte/destaque-play-1024x500.png` e as capturas `capturas/final/play/01` a `08`, nessa ordem. Declaração de IA: "Não rotular"      |
 | Google | Configurações da loja: categoria e tags   | Preenchida                     | Categoria Produtividade; tags Agenda, Eventos, Produtividade                                                                                                  |
 | Google | Configurações da loja: dados de contato   | Preenchida                     | `contact@solerte.com.br` e `https://unijovem.solerte.com.br/`; telefone vazio                                                                                 |
 | Google | Política de privacidade                   | Preenchida                     | `https://unijovem.solerte.com.br/privacidade`                                                                                                                 |
 | Google | Anúncios                                  | Preenchida                     | Não tem anúncios                                                                                                                                              |
 | Google | Detalhes do login (acesso ao app)         | Preenchida, com marcadores     | Usuário "[a definir]", senha vazia, instruções em inglês                                                                                                      |
-| Google | Classificação de conteúdo (IARC)          | **Bloqueada (dono)**           | O questionário exige marcar "Concordo com os Termos de Uso da IARC". Não aceitei termo novo. Ficou um rascunho incompleto, sem aceite                         |
+| Google | Classificação de conteúdo (IARC)          | Concluída (15/11/2026, 17:08)  | Termos da IARC aceitos com autorização do dono. Resultado: ClassInd 12, ESRB Teen, PEGI e USK 12. Respostas na seção 7.2                                      |
 | Google | Público-alvo e conteúdo                   | Preenchida                     | 16 a 17 e 18 ou mais                                                                                                                                          |
 | Google | Segurança dos dados                       | Preenchida                     | 10 tipos, nenhum compartilhado                                                                                                                                |
 | Google | ID de publicidade                         | Preenchida                     | Não usa                                                                                                                                                       |
@@ -33,7 +34,9 @@
 | Google | Apps de saúde                             | Preenchida                     | "Meu app não tem recursos de saúde"                                                                                                                           |
 | Google | Status de comerciante e Termos de Serviço | Preenchida em parte            | Status de comerciante confirmado (herdado da conta). URL dos termos tirada, porque o Console não salva com a URL respondendo 404                              |
 | Google | Apps de notícias                          | Não apareceu                   | O Console não pediu essa declaração para este app em 15/11/2026                                                                                               |
-| Google | Países, versão, AAB                       | Pendente                       | Não criado, por regra. Ao criar a versão de produção, escolher só o Brasil                                                                                    |
+| Google | Teste interno                             | **Ativo (15/11/2026, 17:21)**  | Versão 3 (1.0.0), `uni-jovem-1.0.0-3.aab`, notas "Primeira versão de teste". Testador: lista "Uni Jovem - dono" (só o dono). Nome temporário "(unreviewed)"   |
+| Google | Assinatura de apps                        | Ativa (Play App Signing)       | SHA-256 da chave de assinatura do app na seção 7.3                                                                                                            |
+| Google | Países, versão de produção                | Pendente                       | Não criada. Ao criar a versão de produção, escolher só o Brasil. Antes da produção, o Google exige teste fechado                                              |
 
 ## 2. Valores usados: classificação etária e público
 
@@ -70,7 +73,7 @@ Direitos de conteúdo: "contém conteúdo de terceiros e tenho os direitos" (Bí
 ### 2.2 Google
 
 - Público-alvo: **16 a 17** e **18 ou mais**. Nenhuma faixa abaixo de 16; a política para famílias não se aplica.
-- Classificação IARC: não respondida (seção 4). Quando o dono aceitar os termos da IARC, responder conforme [`metadados.md`](metadados.md), seção 5.2: categoria "Todos os outros tipos de aplicações"; violência, sexualidade, linguagem, substâncias, humor grosseiro e jogos de azar: não; usuários interagem: sim; compartilha localização: não; compartilha informação pessoal com terceiros: não; compras digitais: não; navegador: não. E-mail de contato da IARC: `contact@solerte.com.br`.
+- Classificação IARC: concluída em 15/11/2026; respostas e resultado na seção 7.2.
 
 ## 3. Valores usados: privacidade
 
@@ -106,13 +109,13 @@ A prévia do Console mostra "Os dados não são compartilhados com terceiros".
 
 ## 4. O que depende do dono
 
-1. **Google, classificação de conteúdo:** marcar o aceite dos Termos de Uso da IARC e responder o questionário (seção 2.2). Sem isso o app não pode ser lançado.
+1. **Google, classificação de conteúdo:** feito em 15/11/2026 (seção 7.2).
 2. **Apple, Privacidade do app:** clicar em "Publish" na página App Privacy depois de conferir os 10 tipos. As respostas já estão salvas.
 3. **Apple, informações para a revisão:** informar telefone de contato (o App Store Connect exige), colar o contato (Rafael Gomes, `contact@solerte.com.br`), marcar "Sign-in required", preencher usuário e senha da conta demo de admin e colar as notas da seção 5 com as credenciais da conta de membro. Anexar o PNG do QR de check-in da comunidade demo.
 4. **Credenciais da conta demo** (admin e membro): hoje "[a definir]" no Google; nada salvo na Apple. Gerar no roteiro da comunidade demo (T8 de [`revisao-apple.md`](revisao-apple.md)) e colar à mão; nunca no git.
 5. **Produção no ar:** o Google avisou que `/excluir-conta` e `/termos` respondem 404 em 15/11/2026. Antes de enviar, conferir que `/`, `/privacidade`, `/termos` e `/excluir-conta` abrem. Depois disso, colocar `https://unijovem.solerte.com.br/termos` em "Status de comerciante e Termos de Serviço" no Google.
-6. **Capturas de tela, ícone 512 e imagem de destaque:** outro passo, depois do redesign.
-7. **Build:** EAS Build e envio do binário (iOS 1.0.0 e AAB), com aprovação do dono.
+6. **Capturas de tela, ícone 512 e imagem de destaque:** feito no Google Play em 15/11/2026 (seção 7.1).
+7. **Build:** o AAB 1.0.0 (3) está no teste interno desde 15/11/2026, e a SHA-256 da chave de assinatura do Google Play está no `.env` de produção desde a mesma data (seção 7.3).
 8. **Google, países:** ao criar a versão de produção, escolher só o Brasil (o App Store já está só no Brasil).
 
 ## 5. Notas ao revisor da Apple, prontas para colar
@@ -167,3 +170,48 @@ The backend is our own server and is online during the review period. If anythin
 4. **Google, Detalhes do login:** a opção "Permita que o Google use esses detalhes de login para testes em dispositivos do Google e de parceiros" ficou ligada (padrão do Console). Desligar se o dono não quiser testes automáticos mexendo na comunidade demo.
 5. **Apple, disponibilidade em Mac com Apple Silicon e Vision Pro:** ficou o padrão do App Store Connect; não foi alterado.
 6. **Apple, Acessibilidade do app (rótulos de acessibilidade):** seção opcional nova, não preenchida.
+
+## 7. Google Play, segunda rodada (15/11/2026)
+
+### 7.1 Ficha principal: gráficos
+
+- Ícone: `arte/icone-play-512.png`. Recurso gráfico: `arte/destaque-play-1024x500.png`.
+- Capturas de telefone, nesta ordem: `01-inicio`, `02-programacao`, `03-ao-vivo`, `04-escalas`, `05-presenca`, `06-novo-pedido`, `07-agenda`, `08-equipe` (`capturas/final/play/`). As capturas `09` e `10` ficaram de fora porque o limite é 8.
+- Declaração de recursos de IA: "Não rotular recursos". A arte foi desenhada em código (commit `7e0b3c9`) e as capturas vêm do app.
+- **Descrição completa:** trocada em 15/11/2026, a pedido do dono, pelo texto do app aberto de [`metadados.md`](metadados.md), seção 2.3 (2.569 caracteres). A descrição curta não mudou. A mudança ficou salva sem envio para revisão. Atenção: o AAB 1.0.0 (3) do teste interno é anterior ao app aberto (entrada só por convite); a ficha só fica pública com a versão de produção, que precisa ser o build do app aberto.
+
+### 7.2 Classificação de conteúdo (IARC)
+
+E-mail de contato: `contact@solerte.com.br`. Categoria: "Todos os Outros Tipos de Aplicações". Termos de Uso da IARC aceitos com autorização do dono. Enviada em 15/11/2026, 17:08.
+
+| Pergunta                                                                 | Resposta | Motivo                                                                                        |
+| ------------------------------------------------------------------------ | -------- | --------------------------------------------------------------------------------------------- |
+| Conteúdo com classificação relevante dentro do pacote                    | Não      |                                                                                               |
+| Usuários interagem ou trocam conteúdo                                    | Sim      | Pedidos de oração compartilhados, sugestões, avisos                                           |
+| Conteúdo dos usuários é a principal fonte de conteúdo                    | Sim      | Programação, escalas, avisos e pedidos são escritos pelas pessoas da comunidade               |
+| Compartilhamento público de nudez                                        | Não      | Imagens só de perfil e logotipo, visíveis só dentro da comunidade                             |
+| Compartilhamento público de violência explícita real                     | Não      |                                                                                               |
+| Bloquear usuários ou conteúdo                                            | Sim      | "Bloquear esta pessoa" (`funcionalidades/denuncias/TelaPessoasBloqueadas`)                    |
+| Denunciar usuários ou conteúdo                                           | Sim      | "Denunciar" em pedidos, sugestões e avisos (`funcionalidades/denuncias/BotaoDenunciar`)       |
+| Moderação de conversas por chat                                          | Não      | O app não tem chat                                                                            |
+| Interações limitadas a amigos convidados                                 | Sim      | A interação só acontece dentro da comunidade, que admite por convite, código ou pedido aceito |
+| Destaca conteúdo de fora do pacote (catálogos, notícias, conteúdo de IA) | Não      | O versículo do dia é texto curto escolhido pelo app, não um catálogo                          |
+| Promove produtos ou atividades com restrição de idade                    | Não      |                                                                                               |
+| Compartilha a localização exata com outros usuários                      | Não      | O app não lê localização                                                                      |
+| Compras de itens digitais                                                | Não      |                                                                                               |
+| Recompensas em dinheiro, cripto ou equivalentes                          | Não      |                                                                                               |
+| Navegador ou buscador                                                    | Não      |                                                                                               |
+| Principalmente notícia ou produto educativo                              | Não      |                                                                                               |
+
+**Resultado:** ClassInd **12 anos** (descritor "Linguagem Imprópria", elemento interativo "Usuários Interagem"), ESRB Teen, PEGI "Supervisão adulta", USK 12. O [`metadados.md`](metadados.md), seção 5.2, esperava Livre. A diferença vem de "conteúdo dos usuários é a principal fonte", que é a resposta verdadeira. Como o app já exige 16 anos (D27), a classificação 12 não conflita com a idade mínima.
+
+### 7.3 Teste interno e assinatura
+
+- **Testadores:** lista de e-mails nova "Uni Jovem - dono", só com o e-mail do dono. As listas "Casal" e "Meus chegados", de outros apps da conta, não foram marcadas.
+- **Versão:** `uni-jovem-1.0.0-3.aab` (código de versão 3, nome 1.0.0, API 24 ou superior, SDK de destino 36), notas pt-BR "Primeira versão de teste". Lançada em 15/11/2026, 17:21, status "Disponível para testadores internos", "Não revisado". Até a revisão, o app aparece para o testador como "com.solerte.unijovem (unreviewed)". O link de participação está em Teste interno > Testadores > "Copiar link".
+- **Como o AAB subiu:** a extensão do Chrome envia no máximo cerca de 10 MB por vez, e o AAB tem 113 MB. Um servidor local temporário em `127.0.0.1` entregou o arquivo à página do Console, que o colocou no campo de envio. O servidor foi desligado em seguida.
+- **SHA-256 da chave de assinatura do app** (Play App Signing, gerada pelo Google; é a que assina o app instalado pela loja):
+
+  `E3:99:6F:07:5D:EC:1A:DF:84:4A:AF:54:00:A3:09:1B:08:C5:92:7C:12:99:41:40:4F:2B:4D:B5:34:89:98:4F`
+
+  Fonte: Console > Proteger com o Google Play > Assinatura de apps, snippet "JSON do protocolo Digital Asset Links". É diferente da SHA-256 da chave de upload (`55:93:38:...:CB:47`), que já estava no `.env` de produção. **Feito em 15/11/2026:** a SHA-256 do Google Play entrou em `ANDROID_SHA256_IMPRESSOES` no `.env` de produção (no Mac, só essa linha editada, cópia anterior em `.env.antes-impressao-play-20261115`, permissão 600 mantida), e a API e as tarefas foram recriadas com `docker compose up -d --no-deps --force-recreate api tarefas`. Evidência: `/api/saude` responde 200, os contêineres ficam `healthy`, e `https://unijovem.solerte.com.br/.well-known/assetlinks.json` lista as duas impressões (upload e Google Play).
