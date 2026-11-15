@@ -18,6 +18,9 @@ O dono pediu o app inteiro, sem pausas, até rodar no iPhone dele e com as duas 
 
 ## Evidência da última verificação
 
+- **TestFlight (15/11/2026):** build de loja 1.0.0 (1) de `com.solerte.unijovem` (commit `efa42e4`, servidor `https://unijovem.solerte.com.br`) enviado pela API do App Store Connect (entrega `35d5590f-ba93-4896-a3a9-0640f9a257f0`), processado como `VALID`, sem pergunta de exportação. Capacidade Associated Domains ligada no App ID; perfil `Uni Jovem App Store 2`. Grupo interno "Equipe Uni Jovem" com o dono. Envio para revisão da Apple: não feito (precisa do "sim" do dono).
+- **Produção:** atualizada em 15/11/2026 com migrações até a 0021, a pedido do dono ("sobe no TestFlight").
+
 - Sino de notificações (D42, migração 0020), ainda sem commit em 15/11/2026: caixa da conta paginada por cursor opaco, contador de não lidas, marcar uma e todas como lidas; sino na linha da pílula das raízes de aba e a tela `/caixa-de-notificacoes`. `npx vitest run`: **44 arquivos e 479 testes** passando (10 novos em `caixa-de-notificacoes.test.ts`); app: 12 testes novos em `CaixaDeNotificacoes.test.tsx` passando. A suíte do app tinha 3 falhas em `Convite.test.tsx`, vindas da correção do convite que outro agente fazia em paralelo, fora desta entrega.
 - iPhone do dono: build de homologação do commit `cdf4fd5` (design Aurora completo, D5 incluída) assinado no Mac e instalado pelo `devicectl` em 15/11/2026 ("App installed: com.solerte.unijovem.hml"); também em `https://unijovem-hml.solerte.com.br/instalar`. Conferência visual no aparelho: pendente do dono.
 - Web: republicada na homologação e na produção em 15/11/2026; a tela de entrada da homologação desenha os campos, sem erro de página. `npm run fumaca:web` entrou no `verificar`.
