@@ -19,12 +19,13 @@
     "lint": "eslint .",
     "tipos": "tsc -p tsconfig.json && npm run tipos --workspaces --if-present",
     "test": "vitest run",
-    "verificar": "npm run formato:conferir && npm run lint && npm run tipos && npm test && npm run test:app",
+    "verificar": "npm run formato:conferir && npm run lint && npm run tipos && npm test && npm run test:app && npm run fumaca:web",
     "dev:api": "npm run dev --workspace @uj/api",
     "gerar:matriz": "tsx scripts/gerar-matriz.ts",
     "criador:iniciar": "tsx apps/api/src/cli/criador-iniciar.ts",
     "previa": "node --import tsx scripts/previa/index.ts",
-    "test:app": "npm test --workspace @uj/app"
+    "test:app": "npm test --workspace @uj/app",
+    "fumaca:web": "node --import tsx scripts/fumaca-web.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
