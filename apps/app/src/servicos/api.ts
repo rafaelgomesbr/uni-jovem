@@ -22,13 +22,15 @@ export interface ArmazenamentoDoRefresh {
   apagar(): Promise<void>
 }
 
-export type Metodo = 'GET' | 'POST' | 'PATCH' | 'DELETE'
+export type Metodo = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
 
 export interface OpcoesDoPedido {
   metodo?: Metodo
   corpo?: unknown
   /** Padrão: true. Rotas públicas de autenticação passam `false`. */
   autenticado?: boolean
+  /** Cancela o pedido (ex.: long polling ao sair da tela). Cancelado não vira "sem conexão". */
+  sinal?: AbortSignal
 }
 
 export interface OpcoesDoCliente {
@@ -44,13 +46,14 @@ export interface OpcoesDoCliente {
 
 export interface ClienteDaApi {
   pedir<T>(caminho: string, opcoes?: OpcoesDoPedido): Promise<T>
-  get<T>(caminho: string): Promise<T>
+  get<T>(caminho: string, opcoes?: Pick<OpcoesDoPedido, 'sinal'>): Promise<T>
   post<T>(
     caminho: string,
     corpo?: unknown,
     opcoes?: Omit<OpcoesDoPedido, 'metodo' | 'corpo'>,
   ): Promise<T>
   patch<T>(caminho: string, corpo?: unknown): Promise<T>
+  put<T>(caminho: string, corpo?: unknown): Promise<T>
   delete<T>(caminho: string): Promise<T>
   /** Renova o acesso (fila única). `false` quando não há sessão para renovar. */
   renovar(): Promise<boolean>
@@ -84,9 +87,14 @@ async function lerCorpo(resposta: Response): Promise<unknown> {
 
 function erroDoCorpo(status: number, corpo: unknown): ErroDaApi {
   if (corpo && typeof corpo === 'object') {
-    const { erro, mensagem } = corpo as { erro?: unknown; mensagem?: unknown }
+    const { erro, mensagem, atual } = corpo as {
+      erro?: unknown
+      mensagem?: unknown
+      atual?: unknown
+    }
     if (typeof erro === 'string' && typeof mensagem === 'string') {
-      return new ErroDaApi(status, erro, mensagem)
+      // Conflito (409) traz o estado atual do servidor: a tela mostra em vez de sobrescrever.
+      return new ErroDaApi(status, erro, mensagem, atual)
     }
   }
   return new ErroDaApi(status, 'desconhecido', MENSAGEM_GENERICA)
@@ -110,7 +118,9 @@ export function criarClienteDaApi(opcoes: OpcoesDoCliente): ClienteDaApi {
         // Mesma origem na web: o cookie de refresh só viaja para /api/auth.
         ...(ehWeb ? { credentials: 'include' as const } : {}),
       })
-    } catch {
+    } catch (erro) {
+      // Cancelado de propósito (ex.: saiu da tela): não é falta de rede.
+      if (init.signal?.aborted) throw erro
       // fetch só rejeita quando não chegou resposta nenhuma: rede fora ou servidor inalcançável.
       throw new SemConexao()
     }
@@ -181,6 +191,7 @@ export function criarClienteDaApi(opcoes: OpcoesDoCliente): ClienteDaApi {
         method: metodo,
         headers,
         ...(op.corpo !== undefined ? { body: JSON.stringify(op.corpo) } : {}),
+        ...(op.sinal ? { signal: op.sinal } : {}),
       })
       const dados = await lerCorpo(resposta)
       if (resposta.ok) return dados as T
@@ -205,10 +216,11 @@ export function criarClienteDaApi(opcoes: OpcoesDoCliente): ClienteDaApi {
 
   return {
     pedir,
-    get: (caminho) => pedir(caminho),
+    get: (caminho, extra) => pedir(caminho, extra?.sinal ? { sinal: extra.sinal } : {}),
     post: (caminho, corpo, extra) =>
       pedir(caminho, { ...extra, metodo: 'POST', corpo: corpo ?? {} }),
     patch: (caminho, corpo) => pedir(caminho, { metodo: 'PATCH', corpo: corpo ?? {} }),
+    put: (caminho, corpo) => pedir(caminho, { metodo: 'PUT', corpo: corpo ?? {} }),
     delete: (caminho) => pedir(caminho, { metodo: 'DELETE' }),
     renovar,
     async abrirSessao(sessao) {

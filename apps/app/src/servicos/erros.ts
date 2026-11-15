@@ -7,13 +7,16 @@ export class ErroDaApi extends Error {
   readonly status: number
   readonly codigo: string
   readonly mensagem: string
+  /** Estado atual do servidor, quando a API manda junto (conflito de versão, 409). */
+  readonly atual: unknown
 
-  constructor(status: number, codigo: string, mensagem: string) {
+  constructor(status: number, codigo: string, mensagem: string, atual?: unknown) {
     super(mensagem)
     this.name = 'ErroDaApi'
     this.status = status
     this.codigo = codigo
     this.mensagem = mensagem
+    this.atual = atual
   }
 }
 
@@ -38,4 +41,9 @@ export function mensagemDoErro(erro: unknown): string {
 
 export function ehErroDaApi(erro: unknown, codigo?: string): erro is ErroDaApi {
   return erro instanceof ErroDaApi && (codigo === undefined || erro.codigo === codigo)
+}
+
+/** Pedido cancelado de propósito (AbortController): não é erro para mostrar. */
+export function ehCancelamento(erro: unknown): boolean {
+  return erro instanceof Error && erro.name === 'AbortError'
 }

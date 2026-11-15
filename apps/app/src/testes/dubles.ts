@@ -38,7 +38,9 @@ export function servidorFalso(rotas: Record<string, Rota>) {
     }
     pedidos.push(pedido)
     const caminho = url.replace(/^https?:\/\/[^/]+/, '')
-    const rota = rotas[`${pedido.metodo} ${caminho}`]
+    // Rota com a query exata vence; sem ela, vale a rota só pelo caminho.
+    const rota =
+      rotas[`${pedido.metodo} ${caminho}`] ?? rotas[`${pedido.metodo} ${caminho.split('?')[0]}`]
     if (!rota) return resposta(404, { erro: 'nao_encontrado', mensagem: 'Rota não simulada.' })
     const r = await rota(pedido)
     return resposta(r.status, r.corpo)

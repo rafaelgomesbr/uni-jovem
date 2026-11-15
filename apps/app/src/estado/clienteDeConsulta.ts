@@ -12,6 +12,24 @@ export const CHAVES = {
   membros: (id: string) => ['c', id, 'membros'] as const,
   convites: (id: string) => ['c', id, 'convites'] as const,
   plataforma: ['plataforma', 'comunidades'] as const,
+  inicio: (id: string) => ['c', id, 'inicio'] as const,
+  /** Prefixo de todas as listas de eventos (para invalidar de uma vez). */
+  eventos: (id: string) => ['c', id, 'eventos'] as const,
+  eventosNoPeriodo: (id: string, de: string | null, ate: string | null) =>
+    ['c', id, 'eventos', 'periodo', de, ate] as const,
+  evento: (id: string, eventoId: string) => ['c', id, 'evento', eventoId] as const,
+  locais: (id: string) => ['c', id, 'locais'] as const,
+  modelos: (id: string) => ['c', id, 'modelos'] as const,
+  serie: (id: string, serieId: string) => ['c', id, 'serie', serieId] as const,
+  minhasEscalas: (id: string) => ['c', id, 'minhas-escalas'] as const,
+  substituicoes: (id: string) => ['c', id, 'substituicoes'] as const,
+  disponibilidade: (id: string, de: string, ate: string) =>
+    ['c', id, 'disponibilidade', de, ate] as const,
+  aoVivo: (id: string, eventoId: string) => ['c', id, 'ao-vivo', eventoId] as const,
+  inscricoes: (id: string, eventoId: string) => ['c', id, 'inscricoes', eventoId] as const,
+  minhaInscricao: (id: string, eventoId: string) => ['c', id, 'minha-inscricao', eventoId] as const,
+  checkin: (id: string, eventoId: string) => ['c', id, 'checkin', eventoId] as const,
+  presencas: (id: string, eventoId: string) => ['c', id, 'presencas', eventoId] as const,
 }
 
 export function criarClienteDeConsulta(): QueryClient {

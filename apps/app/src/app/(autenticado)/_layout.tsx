@@ -31,6 +31,32 @@ export default function LayoutAutenticado() {
       <Stack.Screen name="plataforma/index" options={{ title: 'Plataforma' }} />
       <Stack.Screen name="plataforma/nova" options={{ title: 'Nova comunidade' }} />
       <Stack.Screen name="plataforma/[comunidadeId]" options={{ title: 'Comunidade' }} />
+      <Stack.Screen name="evento/novo" options={{ title: 'Nova programação' }} />
+      <Stack.Screen name="evento/[eventoId]/index" options={{ title: 'Programação' }} />
+      <Stack.Screen name="evento/[eventoId]/editar" options={{ title: 'Editar' }} />
+      <Stack.Screen
+        name="evento/[eventoId]/status"
+        options={{ title: 'Cancelar ou adiar', presentation: 'modal' }}
+      />
+      <Stack.Screen name="evento/[eventoId]/duplicar" options={{ title: 'Duplicar' }} />
+      <Stack.Screen
+        name="evento/[eventoId]/etapa/[etapaId]"
+        options={{ title: 'Etapa e equipe' }}
+      />
+      <Stack.Screen name="evento/[eventoId]/ao-vivo" options={{ title: 'Ao vivo' }} />
+      <Stack.Screen name="evento/[eventoId]/inscricoes" options={{ title: 'Inscrições' }} />
+      <Stack.Screen name="evento/[eventoId]/checkin" options={{ title: 'Check-in' }} />
+      <Stack.Screen
+        name="evento/[eventoId]/ler-qr"
+        options={{ title: 'Ler QR', presentation: 'modal' }}
+      />
+      <Stack.Screen name="serie/[serieId]" options={{ title: 'Série' }} />
+      <Stack.Screen name="agenda/[data]" options={{ title: 'Linha do tempo do dia' }} />
+      <Stack.Screen name="escalas/index" options={{ title: 'Escalas' }} />
+      <Stack.Screen
+        name="escalas/substituicao/[atribuicaoId]"
+        options={{ title: 'Substituição', presentation: 'modal' }}
+      />
     </Stack>
   )
 }

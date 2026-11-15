@@ -121,6 +121,10 @@ const config: ExpoConfig = {
         imageWidth: 200,
       },
     ],
+    [
+      'expo-camera',
+      { cameraPermission: TEXTO_CAMERA, microphonePermission: false, recordAudioAndroid: false },
+    ],
     ['expo-secure-store', { faceIDPermission: false }],
     ['expo-sqlite', { useSQLCipher: true }],
   ],

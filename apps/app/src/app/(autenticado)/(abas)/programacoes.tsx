@@ -1,1 +1,1 @@
-export { TelaProgramacoes as default } from '@/funcionalidades/programacoes/TelaProgramacoes'
+export { TelaProgramacoes as default } from '@/funcionalidades/eventos/TelaProgramacoes'

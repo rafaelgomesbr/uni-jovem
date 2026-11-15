@@ -85,6 +85,10 @@ export const PARES_OBRIGATORIOS: readonly [keyof Paleta, keyof Paleta, 'texto' |
   ['alerta', 'superficie', 'texto'],
   ['erro', 'superficie', 'texto'],
   ['erro', 'fundo', 'texto'],
+  // Selos de situação também aparecem direto sobre o fundo (ao vivo, listas).
+  ['sucesso', 'fundo', 'texto'],
+  ['alerta', 'fundo', 'texto'],
+  ['destaque', 'superficieElevada', 'texto'],
   ['primaria', 'fundo', 'interface'],
   ['borda', 'superficie', 'interface'],
   ['foco', 'fundo', 'interface'],

@@ -34,3 +34,22 @@ jest.mock('expo-symbols', () => {
 })
 
 jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn(async () => true) }))
+
+// Câmera: o teste confere a tela e a chamada à API, não o leitor nativo.
+jest.mock('expo-camera', () => {
+  const { View } = require('react-native')
+  const permissao = { granted: true, canAskAgain: true, status: 'granted', expires: 'never' }
+  return {
+    CameraView: (props: object) =>
+      require('react').createElement(View, { ...props, testID: 'camera' }),
+    useCameraPermissions: jest.fn(() => [permissao, jest.fn(async () => permissao)]),
+  }
+})
+
+// Chave de idempotência previsível e sem módulo nativo.
+jest.mock('expo-crypto', () => {
+  let n = 0
+  return {
+    randomUUID: jest.fn(() => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`),
+  }
+})
