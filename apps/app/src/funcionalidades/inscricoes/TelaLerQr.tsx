@@ -5,6 +5,7 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { Linking, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
+import { NOME_DO_APP } from '@/constantes'
 import { useSessao } from '@/estado/sessao'
 import { ehErroDaApi, mensagemDoErro, SemConexao } from '@/servicos/erros'
 import { Aviso } from '@/ui/Aviso'
@@ -93,7 +94,10 @@ function LerQr({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: str
     if (data === anterior.codigo && agora - anterior.em < INTERVALO_ENTRE_LEITURAS_MS) return
     ultimaLeitura.current = { codigo: data, em: agora }
     if (!codigo) {
-      mostrarToast({ texto: 'Este QR não é um código de entrada do Uni Jovem.', tipo: 'erro' })
+      mostrarToast({
+        texto: `Este QR não é um código de entrada do ${NOME_DO_APP}.`,
+        tipo: 'erro',
+      })
       return
     }
     const nome = (usarLocal ? listaLocal : lista.data)?.inscritos.find(
@@ -158,7 +162,7 @@ function LerQr({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: str
         <EstadoVazio
           icone="qr"
           titulo="Permita a câmera para ler o QR"
-          descricao="O Uni Jovem usa a câmera só para ler o código de entrada. A imagem não é gravada nem enviada."
+          descricao={`O ${NOME_DO_APP} usa a câmera só para ler o código de entrada. A imagem não é gravada nem enviada.`}
           acao={
             permissao.canAskAgain
               ? { titulo: 'Permitir a câmera', aoPressionar: () => void pedirPermissao() }

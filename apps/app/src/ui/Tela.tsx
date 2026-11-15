@@ -95,12 +95,15 @@ export function Tela({
   const espacoDaBarra = useContext(ContextoDaBarraDeAbas)
   const [fimDoTitulo, setFimDoTitulo] = useState<number | null>(null)
   const [compacto, setCompacto] = useState(false)
+  // Altura real da barra de ação: com fonte grande o botão cresce, e o ao vivo usa controles de 56.
+  const [alturaDaBarraDeAcao, setAlturaDaBarraDeAcao] = useState(0)
   const alturaDoCompacto = margens.top + 52
 
   const temCabecalho = !semCabecalho && !!(titulo || topo || pilha || passos)
   const intensidade = aurora ?? (pilha ? AURORA.intensidadeNaPilha : 1)
+  // Com barra de ação, o último bloco precisa rolar até 16 acima dela.
   const fim = barraDeAcao
-    ? fimComBarraDeAcao(margens.bottom)
+    ? Math.max(fimComBarraDeAcao(margens.bottom), alturaDaBarraDeAcao + ESPACO.e16)
     : espacoDaBarra > 0
       ? Math.max(RITMO.fimDasAbas, espacoDaBarra + ESPACO.e16)
       : margens.bottom + ESPACO.e24
@@ -181,7 +184,15 @@ export function Tela({
           </View>
         )}
         {barraDeAcao ? (
-          <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>{barraDeAcao}</View>
+          <View
+            style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}
+            onLayout={(e: LayoutChangeEvent) => {
+              const altura = Math.ceil(e.nativeEvent.layout.height)
+              if (altura !== alturaDaBarraDeAcao) setAlturaDaBarraDeAcao(altura)
+            }}
+          >
+            {barraDeAcao}
+          </View>
         ) : null}
       </KeyboardAvoidingView>
       {compacto && titulo ? (

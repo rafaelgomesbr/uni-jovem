@@ -46,7 +46,8 @@ export function useTipoDeDestaque(evento: DetalheDoEvento): 'participacao' | 'ao
 /**
  * A inscrição rebaixada: quando o destaque é a participação ou o ao vivo, a
  * entrada vira um cartão de vidro (no máximo um destaque por tela, 2.12.10).
- * A `MinhaInscricao` entra só com o conteúdo dentro do cartão.
+ * A `MinhaInscricao` entra só com o conteúdo dentro do cartão, e o
+ * "Inscrever-me" como secundário: o primário é o do destaque ou o da barra.
  */
 export function InscricaoRebaixada({
   evento,
@@ -59,7 +60,7 @@ export function InscricaoRebaixada({
   if (!pode('inscricao', 'inscrever_se', { proprio: true })) return null
   return (
     <CartaoDeVidro>
-      <MinhaInscricao evento={evento} comunidadeId={comunidadeId} />
+      <MinhaInscricao evento={evento} comunidadeId={comunidadeId} secundario />
     </CartaoDeVidro>
   )
 }
@@ -77,9 +78,12 @@ function primeiraMaiuscula(texto: string): string {
 export function DestaqueDoEvento({
   evento,
   comunidadeId,
+  inscricaoSecundaria = false,
 }: {
   evento: DetalheDoEvento
   comunidadeId: string
+  /** A barra de ação já tem o primário ("Editar", "Publicar"): o "Inscrever-me" vira secundário. */
+  inscricaoSecundaria?: boolean
 }) {
   const minha = useMinhaAtribuicao(evento)
   const tipo = useTipoDeDestaque(evento)
@@ -87,7 +91,15 @@ export function DestaqueDoEvento({
   if (tipo === 'participacao' && minha) {
     return <SuaParticipacao evento={evento} atribuicao={minha} comunidadeId={comunidadeId} />
   }
-  if (tipo === 'entrada') return <MinhaInscricao evento={evento} comunidadeId={comunidadeId} />
+  if (tipo === 'entrada') {
+    return (
+      <MinhaInscricao
+        evento={evento}
+        comunidadeId={comunidadeId}
+        secundario={inscricaoSecundaria}
+      />
+    )
+  }
   const params = { eventoId: evento.id }
   const quando = `Hoje, às ${formatarHora(evento.inicio, evento.fuso)}`
   const etapas = evento.etapas.length

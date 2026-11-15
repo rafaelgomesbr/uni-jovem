@@ -50,23 +50,28 @@ interface PessoaFicticia {
   avatar?: { icone: string; cor: string }
 }
 
-/** As contas de demonstração com senha (uma linha de credencial para cada). */
+/**
+ * As contas de demonstração com senha (uma linha de credencial para cada). Os
+ * nomes são os do roteiro das capturas (docs/lojas/capturas.md, seção 4.2); os
+ * e-mails `demo.*` são os que os revisores das lojas usam e não mudam. Conta
+ * que já existe guarda o nome que tinha (a semente nunca altera conta).
+ */
 export const PESSOAS_FICTICIAS: readonly PessoaFicticia[] = [
   {
     chave: 'admin',
-    nome: 'Ana Demonstração',
+    nome: 'Ana Ribeiro',
     email: 'demo.admin@unijovem.invalid',
     vinculos: [{ comunidade: 'A', papel: 'admin' }],
   },
   {
     chave: 'organizador',
-    nome: 'Bruno Demonstração',
+    nome: 'Bruno Tavares',
     email: 'demo.organizador@unijovem.invalid',
     vinculos: [{ comunidade: 'A', papel: 'organizador' }],
   },
   {
     chave: 'membro',
-    nome: 'Carla Demonstração',
+    nome: 'Carla Menezes',
     email: 'demo.membro@unijovem.invalid',
     vinculos: [{ comunidade: 'A', papel: 'membro' }],
   },
@@ -74,7 +79,7 @@ export const PESSOAS_FICTICIAS: readonly PessoaFicticia[] = [
   // outras) pode ser excluída sem esbarrar na regra do último administrador.
   {
     chave: 'admin2',
-    nome: 'Diana Demonstração',
+    nome: 'Diana Lopes',
     email: 'demo.admin2@unijovem.invalid',
     vinculos: [{ comunidade: 'A', papel: 'admin' }],
   },
@@ -84,9 +89,10 @@ export const PESSOAS_FICTICIAS: readonly PessoaFicticia[] = [
     email: 'demo.b.admin@unijovem.invalid',
     vinculos: [{ comunidade: 'B', papel: 'admin' }],
   },
+  // Membro em A e organizador em B; o nome é natural porque aparece nas capturas da equipe.
   {
     chave: 'nas_duas',
-    nome: 'Fábio Nas Duas',
+    nome: 'Fábio Andrade',
     email: 'demo.duas@unijovem.invalid',
     vinculos: [
       { comunidade: 'A', papel: 'membro' },

@@ -7,7 +7,7 @@
  *
  *   node --import tsx scripts/lojas/molduras.ts
  */
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -26,13 +26,13 @@ const FONTES = join(RAIZ, 'node_modules', '@expo-google-fonts')
 export const LEGENDAS: Record<string, string> = {
   '01-inicio': 'Sua semana no grupo jovem, num olhar',
   '02-programacao': 'A programação do sábado, etapa por etapa',
-  '03-escalas': 'Confirme a escala ou peça substituição',
-  '04-agenda': 'Toda a agenda da comunidade',
-  '05-oracao': 'Orem juntos pelos pedidos da comunidade',
+  '03-ao-vivo': 'Ao vivo: etapa atual e tempo restante',
+  '04-escalas': 'Confirme a escala ou peça substituição',
+  '05-presenca': 'Presença por QR Code ou pelo nome',
   '06-novo-pedido': 'Você escolhe quem vê o seu pedido',
-  '07-equipe': 'Equipe, papéis e convites num lugar só',
-  '08-perfil': 'Seu perfil, sua foto e sua privacidade',
-  '09-avisos': 'Avisos da liderança sempre à mão',
+  '07-agenda': 'Toda a agenda da comunidade',
+  '08-equipe': 'Equipe, papéis e convites num lugar só',
+  '09-avisos': 'Avisos da liderança, os fixados no topo',
   '10-convidar': 'Entrada só por convite da liderança',
 }
 
@@ -71,6 +71,12 @@ async function principal() {
     for (const aparelho of APARELHOS) {
       const pasta = join(FINAL, aparelho.nome)
       mkdirSync(pasta, { recursive: true })
+      // Só as capturas com legenda atual ficam na pasta que vai para as lojas.
+      for (const arquivo of readdirSync(pasta)) {
+        if (arquivo.endsWith('.jpg') && !(arquivo.replace(/\.jpg$/, '') in LEGENDAS)) {
+          rmSync(join(pasta, arquivo))
+        }
+      }
       const contexto = await navegador.newContext({
         viewport: { width: aparelho.largura, height: aparelho.altura },
         deviceScaleFactor: 3,

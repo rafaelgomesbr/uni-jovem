@@ -4,6 +4,7 @@ import { router } from 'expo-router'
 import { useState } from 'react'
 import { Platform, View } from 'react-native'
 
+import { NOME_DO_APP } from '@/constantes'
 import { useSessao, type CredencialDoProvedor } from '@/estado/sessao'
 import { api } from '@/servicos/api'
 import type { ContaConectada, Provedor, RespostaProvedores } from '@/servicos/contrato'
@@ -46,7 +47,7 @@ export function TelaSeguranca() {
     <Tela
       pilha
       titulo="Segurança"
-      descricao="Como você entra no Uni Jovem e onde a sua conta está aberta."
+      descricao={`Como você entra no ${NOME_DO_APP} e onde a sua conta está aberta.`}
     >
       {conta.doisFatores ? null : (
         <CartaoDeDestaque
@@ -136,8 +137,7 @@ function SecaoBiometria() {
         </CartaoDeVidro>
       ) : (
         <Aviso tipo="info" titulo={`Sem ${nome} neste aparelho`}>
-          Este aparelho não tem rosto ou digital cadastrados. Cadastre nos Ajustes do aparelho para
-          usar a biometria no Uni Jovem.
+          {`Este aparelho não tem rosto ou digital cadastrados. Cadastre nos Ajustes do aparelho para usar a biometria no ${NOME_DO_APP}.`}
         </Aviso>
       )}
     </Secao>

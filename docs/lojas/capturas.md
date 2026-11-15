@@ -43,30 +43,44 @@ Fonte: [Add preview assets to showcase your app](https://support.google.com/goog
 
 ## 2. As telas, em ordem
 
-A ordem conta a história do produto: o que a pessoa vê ao abrir, o que a liderança faz, o dia do evento, a privacidade. As oito primeiras vão para as duas lojas; a 9 e a 10 só para a Apple (limite de 8 no Google).
+A ordem conta a história do produto: o que a pessoa vê ao abrir, o que a liderança faz, o dia do evento, a privacidade. As oito primeiras vão para as duas lojas; a 9 e a 10 só para a Apple (limite de 8 no Google). O roteiro `scripts/lojas/capturas.ts` gera exatamente esta lista, e `scripts/lojas/molduras.ts` põe a legenda (seção 3.0).
 
-| #   | Tela                                    | Estado e dados na tela                                                                                                        | Legenda sobreposta (pt-BR)               | Requisitos             | Existe em 14/11/2026?                                                    |
-| --- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | ---------------------- | ------------------------------------------------------------------------ |
-| 1   | Início                                  | Próximo "Sábado padrão" em destaque, "Minhas escalas" com uma escala a confirmar, um aviso fixado, versículo do dia           | Sua semana no grupo jovem, num olhar     | VIS-01, VER-01         | Tela existe; versículo depende da F14                                    |
-| 2   | Programação do evento (timeline do dia) | "Sábado padrão" com as 7 etapas, horários e responsáveis                                                                      | A programação do sábado, etapa por etapa | EVT-01, EVT-02, VIS-03 | Detalhe do evento existe; conferir a linha do tempo                      |
-| 3   | Ao vivo                                 | Etapa "Louvor" em andamento, tempo restante, atraso de 3 min, próxima etapa                                                   | Ao vivo: etapa atual e tempo restante    | LIVE-01                | Tela em construção (`apps/app/src/funcionalidades/aoVivo`)               |
-| 4   | Escalas                                 | Escala do louvor com duas confirmações e uma substituição pedida                                                              | Confirme a escala ou peça substituição   | ESC-01, ESC-02         | API pronta; conferir a tela                                              |
-| 5   | Presença                                | Busca por nome com "Marcar presença" e o botão "Ler QR Code" à vista (captura da câmera não serve: no simulador ela não abre) | Presença por QR Code ou pelo nome        | PRE-01                 | **Não existe**                                                           |
-| 6   | Pronto para usar sem internet           | Faixa "Pronto para usar sem internet, atualizado às 14:32, válido até 28/11" e indicador de conexão desligada                 | No dia do evento, mesmo sem internet     | OFF-02, OFF-03         | **Não existe** (F13)                                                     |
-| 7   | Novo pedido de oração                   | Seletor de visibilidade (Somente eu, Equipe de oração, Comunidade) com a explicação de quem vê                                | Você escolhe quem vê o seu pedido        | ORA-01, ORA-03         | API pronta; **tela não existe**                                          |
-| 8   | Agenda do mês                           | Mês com os sábados marcados, o retiro e o ensaio                                                                              | Toda a agenda da comunidade              | VIS-02                 | Tela existe                                                              |
-| 9   | Inscrições do evento (só Apple)         | Retiro com 40 vagas, 40 confirmadas e 3 na lista de espera                                                                    | Inscrições com vagas e lista de espera   | INS-03, PRE-02         | API pronta; conferir a tela                                              |
-| 10  | Convidar (só Apple)                     | Tela de criar convite com o papel escolhido                                                                                   | Entrada só por convite da liderança      | AUT-01, AUT-03         | Tela existe (`apps/app/src/funcionalidades/comunidade/TelaConvidar.tsx`) |
+| #   | Arquivo          | Tela                                    | Estado e dados na tela                                                                                     | Legenda sobreposta (pt-BR)               | Requisitos             |
+| --- | ---------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------- | ---------------------- |
+| 1   | `01-inicio`      | Início                                  | Versículo do dia, o próximo Sábado Jovem em destaque e a escala da pessoa                                  | Sua semana no grupo jovem, num olhar     | VIS-01, VER-01         |
+| 2   | `02-programacao` | Programação do evento (timeline do dia) | Sábado Jovem do próximo sábado, segmento Etapas, com horários e responsáveis                               | A programação do sábado, etapa por etapa | EVT-01, EVT-02, VIS-03 |
+| 3   | `03-ao-vivo`     | Ao vivo                                 | Etapa "Louvor" em andamento, decorrido e restante, cerca de 3 min de atraso, a próxima etapa               | Ao vivo: etapa atual e tempo restante    | LIVE-01                |
+| 4   | `04-escalas`     | Escalas                                 | Escala confirmada com "Pedir substituição" e um pedido de substituição com "Assumir"                       | Confirme a escala ou peça substituição   | ESC-01, ESC-02         |
+| 5   | `05-presenca`    | Presença (check-in)                     | Contador, busca por nome com "Ler QR" ao lado, três presenças marcadas e "Marcar" nas demais               | Presença por QR Code ou pelo nome        | PRE-01                 |
+| 6   | `06-novo-pedido` | Novo pedido de oração                   | "Quem vai ver" (Somente eu, Equipe de oração, Comunidade) com a explicação de quem lê, acima de "Publicar" | Você escolhe quem vê o seu pedido        | ORA-01, ORA-03         |
+| 7   | `07-agenda`      | Agenda do mês                           | Mês com os eventos marcados e o próximo sábado escolhido, com a lista do dia                               | Toda a agenda da comunidade              | VIS-02                 |
+| 8   | `08-equipe`      | Equipe                                  | "Convidar pessoas" em destaque e a lista de pessoas com o papel de cada uma                                | Equipe, papéis e convites num lugar só   | PAP-01, COM-07         |
+| 9   | `09-avisos`      | Avisos (só Apple)                       | Um aviso fixado e dois recentes                                                                            | Avisos da liderança, os fixados no topo  | CNT-02                 |
+| 10  | `10-convidar`    | Convidar (só Apple)                     | Tela de criar convite com o papel escolhido e a validade                                                   | Entrada só por convite da liderança      | AUT-01, AUT-03         |
+
+Ficaram fora desta leva, com o motivo:
+
+- **Pronto para usar sem internet:** o modo sem internet não existe na web, e as capturas saem da prévia web. Entra quando houver captura do simulador.
+- **Inscrições do evento:** cabe no lugar de Avisos se o dono preferir; as duas existem no app.
+- **Lista de pedidos de oração e Perfil:** a lista mostra pedidos com família e nomes de pessoas (fora da regra da seção 4.4), e o Perfil mostra um e-mail `.invalid`.
 
 Regras para as legendas: no máximo uma linha curta, sem promessa que a tela não mostre, sem preço, sem "grátis", sem marca de terceiros. Na Apple, nenhuma moldura ou imagem de aparelho Android; no Google, nenhuma de iPhone (diretriz 2.3.10 da Apple).
 
-Duas capturas (sugestão: 3 e 8) no tema escuro, para mostrar que o app tem os dois temas; o restante no claro. Tamanho de fonte do sistema no padrão (o maior corta texto na captura sem ganho para a ficha).
+Sugestão original: duas capturas (3 e 8) no tema escuro e o restante no claro. O roteiro de 15/11/2026 gera todas no escuro, o tema do mockup aprovado; para o claro, troque `colorScheme` em `capturas.ts`. Tamanho de fonte do sistema no padrão (o maior corta texto na captura sem ganho para a ficha).
 
 Tela que não existir no binário enviado sai da lista. Nunca simular tela que o app não tem (diretriz 2.3; política de metadados do Google).
 
 ---
 
 ## 3. Como gerar
+
+### 3.0 Pela prévia local (roteiro usado em 15/11/2026)
+
+1. `npm run previa` até "Prévia pronta" (dados fictícios da semente, só em `localhost`).
+2. `node --import tsx scripts/lojas/capturas.ts`: entra com `demo.admin`, renomeia a comunidade para "Jovens Esperança" e gera as cruas em `docs/lojas/capturas/cru/<aparelho>/` (`apple-6.3` 1206 x 2622, `apple-6.9` 1320 x 2868, `play` 1080 x 1920). Para o ao vivo e a presença, duplica o Sábado Jovem para hoje, publica, inicia o ao vivo pela interface, avança até o Louvor e marca três presenças; no fim, encerra o ao vivo e a cópia. Isso escreve no banco, por isso só roda contra `localhost`. Qualquer erro de JavaScript na página derruba a captura daquela tela.
+3. `node --import tsx scripts/lojas/molduras.ts`: monta os JPEGs finais, sem alfa, com a legenda da tabela da seção 2, em `docs/lojas/capturas/final/<aparelho>/`.
+
+As seções 3.1 e 3.2 continuam valendo para capturas do simulador e do emulador.
 
 As capturas saem do **ambiente de homologação** com o roteiro de dados da seção 4, nunca de produção: assim nenhuma captura toca dado real e não é preciso escrever em produção para fazer a ficha.
 
@@ -124,6 +138,7 @@ Nada de nome de igreja, denominação, cidade, logotipo ou foto real.
 | Isabela Freitas | membro      |                  | `isabela.freitas@example.com` |
 | João Pedro Lins | membro      |                  | `joao.lins@example.com`       |
 
+- Na semente (`apps/api/src/cli/demonstracao.ts`), Ana Ribeiro, Bruno Tavares e Carla Menezes são as contas com senha `demo.admin`, `demo.organizador` e `demo.membro` (`@unijovem.invalid`), e Diana Lopes é a segunda administradora (`demo.admin2`). Os e-mails `demo.*` não mudam: são os que os revisores das lojas usam. Conta que já existia guarda o nome antigo (a semente nunca altera conta).
 - `example.com` é domínio reservado para exemplo (RFC 2606): nenhum e-mail sai para pessoa real, mesmo por engano.
 - WhatsApp: deixar em branco nas capturas. Se alguma tela exigir, usar `+5511900000001` em diante, que não aparece em nenhuma captura escolhida.
 - Na produção, as contas de revisão (admin e membro) e o segundo admin fictício seguem [`revisao-apple.md`](revisao-apple.md), seção 5; os e-mails das contas de revisão precisam receber mensagem (domínio do dono), então **não** usam `example.com`: [PREENCHER] pelo dono.

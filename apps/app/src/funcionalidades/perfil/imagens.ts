@@ -2,6 +2,7 @@ import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/r
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator'
 import * as ImagePicker from 'expo-image-picker'
 
+import { NOME_DO_APP } from '@/constantes'
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { api } from '@/servicos/api'
 import type { ComunidadeDoVinculo, Conta, Membro } from '@/servicos/contrato'
@@ -67,8 +68,7 @@ export function logoDaComunidade(
 
 export type OrigemDaImagem = 'camera' | 'galeria'
 
-export const MENSAGEM_SEM_CAMERA =
-  'O Uni Jovem não tem acesso à câmera. Libere nos Ajustes do aparelho ou escolha da galeria.'
+export const MENSAGEM_SEM_CAMERA = `O ${NOME_DO_APP} não tem acesso à câmera. Libere nos Ajustes do aparelho ou escolha da galeria.`
 const MENSAGEM_SEM_PREPARO = 'Não conseguimos preparar esta imagem. Tente outra foto.'
 
 /** Recorte central em quadrado (a web não tem o editor do sistema) e redução para até 512. */

@@ -624,7 +624,9 @@ O vidro só existe no que flutua: barra de abas, cabeçalho compacto, barra de a
 
 1. **Reduzir transparência ou Aumentar contraste:** opaco.
 2. **`GlassView` do iOS 26:** `glassEffectStyle="regular"`, com `tintColor` igual ao fundo do token (corrige K-04).
-3. **`BlurView`:** `intensity` 50 no iOS e cor do token no Android, sem desfoque.
+3. **`BlurView`:** `intensity` 50 no iOS.
+4. **Web:** desfoque real (`backdrop-filter` com o raio do token) sobre a tinta; sem suporte a desfoque, opaco.
+5. **Android:** cor opaca do token (`opaco`). A tinta translúcida sem desfoque deixava o conteúdo nítido sob a barra (achado da D5 em 15/11/2026).
 
 ## 2.9 Movimento
 
@@ -795,7 +797,7 @@ Para todos os componentes:
 ### 2.12.4 Seleção: Segmentos (substitui `ui/Segmentos.tsx`)
 
 - **Trilho:** largura total, 44 de altura, raio 14, fundo `tonal`, padding de 4.
-- **Segmentos:** largura igual (`flex: 1`), 36 de altura, raio 10.
+- **Segmentos:** largura igual (`flex: 1`), 36 de altura, raio 10, quando os rótulos cabem. Se não couberem (4 opções em 360 pt, por exemplo), nesta ordem: tipo 13 com padding 4; larguras pelo conteúdo, como o controle segmentado do iOS; pílulas. Nenhum rótulo é cortado (achado da D5 em 15/11/2026).
 - **Inativo:** `botao` em peso 500, `textoSuave`.
 - **Ativo:**
   - no escuro, fundo `rgba(255,255,255,0.18)` com texto `texto` 600;

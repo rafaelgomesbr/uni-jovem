@@ -8,6 +8,8 @@ import {
 import * as SecureStore from 'expo-secure-store'
 import { Platform } from 'react-native'
 
+import { NOME_DO_APP } from '@/constantes'
+
 import type { ArmazenamentoDoRefresh } from './api'
 import { confirmarComBiometria } from './biometria'
 
@@ -107,7 +109,7 @@ async function abrirChave(): Promise<AESEncryptionKey | null> {
   try {
     bruta = await SecureStore.getItemAsync(CHAVE_DA_BIOMETRIA, {
       ...OPCOES_DA_CHAVE,
-      authenticationPrompt: 'Desbloquear o Uni Jovem',
+      authenticationPrompt: `Desbloquear o ${NOME_DO_APP}`,
     })
   } catch {
     throw new BiometriaRecusada()

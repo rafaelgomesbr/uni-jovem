@@ -17,11 +17,36 @@ interface PropsDoVidro {
 }
 
 /**
- * Superfície de vidro para o que flutua (seção 2.8). Ordem:
+ * O navegador desfoca o que está atrás (`backdrop-filter`)? Lido uma vez: o
+ * suporte não muda com a página aberta.
+ */
+const DESFOQUE_NA_WEB =
+  Platform.OS === 'web' &&
+  typeof CSS !== 'undefined' &&
+  typeof CSS.supports === 'function' &&
+  (CSS.supports('backdrop-filter', 'blur(1px)') ||
+    CSS.supports('-webkit-backdrop-filter', 'blur(1px)'))
+
+/**
+ * `backdrop-filter` na web, com a mesma saturação do material do sistema. O
+ * React Native não declara a propriedade, mas o react-native-web a repassa ao
+ * CSS (com o prefixo do Safari).
+ */
+function desfoqueDaWeb(raio: number): ViewStyle {
+  const filtro = `blur(${raio}px) saturate(180%)`
+  return { backdropFilter: filtro, WebkitBackdropFilter: filtro } as ViewStyle
+}
+
+/**
+ * Superfície de vidro para o que flutua (seção 2.8). Vidro só com desfoque de
+ * verdade; onde não há desfoque, opaco (regra 7 do CLAUDE.md). Ordem:
  * 1. "Reduzir transparência" ou "Aumentar contraste": opaco (com borda de 2 na
  *    cor do texto no Aumentar contraste);
  * 2. Liquid Glass do iOS 26, com a tinta do token (sem tinta ele vira cinza);
- * 3. desfoque do expo-blur sobre a cor do token (no Android, só a cor).
+ * 3. iOS anterior: desfoque do expo-blur sobre a tinta do token;
+ * 4. web: `backdrop-filter` com o raio do token sobre a tinta;
+ * 5. Android, ou web sem `backdrop-filter`: a cor opaca do token. A tinta
+ *    translúcida sem desfoque deixava o conteúdo nítido sob a barra.
  */
 export function Vidro({ children, style, tipo = 'barra', borda = 'toda' }: PropsDoVidro) {
   const { cores, nome, escuro } = useTema()
@@ -35,8 +60,9 @@ export function Vidro({ children, style, tipo = 'barra', borda = 'toda' }: Props
         ? { borderTopWidth: largura }
         : { borderBottomWidth: largura }
   const corDaBorda = aumentarContraste ? cores.texto : token.borda
+  const desfoqueDisponivel = Platform.OS === 'ios' || DESFOQUE_NA_WEB
 
-  if (reduzirTransparencia || aumentarContraste) {
+  if (reduzirTransparencia || aumentarContraste || !desfoqueDisponivel) {
     return (
       <View
         style={[{ backgroundColor: token.opaco, borderColor: corDaBorda }, estiloDaBorda, style]}
@@ -59,9 +85,25 @@ export function Vidro({ children, style, tipo = 'barra', borda = 'toda' }: Props
     )
   }
 
+  if (Platform.OS === 'web') {
+    // Sem o BlurView: na web ele troca a cor de fundo pela do material dele e apaga a tinta do token.
+    return (
+      <View
+        style={[
+          { backgroundColor: token.fundo, borderColor: corDaBorda },
+          desfoqueDaWeb(VIDRO[tipo].desfoque),
+          estiloDaBorda,
+          style,
+        ]}
+      >
+        {children}
+      </View>
+    )
+  }
+
   return (
     <BlurView
-      intensity={Platform.OS === 'ios' ? 50 : 0}
+      intensity={50}
       tint={escuro ? 'dark' : 'light'}
       style={[
         { overflow: 'hidden', backgroundColor: token.fundo, borderColor: corDaBorda },

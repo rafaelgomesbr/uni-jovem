@@ -2,7 +2,7 @@ import { render, screen, userEvent } from '@testing-library/react-native'
 import { useState } from 'react'
 
 import { BotoesDeOrdem } from '../BotoesDeOrdem'
-import { Segmentos } from '../Segmentos'
+import { escolherDisposicao, Segmentos } from '../Segmentos'
 
 function Exemplo() {
   const [valor, setValor] = useState<'mes' | 'semana'>('mes')
@@ -26,6 +26,34 @@ describe('Segmentos', () => {
     await userEvent.setup().press(screen.getByRole('radio', { name: 'Semana' }))
     expect(screen.getByRole('radio', { name: 'Semana' })).toBeChecked()
     expect(screen.getByRole('radio', { name: 'Mês' })).not.toBeChecked()
+  })
+})
+
+describe('disposição dos segmentos (nenhum rótulo cortado)', () => {
+  // Trilho de 320: tela de 360 menos as margens de 20.
+  test('rótulos curtos cabem em larguras iguais, no tipo normal', () => {
+    expect(escolherDisposicao(['Mês', 'Semana', 'Lista'], 320)).toEqual({
+      nivel: 'normal',
+      proporcional: false,
+    })
+  })
+
+  test('quatro partes do evento em 360: compacto, com a largura de cada rótulo', () => {
+    expect(escolherDisposicao(['Visão geral', 'Etapas', 'Equipe', 'Preparação'], 320)).toEqual({
+      nivel: 'compacto',
+      proporcional: true,
+    })
+  })
+
+  test('três rótulos longos descem para o compacto antes de virar pílulas', () => {
+    expect(escolherDisposicao(['Abertas', 'Procedentes', 'Improcedentes'], 320)).toEqual({
+      nivel: 'compacto',
+      proporcional: true,
+    })
+  })
+
+  test('sem espaço nem no compacto: pílulas roláveis (null)', () => {
+    expect(escolherDisposicao(['Disponibilidade', 'Indisponibilidade'], 160)).toBeNull()
   })
 })
 

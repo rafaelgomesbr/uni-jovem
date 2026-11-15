@@ -387,7 +387,6 @@ function Painel({ r, conexao, comandar, enviando, erro }: PropsDoPainel) {
           Você está acompanhando. Quem conduz o andamento é a organização.
         </Texto>
       ) : null}
-      {barra ? <View style={{ height: ALTURA_DO_CONTROLE - ALTURA.controle }} /> : null}
 
       <MenuDeAcoes
         aberto={menu}

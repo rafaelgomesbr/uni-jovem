@@ -356,11 +356,13 @@ async function garantirEscalas(
     const etapaId = esc.etapa === null ? null : etapas.get(esc.etapa)
     const p = pessoa(s, esc.pessoa)
     if (etapaId === undefined || !p) continue
+    // Sem caixa: a semente antiga gravou as funções em minúscula ("vocal"), e a
+    // de hoje, com maiúscula inicial; a mesma escala não pode nascer duas vezes.
     const ja = await existe(
       s,
       `select 1 from uj.atribuicoes
         where evento_id = $1 and etapa_id is not distinct from $2::uuid and vinculo_id = $3
-          and funcao = $4`,
+          and lower(funcao) = lower($4)`,
       [ev.id, etapaId, p.vinculo, esc.funcao],
     )
     if (ja) continue

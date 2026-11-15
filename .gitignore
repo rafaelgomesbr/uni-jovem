@@ -36,3 +36,6 @@ credentials/
 
 # Cache do Python dos scripts de arte e conteúdo.
 __pycache__/
+
+# Capturas cruas das lojas: saem de novo com scripts/lojas/capturas.ts.
+docs/lojas/capturas/cru/

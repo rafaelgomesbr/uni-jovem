@@ -24,6 +24,8 @@ export interface ParMedido {
 
 function camadasDoTema(tema: NomeDoTema): readonly DefinicaoDePar[] {
   const barra = VIDRO.barra[tema].fundo
+  // Android e web sem desfoque: o vidro vira a cor opaca do token (ui/Vidro.tsx).
+  const barraOpaca = VIDRO.barra[tema].opaco
   const status = corDaAuroraNoPonto('coral', PONTOS_CRITICOS_DA_AURORA.status, tema)
   const sobACoral = corDaAuroraNoPonto('coral', PONTOS_CRITICOS_DA_AURORA.conteudoSobACoral, tema)
   const sobAVioleta = corDaAuroraNoPonto(
@@ -214,6 +216,24 @@ function camadasDoTema(tema: NomeDoTema): readonly DefinicaoDePar[] {
       nome: 'aba ativa com o destaque por baixo',
       frente: 'destaque',
       sobre: ['inverso.fundo', barra, 'abaAtivaFundo'],
+      tipo: 'texto',
+    },
+    {
+      nome: 'aba inativa sobre a barra opaca',
+      frente: 'textoSuave',
+      sobre: [barraOpaca],
+      tipo: 'texto',
+    },
+    {
+      nome: 'aba ativa sobre a pílula da barra opaca',
+      frente: 'destaque',
+      sobre: [barraOpaca, 'abaAtivaFundo'],
+      tipo: 'texto',
+    },
+    {
+      nome: 'texto sobre a barra opaca',
+      frente: 'texto',
+      sobre: [barraOpaca],
       tipo: 'texto',
     },
     // Aurora: status e conteúdo sobre o pior ponto (geometria ajustada, área segura de referência).

@@ -215,7 +215,8 @@ function PedidosDeSubstituicao({
                 icone="trocar"
                 titulo={titulo}
                 descricao={descricao}
-                linhasDaDescricao={3}
+                // Sem limite (0): ao lado do "Assumir" a coluna é estreita, e o motivo só aparece aqui.
+                linhasDaDescricao={0}
                 extra={
                   s.possoAssumir ? (
                     <Botao

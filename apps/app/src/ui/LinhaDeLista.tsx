@@ -70,6 +70,7 @@ export interface PropsDaLinhaDeLista {
   selecionado?: boolean
   /** O item em curso numa sequência (a etapa de agora): fundo quente e `aria-current` na web. */
   atual?: boolean
+  /** Linhas da descrição antes das reticências (2 por padrão); 0 tira o limite. */
   linhasDaDescricao?: number
 }
 

@@ -1,7 +1,9 @@
 import type { ExpoConfig } from 'expo/config'
 
+import { NOME_DO_APP } from '../../packages/dominio/src/produto.ts'
+
 /**
- * Configuração do app Uni Jovem (substitui o `app.json` do modelo).
+ * Configuração do app (substitui o `app.json` do modelo).
  *
  * Um binário por ambiente, escolhido pelo perfil do EAS (`EAS_BUILD_PROFILE`)
  * ou por `UJ_VARIANTE` fora do EAS. Cada ambiente tem identificador próprio,
@@ -19,8 +21,12 @@ function varianteAtual(): Variante {
 
 const VARIANTE = varianteAtual()
 
-/** O nome vive aqui e em `src/constantes` (D5): trocar o nome é trocar estes dois pontos. */
-const NOME = 'Uni Jovem'
+/**
+ * O nome vem da constante única (D5), a mesma do app e da API. Importada pelo
+ * caminho do arquivo: a configuração roda no Node na hora do build, fora do
+ * Metro, e o `produto.ts` não importa nada.
+ */
+const NOME = NOME_DO_APP
 
 const IDENTIFICADOR: Record<Variante, string> = {
   producao: 'com.solerte.unijovem',
@@ -56,7 +62,7 @@ const TEXTO_GALERIA =
   'Só a imagem escolhida é enviada, recortada e sem a localização.'
 
 const TEXTO_FACE_ID =
-  'O Face ID protege a sua sessão no Uni Jovem: com ele ligado, o app só abre a sua conta ' +
+  `O Face ID protege a sua sessão no ${NOME}: com ele ligado, o app só abre a sua conta ` +
   'depois de confirmar que é você. Nenhuma imagem do seu rosto sai do aparelho.'
 
 /**

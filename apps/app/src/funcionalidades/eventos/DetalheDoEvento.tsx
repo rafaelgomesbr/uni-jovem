@@ -208,7 +208,12 @@ function Conteudo({
         </Aviso>
       ) : null}
       {acoes.erro ? <AvisoDeFalha erro={acoes.erro} /> : null}
-      <DestaqueDoEvento evento={e} comunidadeId={comunidadeId} />
+      {/* Um primário por tela: com o da barra (ou o do topo do painel), a inscrição é secundária. */}
+      <DestaqueDoEvento
+        evento={e}
+        comunidadeId={comunidadeId}
+        inscricaoSecundaria={acoes.primaria !== null}
+      />
       <Segmentos
         rotulo="Partes da programação"
         segmentos={visoes}

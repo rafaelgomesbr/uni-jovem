@@ -33,6 +33,12 @@ const LADO_DO_QR = 200
 interface Props {
   evento: DetalheDoEvento
   comunidadeId: string
+  /**
+   * "Inscrever-me" como secundário: a tela já tem um primário (o da barra de
+   * ação, ou o do cartão de destaque quando a inscrição foi rebaixada). Um
+   * primário por tela.
+   */
+  secundario?: boolean
 }
 
 /**
@@ -46,7 +52,7 @@ interface Props {
  * traz o próprio cartão; dentro de um (a seção de participação do evento),
  * entra só o conteúdo, para não haver cartão dentro de cartão.
  */
-export function MinhaInscricao({ evento, comunidadeId }: Props) {
+export function MinhaInscricao({ evento, comunidadeId, secundario = false }: Props) {
   const pode = usePode()
   const { superficie } = useTema()
   const dentroDeCartao = superficie !== 'fundo'
@@ -184,6 +190,7 @@ export function MinhaInscricao({ evento, comunidadeId }: Props) {
       ref={focoRef}
       titulo="Inscrever-me"
       icone="inscricoes"
+      variante={secundario ? 'secundario' : 'primario'}
       carregando={inscrever.isPending}
       desabilitado={motivo !== null}
       {...(motivo ? { motivo: EXPLICACAO_SEM_INSCRICAO[motivo] } : {})}
