@@ -4,7 +4,7 @@
 
 Teto de gasto recorrente: **R$ 0** (D4 em [`DECISOES.md`](DECISOES.md)). Qualquer serviço pago vira pedido de autorização em [`PENDENCIAS-HUMANAS.md`](PENDENCIAS-HUMANAS.md) antes de ser ativado.
 
-Estado em 14/11/2026: nenhum dos serviços abaixo foi ativado para o Uni Jovem.
+Estado em 15/11/2026, todos no plano gratuito (gasto recorrente R$ 0): **Expo EAS** (projeto `uni-jovem`; as builds iOS do mês acabaram e voltam em 01/12/2026, por isso o iOS é compilado no Mac; 1 build Android de produção usado), **Firebase/FCM** (projeto `uni-jovem`, D21) e **APNs** (chave da conta Apple já paga, D22). Resend, R2, Turnstile real, Sentry e Google Maps seguem **não ativados**.
 
 ## Serviços
 
