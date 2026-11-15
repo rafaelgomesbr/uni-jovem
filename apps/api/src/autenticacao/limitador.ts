@@ -72,6 +72,16 @@ function gruposIpv6(ip: string): string[] {
 }
 
 /**
+ * IP inteiro e normalizado, para limites em que a faixa pune gente demais
+ * (D44: renovar a sessão). IPv4 mapeado em IPv6 vira IPv4; IPv6 sai com os 8
+ * grupos, sem zeros à esquerda, para `2001:db8::1` e `2001:db8:0::1` serem um só.
+ */
+export function ipInteiro(ip: string): string {
+  if (ip.includes('.')) return ip.replace(/^::ffff:/i, '')
+  return gruposIpv6(ip).join(':')
+}
+
+/**
  * IP truncado para log e limite: /24 no IPv4, /48 no IPv6. O IPv6 é
  * normalizado antes (`2001:db8::1` e `2001:db8:0:1::1` caem no mesmo /48).
  */

@@ -57,7 +57,15 @@ export function criarClienteDeConsulta(): QueryClient {
         // Erro da API é resposta definitiva (permissão, validação): repetir não ajuda.
         retry: (falhas, erro) => !(erro instanceof ErroDaApi) && falhas < 2,
       },
-      mutations: { retry: false },
+      mutations: {
+        retry: false,
+        // A1: o padrão (`online`) PAUSA a mutação sem rede e a envia sozinha quando
+        // a rede volta: o botão gira para sempre e o aviso (com push) sai minutos
+        // depois sem a pessoa saber. Com `always`, o pedido tenta na hora, falha
+        // com `SemConexao` e a tela mostra "Sem conexão". O que precisa esperar a
+        // rede tem fila própria e explícita (offline, D30), nunca esta pausa.
+        networkMode: 'always',
+      },
     },
   })
 }

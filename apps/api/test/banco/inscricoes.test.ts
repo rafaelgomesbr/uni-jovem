@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { carregarConfig } from '../../src/config.ts'
 import { correioDesligado } from '../../src/correio/correio.ts'
 import { normalizarTelefone } from '../../src/publico/apoio.ts'
+import { TETO_POR_WHATSAPP } from '../../src/publico/rotas.ts'
 import { criarServidor } from '../../src/servidor.ts'
 import { criarComunidade, novoBanco, vincular, type BancoDeTeste } from '../apoio/banco.ts'
 import { envDeTeste } from '../apoio/config.ts'
@@ -27,7 +28,9 @@ const req = (metodo: Metodo, caminho: string, p: Pessoa, corpo?: object) =>
 const SEGREDO_INTERNO = 'Nota secreta da organização'
 
 beforeAll(async () => {
-  b = await novoBanco()
+  // Pool do tamanho do de produção (src/index.ts) e espera longa: a suíte
+  // inteira roda em paralelo e o teste de 50 inscrições não pode cair por fila.
+  b = await novoBanco({ conexoesDaApi: 10, esperaPorConexaoMs: 60_000 })
   app = criarServidor(config, {
     api: b.api,
     auth: b.auth,
@@ -133,10 +136,10 @@ describe('página pública', () => {
     expect((await app.inject({ method: 'GET', url: '/e/nao-existe' })).statusCode).toBe(404)
   })
 
-  it('inscrição: confirmação com QR sem dado pessoal; o mesmo WhatsApp não duplica', async () => {
+  it('inscrição: confirmação com QR sem dado pessoal; a mesma pessoa não duplica e é avisada', async () => {
     const { id, idPublico } = await eventoPublico()
     const r = await inscrever(idPublico, {
-      nome: 'Beatriz',
+      nome: 'Beatriz Conceição',
       telefone: '11 92222-2222',
       email: 'Bia@Exemplo.test',
     })
@@ -146,16 +149,116 @@ describe('página pública', () => {
     expect(r.body).toContain('<svg')
     expect(codigo).not.toMatch(/Beatriz|2222/)
     expect(r.body).toMatch(/\/e\/[0-9a-f]{32}\/cancelar#t=/)
-    // Repetir não duplica nem devolve o código (ver correcoes-de-seguranca.test.ts, M2).
-    const de_novo = await inscrever(idPublico, { nome: 'Beatriz', telefone: '+55 11 92222-2222' })
-    expect(de_novo.statusCode).toBe(200)
+    // A mesma pessoa de novo, escrita de outro jeito (caixa, acento, espaços):
+    // não duplica, não devolve o código (M2) e diz que ela já está inscrita.
+    const de_novo = await inscrever(idPublico, {
+      nome: '  beatriz   CONCEICAO ',
+      telefone: '+55 11 92222-2222',
+    })
+    expect(de_novo.statusCode).toBe(409)
+    expect(de_novo.body).toContain('Esta pessoa já está inscrita neste evento')
+    expect(de_novo.body).not.toContain('Inscrição confirmada')
     expect(de_novo.body).not.toContain(codigo)
+    expect(de_novo.body).not.toContain('<svg')
+    expect(de_novo.body).not.toMatch(/cancelar#t=/)
     const lista = (await req('GET', `/eventos/${id}/inscricoes`, org)).json()
-    expect(lista.inscricoes.filter((i: { nome: string }) => i.nome === 'Beatriz')).toHaveLength(1)
+    expect(lista.inscricoes).toHaveLength(1)
     expect(lista.inscricoes[0]).toMatchObject({
+      nome: 'Beatriz Conceição',
       telefone: '+5511922222222',
       email: 'bia@exemplo.test',
     })
+  })
+
+  it('irmãos: duas pessoas com o mesmo WhatsApp entram, cada uma com o seu código', async () => {
+    const { id, idPublico } = await eventoPublico()
+    const telefone = '(11) 93333-1000'
+    const joao = await inscrever(idPublico, { nome: 'João Silva', telefone })
+    const maria = await inscrever(idPublico, { nome: 'Maria Silva', telefone })
+    expect(joao.statusCode).toBe(200)
+    expect(maria.statusCode).toBe(200)
+    expect(maria.body).toContain('Inscrição confirmada')
+    const codigoDe = (corpo: string) => corpo.match(/Código: <strong>([0-9A-F]{10})<\/strong>/)![1]!
+    expect(codigoDe(joao.body)).not.toBe(codigoDe(maria.body))
+    const lista = (await req('GET', `/eventos/${id}/inscricoes`, org)).json()
+    expect(lista.inscricoes.map((i: { nome: string }) => i.nome).sort()).toEqual([
+      'João Silva',
+      'Maria Silva',
+    ])
+    // No banco, a chave de repetição é WhatsApp mais nome normalizado.
+    const { rows } = await b.su.query(
+      "select uj.nome_normalizado('  João   da SILVA ') as n, uj.nome_normalizado('Joao da Silva') as m",
+    )
+    expect(rows).toEqual([{ n: 'joao da silva', m: 'joao da silva' }])
+  })
+
+  it(`teto de ${TETO_POR_WHATSAPP} inscrições ativas por WhatsApp no mesmo evento`, async () => {
+    const { idPublico } = await eventoPublico()
+    const telefone = '11 93333-2000'
+    for (let i = 0; i < TETO_POR_WHATSAPP; i++) {
+      expect((await inscrever(idPublico, { nome: `Pessoa ${i}`, telefone })).statusCode).toBe(200)
+    }
+    const passou = await inscrever(idPublico, { nome: 'Mais Uma', telefone })
+    expect(passou.statusCode).toBe(409)
+    expect(passou.body).toContain(
+      `Este WhatsApp já tem ${TETO_POR_WHATSAPP} inscrições neste evento`,
+    )
+    expect(passou.body).toContain('value="Mais Uma"')
+  })
+
+  it('tela de sucesso: rótulo claro, print, mandar ao próprio WhatsApp e inscrever outra pessoa', async () => {
+    const { idPublico } = await eventoPublico()
+    const formulario = await app.inject({ method: 'GET', url: `/e/${idPublico}` })
+    expect(formulario.body).toContain('Nome de quem vai participar')
+    expect(formulario.body).not.toContain('Seu nome')
+
+    const r = await inscrever(idPublico, {
+      nome: 'Lucas Andrade',
+      telefone: '(11) 94444-3000',
+      email: 'mae@exemplo.test',
+    })
+    expect(r.statusCode).toBe(200)
+    expect(r.body).toContain('Tire um print: é a entrada dessa pessoa.')
+    const codigo = r.body.match(/Código: <strong>([0-9A-F]{10})<\/strong>/)![1]!
+    const token = r.body.match(/cancelar#t=([\w-]+)/)![1]!
+
+    // "Mandar para o meu WhatsApp": resumo com código e link de cancelamento,
+    // sem nome, telefone nem e-mail.
+    const link = r.body.match(
+      /href="(https:\/\/wa\.me\/\?text=[^"]+)"[^>]*>Mandar para o meu WhatsApp/,
+    )
+    expect(link).not.toBeNull()
+    const texto = decodeURIComponent(link![1]!.replace(/&amp;/g, '&').split('text=')[1]!)
+    expect(texto).toContain('Luau musical')
+    expect(texto).toContain(`Código de entrada: ${codigo}`)
+    expect(texto).toContain(`/e/${idPublico}/cancelar#t=${token}`)
+    expect(texto).not.toMatch(/Lucas|Andrade|94444|3000|mae@/)
+
+    // "Inscrever outra pessoa": o formulário volta com o mesmo contato e o nome
+    // em branco, sem nada na URL.
+    expect(r.body).toContain(`action="/e/${idPublico}/outra"`)
+    expect(r.body).toContain('Inscrever outra pessoa')
+    const outra = await app.inject({
+      method: 'POST',
+      url: `/e/${idPublico}/outra`,
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      payload: new URLSearchParams({
+        telefone: '(11) 94444-3000',
+        email: 'mae@exemplo.test',
+      }).toString(),
+    })
+    expect(outra.statusCode).toBe(200)
+    expect(outra.body).toContain('Nome de quem vai participar')
+    expect(outra.body).toContain('value="(11) 94444-3000"')
+    expect(outra.body).toContain('value="mae@exemplo.test"')
+    expect(outra.body).toMatch(/id="nome"[^>]*value=""/)
+    expect(outra.body).toContain('preencha o nome da outra pessoa')
+    // O consentimento e a confirmação de idade continuam lá, desmarcados.
+    expect(outra.body).toMatch(/id="consentimento"[^>]*required/)
+    expect(outra.body).not.toMatch(/id="consentimento"[^>]*checked/)
+    expect(
+      (await app.inject({ method: 'POST', url: '/e/nao-existe/outra', payload: {} })).statusCode,
+    ).toBe(404)
   })
 
   it('sem consentimento, com telefone inválido ou campo-isca: nada é gravado', async () => {
@@ -190,23 +293,96 @@ describe('página pública', () => {
 })
 
 describe('capacidade, lista de espera e cancelamento', () => {
-  it('50 inscrições simultâneas para 20 vagas: exatamente 20 confirmadas', async () => {
-    const { id, idPublico } = await eventoPublico({ capacidade: 20 })
-    const respostas = await Promise.all(
-      Array.from({ length: 50 }, (_, i) =>
-        inscrever(idPublico, {
-          nome: `Pessoa ${i}`,
-          telefone: `1196000${String(i).padStart(4, '0')}`,
-        }),
-      ),
-    )
-    expect(respostas.filter((r) => r.body.includes('Inscrição confirmada'))).toHaveLength(20)
-    expect(respostas.filter((r) => r.statusCode === 409)).toHaveLength(30)
-    const { rows } = await b.su.query(
-      "select count(*)::int as n from uj.inscricoes where evento_id = $1 and estado = 'confirmada'",
-      [id],
-    )
-    expect(rows).toEqual([{ n: 20 }])
+  // A falha de 15/11/2026 (26 respostas 409 em vez de 30) não era corrida: as
+  // 20 vagas fecharam certas. Eram 4 pedidos que esperaram mais de 10 s por
+  // uma conexão no pool de 4 do teste, com a suíte inteira disputando a CPU, e
+  // viraram 500 ("timeout exceeded when trying to connect"). O arquivo agora
+  // usa o pool de produção (10) e espera longa; o caso do pool esgotado tem
+  // teste próprio logo abaixo.
+  it(
+    '50 inscrições simultâneas para 20 vagas: exatamente 20 confirmadas, 30 recusadas',
+    { timeout: 90_000 },
+    async () => {
+      const { id, idPublico } = await eventoPublico({ capacidade: 20 })
+      const respostas = await Promise.all(
+        Array.from({ length: 50 }, (_, i) =>
+          inscrever(idPublico, {
+            nome: `Pessoa ${i}`,
+            telefone: `1196000${String(i).padStart(4, '0')}`,
+          }),
+        ),
+      )
+      const situacao = respostas.map((r) =>
+        r.statusCode === 200 && r.body.includes('Inscrição confirmada')
+          ? 'confirmada'
+          : r.statusCode === 409 && r.body.includes('As vagas acabaram')
+            ? 'lotado'
+            : `outro ${r.statusCode}`,
+      )
+      const contagem = Object.fromEntries(
+        [...new Set(situacao)].map((s) => [s, situacao.filter((x) => x === s).length]),
+      )
+      expect(contagem).toEqual({ confirmada: 20, lotado: 30 })
+      const { rows } = await b.su.query(
+        "select count(*)::int as n from uj.inscricoes where evento_id = $1 and estado = 'confirmada'",
+        [id],
+      )
+      expect(rows).toEqual([{ n: 20 }])
+    },
+  )
+
+  it('pool de conexões esgotado: 503 com mensagem humana, nunca 500 nem sucesso falso', async () => {
+    // Pool de uma conexão, ocupada de propósito: os pedidos ficam na fila do
+    // pool, estouram a espera e reproduzem o que derrubou o teste de 50.
+    // (A espera também vale para abrir a conexão nova: curta demais, nem a
+    // primeira abre com a suíte inteira rodando.)
+    const pool = b.outroPoolDaApi({ max: 1, connectionTimeoutMillis: 3_000 })
+    const apertado = criarServidor(config, {
+      api: pool,
+      auth: b.auth,
+      correio: correioDesligado(),
+      fatorDeLimitePorIp: 1000,
+    })
+    await apertado.ready()
+    const pedir = (i: number, idPublico: string) =>
+      apertado.inject({
+        method: 'POST',
+        url: `/e/${idPublico}/inscricao`,
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        payload: new URLSearchParams({
+          consentimento: 'sim',
+          idade: 'sim',
+          nome: `Pico ${i}`,
+          telefone: `1196100${String(i).padStart(4, '0')}`,
+        }).toString(),
+      })
+    try {
+      const { id, idPublico } = await eventoPublico()
+      const presa = await pool.connect()
+      let respostas
+      try {
+        respostas = await Promise.all([0, 1, 2, 3, 4].map((i) => pedir(i, idPublico)))
+      } finally {
+        presa.release()
+      }
+      for (const r of respostas) {
+        expect(r.statusCode).toBe(503)
+        expect(r.headers['content-type']).toContain('text/html')
+        expect(r.body).toContain('Muita gente se inscrevendo agora')
+        expect(r.body).not.toContain('Inscrição confirmada')
+      }
+      // Nada foi gravado; com a conexão livre, a mesma pessoa entra.
+      const depois = await pedir(0, idPublico)
+      expect(depois.statusCode).toBe(200)
+      expect(depois.body).toContain('Inscrição confirmada')
+      const { rows } = await b.su.query(
+        'select count(*)::int as n from uj.inscricoes where evento_id = $1',
+        [id],
+      )
+      expect(rows).toEqual([{ n: 1 }])
+    } finally {
+      await apertado.close()
+    }
   })
 
   it('lista de espera; cancelar pelo link promove a primeira da fila', async () => {

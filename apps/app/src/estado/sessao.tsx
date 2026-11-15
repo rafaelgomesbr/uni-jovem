@@ -42,7 +42,7 @@ import type {
   RespostaEu,
   SessaoAberta,
 } from '@/servicos/contrato'
-import { ErroDaApi, SemConexao } from '@/servicos/erros'
+import { ErroDaApi, MENSAGEM_MUITA_GENTE, SemConexao } from '@/servicos/erros'
 
 import {
   aoEncerrarSessao as ganchosDeEncerramento,
@@ -236,6 +236,20 @@ export function ProvedorDeSessao({
       // Quando a rede voltar, o primeiro pedido renova o acesso; se a sessão
       // tiver sido revogada, a API responde 401 e o app sai e apaga tudo.
       if (erro instanceof SemConexao && (await abrirSemRede())) return
+      if (erro instanceof ErroDaApi && erro.status === 429) {
+        // A4 (D44): muita gente abrindo o app na mesma rede. Nunca uma tela sem
+        // saída: com a conta guardada, abre com ela, como sem rede; sem ela,
+        // "Tentar de novo" com texto humano. Na web não há como saber se existe
+        // sessão (o cookie é HttpOnly e nada fica guardado): vai para Entrar.
+        if (await abrirSemRede()) return
+        if (plataformaAtual() === 'web') {
+          setLigada(false)
+          setFase('anonimo')
+          return
+        }
+        setFalhaAoIniciar(new ErroDaApi(429, erro.codigo, MENSAGEM_MUITA_GENTE))
+        return
+      }
       setFalhaAoIniciar(erro instanceof Error ? erro : new Error(String(erro)))
     }
   }

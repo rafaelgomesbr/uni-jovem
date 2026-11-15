@@ -17,14 +17,23 @@ export interface BancoDeTeste {
     sql: string,
     params?: unknown[],
   ): Promise<T[]>
+  /** Pool extra do papel `uj_api` (fechado em `encerrar`), para testes de carga. */
+  outroPoolDaApi(opcoes: { max: number; connectionTimeoutMillis: number }): pg.Pool
   encerrar(): Promise<void>
+}
+
+export interface OpcoesDoBanco {
+  /** Conexões do pool `api`. Padrão: 4. */
+  conexoesDaApi?: number
+  /** Espera máxima por uma conexão livre no pool `api`. Padrão: 10 s. */
+  esperaPorConexaoMs?: number
 }
 
 function url(usuario: string, senha: string, banco: string): string {
   return `postgres://${usuario}:${senha}@localhost:${inject('pgPorta')}/${banco}`
 }
 
-export async function novoBanco(): Promise<BancoDeTeste> {
+export async function novoBanco(opcoes: OpcoesDoBanco = {}): Promise<BancoDeTeste> {
   const nome = `uj_t_${randomBytes(6).toString('hex')}`
   const admin = new pg.Client({ connectionString: url('postgres', SENHAS_TESTE.su, 'postgres') })
   await admin.connect()
@@ -44,9 +53,10 @@ export async function novoBanco(): Promise<BancoDeTeste> {
   })
   const api = new pg.Pool({
     connectionString: url('uj_api', SENHAS_TESTE.api, nome),
-    max: 4,
-    connectionTimeoutMillis: 10_000,
+    max: opcoes.conexoesDaApi ?? 4,
+    connectionTimeoutMillis: opcoes.esperaPorConexaoMs ?? 10_000,
   })
+  const extras: pg.Pool[] = []
   const auth = new pg.Pool({
     connectionString: url('uj_auth', SENHAS_TESTE.auth, nome),
     max: 4,
@@ -70,8 +80,23 @@ export async function novoBanco(): Promise<BancoDeTeste> {
         async (c) => (await c.query(sql, params)).rows as T[],
       )
     },
+    outroPoolDaApi({ max, connectionTimeoutMillis }) {
+      const pool = new pg.Pool({
+        connectionString: url('uj_api', SENHAS_TESTE.api, nome),
+        max,
+        connectionTimeoutMillis,
+      })
+      extras.push(pool)
+      return pool
+    },
     async encerrar() {
-      await Promise.all([su.end(), dono.end(), api.end(), auth.end()])
+      await Promise.all([
+        su.end(),
+        dono.end(),
+        api.end(),
+        auth.end(),
+        ...extras.map((p) => p.end()),
+      ])
       const fim = new pg.Client({ connectionString: url('postgres', SENHAS_TESTE.su, 'postgres') })
       await fim.connect()
       await fim.query(`drop database if exists ${nome} with (force)`)

@@ -75,11 +75,50 @@ function naoEncontrado(r: FastifyReply) {
   )
 }
 
-/** Texto igual nas duas respostas (inscrição nova e repetida). */
-const AVISO_DE_REPETICAO = html`<p class="suave">
-  Se este WhatsApp já tinha inscrição neste evento, ela continua valendo. Para ver o código de
-  entrada de novo, cancelar ou apagar seus dados, use o link de cancelamento que você recebeu.
-</p>`
+/** Teto de inscrições ativas por WhatsApp num evento (UJ036, migração 0021). */
+export const TETO_POR_WHATSAPP = 10
+
+/**
+ * Resumo para a pessoa mandar ao próprio WhatsApp: evento, código e o link de
+ * cancelamento. Sem nome, telefone nem e-mail (a conversa pode ser
+ * encaminhada, e o nome junto do evento de igreja é dado sensível).
+ */
+function textoParaWhatsapp(
+  e: { titulo: string; inicio: Date; fuso: string; local_nome: string | null },
+  codigo: string,
+  cancelar: string,
+): string {
+  return [
+    `Inscrição: ${e.titulo}`,
+    `${dataPorExtenso(e.inicio, e.fuso)}${e.local_nome ? `, ${e.local_nome}` : ''}`,
+    `Código de entrada: ${codigo}`,
+    `Para ver o QR de novo, cancelar ou apagar os dados: ${cancelar}`,
+  ].join('\n')
+}
+
+const MENSAGEM_OCUPADO =
+  'Muita gente se inscrevendo agora. Espere alguns segundos e toque de novo em "Confirmar inscrição".'
+
+/**
+ * Pico maior que o pool de conexões: o pedido esperou uma conexão livre além
+ * do limite. Nada foi gravado; é caso de "tente de novo", não de erro interno.
+ */
+function ehFilaDoBancoEsgotada(erro: unknown): boolean {
+  const mensagem = erro instanceof Error ? erro.message : ''
+  return (
+    mensagem.includes('timeout exceeded when trying to connect') ||
+    mensagem.includes('Connection terminated due to connection timeout')
+  )
+}
+
+/** "Inscrever outra pessoa": volta ao formulário com o mesmo contato, sem pôr nada na URL. */
+function botaoOutraPessoa(id: string, telefone: string, email: string): Seguro {
+  return html`<form method="post" action="/e/${id}/outra">
+    <input type="hidden" name="telefone" value="${telefone}" />
+    <input type="hidden" name="email" value="${email}" />
+    <button type="submit" class="secundario">Inscrever outra pessoa</button>
+  </form>`
+}
 
 async function cartaoDoCodigo(
   e: { titulo: string; inicio: Date; fuso: string },
@@ -140,6 +179,7 @@ export function registrarPaginasPublicas(app: FastifyInstance, o: OpcoesPublicas
     e: EventoPublico,
     erro?: string,
     valores: Record<string, string> = {},
+    aviso?: string,
   ): Seguro {
     if (!e.inscricoes_abertas) {
       return html`<div class="cartao">
@@ -149,10 +189,11 @@ export function registrarPaginasPublicas(app: FastifyInstance, o: OpcoesPublicas
     if (e.vagas_restantes === 0 && !e.lista_de_espera) {
       return html`<div class="cartao"><p class="suave">As vagas acabaram.</p></div>`
     }
-    return html` <h2>Inscrição</h2>
+    return html` <h2 id="inscricao">Inscrição</h2>
       ${erro ? html`<p class="erro" role="alert">${erro}</p>` : ''}
+      ${aviso ? html`<p class="ok" role="status">${aviso}</p>` : ''}
       <form method="post" action="/e/${id}/inscricao" class="cartao" novalidate>
-        <label for="nome">Seu nome</label>
+        <label for="nome">Nome de quem vai participar</label>
         <input
           id="nome"
           name="nome"
@@ -244,8 +285,29 @@ export function registrarPaginasPublicas(app: FastifyInstance, o: OpcoesPublicas
   app.post('/e/:idPublico/inscricao', async (pedido, resposta) => {
     const id = idPublico.safeParse((pedido.params as { idPublico: string }).idPublico)
     if (!id.success) return naoEncontrado(resposta)
-    const e = await lerEvento(id.data)
-    if (!e) return naoEncontrado(resposta)
+    let lido: EventoPublico | undefined
+    try {
+      lido = await lerEvento(id.data)
+    } catch (err) {
+      if (!ehFilaDoBancoEsgotada(err)) throw err
+      // Sem o evento não há formulário para redesenhar: o voltar do navegador
+      // devolve o que foi preenchido.
+      return responder(
+        resposta.header('Retry-After', '5'),
+        503,
+        pagina(
+          html`<h1>Muita gente se inscrevendo agora</h1>
+            <p>
+              Espere alguns segundos e tente de novo. Se voltar pelo botão do navegador, o que você
+              preencheu continua lá.
+            </p>
+            <p><a class="botao" href="/e/${id.data}#inscricao">Voltar ao evento</a></p>`,
+          { titulo: 'Tente de novo' },
+        ),
+      )
+    }
+    if (!lido) return naoEncontrado(resposta)
+    const e = lido
     const corpo = (pedido.body ?? {}) as Record<string, string | undefined>
     const valores = {
       nome: corpo['nome'] ?? '',
@@ -287,7 +349,9 @@ export function registrarPaginasPublicas(app: FastifyInstance, o: OpcoesPublicas
       return comErro(400, 'Não conseguimos confirmar que você não é um robô. Tente de novo.')
     }
     const nome = valores.nome.trim()
-    if (nome.length < 1 || nome.length > 120) return comErro(400, 'Informe o seu nome.')
+    if (nome.length < 1) return comErro(400, 'Informe o nome de quem vai participar.')
+    if (nome.length > 120)
+      return comErro(400, 'O nome passou de 120 letras. Use uma forma mais curta.')
     const telefone = normalizarTelefone(valores.telefone)
     if (!telefone) return comErro(400, 'Informe o WhatsApp com DDD, por exemplo (11) 91234-5678.')
     const email = valores.email.trim().toLowerCase()
@@ -320,29 +384,49 @@ export function registrarPaginasPublicas(app: FastifyInstance, o: OpcoesPublicas
       if (codigo === 'UJ031') return comErro(409, 'As vagas acabaram enquanto você preenchia.')
       if (codigo === 'UJ030')
         return comErro(409, 'As inscrições para este evento estão encerradas.')
+      if (ehFilaDoBancoEsgotada(err)) {
+        resposta.header('Retry-After', '5')
+        return comErro(503, MENSAGEM_OCUPADO)
+      }
+      if (codigo === 'UJ036') {
+        return comErro(
+          409,
+          `Este WhatsApp já tem ${TETO_POR_WHATSAPP} inscrições neste evento. Para inscrever mais pessoas, fale com a organização.`,
+        )
+      }
       throw err
     }
     if (!r) return naoEncontrado(resposta)
-    // Repetição com o mesmo WhatsApp: a mesma página para qualquer pessoa, sem
-    // código, sem estado e sem dizer que já havia inscrição. Quem só sabe o
-    // número de alguém não leva o QR de entrada dela; o código volta pelo link
-    // de cancelamento (que só a pessoa recebeu).
+    // A mesma pessoa (WhatsApp e nome) de novo: diz que ela já está inscrita,
+    // sem fingir sucesso. Nada de código, QR ou estado (M2 de 0015): quem só
+    // sabe o número e o nome de alguém não leva a entrada dela; o código volta
+    // pelo link de cancelamento, que só quem se inscreveu recebeu.
     if (r.ja_existia || r.codigo_checkin === null) {
       return responder(
         resposta,
-        200,
+        409,
         pagina(
           html` <p class="suave">${e.comunidade_nome}</p>
-            <h1>Recebemos sua inscrição</h1>
+            <h1>Esta pessoa já está inscrita neste evento</h1>
             <div class="cartao">
               <p><strong>${e.titulo}</strong><br />${dataPorExtenso(e.inicio, e.fuso)}</p>
-              ${AVISO_DE_REPETICAO}
-            </div>`,
-          { titulo: 'Inscrição', cor: e.comunidade_cor },
+              <p>
+                <strong>${nome}</strong> já tem inscrição com este WhatsApp. Nada foi feito agora: a
+                inscrição de antes continua valendo.
+              </p>
+              <p>
+                Para ver o código de entrada de novo, use o link de cancelamento que apareceu na
+                primeira inscrição e toque em "Ver meu código de entrada". Se perdeu o link, fale
+                com a organização no dia.
+              </p>
+            </div>
+            <div class="acoes">${botaoOutraPessoa(id.data, valores.telefone, email)}</div>`,
+          { titulo: 'Já inscrito', cor: e.comunidade_cor },
         ),
       )
     }
     const cancelar = new URL(`/e/${id.data}/cancelar#t=${token}`, o.config.URL_PUBLICA).toString()
+    const meuWhatsapp = `https://wa.me/?text=${encodeURIComponent(textoParaWhatsapp(e, r.codigo_checkin, cancelar))}`
     const compartilhar = `https://wa.me/?text=${encodeURIComponent(`${e.titulo}: ${urlDoEvento(id.data)}`)}`
     return responder(
       resposta,
@@ -350,20 +434,61 @@ export function registrarPaginasPublicas(app: FastifyInstance, o: OpcoesPublicas
       pagina(
         html` <p class="suave">${e.comunidade_nome}</p>
           <h1>
-            ${r.estado === 'espera' ? 'Você está na lista de espera' : 'Inscrição confirmada'}
+            ${r.estado === 'espera' ? 'Inscrição na lista de espera' : 'Inscrição confirmada'}
           </h1>
+          <p><strong>${nome}</strong></p>
+          <p class="print">Tire um print: é a entrada dessa pessoa.</p>
           ${await cartaoDoCodigo(e, r.estado, r.codigo_checkin)}
-          <p>
-            Guarde este link para cancelar ou apagar seus dados, se precisar:
-            <a href="${cancelar}">cancelar minha inscrição</a>. Ele não aparece de novo.
-          </p>
-          ${AVISO_DE_REPETICAO}
-          <p>
-            <a class="botao" href="${compartilhar}" rel="noopener noreferrer"
-              >Convidar alguém pelo WhatsApp</a
+          <div class="acoes">
+            <a class="botao" href="${meuWhatsapp}" rel="noopener noreferrer"
+              >Mandar para o meu WhatsApp</a
             >
+            ${botaoOutraPessoa(id.data, valores.telefone, email)}
+          </div>
+          <p>
+            Para cancelar ou apagar os dados desta inscrição, use este link:
+            <a href="${cancelar}">cancelar esta inscrição</a>. Ele só aparece aqui e na mensagem do
+            WhatsApp.
+          </p>
+          <p>
+            <a href="${compartilhar}" rel="noopener noreferrer">Convidar alguém pelo WhatsApp</a>
           </p>`,
         { titulo: 'Inscrição', cor: e.comunidade_cor },
+      ),
+    )
+  })
+
+  // "Inscrever outra pessoa": o formulário de novo, com o mesmo WhatsApp e
+  // e-mail e o nome em branco. POST para o contato não ir para a URL (log,
+  // histórico). Só lê o evento; quem grava é a inscrição, com os limites dela.
+  app.post('/e/:idPublico/outra', async (pedido, resposta) => {
+    const id = idPublico.safeParse((pedido.params as { idPublico: string }).idPublico)
+    if (!id.success) return naoEncontrado(resposta)
+    const e = await lerEvento(id.data)
+    if (!e) return naoEncontrado(resposta)
+    const corpo = (pedido.body ?? {}) as Record<string, string | undefined>
+    const valores = {
+      nome: '',
+      telefone: String(corpo['telefone'] ?? '').slice(0, 40),
+      email: String(corpo['email'] ?? '').slice(0, 254),
+    }
+    return responder(
+      resposta,
+      200,
+      pagina(
+        html`${detalhes(e)}${formulario(
+          id.data,
+          e,
+          undefined,
+          valores,
+          'Mesmo WhatsApp da inscrição anterior. Agora preencha o nome da outra pessoa.',
+        )}`,
+        {
+          titulo: e.titulo,
+          scripts: o.chaveDoSiteTurnstile
+            ? ['https://challenges.cloudflare.com/turnstile/v0/api.js']
+            : [],
+        },
       ),
     )
   })

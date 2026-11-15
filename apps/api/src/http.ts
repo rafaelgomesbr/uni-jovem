@@ -27,10 +27,89 @@ export const SERIE_ENCERRADA = () =>
     'Esta série foi encerrada e não recebe mais alterações. Crie uma série nova se precisar.',
   )
 
+/** Quando o campo não tem nome conhecido, a tela recebe só esta frase. */
+export const MENSAGEM_DADOS_INVALIDOS = 'Confira os dados e tente de novo.'
+
+/**
+ * Nome do campo como a pessoa o vê na tela, para as mensagens padrão de
+ * validação. Campo fora desta lista (ids, chaves, opções técnicas) cai na
+ * mensagem genérica: um id errado não é algo que a pessoa consiga corrigir.
+ */
+const ROTULO_DO_CAMPO: Record<string, string> = {
+  titulo: 'o título',
+  nome: 'o nome',
+  email: 'o e-mail',
+  whatsapp: 'o WhatsApp',
+  texto: 'o texto',
+  descricao: 'a descrição',
+  categoria: 'a categoria',
+  motivo: 'o motivo',
+  endereco: 'o endereço',
+  informacoesUteis: 'as informações úteis',
+  observacao: 'a observação',
+  observacoes: 'as observações',
+  instrucoes: 'as instruções',
+  objetivo: 'o objetivo',
+  resposta: 'a resposta',
+  referencia: 'a referência',
+  artista: 'o artista',
+  cifra: 'a cifra',
+  tom: 'o tom',
+  detalhe: 'o detalhe',
+  resolucao: 'a resolução',
+  senha: 'a senha',
+  senhaAtual: 'a senha atual',
+  codigo: 'o código',
+  capacidade: 'a capacidade',
+  duracaoMin: 'a duração',
+  inicio: 'a data e a hora de início',
+  inscricaoAte: 'o prazo das inscrições',
+  quantidade: 'a quantidade',
+  prazo: 'o prazo',
+  cor: 'a cor',
+  nomeAvulso: 'o nome',
+  confirmacaoNome: 'o nome de confirmação',
+}
+
+/**
+ * Mensagem padrão (o esquema não trouxe uma própria) em português humano.
+ * Nunca repete o texto do Zod, que é técnico e em inglês ("Too small: ...").
+ */
+function mensagemPadrao(iss: {
+  code: string
+  path?: PropertyKey[] | undefined
+  input?: unknown
+  origin?: string | undefined
+}): string {
+  const campo = [...(iss.path ?? [])].reverse().find((p) => typeof p === 'string')
+  const rotulo = campo ? ROTULO_DO_CAMPO[campo] : undefined
+  if (!rotulo) return MENSAGEM_DADOS_INVALIDOS
+  const vazio =
+    iss.input === undefined ||
+    iss.input === null ||
+    (typeof iss.input === 'string' && iss.input.trim() === '')
+  if ((iss.code === 'invalid_type' || iss.code === 'too_small') && vazio) {
+    return `Preencha ${rotulo}.`
+  }
+  if (iss.origin === 'string' && iss.code === 'too_small') {
+    return `Confira ${rotulo}: tem poucos caracteres.`
+  }
+  if (iss.origin === 'string' && iss.code === 'too_big') {
+    return `Encurte ${rotulo}: passou do tamanho permitido.`
+  }
+  if (iss.code === 'too_small' || iss.code === 'too_big') {
+    return `Confira ${rotulo}: o valor está fora do permitido.`
+  }
+  return `Confira ${rotulo} e tente de novo.`
+}
+
 export function validar<T>(esquema: z.ZodType<T>, corpo: unknown): T {
-  const r = esquema.safeParse(corpo)
+  // O mapa por chamada só vale onde o esquema não tem mensagem própria: as
+  // mensagens de regra de negócio ("Informe seu nome.") passam como estão.
+  const r = esquema.safeParse(corpo, { error: (iss) => mensagemPadrao(iss) })
   if (!r.success) {
-    throw new ErroHttp('dados_invalidos', 400, r.error.issues.map((i) => i.message).join(' '))
+    const mensagens = [...new Set(r.error.issues.map((i) => i.message))]
+    throw new ErroHttp('dados_invalidos', 400, mensagens.join(' '))
   }
   return r.data
 }

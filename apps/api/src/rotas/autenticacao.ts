@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import { verificarAcesso, type ConteudoDoAcesso } from '../autenticacao/jwt.ts'
-import { Limitador, truncarIp } from '../autenticacao/limitador.ts'
+import { ipInteiro, Limitador, truncarIp } from '../autenticacao/limitador.ts'
 import {
   PROVEDORES,
   TokensJaUsados,
@@ -74,8 +74,27 @@ export const whatsapp = z
   .regex(/^\+[1-9][0-9]{7,14}$/, 'Informe o WhatsApp com DDI e DDD, por exemplo +5511912345678.')
   .nullish()
 export const nome = z.string().trim().min(1, 'Informe seu nome.').max(120)
-const senha = z.string().min(1).max(256)
-const token = z.string().trim().min(20).max(200)
+const senha = z.string().min(1, 'Informe a senha.').max(256)
+/**
+ * Token que chega por link. Link cortado (copiado pela metade no WhatsApp) é o
+ * caso comum: a mensagem diz o que fazer, nunca o tamanho esperado.
+ */
+const tokenDeLink = (mensagem: string) =>
+  z
+    .string({ error: mensagem })
+    .trim()
+    .min(20, mensagem)
+    .max(200, mensagem)
+    .regex(/^[\w-]+$/, mensagem)
+export const MENSAGEM_CONVITE_INVALIDO =
+  'Este link de convite não é válido. Peça um novo a quem convidou você.'
+const tokenDeConvite = tokenDeLink(MENSAGEM_CONVITE_INVALIDO)
+const tokenDeRedefinicao = tokenDeLink(
+  'Este link para criar a senha nova não é válido. Peça outro na tela Entrar, em "Esqueci a senha".',
+)
+const tokenDePrimeiroAcesso = tokenDeLink(
+  'Este link de primeiro acesso não é válido. Gere um novo pelo comando do operador.',
+)
 /** TC-01: escolha única. `menos_16` existe para a API responder com a mensagem certa. */
 export const faixaEtaria = z.enum(['menos_16', '16_17', '18_mais'], {
   error: 'Informe a sua faixa de idade.',
@@ -105,7 +124,11 @@ function criarLimitadores(fatorIp = 1) {
     conviteConcluirIp: new Limitador(60 * fatorIp, 60 * min),
     primeiroAcessoIp: new Limitador(10 * fatorIp, 60 * min),
     totpIp: new Limitador(20 * fatorIp, 15 * min),
-    renovarIp: new Limitador(120 * fatorIp, 15 * min),
+    // D44: por IP INTEIRO (não por faixa) e bem mais alto. O refresh é um
+    // segredo de 256 bits, então este limite não protege contra adivinhação,
+    // só corta volume; e um encontro com 80 jovens no Wi-Fi da igreja sai por
+    // um IP só. 600 em 15 min = 80 pessoas abrindo o app até 7 vezes cada.
+    renovarIp: new Limitador(600 * fatorIp, 15 * min),
     provedorIp: new Limitador(30 * fatorIp, 15 * min),
     conectarIp: new Limitador(20 * fatorIp, 15 * min),
   }
@@ -257,7 +280,16 @@ export function registrarRotasDeAutenticacao(
   // ---------------------------------------------------------------- renovar e sair
 
   app.post('/api/auth/renovar', async (pedido, resposta) => {
-    limitar(lim.renovarIp, ip(pedido), resposta)
+    const chave = ipInteiro(pedido.ip)
+    if (!lim.renovarIp.tentar(chave)) {
+      resposta.header('Retry-After', String(lim.renovarIp.segundosParaLiberar(chave)))
+      // Quem vê isto é a pessoa abrindo o app no meio de um encontro, não um robô.
+      throw new ErroDeAuth(
+        'muitas_tentativas',
+        429,
+        'Muita gente entrando agora. Tente de novo em instantes.',
+      )
+    }
     const corpo = validar(
       z.object({ refresh: z.string().trim().min(20).max(200).optional() }),
       pedido.body ?? {},
@@ -304,7 +336,7 @@ export function registrarRotasDeAutenticacao(
   })
 
   app.post('/api/auth/redefinir', async (pedido) => {
-    const corpo = validar(z.object({ token, senha }), pedido.body)
+    const corpo = validar(z.object({ token: tokenDeRedefinicao, senha }), pedido.body)
     await redefinirSenha(d, corpo)
     return { ok: true, mensagem: 'Senha alterada. Entre com a senha nova em todos os aparelhos.' }
   })
@@ -313,13 +345,19 @@ export function registrarRotasDeAutenticacao(
 
   app.post('/api/auth/convite/consultar', async (pedido, resposta) => {
     limitar(lim.conviteConsultarIp, ip(pedido), resposta)
-    const corpo = validar(z.object({ token }), pedido.body)
+    const corpo = validar(z.object({ token: tokenDeConvite }), pedido.body)
     return consultarConvite(d, corpo.token)
   })
 
   app.post('/api/auth/convite/iniciar', async (pedido, resposta) => {
     const corpo = validar(
-      z.object({ token, nome, email, whatsapp, faixaEtaria: faixaEtaria.optional() }),
+      z.object({
+        token: tokenDeConvite,
+        nome,
+        email,
+        whatsapp,
+        faixaEtaria: faixaEtaria.optional(),
+      }),
       pedido.body,
     )
     limitar(lim.conviteIniciarIp, ip(pedido), resposta)
@@ -336,7 +374,7 @@ export function registrarRotasDeAutenticacao(
   app.post('/api/auth/convite/concluir', async (pedido, resposta) => {
     const corpo = validar(
       z.object({
-        token,
+        token: tokenDeConvite,
         verificacaoId: z.uuid(),
         codigo: z
           .string()
@@ -378,7 +416,7 @@ export function registrarRotasDeAutenticacao(
   app.post('/api/auth/convite/aceitar', { preHandler: exigirSessao }, async (pedido) => {
     const corpo = validar(
       z.object({
-        token,
+        token: tokenDeConvite,
         // TC-03 desta comunidade; a idade só é pedida a conta que ainda não declarou.
         consentimentoFe: marcado(MENSAGEM_SEM_CONSENTIMENTO_DE_FE),
         faixaEtaria: faixaEtaria.optional(),
@@ -485,7 +523,7 @@ export function registrarRotasDeAutenticacao(
 
   app.post('/api/auth/primeiro-acesso/iniciar', async (pedido, resposta) => {
     limitar(lim.primeiroAcessoIp, ip(pedido), resposta)
-    const corpo = validar(z.object({ token }), pedido.body)
+    const corpo = validar(z.object({ token: tokenDePrimeiroAcesso }), pedido.body)
     return iniciarPrimeiroAcesso(d, corpo.token)
   })
 
@@ -493,7 +531,7 @@ export function registrarRotasDeAutenticacao(
     limitar(lim.primeiroAcessoIp, ip(pedido), resposta)
     const corpo = validar(
       z.object({
-        token,
+        token: tokenDePrimeiroAcesso,
         senha,
         codigo: z
           .string()

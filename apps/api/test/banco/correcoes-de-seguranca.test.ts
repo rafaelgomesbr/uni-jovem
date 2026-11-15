@@ -181,6 +181,8 @@ describe('M2: inscrição pública repetida não entrega o código', () => {
     })
   const codigoDe = (corpo: string) => corpo.match(/Código: <strong>([0-9A-F]{10})<\/strong>/)![1]!
 
+  // D45 (0021): a repetição agora é WhatsApp mais nome, e a página diz que a
+  // pessoa já está inscrita (409). Continua sem código, QR, estado e link.
   it('a repetição não tem código nem estado e é igual para qualquer pessoa; o código volta só com o token', async () => {
     const idPublico = (
       await b.dono.query<{ id_publico: string }>(
@@ -201,20 +203,20 @@ describe('M2: inscrição pública repetida não entrega o código', () => {
     const repConfirmada = await inscrever(idPublico, '11981110001')
     const repEspera = await inscrever(idPublico, '(11) 98111-0002')
     for (const r of [repConfirmada, repEspera]) {
-      expect(r.statusCode).toBe(200)
+      expect(r.statusCode).toBe(409)
+      expect(r.body).toContain('já está inscrita')
       for (const codigo of codigos) expect(r.body).not.toContain(codigo)
       expect(r.body).not.toContain('<svg')
-      expect(r.body).not.toMatch(/confirmada|lista de espera|já estava|cancelar#t=/i)
+      expect(r.body).not.toMatch(/confirmada|lista de espera|cancelar#t=/i)
     }
-    // Nada na resposta diz de quem é a inscrição nem em que estado ela está.
-    expect(repConfirmada.body).toBe(repEspera.body)
-    // O mesmo aviso genérico aparece também no caso novo.
-    expect(confirmada.body).toContain('Se este WhatsApp já tinha inscrição neste evento')
-    expect(repConfirmada.body).toContain('Se este WhatsApp já tinha inscrição neste evento')
+    // Nada na resposta diz em que estado a inscrição está (confirmada ou espera).
+    expect(repConfirmada.body.replace(/value="[^"]*"/g, '')).toBe(
+      repEspera.body.replace(/value="[^"]*"/g, ''),
+    )
 
     // No banco, a repetição também não devolve código nem estado.
     const direto = await b.api.query(
-      `select * from uj.inscrever_publico($1, 'Outra Pessoa', '+5511981110001', null,
+      `select * from uj.inscrever_publico($1, ' visitante ', '+5511981110001', null,
                                           sha256('x'::bytea), 'TC-04', 1, true)`,
       [idPublico],
     )

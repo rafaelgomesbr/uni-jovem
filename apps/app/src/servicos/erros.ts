@@ -45,6 +45,9 @@ export class SemConexao extends Error {
 
 export const MENSAGEM_GENERICA = 'Algo deu errado. Tente de novo em instantes.'
 
+/** 429 ao abrir o app (renovar a sessão) num encontro com muita gente na mesma rede (D44). */
+export const MENSAGEM_MUITA_GENTE = 'Muita gente entrando agora. Tente de novo em instantes.'
+
 /**
  * Erro do próprio aparelho com texto pronto para a tela (ex.: ação sem
  * internet num evento que não foi preparado para uso offline).

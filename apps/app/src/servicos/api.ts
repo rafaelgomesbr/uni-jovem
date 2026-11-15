@@ -31,6 +31,11 @@ export interface OpcoesDoPedido {
   autenticado?: boolean
   /** Cancela o pedido (ex.: long polling ao sair da tela). Cancelado não vira "sem conexão". */
   sinal?: AbortSignal
+  /**
+   * Tempo limite deste pedido, em ms. Padrão: `TEMPO_LIMITE_MS`; long polling
+   * (`depoisDaVersao=`) e envio grande ganham mais (ver `tempoLimitePara`).
+   */
+  tempoLimiteMs?: number
   /** `texto`: devolve o corpo cru (ex.: CSV de uma exportação). Padrão: JSON. */
   formato?: 'json' | 'texto'
 }
@@ -48,7 +53,7 @@ export interface OpcoesDoCliente {
 
 export interface ClienteDaApi {
   pedir<T>(caminho: string, opcoes?: OpcoesDoPedido): Promise<T>
-  get<T>(caminho: string, opcoes?: Pick<OpcoesDoPedido, 'sinal'>): Promise<T>
+  get<T>(caminho: string, opcoes?: Pick<OpcoesDoPedido, 'sinal' | 'tempoLimiteMs'>): Promise<T>
   post<T>(
     caminho: string,
     corpo?: unknown,
@@ -77,6 +82,24 @@ export interface ClienteDaApi {
 }
 
 const SESSAO_ENCERRADA = new Set(['sessao_invalida', 'nao_autenticado'])
+
+/**
+ * A6: tempo limite de um pedido comum. O `fetch` do React Native não tem um
+ * útil: em Wi-Fi de igreja ou 4G fraco o pedido ficava pendurado, com a tela
+ * carregando e o botão girando para sempre. Estourou: vira `SemConexao`.
+ */
+export const TEMPO_LIMITE_MS = 20_000
+/** O ao vivo segura a resposta até 25 s no servidor (long polling). */
+export const TEMPO_LIMITE_LONG_POLLING_MS = 40_000
+/** Foto e logotipo vão em base64 (até cerca de 2,7 MB): subida lenta no 4G. */
+export const TEMPO_LIMITE_ENVIO_GRANDE_MS = 60_000
+const ENVIO_GRANDE_CARACTERES = 256 * 1024
+
+function tempoLimitePara(caminho: string, corpo: string | undefined): number {
+  if (caminho.includes('depoisDaVersao=')) return TEMPO_LIMITE_LONG_POLLING_MS
+  if (corpo && corpo.length > ENVIO_GRANDE_CARACTERES) return TEMPO_LIMITE_ENVIO_GRANDE_MS
+  return TEMPO_LIMITE_MS
+}
 
 /** Remove a barra final para que `${base}/api/...` nunca vire `//api`. */
 function normalizarBase(base: string): string {
@@ -145,19 +168,46 @@ export function criarClienteDaApi(opcoes: OpcoesDoCliente): ClienteDaApi {
   let acesso: string | null = null
   let renovacaoEmCurso: Promise<boolean> | null = null
 
-  async function chamar(caminho: string, init: RequestInit): Promise<Response> {
+  /**
+   * Faz o pedido e lê o corpo com `ler`, tudo dentro do tempo limite (o corpo
+   * também pode travar no meio). O sinal do chamador continua valendo: se ELE
+   * cancelar, o erro de cancelamento sobe como está, não como "sem conexão".
+   */
+  async function chamar<T>(
+    caminho: string,
+    init: Omit<RequestInit, 'signal'> & { sinal?: AbortSignal | undefined; tempoLimiteMs?: number },
+    ler: (resposta: Response) => Promise<T>,
+  ): Promise<{ resposta: Response; corpo: T }> {
     const executar = opcoes.fetch ?? globalThis.fetch
+    const { sinal, tempoLimiteMs, ...resto } = init
+    const corpoEnviado = typeof resto.body === 'string' ? resto.body : undefined
+    const limite = tempoLimiteMs ?? tempoLimitePara(caminho, corpoEnviado)
+    // AbortSignal.any e AbortSignal.timeout não existem em todo Hermes: junta à mão.
+    const controle = new AbortController()
+    const repassar = () => controle.abort()
+    if (sinal?.aborted) controle.abort()
+    else sinal?.addEventListener('abort', repassar)
+    let estourou = false
+    const relogio = setTimeout(() => {
+      estourou = true
+      controle.abort()
+    }, limite)
     try {
-      return await executar(`${base}${caminho}`, {
-        ...init,
+      const resposta = await executar(`${base}${caminho}`, {
+        ...resto,
+        signal: controle.signal,
         // Mesma origem na web: o cookie de refresh só viaja para /api/auth.
         ...(ehWeb ? { credentials: 'include' as const } : {}),
       })
+      return { resposta, corpo: await ler(resposta) }
     } catch (erro) {
       // Cancelado de propósito (ex.: saiu da tela): não é falta de rede.
-      if (init.signal?.aborted) throw erro
-      // fetch só rejeita quando não chegou resposta nenhuma: rede fora ou servidor inalcançável.
+      if (sinal?.aborted && !estourou) throw erro
+      // Sem resposta nenhuma (rede fora, servidor inalcançável) ou tempo esgotado.
       throw new SemConexao()
+    } finally {
+      clearTimeout(relogio)
+      sinal?.removeEventListener('abort', repassar)
     }
   }
 
@@ -177,15 +227,18 @@ export function criarClienteDaApi(opcoes: OpcoesDoCliente): ClienteDaApi {
       if (!refresh) return false
       corpo = { refresh }
     }
-    const resposta = await chamar('/api/auth/renovar', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        ...(ehWeb ? { 'x-uj-csrf': '1' } : {}),
+    const { resposta, corpo: dados } = await chamar(
+      '/api/auth/renovar',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          ...(ehWeb ? { 'x-uj-csrf': '1' } : {}),
+        },
+        body: JSON.stringify(corpo),
       },
-      body: JSON.stringify(corpo),
-    })
-    const dados = await lerCorpo(resposta)
+      lerCorpo,
+    )
     if (resposta.status === 401) {
       await esquecerSessao()
       return false
@@ -222,13 +275,17 @@ export function criarClienteDaApi(opcoes: OpcoesDoCliente): ClienteDaApi {
       if (op.corpo !== undefined) headers['content-type'] = 'application/json'
       if (autenticado && acessoUsado) headers.authorization = `Bearer ${acessoUsado}`
 
-      const resposta = await chamar(caminho, {
-        method: metodo,
-        headers,
-        ...(op.corpo !== undefined ? { body: JSON.stringify(op.corpo) } : {}),
-        ...(op.sinal ? { signal: op.sinal } : {}),
-      })
-      const texto = await resposta.text()
+      const { resposta, corpo: texto } = await chamar(
+        caminho,
+        {
+          method: metodo,
+          headers,
+          ...(op.corpo !== undefined ? { body: JSON.stringify(op.corpo) } : {}),
+          ...(op.sinal ? { sinal: op.sinal } : {}),
+          ...(op.tempoLimiteMs !== undefined ? { tempoLimiteMs: op.tempoLimiteMs } : {}),
+        },
+        (r) => r.text(),
+      )
       if (resposta.ok && op.formato === 'texto') return texto as T
       const dados = interpretar(texto)
       if (resposta.ok) return dados as T
@@ -255,22 +312,25 @@ export function criarClienteDaApi(opcoes: OpcoesDoCliente): ClienteDaApi {
     if (!acesso && !(await renovar().catch(() => false))) return null
     for (let tentativa = 0; tentativa < 2; tentativa++) {
       const acessoUsado = acesso
-      const resposta = await chamar(caminho, {
-        method: 'GET',
-        headers: {
-          accept: 'image/*',
-          ...(acessoUsado ? { authorization: `Bearer ${acessoUsado}` } : {}),
+      const lido = await chamar(
+        caminho,
+        {
+          method: 'GET',
+          headers: {
+            accept: 'image/*',
+            ...(acessoUsado ? { authorization: `Bearer ${acessoUsado}` } : {}),
+          },
         },
-      }).catch(() => null)
-      if (!resposta) return null
-      if (resposta.status === 401 && tentativa === 0) {
+        (r) => (r.ok ? comoDataUri(r) : Promise.resolve(null)),
+      ).catch(() => null)
+      if (!lido) return null
+      if (lido.resposta.status === 401 && tentativa === 0) {
         // Acesso vencido: renova uma vez (ou usa o que outro pedido já renovou).
         if (acesso && acesso !== acessoUsado) continue
         if (await renovar().catch(() => false)) continue
         return null
       }
-      if (!resposta.ok) return null
-      return comoDataUri(resposta).catch(() => null)
+      return lido.corpo
     }
     return null
   }
@@ -278,7 +338,11 @@ export function criarClienteDaApi(opcoes: OpcoesDoCliente): ClienteDaApi {
   return {
     pedir,
     baixarImagem,
-    get: (caminho, extra) => pedir(caminho, extra?.sinal ? { sinal: extra.sinal } : {}),
+    get: (caminho, extra) =>
+      pedir(caminho, {
+        ...(extra?.sinal ? { sinal: extra.sinal } : {}),
+        ...(extra?.tempoLimiteMs !== undefined ? { tempoLimiteMs: extra.tempoLimiteMs } : {}),
+      }),
     post: (caminho, corpo, extra) =>
       pedir(caminho, { ...extra, metodo: 'POST', corpo: corpo ?? {} }),
     patch: (caminho, corpo) => pedir(caminho, { metodo: 'PATCH', corpo: corpo ?? {} }),

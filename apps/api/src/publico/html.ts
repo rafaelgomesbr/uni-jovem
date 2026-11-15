@@ -98,6 +98,9 @@ label{display:block;font-weight:600;margin:14px 0 6px}input{width:100%;min-heigh
 input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--foco);outline-offset:2px}
 .caixa{display:flex;gap:10px;align-items:flex-start;margin:16px 0}.caixa label{margin:0;font-weight:400}.caixa input{width:24px;min-height:24px;margin-top:2px}
 button,.botao{display:inline-block;min-height:48px;padding:12px 20px;border:0;border-radius:14px;background:var(--prim);color:var(--sobreprim);font-weight:700;font-size:1rem;text-decoration:none;cursor:pointer}
+.secundario{background:transparent;color:var(--texto);border:2px solid var(--prim)}
+.acoes{display:flex;flex-direction:column;align-items:stretch;gap:12px;margin:16px 0}.acoes form{margin:0}.acoes .botao,.acoes button{width:100%;text-align:center}
+.print{font-weight:700;font-size:1.15rem;border-left:4px solid var(--prim);padding:4px 12px;margin:16px 0}
 .isca{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
 .qr{background:#fff;padding:12px;border-radius:12px;display:inline-block}.qr svg{width:200px;height:200px}
 .rodape{text-align:center;color:var(--suave);font-size:.85rem;padding:24px 16px}.rodape a{color:var(--suave)}
