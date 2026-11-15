@@ -15,6 +15,8 @@ export default tseslint.config(
       '**/.expo/**',
       '**/*.d.ts',
       'apps/app/**',
+      // Prévia local: web exportada e banco gerados (ignorada pelo git).
+      '.previa/**',
     ],
   },
   js.configs.recommended,

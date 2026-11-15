@@ -23,6 +23,8 @@ service-account*.json
 # Saídas locais
 tmp/
 .dados-dev/
+# Prévia local (scripts/previa): banco, web exportada, segredos e contas fictícias.
+.previa/
 test-results/
 playwright-report/
 

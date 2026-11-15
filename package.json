@@ -23,6 +23,7 @@
     "dev:api": "npm run dev --workspace @uj/api",
     "gerar:matriz": "tsx scripts/gerar-matriz.ts",
     "criador:iniciar": "tsx apps/api/src/cli/criador-iniciar.ts",
+    "previa": "node --import tsx scripts/previa/index.ts",
     "test:app": "npm test --workspace @uj/app"
   },
   "devDependencies": {
