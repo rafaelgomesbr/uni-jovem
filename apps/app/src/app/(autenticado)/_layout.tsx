@@ -85,6 +85,7 @@ export default function LayoutAutenticado() {
         <Stack.Screen name="versiculo/traducao" options={{ title: 'Sobre a tradução' }} />
         <Stack.Screen name="missao" options={{ title: 'Mapa da missão' }} />
         <Stack.Screen name="privacidade" options={{ title: 'Privacidade' }} />
+        <Stack.Screen name="pendencias" options={{ title: 'Pendências' }} />
         <Stack.Screen name="excluir-conta" options={{ title: 'Excluir conta' }} />
       </Stack>
     </>

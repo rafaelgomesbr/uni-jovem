@@ -46,13 +46,19 @@ jest.mock('expo-camera', () => {
   }
 })
 
-// Chave de idempotência previsível e sem módulo nativo.
+// Chave de idempotência previsível e sem módulo nativo. Bytes aleatórios vêm do Node.
 jest.mock('expo-crypto', () => {
   let n = 0
+  const { randomBytes } = require('node:crypto')
   return {
     randomUUID: jest.fn(() => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`),
+    getRandomBytes: jest.fn((quantos: number) => new Uint8Array(randomBytes(quantos))),
+    getRandomBytesAsync: jest.fn(async (quantos: number) => new Uint8Array(randomBytes(quantos))),
   }
 })
+
+// Banco local: SQL de verdade (SQLite do Node) com a chave do SQLCipher simulada.
+jest.mock('expo-sqlite', () => require('./src/testes/sqliteFalso'))
 
 // Notificações do sistema: permissão ainda não perguntada, nada agendado.
 jest.mock('expo-notifications', () => {

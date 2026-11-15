@@ -6,7 +6,7 @@ import { AccessibilityInfo, View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
 import type { ComandoDoAoVivo, RetratoAoVivo } from '@/servicos/contratoDosEventos'
-import { ehErroDaApi } from '@/servicos/erros'
+import { ehErroDaApi, SemConexao } from '@/servicos/erros'
 import { confirmar } from '@/utilidades/confirmar'
 import {
   falarCronometro,
@@ -29,6 +29,8 @@ import { useTema } from '@/ui/tema'
 import { useFusoDaComunidade } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
 import { SemComunidade } from '../navegacao/SemComunidade'
+import { useEstaOnline } from '../offline/ProvedorOffline'
+import { useAoVivoLocal } from '../offline/useAoVivoLocal'
 import {
   calcularTempo,
   CONTROLES_POR_SITUACAO,
@@ -55,6 +57,27 @@ export function TelaAoVivo() {
 
 export function AoVivo({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: string }) {
   const { retrato, conexao, aviso, comandar } = useAoVivo(comunidadeId, eventoId)
+  const online = useEstaOnline()
+  const local = useAoVivoLocal(eventoId, retrato.data ?? null)
+  const semRede =
+    !online ||
+    (retrato.isPending && retrato.fetchStatus === 'paused') ||
+    retrato.error instanceof SemConexao
+  // Sem conexão: o andamento conhecido + os comandos deste aparelho ("só neste aparelho").
+  if (semRede && local.retrato) {
+    return (
+      <Painel
+        r={local.retrato}
+        conexao="so_neste_aparelho"
+        aviso={null}
+        comandar={(comando) => {
+          if (comando !== 'assumir' && comando !== 'liberar') local.comandar(comando)
+        }}
+        enviando={local.enviando}
+        erro={local.erro}
+      />
+    )
+  }
   if (retrato.isPending) {
     return (
       <Tela cabecalhoNativo>
@@ -115,7 +138,8 @@ const ICONE_DO_CONTROLE: Readonly<Record<ControleDoAoVivo, NomeDoIcone>> = {
 interface PropsDoPainel {
   /** `recebidoEm` vem do `useAoVivo`; sem ele, usa o relógio do aparelho. */
   r: RetratoAoVivo & { recebidoEm?: number }
-  conexao: 'ao_vivo' | 'reconectando'
+  /** `so_neste_aparelho`: sem conexão, comandos guardados como proposta (F13). */
+  conexao: 'ao_vivo' | 'reconectando' | 'so_neste_aparelho'
   aviso: string | null
   comandar: (comando: ComandoDoAoVivo, forcar?: boolean) => void
   enviando: ComandoDoAoVivo | null
@@ -136,7 +160,8 @@ function Painel({ r, conexao, aviso, comandar, enviando, erro }: PropsDoPainel) 
   const desvioMs = r.recebidoEm === undefined ? 0 : Date.parse(r.agora) - r.recebidoEm
   const t = calcularTempo(r, agora + desvioMs)
   const conduz = pode('ao_vivo', 'conduzir')
-  const outroConduz = r.condutor !== null && !r.souCondutor
+  const local = conexao === 'so_neste_aparelho'
+  const outroConduz = !local && r.condutor !== null && !r.souCondutor
 
   // Avisa o leitor de tela quando a etapa muda (o resto da tela não é lido sozinho).
   const idAtual = t.atual?.id
@@ -184,12 +209,24 @@ function Painel({ r, conexao, aviso, comandar, enviando, erro }: PropsDoPainel) 
           <Selo texto={NOME_DA_SITUACAO[r.situacao]} cor="texto" />
           <Selo
             texto={
-              conexao === 'ao_vivo' ? 'Atualizando em tempo real' : 'Sem conexão, tentando de novo'
+              conexao === 'ao_vivo'
+                ? 'Atualizando em tempo real'
+                : local
+                  ? 'Só neste aparelho'
+                  : 'Sem conexão, tentando de novo'
             }
             cor={conexao === 'ao_vivo' ? 'sucesso' : 'alerta'}
           />
         </View>
       </View>
+
+      {local ? (
+        <Aviso tipo="alerta" titulo="Sem conexão: só neste aparelho">
+          {conduz
+            ? 'Os comandos ficam guardados aqui e vão como proposta quando a internet voltar. Se outra pessoa avançou no servidor, você vê as duas linhas do tempo em Pendências e escolhe qual vale.'
+            : 'Este é o andamento da última sincronização. Ele volta a se atualizar quando a internet voltar.'}
+        </Aviso>
+      ) : null}
 
       {aviso ? (
         <Aviso tipo="alerta" titulo="O andamento mudou" anunciar>
@@ -287,11 +324,13 @@ function Painel({ r, conexao, aviso, comandar, enviando, erro }: PropsDoPainel) 
         <View style={{ gap: ESPACO.x3 }}>
           <Texto variante="subtitulo">Condução</Texto>
           <Texto>
-            {r.souCondutor
-              ? 'Você está conduzindo.'
-              : r.condutor
-                ? `${r.condutor.nome ?? 'Outra pessoa'} está conduzindo.`
-                : 'Ninguém está conduzindo. Quem der o próximo comando passa a conduzir.'}
+            {local
+              ? 'Sem conexão: você conduz neste aparelho.'
+              : r.souCondutor
+                ? 'Você está conduzindo.'
+                : r.condutor
+                  ? `${r.condutor.nome ?? 'Outra pessoa'} está conduzindo.`
+                  : 'Ninguém está conduzindo. Quem der o próximo comando passa a conduzir.'}
           </Texto>
           {erro ? <AvisoDeErro erro={erro} /> : null}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x3 }}>
@@ -324,7 +363,7 @@ function Painel({ r, conexao, aviso, comandar, enviando, erro }: PropsDoPainel) 
               )
             })}
           </View>
-          {!r.souCondutor && r.situacao !== 'encerrado' ? (
+          {!local && !r.souCondutor && r.situacao !== 'encerrado' ? (
             <Botao
               titulo="Assumir a condução"
               icone="trocar"
@@ -333,7 +372,7 @@ function Painel({ r, conexao, aviso, comandar, enviando, erro }: PropsDoPainel) 
               aoPressionar={() => void assumir()}
             />
           ) : null}
-          {r.souCondutor && r.situacao !== 'encerrado' ? (
+          {!local && r.souCondutor && r.situacao !== 'encerrado' ? (
             <Botao
               titulo="Liberar a condução"
               variante="discreto"

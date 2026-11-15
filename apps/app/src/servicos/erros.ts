@@ -45,9 +45,25 @@ export class SemConexao extends Error {
 
 export const MENSAGEM_GENERICA = 'Algo deu errado. Tente de novo em instantes.'
 
+/**
+ * Erro do próprio aparelho com texto pronto para a tela (ex.: ação sem
+ * internet num evento que não foi preparado para uso offline).
+ */
+export class ErroLocal extends Error {
+  readonly mensagem: string
+
+  constructor(mensagem: string) {
+    super(mensagem)
+    this.name = 'ErroLocal'
+    this.mensagem = mensagem
+  }
+}
+
 /** Texto humano para qualquer erro que chegue a uma tela. */
 export function mensagemDoErro(erro: unknown): string {
-  if (erro instanceof ErroDaApi || erro instanceof SemConexao) return erro.mensagem
+  if (erro instanceof ErroDaApi || erro instanceof SemConexao || erro instanceof ErroLocal) {
+    return erro.mensagem
+  }
   return MENSAGEM_GENERICA
 }
 

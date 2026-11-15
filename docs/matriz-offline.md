@@ -29,4 +29,4 @@ O que o app faz sem internet, por funcionalidade. Base: plano (seção 7), [ADR 
 ## Onde está no código
 
 - **Servidor:** `apps/api/src/rotas/sincronizacao.ts` (`POST /api/v1/c/:id/sync/operacoes`, `GET .../sync/mudancas?cursor=`, `GET .../eventos/:eventoId/pacote-offline`), `apps/api/migracoes/0013_sincronizacao.sql`; testes em `apps/api/test/banco/sincronizacao.test.ts`.
-- **App:** camada local (SQLCipher por partição, fila, tela Pendências, preparar evento) em construção.
+- **App:** `apps/app/src/funcionalidades/offline/` (SQLCipher com chave por partição no Keychain/Keystore, fila com UUID v7, sincronizador, tela `/pendencias`, indicador no cabeçalho, preparar evento, check-in, tarefas, checklists, ao vivo "só neste aparelho" e intenção de inscrição sem rede). Testes jest: fila idempotente, cada resposta, troca de comunidade sem mistura, partição vencida, logout, oração fora do aparelho. Sem SQLCipher no binário (Expo Go), o modo offline desliga. Ainda não exercitado em aparelho nem em modo avião.

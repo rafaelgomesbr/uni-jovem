@@ -10,6 +10,7 @@ import { ProvedorDeSessao, useSessao } from '@/estado/sessao'
 import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { EstilosDaWeb } from '@/ui/EstilosDaWeb'
 import { useOpcoesDaPilha } from '@/funcionalidades/navegacao/opcoesDaPilha'
+import { ProvedorOffline } from '@/funcionalidades/offline/ProvedorOffline'
 import { ARQUIVOS_DE_FONTE } from '@/ui/fontes'
 import { Tela } from '@/ui/Tela'
 import { useTema } from '@/ui/tema'
@@ -27,8 +28,11 @@ export default function LayoutRaiz() {
   return (
     <QueryClientProvider client={clienteDeConsulta}>
       <ProvedorDeSessao>
-        {/* Sem a fonte, o app segue com a do sistema: melhor que travar na abertura. */}
-        <Navegacao fontesProntas={fontesCarregadas || erroDeFonte !== null} />
+        {/* Camada offline (F13): fica acima da navegação para sobreviver à troca de conta. */}
+        <ProvedorOffline>
+          {/* Sem a fonte, o app segue com a do sistema: melhor que travar na abertura. */}
+          <Navegacao fontesProntas={fontesCarregadas || erroDeFonte !== null} />
+        </ProvedorOffline>
       </ProvedorDeSessao>
     </QueryClientProvider>
   )

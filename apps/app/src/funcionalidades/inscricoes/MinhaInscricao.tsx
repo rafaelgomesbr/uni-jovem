@@ -5,15 +5,19 @@ import { View } from 'react-native'
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { api } from '@/servicos/api'
 import type { DetalheDoEvento, MinhaInscricao as Inscricao } from '@/servicos/contratoDosEventos'
+import { SemConexao } from '@/servicos/erros'
 import { confirmar } from '@/utilidades/confirmar'
+import { Aviso } from '@/ui/Aviso'
 import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { Botao } from '@/ui/Botao'
 import { CodigoQR } from '@/ui/CodigoQR'
 import { Selo } from '@/ui/Selo'
 import { Texto } from '@/ui/Texto'
 
+import { useMeuVinculo } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
 import { naComunidade, useInvalidarEventos } from '../eventos/consultas'
+import { useOffline, usePacoteDoEvento } from '../offline/ProvedorOffline'
 import { EXPLICACAO_SEM_INSCRICAO, motivoSemInscricao } from '../eventos/regras'
 import { COR_DO_ESTADO_DA_INSCRICAO, formatarCodigo, NOME_DO_ESTADO_DA_INSCRICAO } from './nomes'
 
@@ -40,10 +44,44 @@ export function MinhaInscricao({ evento, comunidadeId }: Props) {
     staleTime: Infinity,
   }).data
 
+  const offline = useOffline()
+  const euOnline = useMeuVinculo()
+  const vinculoDoPacote = usePacoteDoEvento(evento.id).data?.pacote.vinculoId ?? null
+  // Intenção registrada sem internet: "pendente, vaga não garantida" até o servidor confirmar.
+  const intencao =
+    offline.operacoes.find((o) => o.tipo === 'inscricao.intencao' && o.eventoId === evento.id) ??
+    null
+
+  async function guardarIntencao(): Promise<null> {
+    await offline.registrar(
+      {
+        tipo: 'inscricao.intencao',
+        dados: { eventoId: evento.id },
+        eventoId: evento.id,
+        descricao: `Inscrição em "${evento.titulo}"`,
+      },
+      { vinculoId: euOnline ?? vinculoDoPacote },
+    )
+    return null
+  }
+
   const inscrever = useMutation({
-    mutationFn: () =>
-      api.post<Inscricao>(`${naComunidade(comunidadeId)}/eventos/${evento.id}/inscricoes/eu`),
-    onSuccess: (r) => consultas.setQueryData(chave, r),
+    mutationFn: async (): Promise<Inscricao | null> => {
+      if (!offline.online && offline.disponivel) return guardarIntencao()
+      try {
+        return await api.post<Inscricao>(
+          `${naComunidade(comunidadeId)}/eventos/${evento.id}/inscricoes/eu`,
+        )
+      } catch (erro) {
+        if (erro instanceof SemConexao && offline.disponivel) return guardarIntencao()
+        throw erro
+      }
+    },
+    // Sem rede ela ainda roda: guarda a intenção neste aparelho.
+    networkMode: 'always',
+    onSuccess: (r) => {
+      if (r) consultas.setQueryData(chave, r)
+    },
   })
   const cancelar = useMutation({
     mutationFn: (id: string) => api.post(`${naComunidade(comunidadeId)}/inscricoes/${id}/cancelar`),
@@ -101,9 +139,32 @@ export function MinhaInscricao({ evento, comunidadeId }: Props) {
     )
   }
 
+  if (intencao?.estado === 'pendente') {
+    return (
+      <View style={{ gap: ESPACO.x2 }}>
+        <Selo texto="Pendente: vaga não garantida" cor="alerta" />
+        <Texto variante="apoio">
+          Sua inscrição foi anotada neste aparelho, sem internet. A vaga só fica garantida quando o
+          servidor confirmar, assim que a conexão voltar.
+        </Texto>
+      </View>
+    )
+  }
+
   return (
     <View style={{ gap: ESPACO.x2 }}>
+      {intencao ? (
+        <Aviso tipo="alerta" titulo="A inscrição feita sem internet não entrou">
+          {`${intencao.mensagem ?? 'O servidor não confirmou a vaga.'} Veja em Pendências.`}
+        </Aviso>
+      ) : null}
       {inscrever.error ? <AvisoDeErro erro={inscrever.error} /> : null}
+      {!offline.online && offline.disponivel && motivo === null ? (
+        <Texto variante="apoio">
+          Sem internet: a inscrição fica anotada neste aparelho e a vaga só é garantida quando o
+          servidor confirmar.
+        </Texto>
+      ) : null}
       <Botao
         titulo="Inscrever-me"
         icone="inscricoes"

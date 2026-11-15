@@ -27,7 +27,7 @@ import type {
   RespostaEu,
   SessaoAberta,
 } from '@/servicos/contrato'
-import { ErroDaApi } from '@/servicos/erros'
+import { ErroDaApi, SemConexao } from '@/servicos/erros'
 
 import {
   aoEncerrarSessao as ganchosDeEncerramento,
@@ -35,6 +35,7 @@ import {
 } from './aoEncerrarSessao'
 import { CHAVES } from './clienteDeConsulta'
 import { gravarComunidadeAtiva, lerComunidadeAtiva } from './comunidadeAtivaSalva'
+import { apagarContaSalva, gravarContaSalva, lerContaSalva } from './contaSalva'
 
 export type EstadoDaSessao = 'carregando' | 'anonimo' | 'autenticado'
 export type ResultadoDeEntrar = 'pronto' | 'segundo_fator'
@@ -90,7 +91,11 @@ export function ProvedorDeSessao({
     if (encerrada.current) {
       return Promise.reject(new ErroDaApi(401, 'nao_autenticado', 'Entre para continuar.'))
     }
-    return cliente.get<RespostaEu>('/api/v1/eu')
+    return cliente.get<RespostaEu>('/api/v1/eu').then(async (dados) => {
+      // Guarda para abrir sem internet; resposta que chega depois de sair não volta ao disco.
+      if (!encerrada.current) await gravarContaSalva(dados)
+      return dados
+    })
   }
   const eu = useQuery({ queryKey: CHAVES.eu, queryFn: buscarEu, enabled: fase === 'conectado' })
 
@@ -99,6 +104,7 @@ export function ProvedorDeSessao({
       encerrada.current = true
       const contaId = consultas.getQueryData<RespostaEu>(CHAVES.eu)?.conta.id ?? null
       await cliente.encerrarSessao()
+      await apagarContaSalva()
       consultas.clear()
       setDesafio(null)
       setPreferida(null)
@@ -110,10 +116,27 @@ export function ProvedorDeSessao({
 
   async function carregarConta(): Promise<void> {
     encerrada.current = false
-    const dados = await consultas.fetchQuery({ queryKey: CHAVES.eu, queryFn: buscarEu })
+    // `always`: sem rede, o pedido falha na hora (e o app abre com a conta salva) em vez de
+    // ficar pausado esperando a conexão.
+    const dados = await consultas.fetchQuery({
+      queryKey: CHAVES.eu,
+      queryFn: buscarEu,
+      networkMode: 'always',
+    })
     setPreferida(await lerComunidadeAtiva(dados.conta.id))
     encerramento.current = null
     setFase('conectado')
+  }
+
+  async function abrirSemRede(): Promise<boolean> {
+    const salva = await lerContaSalva()
+    if (!salva) return false
+    encerrada.current = false
+    consultas.setQueryData(CHAVES.eu, salva)
+    setPreferida(await lerComunidadeAtiva(salva.conta.id))
+    encerramento.current = null
+    setFase('conectado')
+    return true
   }
 
   async function iniciar(): Promise<void> {
@@ -130,6 +153,10 @@ export function ProvedorDeSessao({
         setFase('anonimo')
         return
       }
+      // Sem rede, com sessão guardada: abre com a última conta conhecida (F13).
+      // Quando a rede voltar, o primeiro pedido renova o acesso; se a sessão
+      // tiver sido revogada, a API responde 401 e o app sai e apaga tudo.
+      if (erro instanceof SemConexao && (await abrirSemRede())) return
       setFalhaAoIniciar(erro instanceof Error ? erro : new Error(String(erro)))
     }
   }

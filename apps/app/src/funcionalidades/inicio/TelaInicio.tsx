@@ -24,6 +24,8 @@ import { CartaoDaEscala } from '../escalas/CartaoDaEscala'
 import { naComunidade } from '../eventos/consultas'
 import { LinhaDoEvento } from '../eventos/LinhaDoEvento'
 import { useMudancaNoEvento } from '../eventos/mutacoes'
+import { EventosPreparados } from '../offline/EventosPreparados'
+import { useEstaOnline } from '../offline/ProvedorOffline'
 import { CartaoDaMissao } from '../onboarding/CartaoDaMissao'
 import { CartaoDoVersiculo } from '../versiculo/CartaoDoVersiculo'
 import { AvisosDoInicio } from './AvisosDoInicio'
@@ -69,17 +71,35 @@ function Inicio({
   const pode = usePode()
   const fuso = useFusoDaComunidade()
   const inicio = useInicio(comunidadeId)
+  const online = useEstaOnline()
   const podeCriar = pode('evento', 'criar')
 
+  // Sem conexão e sem nada carregado: o que está preparado neste aparelho abre na hora.
+  if (inicio.isPending && inicio.fetchStatus === 'paused') {
+    return (
+      <>
+        <Aviso tipo="alerta" titulo="Sem conexão">
+          O Início aparece quando a internet voltar. Os eventos preparados abrem agora.
+        </Aviso>
+        <EventosPreparados />
+      </>
+    )
+  }
   if (inicio.isPending) return <Carregando texto={`Carregando ${nomeDaComunidade}`} />
   if (inicio.error) {
-    return <AvisoDeErro erro={inicio.error} aoTentarDeNovo={() => void inicio.refetch()} />
+    return (
+      <>
+        <AvisoDeErro erro={inicio.error} aoTentarDeNovo={() => void inicio.refetch()} />
+        <EventosPreparados />
+      </>
+    )
   }
   const d = inicio.data
 
   return (
     <>
       <Texto cor="textoSuave">Isto é o que está acontecendo em {nomeDaComunidade}.</Texto>
+      {online ? null : <EventosPreparados />}
 
       <AvisosDoInicio avisos={d.avisos ?? []} podePublicar={pode('aviso', 'publicar')} />
 

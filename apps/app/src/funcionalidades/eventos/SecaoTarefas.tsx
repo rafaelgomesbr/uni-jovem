@@ -21,12 +21,22 @@ import { Texto } from '@/ui/Texto'
 import { useMeuVinculo } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
 import { SeletorDePessoa } from '../comunidade/SeletorDePessoa'
+import { useMarcarNoEvento } from '../offline/acoes'
+import { MENSAGEM_EXIGE_CONEXAO } from '../offline/mensagens'
+import type { ModoLocal } from '../offline/vistaLocal'
 import { useMudancaNoEvento, useRemocaoNoEvento } from './mutacoes'
 
 interface Props {
   evento: DetalheDoEvento
   comunidadeId: string
 }
+
+interface PropsDaSecao extends Props {
+  /** Cópia preparada, sem conexão: só marcar; criar e remover exigem internet. */
+  local?: ModoLocal
+}
+
+const PENDENTE = 'Pendente de envio: feito neste aparelho, vai quando a internet voltar'
 
 const MOTIVO_SO_RESPONSAVEL = 'Só quem é responsável ou a organização marca este item.'
 
@@ -41,16 +51,15 @@ function descricaoDaTarefa(t: Tarefa, fuso: string): string {
 }
 
 /** Tarefas do evento. A própria pessoa conclui as suas; a organização gerencia todas. */
-export function SecaoTarefas({ evento, comunidadeId }: Props) {
+export function SecaoTarefas({ evento, comunidadeId, local }: PropsDaSecao) {
   const pode = usePode()
-  const eu = useMeuVinculo()
+  const euOnline = useMeuVinculo()
+  const eu = local ? local.eu : euOnline
   const gerenciar = pode('tarefa', 'gerenciar')
-  const concluir = useMudancaNoEvento(
-    comunidadeId,
-    evento.id,
-    (base, v: { id: string; concluida: boolean }) =>
-      api.patch(`${base}/tarefas/${v.id}`, { concluida: v.concluida }),
-  )
+  const concluir = useMarcarNoEvento(comunidadeId, evento.id, 'tarefa', {
+    local: local !== undefined,
+    eu,
+  })
   const remover = useRemocaoNoEvento(comunidadeId, evento.id)
   if (!gerenciar && evento.tarefas.length === 0) return null
 
@@ -70,12 +79,14 @@ export function SecaoTarefas({ evento, comunidadeId }: Props) {
               <View key={t.id} style={{ gap: ESPACO.x1 }}>
                 <CaixaDeMarcar
                   rotulo={t.titulo}
-                  descricao={`${descricaoDaTarefa(t, evento.fuso)}${podeMarcar ? '' : `. ${MOTIVO_SO_RESPONSAVEL}`}`}
+                  descricao={`${descricaoDaTarefa(t, evento.fuso)}${podeMarcar ? '' : `. ${MOTIVO_SO_RESPONSAVEL}`}${local?.pendentes.has(t.id) ? `. ${PENDENTE}` : ''}`}
                   marcada={t.concluidaEm !== null}
                   desabilitada={!podeMarcar || concluir.isPending}
-                  aoMudar={(marcada) => concluir.mutate({ id: t.id, concluida: marcada })}
+                  aoMudar={(marcada) =>
+                    concluir.mutate({ id: t.id, valor: marcada, rotulo: t.titulo })
+                  }
                 />
-                {gerenciar ? (
+                {gerenciar && !local ? (
                   <Botao
                     titulo="Remover"
                     variante="discreto"
@@ -93,7 +104,17 @@ export function SecaoTarefas({ evento, comunidadeId }: Props) {
       {(concluir.error ?? remover.error) ? (
         <AvisoDeErro erro={concluir.error ?? remover.error} />
       ) : null}
-      {gerenciar ? <NovaTarefa evento={evento} comunidadeId={comunidadeId} /> : null}
+      {gerenciar && !local ? <NovaTarefa evento={evento} comunidadeId={comunidadeId} /> : null}
+      {gerenciar && local ? (
+        <Botao
+          titulo="Adicionar tarefa"
+          icone="adicionar"
+          variante="secundario"
+          desabilitado
+          motivo={`${MENSAGEM_EXIGE_CONEXAO} Sem internet, dá para concluir e reabrir.`}
+          aoPressionar={() => undefined}
+        />
+      ) : null}
     </Cartao>
   )
 }
@@ -173,7 +194,7 @@ function NovaTarefa({ evento, comunidadeId }: Props) {
 }
 
 /** Materiais: qualquer pessoa marca "providenciado"; a organização cadastra. */
-export function SecaoMateriais({ evento, comunidadeId }: Props) {
+export function SecaoMateriais({ evento, comunidadeId, local }: PropsDaSecao) {
   const pode = usePode()
   const gerenciar = pode('material', 'gerenciar')
   const marcar = useMudancaNoEvento(
@@ -206,12 +227,12 @@ export function SecaoMateriais({ evento, comunidadeId }: Props) {
             <View key={m.id} style={{ gap: ESPACO.x1 }}>
               <CaixaDeMarcar
                 rotulo={m.nome}
-                descricao={descrever(m)}
+                descricao={`${descrever(m)}${local ? `. ${MENSAGEM_EXIGE_CONEXAO}` : ''}`}
                 marcada={m.providenciadoEm !== null}
-                desabilitada={marcar.isPending}
+                desabilitada={marcar.isPending || local !== undefined}
                 aoMudar={(marcada) => marcar.mutate({ id: m.id, providenciado: marcada })}
               />
-              {gerenciar ? (
+              {gerenciar && !local ? (
                 <Botao
                   titulo="Remover"
                   variante="discreto"
@@ -228,7 +249,7 @@ export function SecaoMateriais({ evento, comunidadeId }: Props) {
       {(marcar.error ?? remover.error) ? (
         <AvisoDeErro erro={marcar.error ?? remover.error} />
       ) : null}
-      {gerenciar ? <NovoMaterial evento={evento} comunidadeId={comunidadeId} /> : null}
+      {gerenciar && !local ? <NovoMaterial evento={evento} comunidadeId={comunidadeId} /> : null}
     </Cartao>
   )
 }

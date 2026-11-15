@@ -126,6 +126,12 @@ export const ITENS_PESSOAIS: readonly ItemDoMais[] = [
     icone: 'missao',
   },
   {
+    href: '/pendencias',
+    rotulo: 'Pendências e uso sem internet',
+    descricao: 'Sincronizar, resolver conflitos e ver o que está guardado no aparelho.',
+    icone: 'sincronizar',
+  },
+  {
     href: '/privacidade',
     rotulo: 'Privacidade e dados',
     descricao: 'Exportar seus dados, documentos e excluir a conta.',

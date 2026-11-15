@@ -1,3 +1,4 @@
+import { useMutation } from '@tanstack/react-query'
 import { ESPACO, RAIO } from '@uj/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
@@ -5,6 +6,7 @@ import { View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
 import type { ListaDeCheckin, Presenca } from '@/servicos/contratoDosEventos'
+import { SemConexao } from '@/servicos/erros'
 import { parametro } from '@/utilidades/parametros'
 import { Aviso } from '@/ui/Aviso'
 import { AvisoDeErro } from '@/ui/AvisoDeErro'
@@ -20,12 +22,17 @@ import { useTema } from '@/ui/tema'
 
 import { usePode } from '../comunidade/permissoes'
 import { SemComunidade } from '../navegacao/SemComunidade'
+import { horaNoAparelho } from '../offline/formatos'
+import { MENSAGEM_SEM_PREPARO } from '../offline/mensagens'
+import { useOffline, usePacoteDoEvento } from '../offline/ProvedorOffline'
+import { listaDeCheckinLocal } from '../offline/vistaLocal'
 import {
   useDesfazerPresenca,
   useListaDeCheckin,
   useMarcarPresenca,
   usePresencas,
   type AlvoDaPresenca,
+  type PedidoDePresenca,
 } from './consultas'
 import { codigoDeEntradaValido } from './nomes'
 
@@ -126,9 +133,31 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
   const [avulso, setAvulso] = useState('')
   const [erroDoCodigo, setErroDoCodigo] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
+  const offline = useOffline()
+  const guardado = usePacoteDoEvento(eventoId).data ?? null
+  const listaLocal = guardado ? listaDeCheckinLocal(guardado.pacote, offline.operacoes) : null
+  const pausada = lista.isPending && lista.fetchStatus === 'paused'
+  const semRede = !offline.online || pausada || lista.error instanceof SemConexao
+  // Sem conexão e com o evento preparado: a lista do aparelho; a presença entra na fila.
+  const usarLocal = semRede && listaLocal !== null
+  const marcarLocal = useMarcarPresencaNoAparelho(eventoId, guardado?.pacote.vinculoId ?? null)
 
   function registrar(alvo: AlvoDaPresenca, nome: string) {
     setAviso(null)
+    if (usarLocal) {
+      marcarLocal.mutate(
+        { alvo, origem: 'manual', nome },
+        {
+          onSuccess: (r) =>
+            setAviso(
+              r.situacao === 'repetida'
+                ? `${nome} já estava anotado neste aparelho.`
+                : `Presença de ${nome} anotada neste aparelho. Vai para o servidor quando a internet voltar.`,
+            ),
+        },
+      )
+      return
+    }
     marcar.mutate(
       { alvo, origem: 'manual', nome },
       {
@@ -140,11 +169,14 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
     )
   }
 
-  const pessoas = lista.data ? montarListaDeCheckin(lista.data) : []
+  const dadosDaLista = usarLocal ? listaLocal : lista.data
+  const pessoas = dadosDaLista ? montarListaDeCheckin(dadosDaLista) : []
   const filtradas = filtrarPorNome(pessoas, busca)
   const visiveis = busca.trim() ? filtradas : filtradas.slice(0, MAXIMO_SEM_BUSCA)
-  const presentes = presencas.data?.total ?? pessoas.filter((p) => p.presente).length
-  const erro = marcar.error ?? desfazer.error
+  const presentes = usarLocal
+    ? pessoas.filter((p) => p.presente).length
+    : (presencas.data?.total ?? pessoas.filter((p) => p.presente).length)
+  const erro = marcar.error ?? desfazer.error ?? marcarLocal.error
 
   return (
     <Tela cabecalhoNativo titulo="Check-in">
@@ -157,6 +189,11 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
         </Aviso>
       ) : null}
       {erro ? <AvisoDeErro erro={erro} /> : null}
+      {usarLocal && listaLocal ? (
+        <Aviso tipo="alerta" titulo="Sem conexão: lista deste aparelho">
+          {`Lista preparada às ${horaNoAparelho(listaLocal.geradoEm)}. As presenças ficam anotadas aqui e vão para o servidor quando a internet voltar, sem duplicar. Desfazer uma presença exige conexão.`}
+        </Aviso>
+      ) : null}
 
       <Cartao titulo="Pela câmera" icone="qr">
         <Botao
@@ -187,7 +224,7 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
               return
             }
             setErroDoCodigo(null)
-            const dono = lista.data?.inscritos.find((i) => i.codigo === valido)
+            const dono = dadosDaLista?.inscritos.find((i) => i.codigo === valido)
             registrar({ codigo: valido }, dono?.nome ?? 'quem tem este código')
             setCodigo('')
           }}
@@ -202,11 +239,16 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
           exemplo="Digite parte do nome"
           autoCorrect={false}
         />
-        {lista.isPending ? (
+        {usarLocal ? null : semRede && !lista.data ? (
+          <Aviso tipo="alerta" titulo="Sem conexão">
+            {MENSAGEM_SEM_PREPARO}
+          </Aviso>
+        ) : lista.isPending ? (
           <Carregando texto="Carregando a lista de entrada" />
         ) : lista.error ? (
           <AvisoDeErro erro={lista.error} aoTentarDeNovo={() => void lista.refetch()} />
-        ) : visiveis.length === 0 ? (
+        ) : null}
+        {(usarLocal || lista.data) && visiveis.length === 0 ? (
           <EstadoVazio
             icone="buscar"
             titulo={pessoas.length ? 'Ninguém com esse nome' : 'Lista vazia'}
@@ -216,7 +258,7 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
                 : 'Ninguém inscrito e nenhum membro ativo. Registre abaixo quem chegou.'
             }
           />
-        ) : (
+        ) : (usarLocal || lista.data) && visiveis.length > 0 ? (
           <View style={{ gap: ESPACO.x2 }}>
             {!busca.trim() && filtradas.length > MAXIMO_SEM_BUSCA ? (
               <Texto variante="apoio" cor="textoSuave">
@@ -250,8 +292,12 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
                       variante="secundario"
                       larguraTotal={false}
                       rotuloAcessivel={`Desfazer a presença de ${p.nome}`}
-                      desabilitado={!presenca}
-                      motivo="Carregando o registro de presença."
+                      desabilitado={usarLocal || !presenca}
+                      motivo={
+                        usarLocal
+                          ? 'Desfazer presença exige conexão com a internet.'
+                          : 'Carregando o registro de presença.'
+                      }
                       carregando={
                         desfazer.isPending && desfazer.variables?.presencaId === presenca?.id
                       }
@@ -270,7 +316,10 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
                       icone="confirmado"
                       larguraTotal={false}
                       rotuloAcessivel={`Marcar presença de ${p.nome}`}
-                      carregando={marcar.isPending && marcar.variables?.nome === p.nome}
+                      carregando={
+                        (marcar.isPending && marcar.variables?.nome === p.nome) ||
+                        (marcarLocal.isPending && marcarLocal.variables?.nome === p.nome)
+                      }
                       aoPressionar={() => registrar(p.alvo, p.nome)}
                     />
                   )}
@@ -278,7 +327,7 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
               )
             })}
           </View>
-        )}
+        ) : null}
       </Cartao>
 
       <Cartao titulo="Chegou sem inscrição" icone="adicionar">
@@ -305,4 +354,26 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
       </Cartao>
     </Tela>
   )
+}
+
+/**
+ * Presença sem conexão: entra na fila deste aparelho com chave própria. A
+ * mesma pessoa marcada de novo não vira outra operação (e o servidor também une).
+ */
+export function useMarcarPresencaNoAparelho(eventoId: string, vinculoId: string | null) {
+  const offline = useOffline()
+  return useMutation({
+    mutationFn: ({ alvo, nome }: PedidoDePresenca) =>
+      offline.registrar(
+        {
+          tipo: 'presenca.registrar',
+          dados: { eventoId, ocorridaEm: new Date().toISOString(), ...alvo },
+          eventoId,
+          descricao: `Presença de ${nome}`,
+          contexto: { nome },
+        },
+        { vinculoId },
+      ),
+    networkMode: 'always',
+  })
 }

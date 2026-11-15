@@ -14,6 +14,8 @@ import { IndicadorDeConexao } from '@/ui/IndicadorDeConexao'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 
+import { AlteracoesDescartadas } from '../offline/AlteracoesDescartadas'
+
 interface ErrosDoFormulario {
   email?: string
   senha?: string
@@ -44,6 +46,7 @@ export function TelaEntrar() {
 
   return (
     <Tela titulo={`Entrar no ${NOME_DO_APP}`} descricao="Use o e-mail e a senha da sua conta.">
+      <AlteracoesDescartadas />
       <IndicadorDeConexao />
       <Cartao>
         <Campo

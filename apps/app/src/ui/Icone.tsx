@@ -86,6 +86,8 @@ export const ICONES = {
   ajuda: { ios: 'questionmark.circle', android: 'help', web: 'help' },
   anonimo: { ios: 'eye.slash', android: 'visibility_off', web: 'visibility_off' },
   celebrar: { ios: 'sparkles', android: 'celebration', web: 'celebration' },
+  sincronizar: { ios: 'arrow.triangle.2.circlepath', android: 'sync', web: 'sync' },
+  guardadoNoAparelho: { ios: 'externaldrive', android: 'offline_pin', web: 'offline_pin' },
 } as const
 
 export type NomeDoIcone = keyof typeof ICONES

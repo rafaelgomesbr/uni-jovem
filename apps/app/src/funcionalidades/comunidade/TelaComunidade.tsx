@@ -20,6 +20,8 @@ import { Selo } from '@/ui/Selo'
 import { Texto } from '@/ui/Texto'
 
 import { TelaDoApp } from '../navegacao/TelaDoApp'
+import { mensagemDePendencias } from '../offline/avisoAntesDeApagar'
+import { useOffline } from '../offline/ProvedorOffline'
 import { useConvites, useMembros } from './consultas'
 import { IdentidadeDaComunidade } from './Identidade'
 import {
@@ -67,19 +69,28 @@ function DetalheDaComunidade({ comunidade }: { comunidade: ComunidadeDoVinculo }
   const consultas = useQueryClient()
   const podeConvidar = pode('convite', 'listar')
 
+  const offline = useOffline()
   const sair = useMutation({
     mutationFn: () => api.post(`/api/v1/c/${comunidade.id}/sair`),
     onSuccess: async () => {
+      // Fora da comunidade, a partição dela sai do aparelho.
+      await offline.apagarComunidade(comunidade.id)
       await consultas.invalidateQueries({ queryKey: CHAVES.eu })
       router.replace('/')
     },
   })
 
   async function pedirParaSair() {
+    const naoEnviadas = await offline.naoEnviadas(comunidade.id)
     const ok = await confirmar({
       titulo: `Sair de ${comunidade.nome}?`,
-      mensagem:
-        'Você deixa de ver a agenda e as programações desta comunidade. Para voltar, vai precisar de um convite novo.',
+      mensagem: `Você deixa de ver a agenda e as programações desta comunidade. Para voltar, vai precisar de um convite novo.${
+        naoEnviadas.length
+          ? `
+
+${mensagemDePendencias(naoEnviadas)}`
+          : ''
+      }`,
       confirmar: `Sair de ${comunidade.nome}`,
       destrutivo: true,
     })

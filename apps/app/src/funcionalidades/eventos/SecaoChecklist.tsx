@@ -18,6 +18,9 @@ import { Texto } from '@/ui/Texto'
 
 import { useMeuVinculo } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
+import { useMarcarNoEvento } from '../offline/acoes'
+import { MENSAGEM_EXIGE_CONEXAO } from '../offline/mensagens'
+import type { ModoLocal } from '../offline/vistaLocal'
 import { useMudancaNoEvento, useRemocaoNoEvento } from './mutacoes'
 import { NOME_DO_CHECKLIST } from './nomes'
 
@@ -29,16 +32,22 @@ interface Props {
 const TIPOS: readonly TipoDeChecklist[] = ['preparacao', 'encerramento']
 
 /** Checklists de preparação e de encerramento, com quem marcou. */
-export function SecaoChecklist({ evento, comunidadeId }: Props) {
+export function SecaoChecklist({
+  evento,
+  comunidadeId,
+  local,
+}: Props & {
+  /** Cópia preparada, sem conexão: só marcar; criar e remover exigem internet. */
+  local?: ModoLocal
+}) {
   const pode = usePode()
-  const eu = useMeuVinculo()
+  const euOnline = useMeuVinculo()
+  const eu = local ? local.eu : euOnline
   const gerenciar = pode('checklist', 'gerenciar')
-  const marcar = useMudancaNoEvento(
-    comunidadeId,
-    evento.id,
-    (base, v: { id: string; marcado: boolean }) =>
-      api.patch(`${base}/checklist/${v.id}`, { marcado: v.marcado }),
-  )
+  const marcar = useMarcarNoEvento(comunidadeId, evento.id, 'checklist', {
+    local: local !== undefined,
+    eu,
+  })
   const remover = useRemocaoNoEvento(comunidadeId, evento.id)
   if (!gerenciar && evento.checklist.length === 0) return null
 
@@ -64,6 +73,9 @@ export function SecaoChecklist({ evento, comunidadeId }: Props) {
                 const descricao = [
                   item.responsavelNome ? `Responsável: ${item.responsavelNome}` : null,
                   podeMarcar ? null : 'Só quem é responsável ou a organização marca este item',
+                  local?.pendentes.has(item.id)
+                    ? 'Pendente de envio: feito neste aparelho, vai quando a internet voltar'
+                    : null,
                 ]
                   .filter(Boolean)
                   .join('. ')
@@ -74,9 +86,11 @@ export function SecaoChecklist({ evento, comunidadeId }: Props) {
                       {...(descricao ? { descricao } : {})}
                       marcada={item.marcadoEm !== null}
                       desabilitada={!podeMarcar || marcar.isPending}
-                      aoMudar={(marcado) => marcar.mutate({ id: item.id, marcado })}
+                      aoMudar={(marcado) =>
+                        marcar.mutate({ id: item.id, valor: marcado, rotulo: item.texto })
+                      }
                     />
-                    {gerenciar ? (
+                    {gerenciar && !local ? (
                       <Botao
                         titulo="Remover"
                         variante="discreto"
@@ -98,7 +112,17 @@ export function SecaoChecklist({ evento, comunidadeId }: Props) {
       {(marcar.error ?? remover.error) ? (
         <AvisoDeErro erro={marcar.error ?? remover.error} />
       ) : null}
-      {gerenciar ? <NovoItem evento={evento} comunidadeId={comunidadeId} /> : null}
+      {gerenciar && !local ? <NovoItem evento={evento} comunidadeId={comunidadeId} /> : null}
+      {gerenciar && local ? (
+        <Botao
+          titulo="Adicionar item ao checklist"
+          icone="adicionar"
+          variante="secundario"
+          desabilitado
+          motivo={`${MENSAGEM_EXIGE_CONEXAO} Sem internet, dá para marcar e desmarcar.`}
+          aoPressionar={() => undefined}
+        />
+      ) : null}
     </Cartao>
   )
 }

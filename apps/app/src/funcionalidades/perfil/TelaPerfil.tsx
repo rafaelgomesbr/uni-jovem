@@ -18,6 +18,8 @@ import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 
 import { usePode } from '../comunidade/permissoes'
+import { mensagemDePendencias } from '../offline/avisoAntesDeApagar'
+import { useOffline } from '../offline/ProvedorOffline'
 import { TelaDoApp } from '../navegacao/TelaDoApp'
 import { MissoesDeConfiguracao } from '../onboarding/MissoesDeConfiguracao'
 import { abrirDocumento, DOCUMENTOS } from '../privacidade/TelaPrivacidade'
@@ -26,18 +28,30 @@ import { abrirDocumento, DOCUMENTOS } from '../privacidade/TelaPrivacidade'
 export function TelaPerfil({ naPilha = false }: { naPilha?: boolean }) {
   const { conta, sair, comunidadeAtiva } = useSessao()
   const pode = usePode()
+  const offline = useOffline()
   const [saindo, setSaindo] = useState(false)
   const Moldura = naPilha ? TelaNaPilha : TelaDoApp
 
   if (!conta) return null
 
   async function pedirParaSair() {
-    const ok = await confirmar({
-      titulo: 'Sair deste aparelho?',
-      mensagem: 'Você vai precisar do e-mail e da senha para entrar de novo.',
-      confirmar: 'Sair',
-      destrutivo: true,
-    })
+    // Sair apaga os dados guardados para uso sem internet: antes, mostra o que não foi enviado.
+    const naoEnviadas = await offline.naoEnviadas()
+    const ok = await confirmar(
+      naoEnviadas.length
+        ? {
+            titulo: 'Sair e apagar o que não foi enviado?',
+            mensagem: mensagemDePendencias(naoEnviadas),
+            confirmar: 'Sair e apagar',
+            destrutivo: true,
+          }
+        : {
+            titulo: 'Sair deste aparelho?',
+            mensagem: 'Você vai precisar do e-mail e da senha para entrar de novo.',
+            confirmar: 'Sair',
+            destrutivo: true,
+          },
+    )
     if (!ok) return
     setSaindo(true)
     await sair()

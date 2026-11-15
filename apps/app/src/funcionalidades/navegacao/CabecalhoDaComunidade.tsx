@@ -7,12 +7,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LARGURA_MAXIMA_DO_CONTEUDO } from '@/constantes'
 import { useSessao } from '@/estado/sessao'
 import { Botao } from '@/ui/Botao'
-import { IndicadorDeConexao } from '@/ui/IndicadorDeConexao'
 import { Texto } from '@/ui/Texto'
 import { Vidro } from '@/ui/Vidro'
 
 import { IdentidadeDaComunidade } from '../comunidade/Identidade'
 import { NOME_DO_ESTADO_DA_COMUNIDADE } from '../comunidade/nomes'
+import { IndicadorDeSincronizacao } from '../offline/IndicadorDeSincronizacao'
 
 /**
  * Faixa flutuante (vidro) com a comunidade ativa SEMPRE visível e o seletor
@@ -77,7 +77,7 @@ export function CabecalhoDaComunidade() {
             />
           ) : null}
         </View>
-        <IndicadorDeConexao />
+        <IndicadorDeSincronizacao />
       </View>
     </Vidro>
   )
