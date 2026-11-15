@@ -9,30 +9,33 @@ import { api } from '@/servicos/api'
 import type { Substituicao } from '@/servicos/contratoDosEventos'
 import { confirmar } from '@/utilidades/confirmar'
 import {
+  DIAS_CURTOS,
   dataDoInstante,
   diaDaSemana,
+  falarQuando,
   formatarDataPorExtenso,
-  formatarQuando,
   hojeNoFuso,
   instanteDeDataEHora,
-  lerDataDigitada,
   somarDias,
   type DataLocal,
 } from '@/utilidades/datas'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { Botao } from '@/ui/Botao'
-import { Campo } from '@/ui/Campo'
-import { Carregando } from '@/ui/Carregando'
-import { Cartao } from '@/ui/Cartao'
+import { CampoDeData } from '@/ui/CampoDeMomento'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
+import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
+import { PilulasDeFiltro } from '@/ui/PilulasDeFiltro'
+import { Secao } from '@/ui/Secao'
 import { Segmentos } from '@/ui/Segmentos'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 
+import { AvisoDeFalha, ErroAoCarregar } from '../agenda/ErroAoCarregar'
 import { useFusoDaComunidade, useMeuVinculo } from '../comunidade/consultas'
 import { naComunidade, useEventosNoPeriodo } from '../eventos/consultas'
 import { SemComunidade } from '../navegacao/SemComunidade'
-import { CartaoDaEscala } from './CartaoDaEscala'
+import { CartaoDaEscala, quandoDaEscala } from './CartaoDaEscala'
 import {
   useDisponibilidade,
   useInvalidarEscalas,
@@ -40,12 +43,19 @@ import {
   useSubstituicoes,
 } from './consultas'
 
-/** Rota `/escalas`: minhas escalas, substituições abertas e disponibilidade por data. */
+type Vista = 'proximas' | 'disponibilidade'
+
+/**
+ * Rota `/escalas` (3.4.5): segmentos "Próximas" (as minhas escalas e os
+ * pedidos de substituição que posso assumir) e "Disponibilidade" (os dias em
+ * que posso ajudar, em pílulas).
+ */
 export function TelaEscalas() {
   const { comunidadeAtiva } = useSessao()
+  const [vista, setVista] = useState<Vista>('proximas')
   if (!comunidadeAtiva) {
     return (
-      <Tela pilha>
+      <Tela pilha titulo="Escalas">
         <SemComunidade oQue="as suas escalas" />
       </Tela>
     )
@@ -53,47 +63,94 @@ export function TelaEscalas() {
   const id = comunidadeAtiva.id
   return (
     <Tela pilha titulo="Escalas" descricao={`Em ${comunidadeAtiva.nome}`}>
-      <MinhasEscalas comunidadeId={id} />
-      <SubstituicoesAbertas comunidadeId={id} />
-      <MinhaDisponibilidade comunidadeId={id} />
+      <Segmentos
+        rotulo="O que mostrar"
+        valor={vista}
+        aoMudar={setVista}
+        segmentos={[
+          { valor: 'proximas', rotulo: 'Próximas' },
+          { valor: 'disponibilidade', rotulo: 'Disponibilidade' },
+        ]}
+      />
+      {vista === 'proximas' ? (
+        <Proximas comunidadeId={id} aoInformar={() => setVista('disponibilidade')} />
+      ) : (
+        <MinhaDisponibilidade comunidadeId={id} />
+      )}
     </Tela>
   )
 }
 
-function MinhasEscalas({ comunidadeId }: { comunidadeId: string }) {
+/**
+ * As minhas escalas e, abaixo, os pedidos que eu posso assumir. Um primário
+ * por tela: "Confirmar" na primeira escala pendente ou, sem pendente,
+ * "Assumir" no primeiro pedido.
+ */
+function Proximas({ comunidadeId, aoInformar }: { comunidadeId: string; aoInformar: () => void }) {
   const fuso = useFusoDaComunidade()
   const escalas = useMinhasEscalas(comunidadeId)
+  const pedidos = useSubstituicoes(comunidadeId)
+  const pendente = escalas.data?.find((e) => e.estado === 'pendente')?.id ?? null
+
   return (
-    <Cartao titulo="Minhas escalas" icone="escalas">
+    <>
       {escalas.isPending ? (
-        <Carregando texto="Carregando as suas escalas" />
+        <Esqueleto rotulo="Carregando as suas escalas">
+          <CartaoDeEsqueleto titulo />
+          <CartaoDeEsqueleto titulo />
+        </Esqueleto>
       ) : escalas.error ? (
-        <AvisoDeErro erro={escalas.error} aoTentarDeNovo={() => void escalas.refetch()} />
+        <ErroAoCarregar
+          erro={escalas.error}
+          oQue="as suas escalas"
+          aoTentarDeNovo={() => void escalas.refetch()}
+        />
       ) : escalas.data.length === 0 ? (
         <EstadoVazio
           icone="escalas"
           titulo="Nenhuma escala para você"
-          descricao="Quando a organização escalar você numa etapa, ela aparece aqui para confirmar. Informe abaixo os dias em que pode ajudar."
-          acao={{
-            titulo: 'Ver a agenda',
-            icone: 'agenda',
-            aoPressionar: () => router.push('/agenda'),
-          }}
+          descricao="Quando a organização escalar você numa etapa, ela aparece aqui para confirmar. Diga os dias em que pode ajudar."
+          acao={{ titulo: 'Informar disponibilidade', aoPressionar: aoInformar }}
+          acaoSecundaria={{ titulo: 'Ver a agenda', aoPressionar: () => router.push('/agenda') }}
         />
       ) : (
-        <View style={{ gap: ESPACO.e8 }}>
-          {escalas.data.map((e) => (
-            <CartaoDaEscala key={e.id} escala={e} comunidadeId={comunidadeId} fuso={fuso} />
-          ))}
-        </View>
+        escalas.data.map((e) => (
+          <CartaoDaEscala
+            key={e.id}
+            escala={e}
+            comunidadeId={comunidadeId}
+            fuso={fuso}
+            primario={e.id === pendente}
+          />
+        ))
       )}
-    </Cartao>
+      <PedidosDeSubstituicao
+        comunidadeId={comunidadeId}
+        fuso={fuso}
+        consulta={pedidos}
+        // Sem escala pendente (e sem o estado vazio, que já tem o seu primário), "Assumir" sobe.
+        primeiroEhPrimario={escalas.isSuccess && escalas.data.length > 0 && pendente === null}
+      />
+    </>
   )
 }
 
-function SubstituicoesAbertas({ comunidadeId }: { comunidadeId: string }) {
-  const fuso = useFusoDaComunidade()
-  const lista = useSubstituicoes(comunidadeId)
+/**
+ * "Pedidos de substituição" (3.4.5): cartão lista com o evento e a etapa, quem
+ * pediu e quando, e "Assumir" à direita de cada linha. Sem pedido para mim, a
+ * seção não ocupa espaço.
+ */
+function PedidosDeSubstituicao({
+  comunidadeId,
+  fuso,
+  consulta,
+  primeiroEhPrimario,
+}: {
+  comunidadeId: string
+  fuso: string
+  consulta: ReturnType<typeof useSubstituicoes>
+  primeiroEhPrimario: boolean
+}) {
   const invalidar = useInvalidarEscalas(comunidadeId)
   const assumir = useMutation({
     mutationFn: (id: string) =>
@@ -115,69 +172,96 @@ function SubstituicoesAbertas({ comunidadeId }: { comunidadeId: string }) {
     if (ok) assumir.mutate(s.id)
   }
 
-  const visiveis = lista.data?.filter((s) => s.possoAssumir || s.minha) ?? []
+  if (consulta.isPending) return null
+  if (consulta.error) {
+    return (
+      <Secao titulo="Pedidos de substituição">
+        <AvisoDeFalha
+          erro={consulta.error}
+          titulo="Não deu para carregar os pedidos"
+          aoTentarDeNovo={() => void consulta.refetch()}
+        />
+      </Secao>
+    )
+  }
+  const visiveis = consulta.data.filter((s) => s.possoAssumir || s.minha)
+  if (visiveis.length === 0) return null
+  const primeiroAssumivel = visiveis.find((s) => s.possoAssumir)?.id
 
   return (
-    <Cartao titulo="Pedidos de substituição" icone="trocar">
-      {lista.isPending ? (
-        <Carregando texto="Carregando os pedidos" />
-      ) : lista.error ? (
-        <AvisoDeErro erro={lista.error} aoTentarDeNovo={() => void lista.refetch()} />
-      ) : visiveis.length === 0 ? (
-        <Texto variante="legenda" cor="textoSuave">
-          Nenhum pedido aberto para você agora.
-        </Texto>
-      ) : (
-        <View style={{ gap: ESPACO.e12 }}>
-          {(assumir.error ?? cancelar.error) ? (
-            <AvisoDeErro erro={assumir.error ?? cancelar.error} />
-          ) : null}
-          {visiveis.map((s) => (
-            <View key={s.id} style={{ gap: ESPACO.e4 }}>
-              <Texto variante="tituloItem">
-                {s.evento.titulo}
-                {s.etapa ? ` · ${s.etapa}` : ''}
-              </Texto>
-              <Texto variante="legenda" cor="textoSuave">
-                {[
-                  s.minha ? 'Seu pedido' : `Pedido por ${s.pedidaPor}`,
-                  s.funcao,
-                  formatarQuando(s.evento.inicio, fuso),
-                  s.dirigida
-                    ? s.minha
-                      ? 'para uma pessoa'
-                      : 'pedido direto para você'
-                    : 'aberto à equipe',
-                ].join(' · ')}
-              </Texto>
-              {s.motivo ? <Texto variante="corpo">Motivo: {s.motivo}</Texto> : null}
-              {s.possoAssumir ? (
-                <Botao
-                  titulo="Assumir"
-                  icone="confirmado"
-                  larguraTotal={false}
-                  rotuloAcessivel={`Assumir a escala de ${s.pedidaPor} em ${s.evento.titulo}`}
-                  carregando={assumir.isPending && assumir.variables === s.id}
-                  aoPressionar={() => void pedirParaAssumir(s)}
-                />
-              ) : (
-                <Botao
-                  titulo="Cancelar meu pedido"
-                  variante="secundario"
-                  larguraTotal={false}
-                  carregando={cancelar.isPending && cancelar.variables === s.id}
-                  aoPressionar={() => cancelar.mutate(s.id)}
-                />
-              )}
-            </View>
-          ))}
-        </View>
-      )}
-    </Cartao>
+    <Secao titulo="Pedidos de substituição">
+      {(assumir.error ?? cancelar.error) ? (
+        <AvisoDeFalha erro={assumir.error ?? cancelar.error} />
+      ) : null}
+      <CartaoDeVidro lista>
+        <Lista>
+          {visiveis.map((s) => {
+            const titulo = s.etapa ? `${s.evento.titulo} · ${s.etapa}` : s.evento.titulo
+            const quem = s.minha
+              ? 'Seu pedido'
+              : s.dirigida
+                ? `${s.pedidaPor} pediu direto para você`
+                : `${s.pedidaPor} pediu à equipe`
+            const descricao = [
+              `${quem} · ${s.funcao}`,
+              quandoDaEscala(s.evento.inicio, fuso),
+              s.motivo ? `Motivo: ${s.motivo}` : null,
+            ]
+              .filter(Boolean)
+              .join('\n')
+            return (
+              <LinhaDeLista
+                key={s.id}
+                icone="trocar"
+                titulo={titulo}
+                descricao={descricao}
+                linhasDaDescricao={3}
+                extra={
+                  s.possoAssumir ? (
+                    <Botao
+                      titulo="Assumir"
+                      variante={
+                        primeiroEhPrimario && s.id === primeiroAssumivel ? 'primario' : 'secundario'
+                      }
+                      rotuloAcessivel={`Assumir a escala de ${s.pedidaPor} em ${s.evento.titulo}`}
+                      dica={`${titulo}, ${falarQuando(s.evento.inicio, fuso)}.`}
+                      carregando={assumir.isPending && assumir.variables === s.id}
+                      aoPressionar={() => void pedirParaAssumir(s)}
+                    />
+                  ) : (
+                    <Botao
+                      titulo="Cancelar"
+                      variante="secundario"
+                      rotuloAcessivel={`Cancelar o meu pedido de substituição em ${s.evento.titulo}`}
+                      carregando={cancelar.isPending && cancelar.variables === s.id}
+                      aoPressionar={() => cancelar.mutate(s.id)}
+                    />
+                  )
+                }
+              />
+            )
+          })}
+        </Lista>
+      </CartaoDeVidro>
+    </Secao>
   )
 }
 
 const SEMANAS_DE_DISPONIBILIDADE = 8
+const MESES_CURTOS = [
+  'jan',
+  'fev',
+  'mar',
+  'abr',
+  'mai',
+  'jun',
+  'jul',
+  'ago',
+  'set',
+  'out',
+  'nov',
+  'dez',
+] as const
 
 /** Datas para informar: os dias com evento nas próximas semanas, ou os próximos sábados. */
 export function datasParaDisponibilidade(
@@ -193,6 +277,16 @@ export function datasParaDisponibilidade(
   return [...new Set([...base, ...extras])].filter((d) => d >= hoje).sort()
 }
 
+/** "sáb 21 nov": o dia da semana fica, porque nem toda data é sábado. */
+export function rotuloDaData(data: DataLocal): string {
+  return `${DIAS_CURTOS[diaDaSemana(data)]} ${Number(data.slice(8, 10))} ${MESES_CURTOS[Number(data.slice(5, 7)) - 1]}`
+}
+
+/**
+ * Disponibilidade (3.4.5): pílulas com as próximas datas, em que ativa quer
+ * dizer "posso ajudar" (o check e a borda dizem, além da cor). Tocar marca ou
+ * desmarca na hora. Outra data entra pelo seletor nativo, sem digitar.
+ */
 function MinhaDisponibilidade({ comunidadeId }: { comunidadeId: string }) {
   const fuso = useFusoDaComunidade()
   const eu = useMeuVinculo()
@@ -200,8 +294,9 @@ function MinhaDisponibilidade({ comunidadeId }: { comunidadeId: string }) {
   const hoje = hojeNoFuso(fuso)
   const ate = somarDias(hoje, SEMANAS_DE_DISPONIBILIDADE * 7)
   const [extras, setExtras] = useState<DataLocal[]>([])
-  const [outra, setOutra] = useState('')
-  const [erroDaData, setErroDaData] = useState<string | null>(null)
+  const [outra, setOutra] = useState<DataLocal | null>(null)
+  // O que foi tocado e ainda não voltou do servidor: a pílula responde na hora.
+  const [otimista, setOtimista] = useState<Readonly<Record<string, boolean>>>({})
   const eventos = useEventosNoPeriodo(
     comunidadeId,
     instanteDeDataEHora(hoje, '00:00', fuso),
@@ -212,7 +307,10 @@ function MinhaDisponibilidade({ comunidadeId }: { comunidadeId: string }) {
   const informar = useMutation({
     mutationFn: ({ data, disponivel }: { data: DataLocal; disponivel: boolean }) =>
       api.put(`${naComunidade(comunidadeId)}/disponibilidade/${data}`, { disponivel }),
+    onMutate: ({ data, disponivel }) => setOtimista((o) => ({ ...o, [data]: disponivel })),
     onSuccess: () => disponibilidade.refetch().then(invalidar),
+    onSettled: (_r, _e, { data }) =>
+      setOtimista((o) => Object.fromEntries(Object.entries(o).filter(([d]) => d !== data))),
   })
 
   const diasComEvento = [
@@ -228,70 +326,61 @@ function MinhaDisponibilidade({ comunidadeId }: { comunidadeId: string }) {
       .filter((d) => eu === null || d.vinculo_id === eu)
       .map((d) => [d.data, d.disponivel]),
   )
+  const marcadas = datas.filter((d) => otimista[d] ?? minhas.get(d) === true)
+
+  function aoMudar(novas: DataLocal[]) {
+    const tocada =
+      novas.find((d) => !marcadas.includes(d)) ?? marcadas.find((d) => !novas.includes(d))
+    if (tocada) informar.mutate({ data: tocada, disponivel: novas.includes(tocada) })
+  }
 
   return (
-    <Cartao titulo="Minha disponibilidade" icone="agenda">
-      <Texto variante="legenda" cor="textoSuave">
-        Diga em quais dias você pode ajudar. A organização vê isso ao montar as escalas.
+    <>
+      <Texto variante="corpo" cor="textoSuave">
+        Toque nos dias em que você pode ajudar. A organização vê isso ao montar as escalas.
       </Texto>
       {eventos.isPending || disponibilidade.isPending ? (
-        <Carregando texto="Carregando as datas" />
+        <Esqueleto rotulo="Carregando as datas">
+          <CartaoDeEsqueleto />
+        </Esqueleto>
       ) : disponibilidade.error ? (
-        <AvisoDeErro
+        <ErroAoCarregar
           erro={disponibilidade.error}
+          oQue="a sua disponibilidade"
           aoTentarDeNovo={() => void disponibilidade.refetch()}
         />
       ) : (
-        <View style={{ gap: ESPACO.e12 }}>
-          {informar.error ? <AvisoDeErro erro={informar.error} /> : null}
-          {datas.map((data) => {
-            const valor = minhas.get(data)
-            return (
-              <View key={data} style={{ gap: ESPACO.e4 }}>
-                <Texto variante="tituloItem">{formatarDataPorExtenso(data)}</Texto>
-                <Segmentos
-                  rotulo={`Disponibilidade em ${formatarDataPorExtenso(data)}`}
-                  valor={valor === undefined ? null : valor ? 'sim' : 'nao'}
-                  aoMudar={(v) => informar.mutate({ data, disponivel: v === 'sim' })}
-                  segmentos={[
-                    { valor: 'sim', rotulo: 'Posso ajudar' },
-                    { valor: 'nao', rotulo: 'Não posso' },
-                  ]}
-                />
-                {valor === undefined ? (
-                  <Texto variante="legenda" cor="textoSuave">
-                    Ainda não informado.
-                  </Texto>
-                ) : null}
-              </View>
-            )
-          })}
+        <View style={{ gap: ESPACO.e8 }}>
+          <PilulasDeFiltro
+            rotulo="Dias em que posso ajudar"
+            multipla
+            pilulas={datas.map((d) => ({ valor: d, rotulo: rotuloDaData(d) }))}
+            selecionadas={marcadas}
+            aoMudar={aoMudar}
+          />
+          <Texto variante="legenda" cor="textoSuave">
+            {marcadas.length === 0
+              ? 'Nenhum dia marcado ainda.'
+              : marcadas.length === 1
+                ? `Você pode ajudar em 1 dia: ${formatarDataPorExtenso(marcadas[0]!, false)}.`
+                : `Você pode ajudar em ${marcadas.length} dias.`}
+          </Texto>
         </View>
       )}
-      <Campo
-        rotulo="Outra data"
-        value={outra}
-        onChangeText={setOutra}
-        erro={erroDaData}
-        ajuda="Formato DD/MM/AAAA. A data entra na lista acima."
-        keyboardType="numbers-and-punctuation"
-        maxLength={10}
-      />
-      <Botao
-        titulo="Incluir data"
-        variante="secundario"
-        icone="adicionar"
-        aoPressionar={() => {
-          const d = lerDataDigitada(outra)
-          if (!d || d < hoje) {
-            setErroDaData('Use uma data a partir de hoje, no formato DD/MM/AAAA.')
-            return
-          }
-          setErroDaData(null)
-          setExtras((x) => [...x, d])
-          setOutra('')
-        }}
-      />
-    </Cartao>
+      {informar.error ? <AvisoDeFalha erro={informar.error} /> : null}
+      <CartaoDeVidro opaco>
+        <CampoDeData
+          rotulo="Incluir outra data"
+          opcional
+          valor={outra}
+          minimo={hoje}
+          ajuda="A data entra na lista acima; toque nela para marcar."
+          aoMudar={(d) => {
+            setOutra(d)
+            if (d >= hoje && !datas.includes(d)) setExtras((x) => [...x, d])
+          }}
+        />
+      </CartaoDeVidro>
+    </>
   )
 }

@@ -1,47 +1,52 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ESPACO } from '@uj/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
-import { View } from 'react-native'
 
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
 import type { DetalheDaSerie } from '@/servicos/contratoDosEventos'
 import { ehErroDaApi } from '@/servicos/erros'
+import { Aviso } from '@/ui/Aviso'
+import { Botao, BotaoIcone } from '@/ui/Botao'
+import { Campo } from '@/ui/Campo'
+import { CampoDeData, CampoDeHora } from '@/ui/CampoDeMomento'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
+import { EstadoVazio } from '@/ui/EstadoVazio'
+import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
+import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
+import { Tela } from '@/ui/Tela'
+import { Texto } from '@/ui/Texto'
+import { mostrarToast } from '@/ui/Toast'
 import { confirmar } from '@/utilidades/confirmar'
 import {
   dataDoInstante,
+  DIAS_CURTOS,
+  diaDaSemana,
   formatarDataLocal,
+  formatarDataPorExtenso,
+  formatarDuracao,
+  formatarHora,
   formatarQuando,
   hojeNoFuso,
   lerDataDigitada,
   lerHoraDigitada,
   type DataLocal,
 } from '@/utilidades/datas'
-import { CampoDeData } from '@/ui/CampoDeMomento'
-import { mostrarToast } from '@/ui/Toast'
 import { parametro } from '@/utilidades/parametros'
-import { Aviso } from '@/ui/Aviso'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
-import { Botao } from '@/ui/Botao'
-import { Campo } from '@/ui/Campo'
-import { Carregando } from '@/ui/Carregando'
-import { Cartao } from '@/ui/Cartao'
-import { Expansivel } from '@/ui/Expansivel'
-import { GrupoDeOpcoes } from '@/ui/GrupoDeOpcoes'
-import { Tela } from '@/ui/Tela'
-import { Texto } from '@/ui/Texto'
 
 import { usePode } from '../comunidade/permissoes'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { naComunidade, useInvalidarEventos, useSerie } from './consultas'
 import { EditorDeRegra } from './EditorDeRegra'
+import { AvisoDeFalha, ErroDaTela } from './Falha'
+import { FolhaNaTela, MenuDeAcoes } from './FolhaNaTela'
 import { rascunhoDaRegra, regraDoRascunho, type RascunhoDaRegra } from './formulario'
-import { LinhaDoEvento } from './LinhaDoEvento'
+import { ChipDoStatus } from './LinhaDoEvento'
 import { descreverRegra } from './nomes'
 
-/** Rota `/serie/[serieId]`: a regra, as próximas datas, mudar dia ou horário e encerrar. */
+/** Rota `/serie/[serieId]` (3.4.6): a regra, as próximas datas, mudar a regra e encerrar. */
 export function TelaSerie() {
   const { comunidadeAtiva } = useSessao()
   const pode = usePode()
@@ -66,100 +71,231 @@ export function TelaSerie() {
   }
   if (serie.isPending) {
     return (
-      <Tela pilha>
-        <Carregando texto="Carregando a série" />
+      <Tela pilha titulo="Série">
+        <Esqueleto rotulo="Carregando a série">
+          <CartaoDeEsqueleto titulo />
+          <CartaoDeEsqueleto />
+        </Esqueleto>
       </Tela>
     )
   }
   if (serie.error) {
     return (
-      <Tela pilha>
-        <AvisoDeErro erro={serie.error} aoTentarDeNovo={() => void serie.refetch()} />
+      <Tela pilha titulo="Série">
+        <ErroDaTela erro={serie.error} aoTentarDeNovo={() => void serie.refetch()} />
       </Tela>
     )
   }
   return <Serie serie={serie.data} comunidadeId={comunidadeAtiva.id} />
 }
 
+/** Nenhuma ocorrência saiu do rascunho: a série pode ser excluída (senão, só encerrada). */
+function soRascunhos(serie: DetalheDaSerie): boolean {
+  return serie.ocorrencias.length > 0 && serie.ocorrencias.every((o) => o.status === 'rascunho')
+}
+
+function primeiraMaiuscula(texto: string): string {
+  return texto.charAt(0).toLocaleUpperCase('pt-BR') + texto.slice(1)
+}
+
 function Serie({ serie, comunidadeId }: { serie: DetalheDaSerie; comunidadeId: string }) {
   const pode = usePode()
+  const invalidar = useInvalidarEventos(comunidadeId)
+  const [menu, setMenu] = useState(false)
+  const [editandoRegra, setEditandoRegra] = useState(false)
+  const [encerrando, setEncerrando] = useState(false)
   const hora = serie.hora_local.slice(0, 5)
+  const ativa = serie.estado !== 'encerrada'
+  const podeEncerrar = ativa && pode('evento', 'cancelar_ou_adiar')
+  const podeExcluir = ativa && pode('evento', 'excluir') && soRascunhos(serie)
+
+  const excluir = useMutation({
+    mutationFn: () =>
+      api.delete<{ ok: boolean; apagados: number }>(
+        `${naComunidade(comunidadeId)}/series/${serie.id}`,
+      ),
+    onSuccess: async (r) => {
+      await invalidar()
+      mostrarToast({
+        texto:
+          r.apagados === 1
+            ? 'Série excluída com o rascunho dela.'
+            : `Série excluída com os ${r.apagados} rascunhos dela.`,
+      })
+      router.back()
+    },
+  })
+
+  async function pedirExclusao() {
+    const ok = await confirmar({
+      titulo: 'Excluir esta série?',
+      mensagem:
+        'Nenhuma data foi publicada: a série e todas as datas em rascunho somem, sem avisar ninguém. Não dá para desfazer.',
+      confirmar: 'Excluir série',
+      destrutivo: true,
+    })
+    if (ok) excluir.mutate()
+  }
+
   return (
-    <Tela pilha titulo={serie.titulo} descricao="Série de encontros">
-      <Cartao titulo="Como repete" icone="repetir">
-        <Texto variante="tituloItem">{descreverRegra(serie.regra, hora)}</Texto>
-        <Texto variante="legenda" cor="textoSuave">
-          Desde {formatarDataLocal(serie.inicio_em)}
-          {serie.fim_em ? ` até ${formatarDataLocal(serie.fim_em)}` : ', sem data para acabar'}. As
-          datas são criadas com 6 meses de antecedência.
-        </Texto>
-      </Cartao>
-      <Cartao titulo="Próximas datas" icone="agenda">
-        {serie.ocorrencias.length === 0 ? (
-          <Texto variante="legenda" cor="textoSuave">
-            Nenhuma data futura nesta série.
-          </Texto>
-        ) : (
-          <View style={{ gap: ESPACO.e8 }}>
-            {serie.ocorrencias.slice(0, 12).map((o) => (
-              <View key={o.id} style={{ gap: ESPACO.e4 }}>
-                <LinhaDoEvento
-                  evento={{
-                    id: o.id,
-                    titulo: serie.titulo,
-                    inicio: o.inicio,
-                    duracaoMin: serie.duracao_min,
-                    status: o.status,
-                  }}
-                  fuso={serie.fuso}
-                  aoPressionar={() =>
-                    router.push({ pathname: '/evento/[eventoId]', params: { eventoId: o.id } })
-                  }
-                />
-                {o.editadoIndividualmente ? (
-                  <Texto variante="legenda" cor="textoSuave">
-                    Editada à parte: mudanças na série toda não alteram esta data.
-                  </Texto>
-                ) : null}
-              </View>
-            ))}
-          </View>
-        )}
-      </Cartao>
-      {serie.estado === 'encerrada' ? (
+    <Tela
+      pilha
+      titulo={serie.titulo}
+      descricao="Série de encontros"
+      {...(podeEncerrar || podeExcluir
+        ? {
+            acoes: (
+              <BotaoIcone
+                icone="maisAcoes"
+                rotulo="Mais ações"
+                circular
+                aoPressionar={() => setMenu(true)}
+              />
+            ),
+          }
+        : {})}
+    >
+      {excluir.error ? (
+        <AvisoDeFalha erro={excluir.error} titulo="A série não foi excluída" />
+      ) : null}
+      {!ativa ? (
         <Aviso tipo="info" titulo="Série encerrada">
           {serie.encerrada_em
             ? `Encerrada em ${formatarDataLocal(dataDoInstante(serie.encerrada_em, serie.fuso))}. Ela não recebe mais alterações; para continuar os encontros, crie uma série nova.`
             : 'Ela não recebe mais alterações; para continuar os encontros, crie uma série nova.'}
         </Aviso>
+      ) : null}
+
+      <CartaoDeVidro
+        sobrancelha="Regra"
+        comecaComTitulo
+        titulo={descreverRegra(serie.regra, hora)}
+        {...(ativa
+          ? {
+              acoes: (
+                <Botao
+                  titulo="Editar regra"
+                  variante="terciario"
+                  alinhado
+                  aoPressionar={() => setEditandoRegra(true)}
+                />
+              ),
+            }
+          : {})}
+      >
+        <Texto variante="legenda" cor="textoSuave">
+          {`Desde ${formatarDataLocal(serie.inicio_em)}${serie.fim_em ? ` até ${formatarDataLocal(serie.fim_em)}` : ', sem data para acabar'}. As datas são criadas com 6 meses de antecedência.`}
+        </Texto>
+      </CartaoDeVidro>
+
+      {serie.ocorrencias.length === 0 ? (
+        <EstadoVazio
+          icone="agenda"
+          titulo="Nenhuma data futura"
+          descricao="A série não tem datas pela frente. Mude a regra para criar as próximas."
+          acao={
+            ativa
+              ? { titulo: 'Editar regra', aoPressionar: () => setEditandoRegra(true) }
+              : { titulo: 'Ver os programas', aoPressionar: () => router.push('/programacoes') }
+          }
+        />
       ) : (
-        <>
-          <MudarRegra serie={serie} comunidadeId={comunidadeId} />
-          {pode('evento', 'cancelar_ou_adiar') ? (
-            <EncerrarSerie serie={serie} comunidadeId={comunidadeId} />
-          ) : null}
-          {pode('evento', 'excluir') && soRascunhos(serie) ? (
-            <ExcluirSerie serie={serie} comunidadeId={comunidadeId} />
-          ) : null}
-        </>
+        <CartaoDeVidro sobrancelha="Próximas datas" lista>
+          <Lista>
+            {serie.ocorrencias.slice(0, 12).map((o) => {
+              const dia = dataDoInstante(o.inicio, serie.fuso)
+              const descricao = [
+                formatarHora(o.inicio, serie.fuso),
+                formatarDuracao(serie.duracao_min),
+                o.editadoIndividualmente ? 'editada à parte' : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')
+              return (
+                <LinhaDeLista
+                  key={o.id}
+                  data={{
+                    dia: String(Number(dia.slice(8, 10))),
+                    mes: DIAS_CURTOS[diaDaSemana(dia)] ?? '',
+                  }}
+                  titulo={primeiraMaiuscula(formatarDataPorExtenso(dia, false))}
+                  descricao={descricao}
+                  extra={<ChipDoStatus status={o.status} />}
+                  rotuloAcessivel={`${formatarQuando(o.inicio, serie.fuso)}. ${descricao}`}
+                  aoPressionar={() =>
+                    router.push({ pathname: '/evento/[eventoId]', params: { eventoId: o.id } })
+                  }
+                />
+              )
+            })}
+          </Lista>
+        </CartaoDeVidro>
       )}
+
+      {ativa ? (
+        <EditarRegra
+          serie={serie}
+          comunidadeId={comunidadeId}
+          aberta={editandoRegra}
+          aoFechar={() => setEditandoRegra(false)}
+        />
+      ) : null}
+      {podeEncerrar ? (
+        <EncerrarSerie
+          serie={serie}
+          comunidadeId={comunidadeId}
+          aberta={encerrando}
+          aoFechar={() => setEncerrando(false)}
+        />
+      ) : null}
+      <MenuDeAcoes
+        aberto={menu}
+        titulo="Mais ações"
+        aoFechar={() => setMenu(false)}
+        acoes={[
+          podeEncerrar && {
+            titulo: 'Encerrar a série',
+            icone: 'cancelar',
+            descricao: 'Rascunhos somem e as datas publicadas são canceladas',
+            destrutiva: true,
+            aoPressionar: () => setEncerrando(true),
+          },
+          podeExcluir && {
+            titulo: 'Excluir série',
+            icone: 'excluir',
+            descricao: 'Nenhuma data foi publicada ainda',
+            destrutiva: true,
+            aoPressionar: () => void pedirExclusao(),
+          },
+        ]}
+      />
     </Tela>
   )
 }
 
-function MudarRegra({ serie, comunidadeId }: { serie: DetalheDaSerie; comunidadeId: string }) {
+/** Folha "Editar regra": dia, frequência, hora e a partir de quando valem. */
+function EditarRegra({
+  serie,
+  comunidadeId,
+  aberta,
+  aoFechar,
+}: {
+  serie: DetalheDaSerie
+  comunidadeId: string
+  aberta: boolean
+  aoFechar: () => void
+}) {
   const consultas = useQueryClient()
   const invalidar = useInvalidarEventos(comunidadeId)
   const [regra, setRegra] = useState<RascunhoDaRegra>(() =>
     rascunhoDaRegra(serie.regra, serie.fim_em),
   )
-  const [hora, setHora] = useState(serie.hora_local.slice(0, 5))
+  const [hora, setHora] = useState<string | null>(serie.hora_local.slice(0, 5))
   const futuras = serie.ocorrencias.filter(
     (o) => o.status === 'rascunho' || o.status === 'publicado',
   )
   const [aPartirDe, setAPartirDe] = useState<string>('agora')
   const [erro, setErro] = useState<string | null>(null)
-  const [pronto, setPronto] = useState<string | null>(null)
   const primeira = (
     serie.ocorrencias[0] ? dataDoInstante(serie.ocorrencias[0].inicio, serie.fuso) : serie.inicio_em
   ) as DataLocal
@@ -167,7 +303,7 @@ function MudarRegra({ serie, comunidadeId }: { serie: DetalheDaSerie; comunidade
   const salvar = useMutation({
     mutationFn: (confirmarRecriacao: boolean) => {
       const { regra: nova } = regraDoRascunho(regra, primeira)
-      const h = lerHoraDigitada(hora)
+      const h = hora ? lerHoraDigitada(hora) : null
       return api.patch<{ afetadas: number; recriadas: number }>(
         `${naComunidade(comunidadeId)}/series/${serie.id}`,
         {
@@ -184,7 +320,13 @@ function MudarRegra({ serie, comunidadeId }: { serie: DetalheDaSerie; comunidade
       )
     },
     onSuccess: async (r) => {
-      setPronto(`Série atualizada: ${r.recriadas} data(s) recriada(s).`)
+      mostrarToast({
+        texto:
+          r.recriadas === 1
+            ? 'Série atualizada: 1 data recriada.'
+            : `Série atualizada: ${r.recriadas} datas recriadas.`,
+      })
+      aoFechar()
       await invalidar()
       await consultas.invalidateQueries({ queryKey: CHAVES.serie(comunidadeId, serie.id) })
     },
@@ -201,77 +343,51 @@ function MudarRegra({ serie, comunidadeId }: { serie: DetalheDaSerie; comunidade
   })
 
   return (
-    <Cartao titulo="Mudar dia ou horário" icone="editar">
-      <Texto variante="legenda" cor="textoSuave">
+    <FolhaNaTela aberta={aberta} titulo="Editar regra" aoFechar={aoFechar}>
+      <Texto variante="corpo" cor="textoSuave">
         As próximas datas que não foram editadas à parte são recriadas com a regra nova.
       </Texto>
-      <Expansivel titulo="Mudar a regra" icone="editar">
-        {() => (
-          <>
-            <EditorDeRegra
-              regra={regra}
-              aoMudar={setRegra}
-              primeira={primeira}
-              hora={lerHoraDigitada(hora)}
-              semNaoRepete
-            />
-            <Campo
-              rotulo="Hora de início"
-              value={hora}
-              onChangeText={setHora}
-              erro={erro}
-              ajuda="Formato HH:MM, no horário da comunidade."
-              keyboardType="numbers-and-punctuation"
-              maxLength={5}
-            />
-            <GrupoDeOpcoes
-              rotulo="A partir de quando"
-              valor={aPartirDe}
-              aoMudar={setAPartirDe}
-              opcoes={[
-                {
-                  valor: 'agora',
-                  rotulo: 'Toda a série, de agora em diante',
-                  descricao: 'Vale para todas as próximas datas.',
-                },
-                ...futuras.slice(0, 8).map((o) => ({
-                  valor: o.id,
-                  rotulo: `A partir de ${formatarQuando(o.inicio, serie.fuso)}`,
-                  descricao: 'A série se divide nesta data; as anteriores ficam como estão.',
-                })),
-              ]}
-            />
-            {pronto ? (
-              <Aviso tipo="sucesso" anunciar>
-                {pronto}
-              </Aviso>
-            ) : null}
-            {salvar.error && !ehErroDaApi(salvar.error, 'confirmar_recriacao') ? (
-              <AvisoDeErro erro={salvar.error} />
-            ) : null}
-            <Botao
-              titulo="Salvar a regra nova"
-              carregando={salvar.isPending}
-              aoPressionar={() => {
-                if (!lerHoraDigitada(hora)) return setErro('Use a hora no formato HH:MM.')
-                if (regra.fim.trim() && !lerDataDigitada(regra.fim)) {
-                  return setErro('A data de término não é válida (use DD/MM/AAAA).')
-                }
-                setErro(null)
-                setPronto(null)
-                salvar.mutate(false)
-              }}
-            />
-          </>
-        )}
-      </Expansivel>
-    </Cartao>
+      <EditorDeRegra
+        regra={regra}
+        aoMudar={setRegra}
+        primeira={primeira}
+        hora={hora ? lerHoraDigitada(hora) : null}
+        semNaoRepete
+      />
+      <CampoDeHora rotulo="Hora de início" valor={hora} aoMudar={setHora} erro={erro} />
+      <ListaDeOpcoes
+        rotulo="A partir de quando"
+        valor={aPartirDe}
+        aoMudar={setAPartirDe}
+        opcoes={[
+          {
+            valor: 'agora',
+            rotulo: 'Toda a série, de agora em diante',
+            descricao: 'Vale para todas as próximas datas.',
+          },
+          ...futuras.slice(0, 8).map((o) => ({
+            valor: o.id,
+            rotulo: `A partir de ${formatarQuando(o.inicio, serie.fuso)}`,
+            descricao: 'A série se divide nesta data; as anteriores ficam como estão.',
+          })),
+        ]}
+      />
+      {salvar.error && !ehErroDaApi(salvar.error, 'confirmar_recriacao') ? (
+        <AvisoDeFalha erro={salvar.error} titulo="A regra não mudou" />
+      ) : null}
+      <Botao
+        titulo="Salvar a regra"
+        tamanho="grande"
+        larguraTotal
+        carregando={salvar.isPending}
+        aoPressionar={() => {
+          if (!hora || !lerHoraDigitada(hora)) return setErro('Escolha a hora de início.')
+          setErro(null)
+          salvar.mutate(false)
+        }}
+      />
+    </FolhaNaTela>
   )
-}
-
-/** Nenhuma ocorrência saiu do rascunho: a série pode ser excluída (senão, só encerrada). */
-function soRascunhos(serie: DetalheDaSerie): boolean {
-  return serie.ocorrencias.length > 0 && serie.ocorrencias.every((o) => o.status === 'rascunho')
 }
 
 /** A próxima data que ainda vai acontecer (o padrão de "encerrar a partir de"). */
@@ -298,51 +414,20 @@ function resumoDoEncerramento(r: { apagados: number; cancelados: number }): stri
   return partes.length ? `Série encerrada: ${partes.join(' e ')}.` : 'Série encerrada.'
 }
 
-function ExcluirSerie({ serie, comunidadeId }: { serie: DetalheDaSerie; comunidadeId: string }) {
+/** Folha "Encerrar a série": a partir de que dia, o motivo e o destrutivo cheio. */
+function EncerrarSerie({
+  serie,
+  comunidadeId,
+  aberta,
+  aoFechar,
+}: {
+  serie: DetalheDaSerie
+  comunidadeId: string
+  aberta: boolean
+  aoFechar: () => void
+}) {
   const invalidar = useInvalidarEventos(comunidadeId)
-  const excluir = useMutation({
-    mutationFn: () =>
-      api.delete<{ ok: boolean; apagados: number }>(
-        `${naComunidade(comunidadeId)}/series/${serie.id}`,
-      ),
-    onSuccess: async (r) => {
-      await invalidar()
-      mostrarToast({
-        texto:
-          r.apagados === 1
-            ? 'Série excluída com o rascunho dela.'
-            : `Série excluída com os ${r.apagados} rascunhos dela.`,
-      })
-      router.back()
-    },
-  })
-  return (
-    <Cartao titulo="Excluir a série">
-      <Texto variante="legenda" cor="textoSuave">
-        Nenhuma data desta série foi publicada: ela pode ser excluída inteira, sem avisar ninguém.
-      </Texto>
-      {excluir.error ? <AvisoDeErro erro={excluir.error} /> : null}
-      <Botao
-        titulo="Excluir série"
-        variante="destrutivo"
-        carregando={excluir.isPending}
-        aoPressionar={async () => {
-          const ok = await confirmar({
-            titulo: 'Excluir esta série?',
-            mensagem: 'A série e todas as datas em rascunho somem. Não dá para desfazer.',
-            confirmar: 'Excluir série',
-            destrutivo: true,
-          })
-          if (ok) excluir.mutate()
-        }}
-      />
-    </Cartao>
-  )
-}
-
-function EncerrarSerie({ serie, comunidadeId }: { serie: DetalheDaSerie; comunidadeId: string }) {
-  const invalidar = useInvalidarEventos(comunidadeId)
-  const [data, setData] = useState<DataLocal | null>(() => proximaOcorrencia(serie))
+  const [data, setData] = useState<string | null>(() => proximaOcorrencia(serie))
   const [motivo, setMotivo] = useState('')
   const [erros, setErros] = useState<{ data?: string; motivo?: string }>({})
   const encerrar = useMutation({
@@ -354,60 +439,60 @@ function EncerrarSerie({ serie, comunidadeId }: { serie: DetalheDaSerie; comunid
     onSuccess: async (r) => {
       await invalidar()
       mostrarToast({ texto: resumoDoEncerramento(r) })
+      aoFechar()
       router.back()
     },
   })
 
+  async function pedir() {
+    const d = data ? lerDataDigitada(data) : null
+    const novos = {
+      ...(d ? {} : { data: 'Escolha o dia a partir do qual a série acaba.' }),
+      ...(motivo.trim().length >= 3 ? {} : { motivo: 'Explique o motivo.' }),
+    }
+    setErros(novos)
+    if (!d || Object.keys(novos).length) return
+    const ok = await confirmar({
+      titulo: 'Encerrar a série?',
+      mensagem: `Nenhuma data a partir de ${formatarDataLocal(d)} vai acontecer. Não dá para desfazer.`,
+      confirmar: 'Encerrar a série',
+      destrutivo: true,
+    })
+    if (ok) encerrar.mutate({ aPartirDe: d, motivo: motivo.trim() })
+  }
+
   return (
-    <Cartao titulo="Encerrar a série" icone="cancelar">
-      <Texto variante="legenda" cor="textoSuave">
-        A partir da data escolhida, rascunhos somem e eventos publicados são cancelados com o
-        motivo, que vai para quem está escalado e inscrito.
-      </Texto>
-      <Expansivel titulo="Encerrar a série" icone="cancelar">
-        {() => (
-          <>
-            <CampoDeData
-              rotulo="A partir do dia"
-              valor={data}
-              aoMudar={setData}
-              erro={erros.data ?? null}
-              ajuda="Começa pela próxima data da série."
-            />
-            <Campo
-              rotulo="Motivo"
-              value={motivo}
-              onChangeText={setMotivo}
-              erro={erros.motivo ?? null}
-              ajuda="Obrigatório."
-              multiline
-              maxLength={500}
-            />
-            {encerrar.error ? <AvisoDeErro erro={encerrar.error} /> : null}
-            <Botao
-              titulo="Encerrar e avisar"
-              variante="destrutivo"
-              carregando={encerrar.isPending}
-              aoPressionar={async () => {
-                const d = data ? lerDataDigitada(data) : null
-                const novos = {
-                  ...(d ? {} : { data: 'Escolha o dia a partir do qual a série acaba.' }),
-                  ...(motivo.trim().length >= 3 ? {} : { motivo: 'Explique o motivo.' }),
-                }
-                setErros(novos)
-                if (!d || Object.keys(novos).length) return
-                const ok = await confirmar({
-                  titulo: 'Encerrar a série?',
-                  mensagem: `Nenhuma data a partir de ${formatarDataLocal(d)} vai acontecer. Não dá para desfazer.`,
-                  confirmar: 'Encerrar a série',
-                  destrutivo: true,
-                })
-                if (ok) encerrar.mutate({ aPartirDe: d, motivo: motivo.trim() })
-              }}
-            />
-          </>
-        )}
-      </Expansivel>
-    </Cartao>
+    <FolhaNaTela aberta={aberta} titulo="Encerrar a série" aoFechar={aoFechar}>
+      <Aviso tipo="alerta" titulo="Quem participa é avisado">
+        A partir do dia escolhido, rascunhos somem e eventos publicados são cancelados com o motivo,
+        que vai para quem está escalado e inscrito.
+      </Aviso>
+      <CampoDeData
+        rotulo="A partir do dia"
+        valor={data}
+        aoMudar={setData}
+        erro={erros.data ?? null}
+        ajuda="Começa pela próxima data da série."
+      />
+      <Campo
+        rotulo="Motivo"
+        value={motivo}
+        onChangeText={setMotivo}
+        erro={erros.motivo ?? null}
+        multiline
+        maxLength={500}
+      />
+      {encerrar.error ? (
+        <AvisoDeFalha erro={encerrar.error} titulo="A série não foi encerrada" />
+      ) : null}
+      <Botao
+        titulo="Encerrar e avisar"
+        tamanho="grande"
+        variante="destrutivoCheio"
+        larguraTotal
+        carregando={encerrar.isPending}
+        aoPressionar={() => void pedir()}
+      />
+    </FolhaNaTela>
   )
 }

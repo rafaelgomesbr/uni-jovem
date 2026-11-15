@@ -1,29 +1,51 @@
 import { useMutation } from '@tanstack/react-query'
+import { ESPACO } from '@uj/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
+import { View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
-import { instanteDeDataEHora, lerDataDigitada, lerHoraDigitada } from '@/utilidades/datas'
-import { parametro } from '@/utilidades/parametros'
+import type { DetalheDoEvento } from '@/servicos/contratoDosEventos'
 import { Aviso } from '@/ui/Aviso'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
+import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
-import { Carregando } from '@/ui/Carregando'
-import { Cartao } from '@/ui/Cartao'
+import { CampoDeData, CampoDeHora } from '@/ui/CampoDeMomento'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { Tela } from '@/ui/Tela'
+import { mostrarToast } from '@/ui/Toast'
+import { instanteDeDataEHora, lerDataDigitada, lerHoraDigitada } from '@/utilidades/datas'
+import { parametro } from '@/utilidades/parametros'
 
 import { usePode } from '../comunidade/permissoes'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { naComunidade, useEvento, useInvalidarEventos } from './consultas'
+import { AvisoDeFalha, ErroDaTela } from './Falha'
 import { acoesDeStatus } from './regras'
 
 type Acao = 'cancelar' | 'adiar'
 
+/** "3 pessoas escaladas e quem se inscreveu recebem o motivo." */
+function consequencia(evento: DetalheDoEvento): string {
+  const escalados = new Set(
+    evento.atribuicoes.filter((a) => a.estado !== 'recusada').map((a) => a.vinculoId),
+  ).size
+  const quem =
+    escalados === 0
+      ? 'Quem se inscreveu recebe'
+      : escalados === 1
+        ? '1 pessoa escalada e quem se inscreveu recebem'
+        : `${escalados} pessoas escaladas e quem se inscreveu recebem`
+  return `${quem} o motivo.`
+}
+
 /**
- * Rota `/evento/[eventoId]/status?acao=cancelar|adiar`. O motivo é
- * obrigatório: ele vai para quem está escalado e inscrito.
+ * Rota `/evento/[eventoId]/status?acao=cancelar|adiar` (3.4.6): o aviso com a
+ * consequência, o motivo (obrigatório: ele vai para quem participa) e, no
+ * adiamento, a nova data e hora pelos seletores. Na barra, o destrutivo
+ * cheio "Cancelar evento" ou o primário "Adiar evento".
  */
 export function TelaMudarStatus() {
   const { comunidadeAtiva } = useSessao()
@@ -34,15 +56,17 @@ export function TelaMudarStatus() {
   const pode = usePode()
   const invalidar = useInvalidarEventos(comunidadeAtiva?.id ?? '')
   const [motivo, setMotivo] = useState('')
-  const [data, setData] = useState('')
-  const [hora, setHora] = useState('')
+  const [data, setData] = useState<string | null>(null)
+  const [hora, setHora] = useState<string | null>(null)
   const [erros, setErros] = useState<{ motivo?: string; data?: string; hora?: string }>({})
+  const titulo = acao === 'adiar' ? 'Adiar evento' : 'Cancelar evento'
 
   const enviar = useMutation({
     mutationFn: (corpo: object) =>
       api.post(`${naComunidade(comunidadeAtiva!.id)}/eventos/${eventoId}/status`, corpo),
     onSuccess: async () => {
       await invalidar(eventoId ?? undefined)
+      mostrarToast({ texto: acao === 'adiar' ? 'Evento adiado.' : 'Evento cancelado.' })
       router.back()
     },
   })
@@ -56,15 +80,17 @@ export function TelaMudarStatus() {
   }
   if (evento.isPending) {
     return (
-      <Tela pilha>
-        <Carregando />
+      <Tela pilha titulo={titulo}>
+        <Esqueleto rotulo="Carregando a programação">
+          <CartaoDeEsqueleto />
+        </Esqueleto>
       </Tela>
     )
   }
   if (evento.error) {
     return (
-      <Tela pilha>
-        <AvisoDeErro erro={evento.error} aoTentarDeNovo={() => void evento.refetch()} />
+      <Tela pilha titulo={titulo}>
+        <ErroDaTela erro={evento.error} aoTentarDeNovo={() => void evento.refetch()} />
       </Tela>
     )
   }
@@ -72,7 +98,6 @@ export function TelaMudarStatus() {
   const permitido =
     pode('evento', 'cancelar_ou_adiar') &&
     (acao === 'adiar' ? acoesDeStatus(e.status).adiar : acoesDeStatus(e.status).cancelar)
-  const titulo = acao === 'adiar' ? 'Adiar evento' : 'Cancelar evento'
 
   if (!permitido) {
     return (
@@ -82,7 +107,6 @@ export function TelaMudarStatus() {
             ? 'A situação atual do evento não permite esta mudança.'
             : 'Só a organização cancela ou adia eventos.'}
         </Aviso>
-        <Botao titulo="Voltar" variante="secundario" aoPressionar={() => router.back()} />
       </Tela>
     )
   }
@@ -91,11 +115,11 @@ export function TelaMudarStatus() {
     const novos: typeof erros = {}
     if (motivo.trim().length < 3) novos.motivo = 'Explique o motivo: ele vai para quem participa.'
     let novoInicio: string | null = null
-    if (acao === 'adiar' && (data.trim() || hora.trim())) {
-      const d = lerDataDigitada(data)
-      const h = lerHoraDigitada(hora)
-      if (!d) novos.data = 'Use uma data real, no formato DD/MM/AAAA.'
-      if (!h) novos.hora = 'Use a hora no formato HH:MM.'
+    if (acao === 'adiar' && (data || hora)) {
+      const d = data ? lerDataDigitada(data) : null
+      const h = hora ? lerHoraDigitada(hora) : null
+      if (!d) novos.data = 'Escolha a nova data.'
+      if (!h) novos.hora = 'Escolha a nova hora.'
       if (d && h) novoInicio = instanteDeDataEHora(d, h, e.fuso)
     }
     setErros(novos)
@@ -107,60 +131,74 @@ export function TelaMudarStatus() {
     })
   }
 
+  const erroDaData = !!(erros.data || erros.hora)
   return (
-    <Tela pilha titulo={titulo} descricao={e.titulo}>
-      <Cartao>
-        <Aviso
-          tipo="alerta"
-          titulo={acao === 'adiar' ? 'Quem participa é avisado' : 'Isto não se desfaz'}
-        >
-          {acao === 'adiar'
-            ? 'O evento fica como adiado até ser publicado de novo. Quem está escalado e inscrito recebe o motivo.'
-            : 'Um evento cancelado não volta a ser publicado. Quem está escalado e inscrito recebe o motivo.'}
-        </Aviso>
+    <Tela
+      pilha
+      titulo={titulo}
+      descricao={e.titulo}
+      barraDeAcao={
+        <BarraDeAcao>
+          <Botao
+            titulo={titulo}
+            tamanho="grande"
+            variante={acao === 'adiar' ? 'primario' : 'destrutivoCheio'}
+            carregando={enviar.isPending}
+            aoPressionar={confirmarEnvio}
+          />
+        </BarraDeAcao>
+      }
+    >
+      <Aviso
+        tipo="alerta"
+        titulo={acao === 'adiar' ? 'Quem participa é avisado' : 'Isto não se desfaz'}
+      >
+        {acao === 'adiar'
+          ? `O evento fica como adiado até ser publicado de novo. ${consequencia(e)}`
+          : `Um evento cancelado não volta a ser publicado. ${consequencia(e)}`}
+      </Aviso>
+      {enviar.error ? (
+        <AvisoDeFalha
+          erro={enviar.error}
+          titulo={acao === 'adiar' ? 'O evento não foi adiado' : 'O evento não foi cancelado'}
+        />
+      ) : null}
+      <CartaoDeVidro opaco intervalo={ESPACO.e16}>
         <Campo
           rotulo="Motivo"
           value={motivo}
           onChangeText={setMotivo}
           erro={erros.motivo ?? null}
-          ajuda="Obrigatório. Escreva como você diria para quem vinha."
+          ajuda="Escreva como você diria para quem vinha."
           multiline
           maxLength={500}
         />
         {acao === 'adiar' ? (
-          <>
-            <Campo
-              rotulo="Nova data (opcional)"
-              value={data}
-              onChangeText={setData}
-              erro={erros.data ?? null}
-              ajuda="Em branco, fica sem data nova por enquanto."
-              exemplo="22/11/2026"
-              formato="data"
-              keyboardType="numbers-and-punctuation"
-              maxLength={10}
-            />
-            <Campo
-              rotulo="Nova hora (opcional)"
-              value={hora}
-              onChangeText={setHora}
-              erro={erros.hora ?? null}
-              exemplo="16:00"
-              formato="hora"
-              keyboardType="numbers-and-punctuation"
-              maxLength={5}
-            />
-          </>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: ESPACO.e12 }}>
+            <View style={{ flex: 1.4 }}>
+              <CampoDeData
+                rotulo="Nova data"
+                opcional
+                valor={data}
+                aoMudar={setData}
+                erro={erros.data ?? null}
+                ajuda="Em branco, fica sem data nova por enquanto."
+                reservarApoio
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <CampoDeHora
+                rotulo="Nova hora"
+                opcional
+                valor={hora}
+                aoMudar={setHora}
+                erro={erros.hora ?? null}
+                reservarApoio={erroDaData}
+              />
+            </View>
+          </View>
         ) : null}
-        {enviar.error ? <AvisoDeErro erro={enviar.error} /> : null}
-        <Botao
-          titulo={acao === 'adiar' ? 'Adiar e avisar' : 'Cancelar e avisar'}
-          variante={acao === 'adiar' ? 'primario' : 'destrutivo'}
-          carregando={enviar.isPending}
-          aoPressionar={confirmarEnvio}
-        />
-        <Botao titulo="Voltar sem mudar" variante="terciario" aoPressionar={() => router.back()} />
-      </Cartao>
+      </CartaoDeVidro>
     </Tela>
   )
 }

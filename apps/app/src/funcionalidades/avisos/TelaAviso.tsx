@@ -3,62 +3,103 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 import { View } from 'react-native'
 
+import { useSessao } from '@/estado/sessao'
 import type { Aviso } from '@/servicos/contratoDosModulos'
+import { mensagemDoErro, SemConexao } from '@/servicos/erros'
 import { confirmar } from '@/utilidades/confirmar'
 import { formatarData } from '@/utilidades/formatos'
 import { parametro } from '@/utilidades/parametros'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
-import { Botao } from '@/ui/Botao'
-import { Carregando } from '@/ui/Carregando'
-import { Cartao } from '@/ui/Cartao'
-import { Selo } from '@/ui/Selo'
+import { Aviso as CaixaDeAviso } from '@/ui/Aviso'
+import { BarraDeAcao } from '@/ui/BarraDeAcao'
+import { Botao, BotaoIcone } from '@/ui/Botao'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { Chip } from '@/ui/Chip'
+import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
+import { EstadoVazio } from '@/ui/EstadoVazio'
+import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
+import { mostrarToast } from '@/ui/Toast'
 
 import { useFusoDaComunidade } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
 import { BotaoDenunciar } from '../denuncias/BotaoDenunciar'
-import { TelaDaComunidade } from '../navegacao/TelaDaComunidade'
-import {
-  NOME_DO_ESTADO,
-  useAviso,
-  useEditarAviso,
-  useExcluirAviso,
-  usePublicacaoDoAviso,
-} from './consultas'
+import { SemComunidade } from '../navegacao/SemComunidade'
+import { FolhaDeAcoes } from '../oracao/FolhaDeAcoes'
+import { useAviso, useEditarAviso, useExcluirAviso, usePublicacaoDoAviso } from './consultas'
 import { CamposDoAviso, lerFormulario, valoresIniciais } from './TelaNovoAviso'
 
 /** Rota `/avisos/[avisoId]`. */
 export function TelaAviso() {
   const avisoId = parametro(useLocalSearchParams<{ avisoId: string }>().avisoId)
-  return (
-    <TelaDaComunidade oQue="o aviso">
-      {(c) => (avisoId ? <Detalhe comunidadeId={c.id} avisoId={avisoId} /> : null)}
-    </TelaDaComunidade>
-  )
+  const { comunidadeAtiva } = useSessao()
+  if (!comunidadeAtiva || !avisoId) {
+    return (
+      <Tela pilha titulo="Aviso">
+        {comunidadeAtiva ? null : <SemComunidade oQue="o aviso" />}
+      </Tela>
+    )
+  }
+  return <Detalhe comunidadeId={comunidadeAtiva.id} avisoId={avisoId} />
 }
 
 function Detalhe({ comunidadeId, avisoId }: { comunidadeId: string; avisoId: string }) {
   const pode = usePode()
   const aviso = useAviso(comunidadeId, avisoId)
-  if (aviso.isPending) return <Carregando texto="Carregando o aviso" />
+  if (aviso.isPending) {
+    return (
+      <Tela pilha titulo="Aviso">
+        <Esqueleto rotulo="Carregando o aviso">
+          <CartaoDeEsqueleto titulo />
+        </Esqueleto>
+      </Tela>
+    )
+  }
   if (aviso.error) {
-    return <AvisoDeErro erro={aviso.error} aoTentarDeNovo={() => void aviso.refetch()} />
+    return (
+      <Tela pilha titulo="Aviso">
+        <EstadoVazio
+          icone={aviso.error instanceof SemConexao ? 'semConexao' : 'erro'}
+          titulo="Não deu para abrir o aviso"
+          descricao={mensagemDoErro(aviso.error)}
+          acao={{ titulo: 'Tentar de novo', aoPressionar: () => void aviso.refetch() }}
+        />
+      </Tela>
+    )
   }
   const a = aviso.data
-  const publica = pode('aviso', 'publicar')
+  if (pode('aviso', 'publicar')) {
+    return <Gestao key={a.versao} comunidadeId={comunidadeId} aviso={a} />
+  }
+  return (
+    <Tela pilha titulo={a.titulo}>
+      <Leitura aviso={a} publica={false} />
+      <BotaoDenunciar
+        comunidadeId={comunidadeId}
+        recursoTipo="aviso"
+        recursoId={a.id}
+        descricao={`o aviso "${a.titulo}"`}
+      />
+    </Tela>
+  )
+}
+
+/** Chips, quem publicou e quando (`legenda`) e o texto em `leitura`. */
+function Leitura({ aviso: a, publica }: { aviso: Aviso; publica: boolean }) {
+  const chipDoEstado = publica && a.estado !== 'publicado'
   return (
     <>
       <View style={{ gap: ESPACO.e8 }}>
-        <Texto variante="tituloTela">{a.titulo}</Texto>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
-          {a.fixado ? <Selo texto="Fixado" cor="destaque" /> : null}
-          {publica ? (
-            <Selo
-              texto={NOME_DO_ESTADO[a.estado]}
-              cor={a.estado === 'publicado' ? 'sucesso' : 'alerta'}
-            />
-          ) : null}
-        </View>
+        {a.fixado || chipDoEstado ? (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
+            {a.fixado ? <Chip texto="Fixado" tom="quente" icone="fixar" /> : null}
+            {chipDoEstado ? (
+              <Chip
+                texto={a.estado === 'rascunho' ? 'Rascunho' : 'Fora do ar'}
+                tom={a.estado === 'rascunho' ? 'neutro' : 'alerta'}
+              />
+            ) : null}
+          </View>
+        ) : null}
         <Texto variante="legenda" cor="textoSuave">
           {[
             a.autorNome ? `Por ${a.autorNome}` : null,
@@ -69,25 +110,25 @@ function Detalhe({ comunidadeId, avisoId }: { comunidadeId: string; avisoId: str
             .join(' · ')}
         </Texto>
       </View>
-      <Cartao>
-        <Texto>{a.texto}</Texto>
-      </Cartao>
-      {publica ? (
-        <Gestao key={a.versao} comunidadeId={comunidadeId} aviso={a} />
-      ) : (
-        <BotaoDenunciar
-          comunidadeId={comunidadeId}
-          recursoTipo="aviso"
-          recursoId={a.id}
-          descricao={`o aviso "${a.titulo}"`}
-        />
-      )}
+      <CartaoDeVidro>
+        <Texto variante="leitura" selectable>
+          {a.texto}
+        </Texto>
+      </CartaoDeVidro>
     </>
   )
 }
 
+/**
+ * Organização (3.7.4): barra de ação com o primário do momento ("Publicar"
+ * no rascunho; "Fixar no topo" ou "Desafixar do topo" no publicado) e "Mais
+ * ações" (Editar, Despublicar, Excluir aviso). Editar troca a leitura pelo
+ * formulário, com "Cancelar" e "Salvar alterações" na barra.
+ */
 function Gestao({ comunidadeId, aviso }: { comunidadeId: string; aviso: Aviso }) {
   const fuso = useFusoDaComunidade()
+  const [editando, setEditando] = useState(false)
+  const [maisAcoes, setMaisAcoes] = useState(false)
   const [valores, setValores] = useState(() => valoresIniciais(aviso, fuso))
   const [erros, setErros] = useState<Partial<Record<'titulo' | 'texto' | 'ate', string>>>({})
   const editar = useEditarAviso(comunidadeId)
@@ -103,7 +144,10 @@ function Gestao({ comunidadeId, aviso }: { comunidadeId: string; aviso: Aviso })
       return
     }
     setErros({})
-    editar.mutate({ id: aviso.id, versao: aviso.versao, ...r.dados })
+    editar.mutate(
+      { id: aviso.id, versao: aviso.versao, ...r.dados },
+      { onSuccess: () => mostrarToast({ texto: 'Alterações salvas' }) },
+    )
   }
 
   async function despublicar() {
@@ -112,7 +156,12 @@ function Gestao({ comunidadeId, aviso }: { comunidadeId: string; aviso: Aviso })
       mensagem: 'Os membros deixam de ver o aviso. Você pode publicar de novo depois.',
       confirmar: 'Despublicar',
     })
-    if (ok) publicacao.mutate({ id: aviso.id, acao: 'despublicar' })
+    if (ok) {
+      publicacao.mutate(
+        { id: aviso.id, acao: 'despublicar' },
+        { onSuccess: () => mostrarToast({ texto: 'Aviso fora do ar' }) },
+      )
+    }
   }
 
   async function pedirExclusao() {
@@ -125,62 +174,130 @@ function Gestao({ comunidadeId, aviso }: { comunidadeId: string; aviso: Aviso })
     if (ok) excluir.mutate(aviso.id, { onSuccess: () => router.back() })
   }
 
+  if (editando) {
+    return (
+      <Tela
+        pilha
+        titulo="Editar aviso"
+        barraDeAcao={
+          <BarraDeAcao>
+            <Botao
+              titulo="Cancelar"
+              variante="secundario"
+              tamanho="grande"
+              desabilitado={editar.isPending}
+              aoPressionar={() => {
+                setValores(valoresIniciais(aviso, fuso))
+                setErros({})
+                setEditando(false)
+              }}
+            />
+            <Botao
+              titulo="Salvar alterações"
+              tamanho="grande"
+              carregando={editar.isPending}
+              aoPressionar={salvar}
+            />
+          </BarraDeAcao>
+        }
+      >
+        <CartaoDeVidro opaco intervalo={ESPACO.e16}>
+          <CamposDoAviso valores={valores} aoMudar={setValores} erros={erros} fuso={fuso} />
+        </CartaoDeVidro>
+        {editar.error ? <ErroDaAcao erro={editar.error} /> : null}
+      </Tela>
+    )
+  }
+
+  const situacao = publicado
+    ? 'Publicado: os membros veem no Início e na lista de avisos.'
+    : aviso.estado === 'rascunho'
+      ? 'Rascunho: só a organização vê.'
+      : 'Fora do ar: os membros não veem mais.'
+
   return (
-    <>
-      <Cartao titulo="Publicação" icone="publicar">
-        <Texto variante="legenda" cor="textoSuave">
-          {publicado
-            ? 'Publicado: os membros veem no Início e na lista de avisos.'
-            : aviso.estado === 'rascunho'
-              ? 'Rascunho: só a organização vê.'
-              : 'Fora do ar: os membros não veem mais.'}
-        </Texto>
-        {publicado ? (
-          <>
+    <Tela
+      pilha
+      titulo={aviso.titulo}
+      barraDeAcao={
+        <BarraDeAcao>
+          <BotaoIcone
+            icone="maisAcoes"
+            rotulo="Mais ações"
+            lado={48}
+            dica="Editar, tirar do ar ou excluir o aviso."
+            aoPressionar={() => setMaisAcoes(true)}
+          />
+          {publicado ? (
             <Botao
               titulo={aviso.fixado ? 'Desafixar do topo' : 'Fixar no topo'}
               icone="fixar"
-              variante="secundario"
-              carregando={editar.isPending && editar.variables?.fixado !== undefined}
+              tamanho="grande"
+              carregando={editar.isPending}
               aoPressionar={() =>
-                editar.mutate({ id: aviso.id, versao: aviso.versao, fixado: !aviso.fixado })
+                editar.mutate(
+                  { id: aviso.id, versao: aviso.versao, fixado: !aviso.fixado },
+                  {
+                    onSuccess: () =>
+                      mostrarToast({ texto: aviso.fixado ? 'Aviso desafixado' : 'Aviso fixado' }),
+                  },
+                )
               }
             />
+          ) : (
             <Botao
-              titulo="Despublicar"
-              icone="ocultar"
-              variante="secundario"
+              titulo="Publicar"
+              icone="publicar"
+              tamanho="grande"
               carregando={publicacao.isPending}
-              aoPressionar={() => void despublicar()}
+              dica="Membros veem o aviso e recebem notificação, se tiverem ligado."
+              aoPressionar={() =>
+                publicacao.mutate(
+                  { id: aviso.id, acao: 'publicar' },
+                  { onSuccess: () => mostrarToast({ texto: 'Aviso publicado' }) },
+                )
+              }
             />
-          </>
-        ) : (
-          <Botao
-            titulo="Publicar"
-            icone="publicar"
-            carregando={publicacao.isPending}
-            aoPressionar={() => publicacao.mutate({ id: aviso.id, acao: 'publicar' })}
-            dica="Membros veem o aviso e recebem notificação, se tiverem ligado."
-          />
-        )}
-      </Cartao>
-      <Cartao titulo="Editar" icone="editar">
-        <CamposDoAviso valores={valores} aoMudar={setValores} erros={erros} />
-        <Botao
-          titulo="Salvar alterações"
-          variante="secundario"
-          carregando={editar.isPending && editar.variables?.fixado === undefined}
-          aoPressionar={salvar}
-        />
-      </Cartao>
-      {erro ? <AvisoDeErro erro={erro} /> : null}
-      <Botao
-        titulo="Excluir aviso"
-        icone="excluir"
-        variante="destrutivo"
-        carregando={excluir.isPending}
-        aoPressionar={() => void pedirExclusao()}
+          )}
+        </BarraDeAcao>
+      }
+    >
+      <Leitura aviso={aviso} publica />
+      <Texto variante="corpo" cor="textoSuave">
+        {situacao}
+      </Texto>
+      {erro ? <ErroDaAcao erro={erro} /> : null}
+      <FolhaDeAcoes
+        titulo="Mais ações"
+        aberta={maisAcoes}
+        aoFechar={() => setMaisAcoes(false)}
+        acoes={[
+          { titulo: 'Editar', icone: 'editar', aoPressionar: () => setEditando(true) },
+          ...(publicado
+            ? [
+                {
+                  titulo: 'Despublicar',
+                  icone: 'ocultar' as const,
+                  aoPressionar: despublicar,
+                },
+              ]
+            : []),
+          {
+            titulo: 'Excluir aviso',
+            icone: 'excluir',
+            destrutiva: true,
+            aoPressionar: pedirExclusao,
+          },
+        ]}
       />
-    </>
+    </Tela>
+  )
+}
+
+function ErroDaAcao({ erro }: { erro: unknown }) {
+  return (
+    <CaixaDeAviso tipo="erro" titulo="Não deu certo" anunciar>
+      {mensagemDoErro(erro)}
+    </CaixaDeAviso>
   )
 }

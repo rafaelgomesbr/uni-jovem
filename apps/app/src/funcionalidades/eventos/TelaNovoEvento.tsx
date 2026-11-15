@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { duracaoTotal } from '@uj/dominio'
+import { ESPACO } from '@uj/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 
@@ -7,22 +8,35 @@ import { CHAVES } from '@/estado/clienteDeConsulta'
 import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
 import type { Visibilidade } from '@/servicos/contratoDosEventos'
-import { formatarDataLocal, formatarDuracao, hojeNoFuso, lerDataDigitada } from '@/utilidades/datas'
-import { parametro } from '@/utilidades/parametros'
 import { Aviso } from '@/ui/Aviso'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
+import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
-import { Carregando } from '@/ui/Carregando'
-import { Cartao } from '@/ui/Cartao'
-import { GrupoDeOpcoes } from '@/ui/GrupoDeOpcoes'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
+import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
+import { Secao } from '@/ui/Secao'
 import { Tela } from '@/ui/Tela'
+import {
+  dataValidaOuNula,
+  formatarDuracao,
+  hojeNoFuso,
+  lerDataDigitada,
+  type DataLocal,
+} from '@/utilidades/datas'
+import { parametro } from '@/utilidades/parametros'
 
 import { useFusoDaComunidade } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
 import { SemComunidade } from '../navegacao/SemComunidade'
-import { CamposDoEvento } from './CamposDoEvento'
+import {
+  CamposDoEvento,
+  focarPrimeiroErro,
+  resumoDosErros,
+  useRefsDosCampos,
+} from './CamposDoEvento'
 import { naComunidade, useInvalidarEventos, useModelos } from './consultas'
 import { EditorDeRegra } from './EditorDeRegra'
+import { AvisoDeFalha } from './Falha'
 import {
   LOCAL_NOVO,
   proximoSabado,
@@ -35,11 +49,17 @@ import {
   type RascunhoDoEvento,
 } from './formulario'
 
+/** Parâmetro da folha "Nova programação" para escolher um modelo antes. */
+const ESCOLHER_MODELO = 'escolher'
+
 /** Rota `/evento/novo?modelo=...`: criar evento avulso ou série, do zero ou de modelo. */
 export function TelaNovoEvento() {
   const { comunidadeAtiva } = useSessao()
   const pode = usePode()
-  const modelo = parametro(useLocalSearchParams<{ modelo?: string }>().modelo)
+  const params = useLocalSearchParams<{ modelo?: string; data?: string }>()
+  const modelo = parametro(params.modelo)
+  // "Nova programação neste dia" (Agenda): a data já vem escolhida.
+  const data = dataValidaOuNula(parametro(params.data))
   if (!comunidadeAtiva) {
     return (
       <Tela pilha>
@@ -56,7 +76,9 @@ export function TelaNovoEvento() {
       </Tela>
     )
   }
-  return <NovoEvento comunidadeId={comunidadeAtiva.id} modeloInicial={modelo ?? ''} />
+  return (
+    <NovoEvento comunidadeId={comunidadeAtiva.id} modeloInicial={modelo ?? ''} dataInicial={data} />
+  )
 }
 
 interface Corpo {
@@ -74,25 +96,29 @@ interface Corpo {
 function NovoEvento({
   comunidadeId,
   modeloInicial,
+  dataInicial,
 }: {
   comunidadeId: string
   modeloInicial: string
+  dataInicial: DataLocal | null
 }) {
   const pode = usePode()
   const fuso = useFusoDaComunidade()
   const invalidar = useInvalidarEventos(comunidadeId)
   const consultas = useQueryClient()
+  const refs = useRefsDosCampos()
+  const escolherModelo = modeloInicial === ESCOLHER_MODELO && pode('modelo', 'ler')
   const modelos = useModelos(comunidadeId, pode('modelo', 'ler'))
-  const [modelo, setModelo] = useState(modeloInicial)
+  const [modelo, setModelo] = useState(modeloInicial === ESCOLHER_MODELO ? '' : modeloInicial)
   const [rascunho, setRascunho] = useState<RascunhoDoEvento>(() => {
     const r = rascunhoVazio()
-    if (modeloInicial !== 'sabado_padrao') return r
+    if (modeloInicial !== 'sabado_padrao') return { ...r, data: dataInicial ?? '' }
     // Sábado padrão: já sugere o próximo sábado às 16h (tudo editável).
     return {
       ...r,
       titulo: 'Sábado',
       categoria: 'Programação de sábado',
-      data: formatarDataLocal(proximoSabado(hojeNoFuso(fuso))),
+      data: dataInicial ?? proximoSabado(hojeNoFuso(fuso)),
       hora: '16:00',
     }
   })
@@ -111,7 +137,7 @@ function NovoEvento({
     daComunidade.find((m) => m.id === modelo)?.etapas ??
     null
 
-  function escolherModelo(valor: string) {
+  function trocarModelo(valor: string) {
     setModelo(valor)
     const m =
       embutidos.find((x) => x.chave === valor) ?? daComunidade.find((x) => x.id === valor) ?? null
@@ -187,44 +213,92 @@ function NovoEvento({
       duracaoOpcional: !!modelo,
     })
     const fimInvalido = regra.repeticao !== 'nao' && regra.fim.trim() && !lerDataDigitada(regra.fim)
-    setErroDoFim(fimInvalido ? 'Use uma data real, no formato DD/MM/AAAA.' : null)
+    setErroDoFim(fimInvalido ? 'Escolha o dia em que a série acaba.' : null)
     setErros(novos)
+    focarPrimeiroErro(novos, refs)
     if (!dados || fimInvalido) return
     salvar.mutate({ dados, publicar })
   }
 
   const primeira = lerDataDigitada(rascunho.data)
-  const temErro = Object.keys(erros).length > 0 || !!erroDoFim
+  const resumo = resumoDosErros(Object.keys(erros).length + (erroDoFim ? 1 : 0))
 
   return (
-    <Tela pilha titulo="Nova programação">
-      {pode('modelo', 'ler') ? (
-        <Cartao titulo="Começar de" icone="modelo">
+    <Tela
+      pilha
+      titulo="Nova programação"
+      barraDeAcao={
+        <BarraDeAcao>
+          <Botao
+            titulo="Salvar rascunho"
+            variante="secundario"
+            tamanho="grande"
+            dica={
+              ehSerie
+                ? 'Cria a série com as datas em rascunho. Só a organização vê.'
+                : 'Só a organização vê rascunhos.'
+            }
+            carregando={salvar.isPending && !salvar.variables?.publicar}
+            desabilitado={salvar.isPending}
+            aoPressionar={() => enviar(false)}
+          />
+          <Botao
+            titulo="Publicar"
+            tamanho="grande"
+            dica={
+              ehSerie
+                ? 'Cria a série e publica as datas. Todos da comunidade passam a ver.'
+                : 'Todos da comunidade passam a ver.'
+            }
+            carregando={salvar.isPending && !!salvar.variables?.publicar}
+            desabilitado={salvar.isPending}
+            aoPressionar={() => enviar(true)}
+          />
+        </BarraDeAcao>
+      }
+    >
+      {resumo ? (
+        <AvisoDeFalha titulo={resumo} mensagem="As mensagens estão junto de cada campo." />
+      ) : null}
+      {salvar.error ? (
+        <AvisoDeFalha erro={salvar.error} titulo="A programação não foi salva" />
+      ) : null}
+
+      {escolherModelo ? (
+        <Secao titulo="Começar de">
           {modelos.isPending ? (
-            <Carregando texto="Carregando os modelos" />
+            <Esqueleto rotulo="Carregando os modelos">
+              <CartaoDeEsqueleto />
+            </Esqueleto>
           ) : modelos.error ? (
-            <AvisoDeErro erro={modelos.error} aoTentarDeNovo={() => void modelos.refetch()} />
-          ) : (
-            <GrupoDeOpcoes
-              rotulo="Modelo"
-              valor={modelo}
-              aoMudar={escolherModelo}
-              opcoes={[
-                { valor: '', rotulo: 'Em branco', descricao: 'Você monta as etapas depois.' },
-                ...embutidos.map((m) => ({
-                  valor: m.chave,
-                  rotulo: m.nome,
-                  descricao: `${m.descricao} ${m.etapas.length} etapas, ${formatarDuracao(duracaoTotal(m.etapas))}.`,
-                })),
-                ...daComunidade.map((m) => ({
-                  valor: m.id,
-                  rotulo: m.nome,
-                  descricao: `Modelo da comunidade. ${m.etapas.length} etapas, ${formatarDuracao(duracaoTotal(m.etapas))}.`,
-                })),
-              ]}
+            <AvisoDeFalha
+              erro={modelos.error}
+              titulo="Os modelos não carregaram"
+              aoTentarDeNovo={() => void modelos.refetch()}
             />
+          ) : (
+            <CartaoDeVidro opaco>
+              <ListaDeOpcoes
+                rotulo="Modelo"
+                valor={modelo}
+                aoMudar={trocarModelo}
+                opcoes={[
+                  { valor: '', rotulo: 'Em branco', descricao: 'Você monta as etapas depois.' },
+                  ...embutidos.map((m) => ({
+                    valor: m.chave,
+                    rotulo: m.nome,
+                    descricao: `${m.etapas.length} etapas, ${formatarDuracao(duracaoTotal(m.etapas))}.`,
+                  })),
+                  ...daComunidade.map((m) => ({
+                    valor: m.id,
+                    rotulo: m.nome,
+                    descricao: `Da comunidade. ${m.etapas.length} etapas, ${formatarDuracao(duracaoTotal(m.etapas))}.`,
+                  })),
+                ]}
+              />
+            </CartaoDeVidro>
           )}
-        </Cartao>
+        </Secao>
       ) : null}
 
       <CamposDoEvento
@@ -232,6 +306,7 @@ function NovoEvento({
         rascunho={rascunho}
         mudar={mudar}
         erros={erros}
+        refs={refs}
         visiveis={{ data: true, inscricoes: true, prazoEEspera: !ehSerie }}
         {...(etapasDoModelo
           ? {
@@ -240,45 +315,23 @@ function NovoEvento({
           : {})}
       />
 
-      <Cartao titulo="Repetir" icone="repetir">
-        <EditorDeRegra
-          regra={regra}
-          aoMudar={setRegra}
-          primeira={primeira}
-          hora={rascunho.hora || null}
-          erroDoFim={erroDoFim}
-        />
-        {ehSerie ? (
-          <Aviso tipo="info" titulo="Série de encontros">
-            Cada data vira um evento próprio, que você pode editar sozinho depois. Prazo e lista de
-            espera valem por ocorrência e são ajustados em cada uma.
-          </Aviso>
-        ) : null}
-      </Cartao>
-
-      {temErro ? (
-        <AvisoDeErro
-          titulo="Confira os campos"
-          mensagem="Alguns campos precisam de ajuste. As mensagens estão ao lado de cada um."
-        />
+      <Secao titulo="Repetir">
+        <CartaoDeVidro opaco intervalo={ESPACO.e16}>
+          <EditorDeRegra
+            regra={regra}
+            aoMudar={setRegra}
+            primeira={primeira}
+            hora={rascunho.hora || null}
+            erroDoFim={erroDoFim}
+          />
+        </CartaoDeVidro>
+      </Secao>
+      {ehSerie ? (
+        <Aviso tipo="info" titulo="Série de encontros">
+          Cada data vira um evento próprio, que você pode editar sozinho depois. Prazo e lista de
+          espera valem por data e são ajustados em cada uma.
+        </Aviso>
       ) : null}
-      {salvar.error ? <AvisoDeErro erro={salvar.error} /> : null}
-      <Botao
-        titulo={ehSerie ? 'Criar série como rascunho' : 'Salvar como rascunho'}
-        variante="secundario"
-        dica="Só a organização vê rascunhos."
-        carregando={salvar.isPending && !salvar.variables?.publicar}
-        desabilitado={salvar.isPending}
-        aoPressionar={() => enviar(false)}
-      />
-      <Botao
-        titulo={ehSerie ? 'Criar série e publicar' : 'Salvar e publicar'}
-        icone="publicar"
-        dica="Todos da comunidade passam a ver."
-        carregando={salvar.isPending && !!salvar.variables?.publicar}
-        desabilitado={salvar.isPending}
-        aoPressionar={() => enviar(true)}
-      />
     </Tela>
   )
 }

@@ -4,20 +4,22 @@ import { useState } from 'react'
 
 import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
-import { formatarQuando } from '@/utilidades/datas'
 import { parametro } from '@/utilidades/parametros'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
+import { Aviso } from '@/ui/Aviso'
+import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
-import { Cartao } from '@/ui/Cartao'
-import { GrupoDeOpcoes } from '@/ui/GrupoDeOpcoes'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 
+import { AvisoDeFalha } from '../agenda/ErroAoCarregar'
 import { useFusoDaComunidade, useMeuVinculo } from '../comunidade/consultas'
 import { SeletorDePessoa } from '../comunidade/SeletorDePessoa'
 import { naComunidade } from '../eventos/consultas'
 import { SemComunidade } from '../navegacao/SemComunidade'
+import { quandoDaEscala } from './CartaoDaEscala'
 import { useInvalidarEscalas, useMinhasEscalas } from './consultas'
 
 type Para = 'aberta' | 'pessoa'
@@ -28,7 +30,7 @@ export function TelaPedirSubstituicao() {
   const atribuicaoId = parametro(useLocalSearchParams<{ atribuicaoId: string }>().atribuicaoId)
   if (!comunidadeAtiva || !atribuicaoId) {
     return (
-      <Tela pilha>
+      <Tela pilha titulo="Pedir substituição">
         <SemComunidade oQue="as suas escalas" />
       </Tela>
     )
@@ -36,6 +38,11 @@ export function TelaPedirSubstituicao() {
   return <PedirSubstituicao comunidadeId={comunidadeAtiva.id} atribuicaoId={atribuicaoId} />
 }
 
+/**
+ * Pedir substituição (3.4.5): a escala em questão, a lista de opções "Aberto
+ * à equipe" ou "Uma pessoa específica" (com a busca da pessoa), o motivo
+ * opcional e a barra de ação com o primário "Pedir substituição".
+ */
 function PedirSubstituicao({
   comunidadeId,
   atribuicaoId,
@@ -65,71 +72,93 @@ function PedirSubstituicao({
     },
   })
 
+  function enviar() {
+    if (para === 'pessoa' && !pessoa) {
+      setErro('Escolha para quem vai o pedido, ou deixe aberto à equipe.')
+      return
+    }
+    setErro(null)
+    pedir.mutate()
+  }
+
   return (
-    <Tela pilha titulo="Pedir substituição">
+    <Tela
+      pilha
+      titulo="Pedir substituição"
+      descricao="Você continua na escala até alguém assumir. Quem assume fica registrado no seu lugar."
+      barraDeAcao={
+        <BarraDeAcao>
+          <Botao
+            titulo="Pedir substituição"
+            tamanho="grande"
+            carregando={pedir.isPending}
+            aoPressionar={enviar}
+          />
+        </BarraDeAcao>
+      }
+    >
       {escala ? (
-        <Cartao>
-          <Texto variante="tituloItem">{escala.eventoTitulo}</Texto>
-          <Texto variante="legenda" cor="textoSuave">
-            {[escala.etapaTitulo, escala.funcao, formatarQuando(escala.eventoInicio, fuso)]
-              .filter(Boolean)
-              .join(' · ')}
+        <CartaoDeVidro sobrancelha={quandoDaEscala(escala.eventoInicio, fuso)} comecaComTitulo>
+          <Texto variante="tituloItem">
+            {escala.etapaTitulo ? `${escala.etapaTitulo} · ${escala.funcao}` : escala.funcao}
           </Texto>
-        </Cartao>
+          <Texto variante="legenda" cor="textoSuave">
+            {escala.eventoTitulo}
+          </Texto>
+        </CartaoDeVidro>
       ) : null}
-      <Cartao>
-        <Texto variante="legenda" cor="textoSuave">
-          Você continua na escala até alguém assumir. Quem assume fica registrado no seu lugar.
-        </Texto>
-        <GrupoDeOpcoes
-          rotulo="Para quem"
-          valor={para}
-          aoMudar={setPara}
-          opcoes={[
-            {
-              valor: 'aberta',
-              rotulo: 'Aberto à equipe',
-              descricao: 'Qualquer pessoa da comunidade pode assumir.',
-            },
-            {
-              valor: 'pessoa',
-              rotulo: 'Para uma pessoa',
-              descricao: 'Só a pessoa escolhida pode assumir.',
-            },
-          ]}
-        />
-        {para === 'pessoa' ? (
+      <ListaDeOpcoes
+        rotulo="Para quem"
+        valor={para}
+        aoMudar={(v) => {
+          setPara(v)
+          setErro(null)
+        }}
+        opcoes={[
+          {
+            valor: 'aberta',
+            rotulo: 'Aberto à equipe',
+            descricao: 'Qualquer pessoa da comunidade pode assumir.',
+          },
+          {
+            valor: 'pessoa',
+            rotulo: 'Uma pessoa específica',
+            descricao: 'Só a pessoa escolhida pode assumir.',
+          },
+        ]}
+      />
+      {para === 'pessoa' ? (
+        <CartaoDeVidro opaco>
           <SeletorDePessoa
             comunidadeId={comunidadeId}
             rotulo="Pessoa"
             valor={pessoa}
-            aoMudar={setPessoa}
+            aoMudar={(v) => {
+              setPessoa(v)
+              setErro(null)
+            }}
             excluir={eu ? [eu] : []}
           />
-        ) : null}
+        </CartaoDeVidro>
+      ) : null}
+      <CartaoDeVidro opaco>
         <Campo
-          rotulo="Motivo (opcional)"
+          rotulo="Motivo"
+          opcional
+          ajuda="Quem pode assumir lê esta mensagem."
           value={motivo}
           onChangeText={setMotivo}
           multiline
           maxLength={500}
+          mostrarContador
         />
-        {erro ? <AvisoDeErro titulo="Falta escolher" mensagem={erro} /> : null}
-        {pedir.error ? <AvisoDeErro erro={pedir.error} /> : null}
-        <Botao
-          titulo="Pedir substituição"
-          icone="trocar"
-          carregando={pedir.isPending}
-          aoPressionar={() => {
-            if (para === 'pessoa' && !pessoa) {
-              setErro('Escolha para quem vai o pedido, ou deixe aberto à equipe.')
-              return
-            }
-            setErro(null)
-            pedir.mutate()
-          }}
-        />
-      </Cartao>
+      </CartaoDeVidro>
+      {erro ? (
+        <Aviso tipo="erro" titulo="Falta escolher" anunciar>
+          {erro}
+        </Aviso>
+      ) : null}
+      {pedir.error ? <AvisoDeFalha erro={pedir.error} /> : null}
     </Tela>
   )
 }

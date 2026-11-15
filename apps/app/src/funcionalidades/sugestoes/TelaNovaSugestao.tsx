@@ -1,27 +1,41 @@
+import { ESPACO } from '@uj/tokens'
 import { router } from 'expo-router'
 import { useState } from 'react'
 
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
+import { useSessao } from '@/estado/sessao'
+import { mensagemDoErro } from '@/servicos/erros'
+import { Aviso } from '@/ui/Aviso'
+import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
-import { CaixaDeMarcar } from '@/ui/CaixaDeMarcar'
 import { Campo } from '@/ui/Campo'
-import { Cartao } from '@/ui/Cartao'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { Interruptor } from '@/ui/Interruptor'
+import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
+import { mostrarToast } from '@/ui/Toast'
 
-import { TelaDaComunidade } from '../navegacao/TelaDaComunidade'
+import { SemComunidade } from '../navegacao/SemComunidade'
 import { useCriarSugestao } from './consultas'
 
 /** TC-08.v1: o que o anonimato garante e o que não garante. */
 export const TEXTO_DO_ANONIMATO =
   'Ninguém da comunidade, nem organizadores e administradores, verá quem enviou. O sistema guarda a autoria para segurança (por exemplo, em caso de abuso), sem mostrar em nenhuma tela; quem administra o servidor tem capacidade técnica de consultá-la.'
 
-/** Rota `/sugestoes/nova`. */
+/**
+ * Rota `/sugestoes/nova` (3.7.2): Título, a ideia (multilinha) e o
+ * interruptor de anonimato com o TC-08 por extenso; "Enviar sugestão" na
+ * barra de ação.
+ */
 export function TelaNovaSugestao() {
-  return (
-    <TelaDaComunidade oQue="a nova sugestão" titulo="Nova sugestão">
-      {(c) => <Formulario comunidadeId={c.id} />}
-    </TelaDaComunidade>
-  )
+  const { comunidadeAtiva } = useSessao()
+  if (!comunidadeAtiva) {
+    return (
+      <Tela pilha titulo="Nova sugestão">
+        <SemComunidade oQue="a nova sugestão" />
+      </Tela>
+    )
+  }
+  return <Formulario comunidadeId={comunidadeAtiva.id} />
 }
 
 function Formulario({ comunidadeId }: { comunidadeId: string }) {
@@ -39,13 +53,32 @@ function Formulario({ comunidadeId }: { comunidadeId: string }) {
     if (novos.titulo || novos.texto) return
     criar.mutate(
       { titulo: titulo.trim(), texto: texto.trim(), anonima },
-      { onSuccess: () => router.back() },
+      {
+        onSuccess: () => {
+          mostrarToast({ texto: 'Sugestão enviada' })
+          router.back()
+        },
+      },
     )
   }
 
   return (
-    <>
-      <Cartao>
+    <Tela
+      pilha
+      titulo="Nova sugestão"
+      barraDeAcao={
+        <BarraDeAcao>
+          <Botao
+            titulo="Enviar sugestão"
+            icone="publicar"
+            tamanho="grande"
+            carregando={criar.isPending}
+            aoPressionar={enviar}
+          />
+        </BarraDeAcao>
+      }
+    >
+      <CartaoDeVidro opaco intervalo={ESPACO.e16}>
         <Campo
           rotulo="Título"
           value={titulo}
@@ -60,28 +93,29 @@ function Formulario({ comunidadeId }: { comunidadeId: string }) {
           erro={erros.texto ?? null}
           multiline
           maxLength={4000}
+          mostrarContador
         />
-      </Cartao>
-      <Cartao titulo="Quem vê que foi você" icone="anonimo">
-        <CaixaDeMarcar
+      </CartaoDeVidro>
+      <CartaoDeVidro sobrancelha="Quem vê que foi você" opaco comecaComTitulo>
+        <Interruptor
           rotulo="Enviar como anônima"
-          descricao={TEXTO_DO_ANONIMATO}
-          marcada={anonima}
+          ligado={anonima}
           aoMudar={setAnonima}
+          descricao={
+            anonima
+              ? 'A sugestão vai aparecer como "Anônima" para todos, inclusive para a liderança. Só você a vê como sua.'
+              : 'Seu nome aparece para quem organiza a comunidade.'
+          }
         />
         <Texto variante="legenda" cor="textoSuave">
-          {anonima
-            ? 'A sugestão vai aparecer como "Anônima" para todos, inclusive para a liderança. Só você a vê como sua.'
-            : 'Seu nome aparece para quem organiza a comunidade.'}
+          {TEXTO_DO_ANONIMATO}
         </Texto>
-      </Cartao>
-      {criar.error ? <AvisoDeErro erro={criar.error} /> : null}
-      <Botao
-        titulo="Enviar sugestão"
-        icone="publicar"
-        carregando={criar.isPending}
-        aoPressionar={enviar}
-      />
-    </>
+      </CartaoDeVidro>
+      {criar.error ? (
+        <Aviso tipo="erro" titulo="Não deu para enviar a sugestão" anunciar>
+          {mensagemDoErro(criar.error)}
+        </Aviso>
+      ) : null}
+    </Tela>
   )
 }

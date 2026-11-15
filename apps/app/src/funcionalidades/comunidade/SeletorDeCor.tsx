@@ -1,8 +1,7 @@
-import { CORES_DA_COMUNIDADE, corSobre, ESPACO, RAIO } from '@uj/tokens'
+import { ALTURA, BORDA, CORES_DA_COMUNIDADE, corSobre, ESPACO, RAIO } from '@uj/tokens'
 import { Pressable, View } from 'react-native'
 
 import { Icone } from '@/ui/Icone'
-import { ALVO } from '@/ui/medidas'
 import { useSetasDoGrupo } from '@/ui/setasDoGrupo'
 import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
@@ -16,8 +15,9 @@ export function ehCorDaLista(cor: string): cor is CorDaComunidade {
 }
 
 /**
- * Identidade da comunidade: pílulas com a amostra da cor e o nome dela
- * (papel `radio`). A escolhida tem contorno grosso e marca, nunca só a cor.
+ * "COR" (3.6.3): a grade das 6 amostras de 44 (raio 999), com o nome da cor
+ * abaixo de cada uma. A escolhida tem anel de 2 na cor do texto, afastado 2,
+ * e um check sobre a amostra: forma além da cor. Papel `radio`.
  */
 export function SeletorDeCor({
   valor,
@@ -29,49 +29,60 @@ export function SeletorDeCor({
   const { cores } = useTema()
   const propsDaOpcao = useSetasDoGrupo(CORES_DA_COMUNIDADE, valor, aoMudar)
   return (
-    <View accessibilityRole="radiogroup" aria-label="Cor da comunidade" style={{ gap: ESPACO.e8 }}>
-      <Texto variante="tituloItem">Cor da comunidade</Texto>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
-        {CORES_DA_COMUNIDADE.map((c) => {
-          const marcada = c.valor === valor
-          return (
-            <Pressable
-              key={c.valor}
-              {...propsDaOpcao(c.valor)}
-              accessibilityRole="radio"
-              accessibilityLabel={c.rotulo}
-              aria-checked={marcada}
-              onPress={() => aoMudar(c.valor)}
-              style={({ pressed }) => ({
-                minHeight: ALVO,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: ESPACO.e8,
-                paddingLeft: ESPACO.e8,
-                paddingRight: ESPACO.e16,
-                borderRadius: RAIO.pilula,
-                borderWidth: marcada ? 2 : 1,
-                borderColor: marcada ? cores.destaque : cores.campoBorda,
-                backgroundColor: marcada || pressed ? cores.pressionado : cores.superficie,
-              })}
-            >
-              <View
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 14,
-                  backgroundColor: c.valor,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {marcada ? <Icone nome="confirmado" cor={corSobre(c.valor)} tamanho={18} /> : null}
-              </View>
-              <Texto variante="tituloItem">{c.rotulo}</Texto>
-            </Pressable>
-          )
-        })}
-      </View>
+    <View
+      accessibilityRole="radiogroup"
+      aria-label="Cor da comunidade"
+      style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}
+    >
+      {CORES_DA_COMUNIDADE.map((c) => {
+        const marcada = c.valor === valor
+        return (
+          <Pressable
+            key={c.valor}
+            {...propsDaOpcao(c.valor)}
+            accessibilityRole="radio"
+            accessibilityLabel={c.rotulo}
+            aria-checked={marcada}
+            onPress={() => aoMudar(c.valor)}
+            style={{ flex: 1, minWidth: ALTURA.iconeSo, alignItems: 'center', gap: ESPACO.e8 }}
+          >
+            {({ pressed }) => (
+              <>
+                <View
+                  style={{
+                    width: ALTURA.iconeSo,
+                    height: ALTURA.iconeSo,
+                    borderRadius: RAIO.pilula,
+                    backgroundColor: c.valor,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    ...(marcada || pressed
+                      ? {
+                          outlineWidth: BORDA.contraste,
+                          outlineStyle: 'solid' as const,
+                          outlineOffset: BORDA.contraste,
+                          outlineColor: marcada ? cores.texto : cores.tonalBorda,
+                        }
+                      : {}),
+                  }}
+                >
+                  {marcada ? (
+                    <Icone nome="check" cor={corSobre(c.valor)} tamanho={18} peso="forte" />
+                  ) : null}
+                </View>
+                <Texto
+                  variante="legenda"
+                  cor={marcada ? 'texto' : 'textoSuave'}
+                  peso={marcada ? 'forte' : 'regular'}
+                  numberOfLines={1}
+                >
+                  {c.rotulo}
+                </Texto>
+              </>
+            )}
+          </Pressable>
+        )
+      })}
     </View>
   )
 }

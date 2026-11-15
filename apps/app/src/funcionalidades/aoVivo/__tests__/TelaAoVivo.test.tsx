@@ -2,6 +2,7 @@ import { screen, userEvent, waitFor } from '@testing-library/react-native'
 
 import { ETAPAS, EVENTO_ID, retratoDeTeste } from '@/testes/fixturas'
 import { BASE, COMUNIDADE, pedidosPara, renderizarTela } from '@/testes/telas'
+import { HospedeiroDeToast } from '@/ui/Toast'
 
 import { AoVivo } from '../TelaAoVivo'
 
@@ -29,7 +30,9 @@ describe('ao vivo', () => {
 
     // A etapa atual é o cabeçalho grande; a seguinte aparece em "A seguir".
     expect(await screen.findByRole('header', { name: 'Louvor' })).toBeOnTheScreen()
-    expect(screen.getByText('A SEGUIR')).toBeOnTheScreen()
+    expect(screen.getByText('A seguir')).toBeOnTheScreen()
+    // A conexão aparece em chip, com texto (não só a cor).
+    expect(screen.getByText('Ao vivo')).toBeOnTheScreen()
     expect(screen.getAllByText('Encerramento').length).toBeGreaterThan(0)
     expect(screen.getByText(/Atraso acumulado: \d+ min de atraso/)).toBeOnTheScreen()
     expect(screen.getByText('1 de 3 etapas concluídas')).toBeOnTheScreen()
@@ -67,7 +70,7 @@ describe('ao vivo', () => {
     )
   })
 
-  test('409: a tela troca para o estado atual e avisa', async () => {
+  test('409: a tela troca para o estado atual e avisa num toast', async () => {
     const atual = retratoDeTeste({
       versao: 5,
       etapaAtualId: ETAPAS[2],
@@ -78,31 +81,39 @@ describe('ao vivo', () => {
         situacao: i < 2 ? 'concluida' : 'atual',
       })),
     })
-    await renderizarTela(<AoVivo comunidadeId={COMUNIDADE} eventoId={EVENTO_ID} />, {
-      rotas: {
-        [`GET ${CAMINHO}`]: () => ({ status: 200, corpo: retratoDeTeste() }),
-        [`GET ${CAMINHO}?depoisDaVersao=3`]: pendurado,
-        [`GET ${CAMINHO}?depoisDaVersao=5`]: pendurado,
-        [`POST ${CAMINHO}`]: () => ({
-          status: 409,
-          corpo: {
-            erro: 'conduzido_por_outra_pessoa',
-            mensagem: 'Outra pessoa está conduzindo agora.',
-            atual,
-          },
-        }),
+    await renderizarTela(
+      <>
+        <AoVivo comunidadeId={COMUNIDADE} eventoId={EVENTO_ID} />
+        <HospedeiroDeToast />
+      </>,
+      {
+        rotas: {
+          [`GET ${CAMINHO}`]: () => ({ status: 200, corpo: retratoDeTeste() }),
+          [`GET ${CAMINHO}?depoisDaVersao=3`]: pendurado,
+          [`GET ${CAMINHO}?depoisDaVersao=5`]: pendurado,
+          [`POST ${CAMINHO}`]: () => ({
+            status: 409,
+            corpo: {
+              erro: 'conduzido_por_outra_pessoa',
+              mensagem: 'Outra pessoa está conduzindo agora.',
+              atual,
+            },
+          }),
+        },
       },
-    })
+    )
 
     await userEvent.setup().press(await screen.findByRole('button', { name: 'Avançar etapa' }))
 
-    expect(await screen.findByText('O andamento mudou')).toBeOnTheScreen()
     expect(
-      screen.getByText('Outra pessoa está conduzindo agora. A tela já mostra o andamento atual.'),
+      await screen.findByText('O andamento mudou. Outra pessoa está conduzindo agora.'),
     ).toBeOnTheScreen()
-    expect(screen.getByText('Bruno Lima está conduzindo.')).toBeOnTheScreen()
-    // Com outra pessoa no controle, os comandos ficam desabilitados com explicação.
-    expect(screen.getByRole('button', { name: 'Concluir a última etapa' })).toBeDisabled()
+    expect(
+      screen.getByText('Bruno Lima está conduzindo. Você está acompanhando.'),
+    ).toBeOnTheScreen()
+    // Com outra pessoa no controle, a barra não oferece comandos: só "Assumir a condução".
+    expect(screen.queryByRole('button', { name: 'Concluir a última etapa' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Avançar etapa' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Assumir a condução' })).toBeOnTheScreen()
   })
 })

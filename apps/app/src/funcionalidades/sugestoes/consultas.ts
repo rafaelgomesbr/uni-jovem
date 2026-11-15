@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { api } from '@/servicos/api'
 import type { StatusDaSugestao, Sugestao } from '@/servicos/contratoDosModulos'
+import type { TomDoChip } from '@/ui/Chip'
 
 import { naComunidade, textoDeConsulta } from '../eventos/consultas'
 
@@ -11,6 +12,14 @@ export const NOME_DO_STATUS: Readonly<Record<StatusDaSugestao, string>> = {
   em_analise: 'Em análise',
   aceita: 'Aceita',
   recusada: 'Recusada',
+}
+
+/** Chip de cada situação (3.7.2): o texto diz a situação; o tom só reforça. */
+export const TOM_DO_STATUS: Readonly<Record<StatusDaSugestao, TomDoChip>> = {
+  recebida: 'neutro',
+  em_analise: 'info',
+  aceita: 'sucesso',
+  recusada: 'erro',
 }
 
 const base = (comunidadeId: string) => `${naComunidade(comunidadeId)}/sugestoes`

@@ -6,8 +6,8 @@ import { View } from 'react-native'
 import { Botao } from '@/ui/Botao'
 import { BotoesDeOrdem } from '@/ui/BotoesDeOrdem'
 import { CaixaDeMarcar } from '@/ui/CaixaDeMarcar'
-import { GrupoDeOpcoes } from '@/ui/GrupoDeOpcoes'
-import { Selo } from '@/ui/Selo'
+import { Chip } from '@/ui/Chip'
+import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
 import { Texto } from '@/ui/Texto'
 import { TextoAnunciado } from '@/ui/TextoAnunciado'
 
@@ -39,13 +39,9 @@ export function DemonstracaoDaEtapa({ demo }: { demo: Demonstracao }) {
   }
 }
 
+/** Conteúdo da demonstração; o chip "Exemplo" fica no cartão de destaque em volta. */
 function Exemplo({ children }: { children: ReactNode }) {
-  return (
-    <View style={{ gap: ESPACO.e12 }}>
-      <Selo texto="Exemplo: não muda nada de verdade" cor="destaque" />
-      {children}
-    </View>
-  )
+  return <View style={{ gap: ESPACO.e12 }}>{children}</View>
 }
 
 function DemoEvento() {
@@ -109,7 +105,7 @@ function DemoOracao() {
   const contagem = { equipe: 3, comunidade: 24 }
   return (
     <Exemplo>
-      <GrupoDeOpcoes
+      <ListaDeOpcoes
         rotulo="Quem vê o pedido de exemplo"
         valor={v}
         aoMudar={setV}
@@ -130,8 +126,10 @@ function DemoAoVivo() {
   const [atual, setAtual] = useState(0)
   return (
     <Exemplo>
-      <Texto variante="rotulo">AGORA</Texto>
-      <TextoAnunciado soMudancas variante="tituloTela">
+      <Texto variante="sobrancelha" accessibilityRole="text">
+        Agora
+      </Texto>
+      <TextoAnunciado soMudancas variante="tituloCartao">
         {etapas[atual]}
       </TextoAnunciado>
       <Texto variante="corpo">
@@ -163,7 +161,7 @@ function DemoCheckin() {
           aoMudar={(sim) => setPresentes((p) => (sim ? [...p, n] : p.filter((x) => x !== n)))}
         />
       ))}
-      <Texto variante="corpo">
+      <Texto variante="corpo" tabular>
         {presentes.length} de {nomes.length} presentes
       </Texto>
     </Exemplo>
@@ -175,7 +173,7 @@ function DemoAviso() {
   return (
     <Exemplo>
       <Texto variante="tituloItem">Aviso de exemplo: ensaio na sexta</Texto>
-      {fixado ? <Selo texto="Fixado" cor="destaque" /> : null}
+      {fixado ? <Chip texto="Fixado" tom="quente" icone="fixar" /> : null}
       <Texto variante="corpo">Quem toca, chegue às 19:00. Traga a cifra impressa.</Texto>
       <Botao
         titulo={fixado ? 'Desafixar o aviso de exemplo' : 'Fixar o aviso de exemplo'}
@@ -191,7 +189,7 @@ function DemoConvite() {
   const [papel, setPapel] = useState<'membro' | 'organizador' | 'admin'>('membro')
   return (
     <Exemplo>
-      <GrupoDeOpcoes
+      <ListaDeOpcoes
         rotulo="Papel do convite de exemplo"
         valor={papel}
         aoMudar={setPapel}

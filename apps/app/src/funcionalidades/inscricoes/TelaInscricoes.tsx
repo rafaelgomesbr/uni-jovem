@@ -1,30 +1,33 @@
-import { ESPACO, RAIO } from '@uj/tokens'
+import { ESPACO } from '@uj/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 import { View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
 import type { Inscricao } from '@/servicos/contratoDosEventos'
+import { Aviso } from '@/ui/Aviso'
+import { BarraDeAcao } from '@/ui/BarraDeAcao'
+import { Botao } from '@/ui/Botao'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { Chip } from '@/ui/Chip'
+import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
+import { EstadoVazio } from '@/ui/EstadoVazio'
+import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
+import { PilulasDeFiltro } from '@/ui/PilulasDeFiltro'
+import { Tela } from '@/ui/Tela'
+import { mostrarToast } from '@/ui/Toast'
 import { confirmar } from '@/utilidades/confirmar'
 import { parametro } from '@/utilidades/parametros'
-import { Aviso } from '@/ui/Aviso'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
-import { Botao } from '@/ui/Botao'
-import { Carregando } from '@/ui/Carregando'
-import { Cartao } from '@/ui/Cartao'
-import { EstadoVazio } from '@/ui/EstadoVazio'
-import { Segmentos } from '@/ui/Segmentos'
-import { Selo } from '@/ui/Selo'
-import { Tela } from '@/ui/Tela'
-import { Texto } from '@/ui/Texto'
-import { useTema } from '@/ui/tema'
 
 import { usePode } from '../comunidade/permissoes'
 import { useEvento } from '../eventos/consultas'
+import { AvisoDeFalha, ErroDaTela } from '../eventos/Falha'
+import { MenuDeAcoes } from '../eventos/FolhaNaTela'
+import { Numeros } from '../eventos/Numeros'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { useCancelarInscricao, useInscricoes } from './consultas'
 import { LinkPublico } from './LinkPublico'
-import { COR_DO_ESTADO_DA_INSCRICAO, NOME_DO_ESTADO_DA_INSCRICAO } from './nomes'
+import { NOME_DO_ESTADO_DA_INSCRICAO, TOM_DO_ESTADO_DA_INSCRICAO } from './nomes'
 
 export type FiltroDeInscricao = 'todas' | 'confirmada' | 'espera' | 'cancelada' | 'presentes'
 
@@ -34,14 +37,14 @@ export function filtrarInscricoes(lista: readonly Inscricao[], filtro: FiltroDeI
   return lista.filter((i) => i.estado === filtro)
 }
 
-/** Rota `/evento/[eventoId]/inscricoes`: lista interna, contagens e link público. */
+/** Rota `/evento/[eventoId]/inscricoes`: contagens, a lista interna e o link público. */
 export function TelaInscricoes() {
   const { comunidadeAtiva } = useSessao()
   const eventoId = parametro(useLocalSearchParams<{ eventoId: string }>().eventoId)
   const pode = usePode()
   if (!comunidadeAtiva || !eventoId) {
     return (
-      <Tela pilha>
+      <Tela pilha titulo="Inscrições">
         <SemComunidade oQue="as inscrições" />
       </Tela>
     )
@@ -58,39 +61,14 @@ export function TelaInscricoes() {
   return <Inscricoes comunidadeId={comunidadeAtiva.id} eventoId={eventoId} />
 }
 
-function Contagem({ numero, rotulo }: { numero: number; rotulo: string }) {
-  const { cores } = useTema()
-  return (
-    <View
-      accessible
-      accessibilityLabel={`${numero} ${rotulo}`}
-      style={{
-        flexGrow: 1,
-        minWidth: 96,
-        padding: ESPACO.e12,
-        borderRadius: RAIO.controle,
-        borderWidth: 1,
-        borderColor: cores.campoBorda,
-        backgroundColor: cores.superficie,
-        gap: 2,
-      }}
-    >
-      <Texto variante="tituloTela" accessibilityRole="text">
-        {numero}
-      </Texto>
-      <Texto variante="legenda" cor="textoSuave">
-        {rotulo}
-      </Texto>
-    </View>
-  )
-}
-
 function Inscricoes({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: string }) {
   const pode = usePode()
   const evento = useEvento(comunidadeId, eventoId)
   const lista = useInscricoes(comunidadeId, eventoId)
   const cancelar = useCancelarInscricao(comunidadeId, eventoId)
   const [filtro, setFiltro] = useState<FiltroDeInscricao>('todas')
+  const [escolhida, setEscolhida] = useState<Inscricao | null>(null)
+  const gerencia = pode('inscricao', 'gerenciar')
 
   async function pedirCancelamento(i: Inscricao) {
     const ok = await confirmar({
@@ -99,40 +77,67 @@ function Inscricoes({ comunidadeId, eventoId }: { comunidadeId: string; eventoId
       confirmar: 'Cancelar inscrição',
       destrutivo: true,
     })
-    if (ok) cancelar.mutate(i.id)
+    if (ok)
+      cancelar.mutate(i.id, {
+        onSuccess: () => mostrarToast({ texto: `Inscrição de ${i.nome} cancelada.` }),
+      })
   }
 
   const e = evento.data
   return (
-    <Tela pilha titulo="Inscrições" {...(e ? { descricao: e.titulo } : {})}>
+    <Tela
+      pilha
+      titulo="Inscrições"
+      {...(e ? { descricao: e.titulo } : {})}
+      {...(pode('presenca', 'registrar')
+        ? {
+            barraDeAcao: (
+              <BarraDeAcao>
+                <Botao
+                  titulo="Fazer check-in"
+                  tamanho="grande"
+                  icone="qr"
+                  aoPressionar={() =>
+                    router.push({ pathname: '/evento/[eventoId]/checkin', params: { eventoId } })
+                  }
+                />
+              </BarraDeAcao>
+            ),
+          }
+        : {})}
+    >
       {lista.isPending ? (
-        <Carregando texto="Carregando as inscrições" />
+        <Esqueleto rotulo="Carregando as inscrições">
+          <CartaoDeEsqueleto />
+          <CartaoDeEsqueleto titulo />
+        </Esqueleto>
       ) : lista.error ? (
-        <AvisoDeErro erro={lista.error} aoTentarDeNovo={() => void lista.refetch()} />
+        <ErroDaTela
+          erro={lista.error}
+          titulo="As inscrições não abriram"
+          aoTentarDeNovo={() => void lista.refetch()}
+        />
       ) : (
         <>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
-            <Contagem
-              numero={lista.data.contagem.confirmadas}
-              rotulo={e?.capacidade ? `confirmadas de ${e.capacidade} vagas` : 'confirmadas'}
+          <CartaoDeVidro sobrancelha="Visão geral">
+            <Numeros
+              itens={[
+                {
+                  numero: lista.data.contagem.confirmadas,
+                  rotulo: e?.capacidade ? `confirmadas de ${e.capacidade} vagas` : 'confirmadas',
+                },
+                { numero: lista.data.contagem.espera, rotulo: 'na lista de espera' },
+                { numero: lista.data.contagem.presentes, rotulo: 'presentes' },
+              ]}
             />
-            <Contagem numero={lista.data.contagem.espera} rotulo="na lista de espera" />
-            <Contagem numero={lista.data.contagem.presentes} rotulo="presentes" />
-          </View>
-          {pode('presenca', 'registrar') ? (
-            <Botao
-              titulo="Fazer check-in"
-              icone="qr"
-              aoPressionar={() =>
-                router.push({ pathname: '/evento/[eventoId]/checkin', params: { eventoId } })
-              }
-            />
-          ) : null}
-          <Segmentos
+          </CartaoDeVidro>
+          <PilulasDeFiltro
             rotulo="Mostrar"
-            valor={filtro}
-            aoMudar={setFiltro}
-            segmentos={[
+            selecionadas={[filtro]}
+            aoMudar={(v) => {
+              if (v[0]) setFiltro(v[0])
+            }}
+            pilulas={[
               { valor: 'todas', rotulo: 'Todas' },
               { valor: 'confirmada', rotulo: 'Confirmadas' },
               { valor: 'espera', rotulo: 'Espera' },
@@ -140,12 +145,14 @@ function Inscricoes({ comunidadeId, eventoId }: { comunidadeId: string; eventoId
               { valor: 'presentes', rotulo: 'Presentes' },
             ]}
           />
-          {cancelar.error ? <AvisoDeErro erro={cancelar.error} /> : null}
+          {cancelar.error ? (
+            <AvisoDeFalha erro={cancelar.error} titulo="A inscrição não foi cancelada" />
+          ) : null}
           <ListaFiltrada
             inscricoes={filtrarInscricoes(lista.data.inscricoes, filtro)}
             vazioTotal={lista.data.inscricoes.length === 0}
             aoMostrarTodas={() => setFiltro('todas')}
-            aoCancelar={pode('inscricao', 'gerenciar') ? pedirCancelamento : null}
+            aoEscolher={gerencia ? setEscolhida : null}
             publica={e?.visibilidade === 'publica'}
           />
         </>
@@ -153,6 +160,24 @@ function Inscricoes({ comunidadeId, eventoId }: { comunidadeId: string; eventoId
       {e && e.visibilidade === 'publica' && e.status === 'publicado' ? (
         <LinkPublico idPublico={e.idPublico} titulo={e.titulo} />
       ) : null}
+      <MenuDeAcoes
+        aberto={escolhida !== null}
+        titulo={escolhida?.nome ?? 'Inscrição'}
+        aoFechar={() => setEscolhida(null)}
+        acoes={
+          escolhida && escolhida.estado !== 'cancelada'
+            ? [
+                {
+                  titulo: 'Cancelar inscrição',
+                  icone: 'cancelar',
+                  descricao: 'A vaga fica livre para a fila',
+                  destrutiva: true,
+                  aoPressionar: () => void pedirCancelamento(escolhida),
+                },
+              ]
+            : []
+        }
+      />
     </Tela>
   )
 }
@@ -160,76 +185,74 @@ function Inscricoes({ comunidadeId, eventoId }: { comunidadeId: string; eventoId
 function ListaFiltrada({
   inscricoes,
   vazioTotal,
-  aoCancelar,
+  aoEscolher,
   publica,
   aoMostrarTodas,
 }: {
   inscricoes: Inscricao[]
   vazioTotal: boolean
   aoMostrarTodas: () => void
-  aoCancelar: ((i: Inscricao) => void) | null
+  aoEscolher: ((i: Inscricao) => void) | null
   publica: boolean
 }) {
   if (inscricoes.length === 0) {
     return (
-      <Cartao>
-        <EstadoVazio
-          icone="inscricoes"
-          titulo={vazioTotal ? 'Ninguém se inscreveu ainda' : 'Ninguém nesta situação'}
-          descricao={
-            vazioTotal
-              ? publica
-                ? 'Compartilhe o link da página pública abaixo para receber inscrições.'
-                : 'Membros se inscrevem pelo app, na página do evento.'
-              : 'Escolha outra opção em Mostrar.'
-          }
-          acao={
-            vazioTotal
-              ? {
-                  titulo: 'Voltar para a programação',
-                  icone: 'voltar',
-                  aoPressionar: () => router.back(),
-                }
-              : { titulo: 'Mostrar todas', aoPressionar: aoMostrarTodas }
-          }
-        />
-      </Cartao>
+      <EstadoVazio
+        icone="inscricoes"
+        titulo={vazioTotal ? 'Ninguém se inscreveu ainda' : 'Ninguém nesta situação'}
+        descricao={
+          vazioTotal
+            ? publica
+              ? 'Compartilhe o link da página pública, logo abaixo, para receber inscrições.'
+              : 'Membros se inscrevem pelo app, na página do evento.'
+            : 'Escolha outra opção em Mostrar.'
+        }
+        acao={
+          vazioTotal
+            ? {
+                titulo: 'Voltar para a programação',
+                variante: 'secundario',
+                aoPressionar: () => router.back(),
+              }
+            : { titulo: 'Mostrar todas', variante: 'secundario', aoPressionar: aoMostrarTodas }
+        }
+      />
     )
   }
   return (
-    <Cartao>
-      <View style={{ gap: ESPACO.e12 }}>
+    <CartaoDeVidro lista>
+      <Lista>
         {inscricoes.map((i) => {
           const contato = [i.telefone, i.email].filter(Boolean).join(' · ')
+          const origem = i.origem === 'membro' ? 'Membro' : 'Página pública'
+          const descricao = [origem, contato].filter(Boolean).join(' · ')
+          const podeCancelar = !!aoEscolher && i.estado !== 'cancelada'
           return (
-            <View key={i.id} style={{ gap: ESPACO.e4 }}>
-              <Texto variante="tituloItem">{i.nome}</Texto>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
-                <Selo
-                  texto={NOME_DO_ESTADO_DA_INSCRICAO[i.estado]}
-                  cor={COR_DO_ESTADO_DA_INSCRICAO[i.estado]}
-                />
-                {i.presente ? <Selo texto="Presente" cor="sucesso" /> : null}
-                <Selo texto={i.origem === 'membro' ? 'Membro' : 'Página pública'} />
-              </View>
-              {contato ? (
-                <Texto variante="legenda" cor="textoSuave" selectable>
-                  {contato}
-                </Texto>
-              ) : null}
-              {aoCancelar && i.estado !== 'cancelada' ? (
-                <Botao
-                  titulo="Cancelar inscrição"
-                  variante="terciario"
-                  larguraTotal={false}
-                  rotuloAcessivel={`Cancelar inscrição: ${i.nome}`}
-                  aoPressionar={() => aoCancelar(i)}
-                />
-              ) : null}
-            </View>
+            <LinhaDeLista
+              key={i.id}
+              avatar={{ nome: i.nome }}
+              titulo={i.nome}
+              descricao={descricao}
+              extra={
+                <View style={{ alignItems: 'flex-end', gap: ESPACO.e4 }}>
+                  <Chip
+                    texto={NOME_DO_ESTADO_DA_INSCRICAO[i.estado]}
+                    tom={TOM_DO_ESTADO_DA_INSCRICAO[i.estado]}
+                  />
+                  {i.presente ? <Chip texto="Presente" tom="sucesso" icone="check" /> : null}
+                </View>
+              }
+              {...(podeCancelar
+                ? {
+                    semSeta: true,
+                    rotuloAcessivel: `${i.nome}. ${NOME_DO_ESTADO_DA_INSCRICAO[i.estado]}${i.presente ? ', presente' : ''}. ${descricao}. Abrir opções`,
+                    aoPressionar: () => aoEscolher(i),
+                  }
+                : {})}
+            />
           )
         })}
-      </View>
-    </Cartao>
+      </Lista>
+    </CartaoDeVidro>
   )
 }

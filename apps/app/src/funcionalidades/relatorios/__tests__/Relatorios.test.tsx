@@ -1,9 +1,11 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react-native'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 import { router } from 'expo-router'
+import { StyleSheet } from 'react-native'
 
 import { BASE, pedidosPara, renderizarTela } from '@/testes/telas'
 
 import { TelaPerfil } from '../../perfil/TelaPerfil'
+import { Numero } from '../GraficoDeBarras'
 import { TelaExportacoes } from '../TelaExportacoes'
 import { rotuloDoPeriodo, TelaRelatorios } from '../TelaRelatorios'
 
@@ -53,6 +55,12 @@ describe('relatórios', () => {
     const pedido = pedidosPara(servidor, 'GET', `${BASE}/relatorios/presenca`)[0]!
     expect(pedido.url).toContain('agrupar=mes')
     expect(pedido.url).toMatch(/de=\d{4}-\d{2}-\d{2}&ate=\d{4}-\d{2}-\d{2}/)
+  })
+
+  test('os números do relatório usam algarismos tabulares (3.7.5)', async () => {
+    await render(<Numero rotulo="presenças" valor={1234} />)
+    const estilo = StyleSheet.flatten(screen.getByTestId('numero-do-relatorio').props.style)
+    expect(estilo.fontVariant).toEqual(['tabular-nums'])
   })
 
   test('rótulo do período agrupado', () => {

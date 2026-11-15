@@ -1,12 +1,10 @@
 import { useMutation } from '@tanstack/react-query'
-import { ESPACO } from '@uj/tokens'
-import { View } from 'react-native'
 
+import { mensagemDoErro } from '@/servicos/erros'
 import { confirmar } from '@/utilidades/confirmar'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
-import { Botao } from '@/ui/Botao'
-import { Cartao } from '@/ui/Cartao'
-import { Linha } from '@/ui/Linha'
+import { Aviso } from '@/ui/Aviso'
+import { Botao, ParDeBotoes } from '@/ui/Botao'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Texto } from '@/ui/Texto'
 
 import { textoDoPreparo } from './formatos'
@@ -33,9 +31,11 @@ export function CartaoOfflineDoEvento({ eventoId, titulo }: { eventoId: string; 
 
   if (!offline.disponivel) {
     return (
-      <Cartao titulo="Usar sem internet" icone="guardadoNoAparelho">
-        <Texto variante="corpo">{offline.motivoIndisponivel ?? MENSAGEM_DA_WEB}</Texto>
-      </Cartao>
+      <CartaoDeVidro sobrancelha="Usar sem internet">
+        <Texto variante="corpo" cor="textoSuave">
+          {offline.motivoIndisponivel ?? MENSAGEM_DA_WEB}
+        </Texto>
+      </CartaoDeVidro>
     )
   }
 
@@ -52,44 +52,51 @@ export function CartaoOfflineDoEvento({ eventoId, titulo }: { eventoId: string; 
     if (ok) remover.mutate()
   }
 
+  const erro = preparar.error ?? remover.error
   return (
-    <Cartao titulo="Usar sem internet" icone="guardadoNoAparelho">
+    <CartaoDeVidro
+      sobrancelha="Usar sem internet"
+      acoes={
+        <ParDeBotoes>
+          <Botao
+            titulo={guardado ? 'Atualizar agora' : 'Preparar para usar sem internet'}
+            icone={guardado ? 'sincronizar' : 'baixar'}
+            variante="secundario"
+            carregando={preparar.isPending}
+            desabilitado={!offline.online}
+            motivo="Preparar exige conexão com a internet."
+            aoPressionar={() => preparar.mutate()}
+          />
+          {guardado ? (
+            <Botao
+              titulo="Remover deste aparelho"
+              icone="excluir"
+              variante="destrutivo"
+              carregando={remover.isPending}
+              aoPressionar={() => void pedirRemocao()}
+            />
+          ) : null}
+        </ParDeBotoes>
+      }
+    >
       {guardado && validoAte ? (
-        <Linha
-          icone="confirmado"
-          titulo={textoDoPreparo(guardado.baixadoEm, validoAte)}
-          descricao="Guardado cifrado neste aparelho. Pedidos de oração nunca ficam guardados."
-        />
+        <>
+          <Texto variante="tituloItem">{textoDoPreparo(guardado.baixadoEm, validoAte)}</Texto>
+          <Texto variante="legenda" cor="textoSuave">
+            Guardado cifrado neste aparelho. Pedidos de oração nunca ficam guardados.
+          </Texto>
+        </>
       ) : (
-        <Texto variante="corpo">
+        <Texto variante="corpo" cor="textoSuave">
           Baixe a programação, a equipe, as tarefas e os checklists para consultar e marcar o que
           foi feito mesmo sem conexão. Fica cifrado neste aparelho.
         </Texto>
       )}
-      {preparar.error ? <AvisoDeErro erro={preparar.error} /> : null}
-      {remover.error ? <AvisoDeErro erro={remover.error} /> : null}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
-        <Botao
-          titulo={guardado ? 'Atualizar agora' : 'Preparar para usar sem internet'}
-          icone={guardado ? 'sincronizar' : 'baixar'}
-          variante={guardado ? 'secundario' : 'primario'}
-          larguraTotal={!guardado}
-          carregando={preparar.isPending}
-          desabilitado={!offline.online}
-          motivo="Preparar exige conexão com a internet."
-          aoPressionar={() => preparar.mutate()}
-        />
-        {guardado ? (
-          <Botao
-            titulo="Remover deste aparelho"
-            icone="excluir"
-            variante="terciario"
-            larguraTotal={false}
-            carregando={remover.isPending}
-            aoPressionar={() => void pedirRemocao()}
-          />
-        ) : null}
-      </View>
-    </Cartao>
+      {erro ? (
+        <Aviso tipo="erro" titulo="Não deu certo" anunciar>
+          {mensagemDoErro(erro)}
+        </Aviso>
+      ) : null}
+    </CartaoDeVidro>
   )
 }

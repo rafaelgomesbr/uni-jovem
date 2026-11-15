@@ -6,13 +6,14 @@ import type { DetalheDoEvento } from '@/servicos/contratoDosEventos'
 import { falarQuando, formatarDuracao, formatarHora, formatarQuando } from '@/utilidades/datas'
 import { Aviso } from '@/ui/Aviso'
 import { Botao } from '@/ui/Botao'
-import { Cartao } from '@/ui/Cartao'
-import { Linha } from '@/ui/Linha'
-import { Selo } from '@/ui/Selo'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { Chip } from '@/ui/Chip'
+import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
+import { Secao } from '@/ui/Secao'
 import { Texto } from '@/ui/Texto'
 
 import { usePode } from '../comunidade/permissoes'
-import { COR_DO_STATUS, NOME_DO_STATUS } from '../eventos/nomes'
+import { NOME_DO_STATUS, TOM_DO_STATUS } from '../eventos/nomes'
 import { podeIrAoVivo } from '../eventos/regras'
 import { SecaoChecklist } from '../eventos/SecaoChecklist'
 import { SecaoMateriais, SecaoTarefas } from '../eventos/SecaoTarefas'
@@ -45,16 +46,17 @@ export function DetalheLocalDoEvento({
 
   return (
     <>
+      <CabecalhoLocal evento={evento} />
       <Aviso tipo="alerta" titulo="Sem conexão: cópia deste aparelho">
         {`Esta é a programação preparada (atualizada às ${horaNoAparelho(guardado.baixadoEm)}). Marcar tarefas, checklists e presença funciona e vai para o servidor quando a internet voltar. Editar, escalar e mudar o status exigem conexão.`}
       </Aviso>
-      <CabecalhoLocal evento={evento} />
-      <Cartao titulo="No dia" icone="aoVivo">
+      <CartaoDeVidro sobrancelha="No dia">
         <View style={{ gap: ESPACO.e8 }}>
           <Botao
             titulo={conduz ? 'Conduzir ao vivo (só neste aparelho)' : 'Ver o andamento guardado'}
             icone="aoVivo"
             variante="secundario"
+            larguraTotal
             desabilitado={!podeIrAoVivo(evento.status)}
             motivo="O ao vivo fica disponível quando o evento for publicado."
             aoPressionar={() => router.push({ pathname: '/evento/[eventoId]/ao-vivo', params })}
@@ -64,6 +66,7 @@ export function DetalheLocalDoEvento({
               titulo="Check-in de presença"
               icone="qr"
               variante="secundario"
+              larguraTotal
               aoPressionar={() => router.push({ pathname: '/evento/[eventoId]/checkin', params })}
             />
           ) : null}
@@ -72,6 +75,7 @@ export function DetalheLocalDoEvento({
               titulo="Editar a programação"
               icone="editar"
               variante="secundario"
+              larguraTotal
               desabilitado
               motivo={MENSAGEM_EXIGE_CONEXAO}
               aoPressionar={() => undefined}
@@ -79,7 +83,7 @@ export function DetalheLocalDoEvento({
           ) : null}
         </View>
         <MinhaInscricao evento={evento} comunidadeId={comunidadeId} />
-      </Cartao>
+      </CartaoDeVidro>
       <ProgramacaoLocal evento={evento} />
       <SecaoTarefas evento={evento} comunidadeId={comunidadeId} local={local} />
       <SecaoMateriais evento={evento} comunidadeId={comunidadeId} local={local} />
@@ -89,82 +93,112 @@ export function DetalheLocalDoEvento({
   )
 }
 
+/** Título da programação (a moldura sem rede não tem cabeçalho próprio), chips e quando e onde. */
 function CabecalhoLocal({ evento }: { evento: DetalheDoEvento }) {
+  const tom = TOM_DO_STATUS[evento.status]
   return (
-    <Cartao>
-      <Texto variante="tituloTela">{evento.titulo}</Texto>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
-        <Selo texto={NOME_DO_STATUS[evento.status]} cor={COR_DO_STATUS[evento.status]} />
-        <Selo texto="Guardado neste aparelho" />
-      </View>
-      {evento.motivoStatus ? <Texto>Motivo: {evento.motivoStatus}</Texto> : null}
-      <Linha
-        icone="relogio"
-        titulo={formatarQuando(evento.inicio, evento.fuso)}
-        descricao={`Duração prevista: ${formatarDuracao(evento.duracaoMin)} · ${evento.categoria}`}
-        rotuloAcessivel={`${falarQuando(evento.inicio, evento.fuso)}. Duração prevista: ${formatarDuracao(evento.duracaoMin)}. Categoria: ${evento.categoria}`}
-      />
-      <Linha
-        icone="local"
-        titulo={evento.local?.nome ?? 'Local a definir'}
-        {...(evento.local
-          ? {
-              descricao:
-                [
-                  evento.local.tipo === 'interno' ? 'Local interno' : evento.local.endereco,
-                  evento.local.referencia,
-                ]
-                  .filter(Boolean)
-                  .join(' · ') || undefined,
-            }
-          : {})}
-      />
-      {evento.descricao ? <Texto>{evento.descricao}</Texto> : null}
-      {evento.informacoesUteis ? (
-        <View style={{ gap: ESPACO.e4 }}>
-          <Texto variante="tituloItem">Informações úteis</Texto>
-          <Texto>{evento.informacoesUteis}</Texto>
+    <>
+      <View style={{ gap: ESPACO.e8 }}>
+        <Texto variante="tituloTela">{evento.titulo}</Texto>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
+          {tom ? <Chip texto={NOME_DO_STATUS[evento.status]} tom={tom} /> : null}
+          <Chip texto="Neste aparelho" tom="neutro" icone="guardadoNoAparelho" />
         </View>
+        {evento.motivoStatus ? (
+          <Texto variante="corpo" cor="textoSuave">
+            Motivo: {evento.motivoStatus}
+          </Texto>
+        ) : null}
+      </View>
+      <CartaoDeVidro lista>
+        <Lista>
+          <LinhaDeLista
+            icone="relogio"
+            titulo={formatarQuando(evento.inicio, evento.fuso)}
+            descricao={`Duração prevista: ${formatarDuracao(evento.duracaoMin)} · ${evento.categoria}`}
+            rotuloAcessivel={`${falarQuando(evento.inicio, evento.fuso)}. Duração prevista: ${formatarDuracao(evento.duracaoMin)}. Categoria: ${evento.categoria}`}
+          />
+          <LinhaDeLista
+            icone="local"
+            titulo={evento.local?.nome ?? 'Local a definir'}
+            {...(evento.local
+              ? {
+                  descricao:
+                    [
+                      evento.local.tipo === 'interno' ? 'Local interno' : evento.local.endereco,
+                      evento.local.referencia,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ') || undefined,
+                }
+              : {})}
+          />
+        </Lista>
+      </CartaoDeVidro>
+      {evento.descricao ? (
+        <CartaoDeVidro>
+          <Texto variante="leitura">{evento.descricao}</Texto>
+        </CartaoDeVidro>
       ) : null}
-    </Cartao>
+      {evento.informacoesUteis ? (
+        <CartaoDeVidro sobrancelha="Informações úteis">
+          <Texto variante="leitura">{evento.informacoesUteis}</Texto>
+        </CartaoDeVidro>
+      ) : null}
+    </>
   )
 }
 
 function ProgramacaoLocal({ evento }: { evento: DetalheDoEvento }) {
   const geral = evento.atribuicoes.filter((a) => a.etapaId === null)
   return (
-    <Cartao titulo="Programação" icone="etapas">
-      {evento.etapas.length === 0 ? (
-        <Texto variante="legenda" cor="textoSuave">
-          Nenhuma etapa cadastrada.
-        </Texto>
-      ) : (
-        evento.etapas.map((e) => {
-          const equipe = evento.atribuicoes
-            .filter((a) => a.etapaId === e.id)
-            .map((a) => `${a.nome} (${a.funcao})`)
-          return (
-            <Linha
-              key={e.id}
-              titulo={e.titulo}
-              descricao={[
-                `${formatarHora(e.inicioPrevisto, evento.fuso)} · ${formatarDuracao(e.duracaoMin)}`,
-                equipe.length ? `Equipe: ${equipe.join(', ')}` : null,
-              ]
-                .filter(Boolean)
-                .join(' · ')}
-            />
-          )
-        })
-      )}
+    <>
+      <Secao titulo="Programação">
+        {evento.etapas.length === 0 ? (
+          <Texto variante="corpo" cor="textoSuave">
+            Nenhuma etapa cadastrada.
+          </Texto>
+        ) : (
+          <CartaoDeVidro lista>
+            <Lista>
+              {evento.etapas.map((e) => {
+                const equipe = evento.atribuicoes
+                  .filter((a) => a.etapaId === e.id)
+                  .map((a) => `${a.nome} (${a.funcao})`)
+                return (
+                  <LinhaDeLista
+                    key={e.id}
+                    titulo={e.titulo}
+                    valor={formatarHora(e.inicioPrevisto, evento.fuso)}
+                    descricao={[
+                      formatarDuracao(e.duracaoMin),
+                      equipe.length ? `Equipe: ${equipe.join(', ')}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  />
+                )
+              })}
+            </Lista>
+          </CartaoDeVidro>
+        )}
+      </Secao>
       {geral.length ? (
-        <View style={{ gap: ESPACO.e4 }}>
-          <Texto variante="tituloItem">Equipe do evento</Texto>
-          {geral.map((a) => (
-            <Linha key={a.id} titulo={a.nome} descricao={a.funcao} />
-          ))}
-        </View>
+        <Secao titulo="Equipe do evento">
+          <CartaoDeVidro lista>
+            <Lista>
+              {geral.map((a) => (
+                <LinhaDeLista
+                  key={a.id}
+                  avatar={{ nome: a.nome }}
+                  titulo={a.nome}
+                  descricao={a.funcao}
+                />
+              ))}
+            </Lista>
+          </CartaoDeVidro>
+        </Secao>
       ) : null}
-    </Cartao>
+    </>
   )
 }

@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { ESPACO } from '@uj/tokens'
+import { ALTURA, ESPACO, RAIO } from '@uj/tokens'
 import { router } from 'expo-router'
 import { useState } from 'react'
 import { View } from 'react-native'
@@ -9,19 +9,22 @@ import { api } from '@/servicos/api'
 import { ehErroDaApi, mensagemDoErro } from '@/servicos/erros'
 import { confirmar } from '@/utilidades/confirmar'
 import { Aviso } from '@/ui/Aviso'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
+import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
-import { Cartao } from '@/ui/Cartao'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { Icone } from '@/ui/Icone'
+import { Secao } from '@/ui/Secao'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
+import { useTema } from '@/ui/tema'
 
 /** TC-13.v1. */
 export const CONSEQUENCIAS_DA_EXCLUSAO = [
   'Você sai de todas as comunidades e é desconectado de todos os aparelhos.',
   'Seus pedidos de oração e sua disponibilidade são apagados.',
   'Seu nome, e-mail, WhatsApp e senha são apagados. Onde você aparecia (escalas passadas, presenças, sugestões, avisos), passa a aparecer "Pessoa removida". Os números da comunidade continuam.',
-  'Cópias de segurança cifradas com seus dados se apagam sozinhas em até 100 dias.',
+  'Cópias de segurança com seus dados se apagam sozinhas em até cerca de 100 dias.',
 ]
 
 interface ComunidadeSemAdmin {
@@ -29,7 +32,13 @@ interface ComunidadeSemAdmin {
   nome: string
 }
 
-/** Rota `/excluir-conta` (Apple 5.1.1(v): excluir dentro do app). */
+/**
+ * Rota `/excluir-conta` (3.7.8; Apple 5.1.1(v): excluir dentro do app). "O
+ * QUE ACONTECE" em linhas com o ladrilho de erro, o terciário para baixar uma
+ * cópia antes, "CONFIRME QUE É VOCÊ" com Senha e Código (cada um com o próprio
+ * erro) e, na barra de ação, "Cancelar" e "Excluir minha conta" (destrutivo
+ * cheio). A confirmação final continua nativa.
+ */
 export function TelaExcluirConta() {
   const { conta, sair, trocarComunidade } = useSessao()
   const [senha, setSenha] = useState('')
@@ -72,28 +81,45 @@ export function TelaExcluirConta() {
   }
 
   return (
-    <Tela pilha titulo="Excluir sua conta?" descricao="Isso não pode ser desfeito.">
-      <Cartao titulo="O que acontece" icone="info">
-        <View style={{ gap: ESPACO.e8 }}>
+    <Tela
+      pilha
+      titulo="Excluir sua conta?"
+      descricao="Isso não pode ser desfeito."
+      barraDeAcao={
+        <BarraDeAcao>
+          <Botao
+            titulo="Cancelar"
+            variante="secundario"
+            tamanho="grande"
+            desabilitado={excluir.isPending}
+            aoPressionar={() => router.back()}
+          />
+          <Botao
+            titulo="Excluir minha conta"
+            variante="destrutivoCheio"
+            tamanho="grande"
+            carregando={excluir.isPending}
+            aoPressionar={() => void pedir()}
+          />
+        </BarraDeAcao>
+      }
+    >
+      <Secao titulo="O que acontece">
+        <CartaoDeVidro opaco>
           {CONSEQUENCIAS_DA_EXCLUSAO.map((t) => (
-            <View key={t} style={{ flexDirection: 'row', gap: ESPACO.e8 }}>
-              <Texto aria-hidden accessibilityElementsHidden importantForAccessibility="no">
-                •
-              </Texto>
-              <Texto style={{ flex: 1 }}>{t}</Texto>
-            </View>
+            <Consequencia key={t} texto={t} />
           ))}
-        </View>
-        <Botao
-          titulo="Antes, baixe uma cópia dos seus dados"
-          icone="baixar"
-          variante="terciario"
-          larguraTotal={false}
-          aoPressionar={() => router.push('/privacidade')}
-        />
-      </Cartao>
+        </CartaoDeVidro>
+      </Secao>
+      <Botao
+        titulo="Antes, baixe uma cópia dos seus dados"
+        icone="baixar"
+        variante="terciario"
+        alinhado
+        aoPressionar={() => router.push('/privacidade')}
+      />
 
-      <Cartao titulo="Confirme que é você" icone="seguranca">
+      <CartaoDeVidro sobrancelha="Confirme que é você" opaco intervalo={ESPACO.e16}>
         <Campo
           rotulo="Senha"
           senha
@@ -117,35 +143,60 @@ export function TelaExcluirConta() {
             erro={erros.codigo ?? null}
           />
         ) : null}
-        {unicoAdmin ? (
-          <Aviso tipo="alerta" titulo="Antes, nomeie outra pessoa administradora" anunciar>
-            <View style={{ gap: ESPACO.e8 }}>
-              <Texto variante="corpo">{mensagemDoErro(excluir.error)}</Texto>
-              {unicoAdmin.map((c) => (
-                <Botao
-                  key={c.id}
-                  titulo={`Abrir os membros de ${c.nome}`}
-                  icone="comunidade"
-                  variante="secundario"
-                  aoPressionar={() => {
-                    void trocarComunidade(c.id).then(() => router.push('/comunidade'))
-                  }}
-                />
-              ))}
-            </View>
-          </Aviso>
-        ) : excluir.error ? (
-          <AvisoDeErro erro={excluir.error} />
-        ) : null}
-        <Botao
-          titulo="Excluir minha conta"
-          icone="excluir"
-          variante="destrutivo"
-          carregando={excluir.isPending}
-          aoPressionar={() => void pedir()}
-        />
-        <Botao titulo="Cancelar" variante="terciario" aoPressionar={() => router.back()} />
-      </Cartao>
+      </CartaoDeVidro>
+
+      {unicoAdmin ? (
+        <Aviso tipo="alerta" titulo="Antes, nomeie outra pessoa administradora" anunciar>
+          <View style={{ gap: ESPACO.e8 }}>
+            <Texto variante="legenda">{mensagemDoErro(excluir.error)}</Texto>
+            {unicoAdmin.map((c) => (
+              <Botao
+                key={c.id}
+                titulo={`Abrir os membros de ${c.nome}`}
+                variante="terciario"
+                alinhado
+                aoPressionar={() => {
+                  void trocarComunidade(c.id).then(() => router.push('/comunidade'))
+                }}
+              />
+            ))}
+          </View>
+        </Aviso>
+      ) : excluir.error ? (
+        <Aviso tipo="erro" titulo="Não deu para excluir a conta" anunciar>
+          {mensagemDoErro(excluir.error)}
+        </Aviso>
+      ) : null}
     </Tela>
+  )
+}
+
+/**
+ * Uma consequência (3.7.8): ladrilho de 32 no fundo de erro com o ícone de
+ * "x", no lugar do marcador de lista, e o texto em `corpo` (o ícone é forma,
+ * o texto diz tudo).
+ */
+function Consequencia({ texto }: { texto: string }) {
+  const { cores, solido } = useTema()
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: ESPACO.e12 }}>
+      <View
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={{
+          width: ALTURA.ladrilho,
+          height: ALTURA.ladrilho,
+          borderRadius: RAIO.celula,
+          backgroundColor: solido(cores.erroFundo),
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Icone nome="cancelar" cor={cores.erro} tamanho={18} />
+      </View>
+      <Texto variante="corpo" style={{ flex: 1 }}>
+        {texto}
+      </Texto>
+    </View>
   )
 }

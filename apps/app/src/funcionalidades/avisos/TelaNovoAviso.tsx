@@ -1,26 +1,33 @@
+import { ESPACO } from '@uj/tokens'
 import { router } from 'expo-router'
 import { useState } from 'react'
 
+import { useSessao } from '@/estado/sessao'
+import { mensagemDoErro } from '@/servicos/erros'
 import {
   dataDoInstante,
-  formatarDataLocal,
+  dataValidaOuNula,
+  hojeNoFuso,
   instanteDeDataEHora,
-  lerDataDigitada,
 } from '@/utilidades/datas'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
+import { Aviso } from '@/ui/Aviso'
+import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
-import { CaixaDeMarcar } from '@/ui/CaixaDeMarcar'
 import { Campo } from '@/ui/Campo'
-import { Cartao } from '@/ui/Cartao'
+import { CampoDeData } from '@/ui/CampoDeMomento'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { Interruptor } from '@/ui/Interruptor'
+import { Tela } from '@/ui/Tela'
+import { mostrarToast } from '@/ui/Toast'
 
 import { useFusoDaComunidade } from '../comunidade/consultas'
-import { TelaDaComunidade } from '../navegacao/TelaDaComunidade'
+import { SemComunidade } from '../navegacao/SemComunidade'
 import { useCriarAviso, type DadosDoAviso } from './consultas'
 
 interface ValoresDoFormulario {
   titulo: string
   texto: string
-  /** Data digitada (DD/MM/AAAA) ou vazio. */
+  /** Último dia no ar (`AAAA-MM-DD`, escolhido no seletor) ou vazio. */
   ate: string
 }
 
@@ -31,7 +38,7 @@ export function valoresIniciais(
   return {
     titulo: aviso?.titulo ?? '',
     texto: aviso?.texto ?? '',
-    ate: aviso?.visivelAte ? formatarDataLocal(dataDoInstante(aviso.visivelAte, fuso)) : '',
+    ate: aviso?.visivelAte ? dataDoInstante(aviso.visivelAte, fuso) : '',
   }
 }
 
@@ -45,8 +52,8 @@ export function lerFormulario(
   const erros: Partial<Record<keyof ValoresDoFormulario, string>> = {}
   if (v.titulo.trim().length < 2) erros.titulo = 'Dê um título ao aviso.'
   if (!v.texto.trim()) erros.texto = 'Escreva o aviso.'
-  const data = v.ate.trim() ? lerDataDigitada(v.ate) : null
-  if (v.ate.trim() && !data) erros.ate = 'Use o formato DD/MM/AAAA, por exemplo 30/11/2026.'
+  const data = v.ate ? dataValidaOuNula(v.ate) : null
+  if (v.ate && !data) erros.ate = 'Escolha o dia de novo no calendário.'
   if (Object.keys(erros).length) return { erros }
   return {
     dados: {
@@ -58,14 +65,17 @@ export function lerFormulario(
   }
 }
 
+/** Título, texto e o último dia no ar (seletor de data nativo; nada é digitado). */
 export function CamposDoAviso({
   valores,
   aoMudar,
   erros,
+  fuso,
 }: {
   valores: ValoresDoFormulario
   aoMudar: (v: ValoresDoFormulario) => void
   erros: Partial<Record<keyof ValoresDoFormulario, string>>
+  fuso: string
 }) {
   return (
     <>
@@ -83,28 +93,44 @@ export function CamposDoAviso({
         erro={erros.texto ?? null}
         multiline
         maxLength={5000}
+        mostrarContador
       />
-      <Campo
-        rotulo="Mostrar até (opcional)"
-        ajuda="Depois deste dia o aviso sai do ar sozinho. Em branco: fica até você despublicar."
-        exemplo="30/11/2026"
-        formato="data"
-        value={valores.ate}
-        onChangeText={(ate) => aoMudar({ ...valores, ate })}
+      <CampoDeData
+        rotulo="Mostrar até"
+        opcional
+        ajuda="Depois deste dia o aviso sai do ar sozinho. Sem data, fica até você tirar do ar."
+        valor={valores.ate || null}
+        minimo={hojeNoFuso(fuso)}
+        aoMudar={(ate) => aoMudar({ ...valores, ate })}
         erro={erros.ate ?? null}
-        inputMode="numeric"
       />
+      {valores.ate ? (
+        <Botao
+          titulo="Sem data final"
+          variante="terciario"
+          alinhado
+          aoPressionar={() => aoMudar({ ...valores, ate: '' })}
+        />
+      ) : null}
     </>
   )
 }
 
-/** Rota `/avisos/novo`. */
+/**
+ * Rota `/avisos/novo` (3.7.4): Título, Texto, "Mostrar até" com seletor e o
+ * interruptor "Fixar no topo"; a barra de ação tem "Guardar como rascunho" e
+ * "Publicar agora".
+ */
 export function TelaNovoAviso() {
-  return (
-    <TelaDaComunidade oQue="o novo aviso" titulo="Novo aviso">
-      {(c) => <Formulario comunidadeId={c.id} />}
-    </TelaDaComunidade>
-  )
+  const { comunidadeAtiva } = useSessao()
+  if (!comunidadeAtiva) {
+    return (
+      <Tela pilha titulo="Novo aviso">
+        <SemComunidade oQue="o novo aviso" />
+      </Tela>
+    )
+  }
+  return <Formulario comunidadeId={comunidadeAtiva.id} />
 }
 
 function Formulario({ comunidadeId }: { comunidadeId: string }) {
@@ -123,37 +149,60 @@ function Formulario({ comunidadeId }: { comunidadeId: string }) {
     setErros({})
     criar.mutate(
       { ...r.dados, fixado: publicar && fixado, publicar },
-      { onSuccess: () => router.back() },
+      {
+        onSuccess: () => {
+          mostrarToast({ texto: publicar ? 'Aviso publicado' : 'Rascunho guardado' })
+          router.back()
+        },
+      },
     )
   }
 
   return (
-    <>
-      <Cartao>
-        <CamposDoAviso valores={valores} aoMudar={setValores} erros={erros} />
-        <CaixaDeMarcar
+    <Tela
+      pilha
+      titulo="Novo aviso"
+      barraDeAcao={
+        <BarraDeAcao>
+          <Botao
+            titulo="Guardar como rascunho"
+            variante="secundario"
+            tamanho="grande"
+            carregando={criar.isPending && criar.variables?.publicar === false}
+            desabilitado={criar.isPending}
+            aoPressionar={() => salvar(false)}
+          />
+          <Botao
+            titulo="Publicar agora"
+            tamanho="grande"
+            carregando={criar.isPending && criar.variables?.publicar === true}
+            desabilitado={criar.isPending}
+            aoPressionar={() => salvar(true)}
+            dica="Membros veem o aviso e recebem notificação, se tiverem ligado."
+          />
+        </BarraDeAcao>
+      }
+    >
+      <CartaoDeVidro opaco intervalo={ESPACO.e16}>
+        <CamposDoAviso valores={valores} aoMudar={setValores} erros={erros} fuso={fuso} />
+      </CartaoDeVidro>
+      <CartaoDeVidro opaco>
+        <Interruptor
           rotulo="Fixar no topo"
-          descricao="Aviso fixado aparece primeiro no Início e na lista. Só vale ao publicar."
-          marcada={fixado}
+          ligado={fixado}
           aoMudar={setFixado}
+          descricao={
+            fixado
+              ? 'Ligado: aparece primeiro no Início e na lista. Só vale ao publicar.'
+              : 'Desligado: entra na ordem de publicação.'
+          }
         />
-      </Cartao>
-      {criar.error ? <AvisoDeErro erro={criar.error} /> : null}
-      <Botao
-        titulo="Publicar agora"
-        icone="publicar"
-        carregando={criar.isPending && criar.variables?.publicar === true}
-        desabilitado={criar.isPending}
-        aoPressionar={() => salvar(true)}
-        dica="Membros veem o aviso e recebem notificação, se tiverem ligado."
-      />
-      <Botao
-        titulo="Guardar como rascunho"
-        variante="secundario"
-        carregando={criar.isPending && criar.variables?.publicar === false}
-        desabilitado={criar.isPending}
-        aoPressionar={() => salvar(false)}
-      />
-    </>
+      </CartaoDeVidro>
+      {criar.error ? (
+        <Aviso tipo="erro" titulo="Não deu para salvar o aviso" anunciar>
+          {mensagemDoErro(criar.error)}
+        </Aviso>
+      ) : null}
+    </Tela>
   )
 }

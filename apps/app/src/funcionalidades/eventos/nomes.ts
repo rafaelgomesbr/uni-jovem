@@ -6,6 +6,7 @@ import type {
   TipoDeChecklist,
   Visibilidade,
 } from '@/servicos/contratoDosEventos'
+import type { TomDoChip } from '@/ui/Chip'
 import { NOMES_DOS_DIAS } from '@/utilidades/datas'
 
 export const NOME_DO_STATUS: Readonly<Record<StatusDoEvento, string>> = {
@@ -22,6 +23,25 @@ export const COR_DO_STATUS: Readonly<Record<StatusDoEvento, keyof Paleta>> = {
   cancelado: 'erro',
   adiado: 'alerta',
   encerrado: 'textoSuave',
+}
+
+/** Chip da situação (2.12.12). Publicado não ganha chip: é o normal. */
+export const TOM_DO_STATUS: Readonly<Record<StatusDoEvento, TomDoChip | null>> = {
+  rascunho: 'neutro',
+  publicado: null,
+  cancelado: 'erro',
+  adiado: 'alerta',
+  encerrado: 'neutro',
+}
+
+/** Chip da escala, em uma ou duas palavras (2.12.12). */
+export const CHIP_DO_ESTADO_DA_ATRIBUICAO: Readonly<
+  Record<EstadoDaAtribuicao, { texto: string; tom: TomDoChip }>
+> = {
+  pendente: { texto: 'Pendente', tom: 'alerta' },
+  confirmada: { texto: 'Confirmada', tom: 'sucesso' },
+  recusada: { texto: 'Recusada', tom: 'erro' },
+  substituicao_pedida: { texto: 'Substituição', tom: 'info' },
 }
 
 export const NOME_DA_VISIBILIDADE: Readonly<Record<Visibilidade, string>> = {

@@ -10,22 +10,30 @@ import { api } from '@/servicos/api'
 import type { DetalheDaSerie, DetalheDoEvento } from '@/servicos/contratoDosEventos'
 import { ehErroDaApi } from '@/servicos/erros'
 import { confirmar } from '@/utilidades/confirmar'
-import { formatarHora } from '@/utilidades/datas'
+import { dataDoInstante, formatarDataLocal, formatarHora } from '@/utilidades/datas'
 import { parametro } from '@/utilidades/parametros'
 import { Aviso } from '@/ui/Aviso'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
+import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
-import { Carregando } from '@/ui/Carregando'
-import { Cartao } from '@/ui/Cartao'
-import { GrupoDeOpcoes } from '@/ui/GrupoDeOpcoes'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
+import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
+import { Secao } from '@/ui/Secao'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
+import { mostrarToast } from '@/ui/Toast'
 
 import { useFusoDaComunidade } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
 import { SemComunidade } from '../navegacao/SemComunidade'
-import { CamposDoEvento } from './CamposDoEvento'
+import {
+  CamposDoEvento,
+  focarPrimeiroErro,
+  resumoDosErros,
+  useRefsDosCampos,
+} from './CamposDoEvento'
 import { naComunidade, useEvento, useInvalidarEventos } from './consultas'
+import { AvisoDeFalha, ErroDaTela } from './Falha'
 import {
   LOCAL_NOVO,
   mudancasDoEvento,
@@ -73,7 +81,7 @@ export function TelaEditarEvento() {
   }
   if (!pode('evento', 'editar')) {
     return (
-      <Tela pilha titulo="Editar">
+      <Tela pilha titulo="Editar programação">
         <Aviso tipo="info" titulo="Só a organização edita programações">
           Você pode ver a programação, mas não alterar.
         </Aviso>
@@ -82,15 +90,18 @@ export function TelaEditarEvento() {
   }
   if (evento.isPending) {
     return (
-      <Tela pilha>
-        <Carregando texto="Carregando a programação" />
+      <Tela pilha titulo="Editar programação">
+        <Esqueleto rotulo="Carregando a programação">
+          <CartaoDeEsqueleto titulo />
+          <CartaoDeEsqueleto />
+        </Esqueleto>
       </Tela>
     )
   }
   if (evento.error) {
     return (
-      <Tela pilha>
-        <AvisoDeErro erro={evento.error} aoTentarDeNovo={() => void evento.refetch()} />
+      <Tela pilha titulo="Editar programação">
+        <ErroDaTela erro={evento.error} aoTentarDeNovo={() => void evento.refetch()} />
       </Tela>
     )
   }
@@ -112,6 +123,7 @@ function EditarEvento({
   const fuso = useFusoDaComunidade()
   const consultas = useQueryClient()
   const invalidar = useInvalidarEventos(comunidadeId)
+  const refs = useRefsDosCampos()
   // A edição parte de uma versão fixa: se outra pessoa salvar no meio, isso vira conflito explícito.
   const [base, setBase] = useState(inicial)
   const [rascunho, setRascunho] = useState<RascunhoDoEvento>(() => rascunhoDoEvento(inicial))
@@ -161,6 +173,7 @@ function EditarEvento({
         return
       }
       await invalidar(inicial.id)
+      mostrarToast({ texto: 'Alterações salvas.' })
       router.back()
     },
     onError: async (erro, { dados }) => {
@@ -221,6 +234,7 @@ function EditarEvento({
       }
       await invalidar(inicial.id)
       await consultas.invalidateQueries({ queryKey: CHAVES.serie(comunidadeId, inicial.serieId!) })
+      mostrarToast({ texto: 'Alterações salvas na série.' })
       router.back()
     },
     onError: async (erro, { dados }) => {
@@ -243,6 +257,7 @@ function EditarEvento({
       ignorarData: daSerie,
     })
     setErros(novos)
+    focarPrimeiroErro(novos, refs)
     if (!dados || !escopo) return
     if (daSerie) salvarSerie.mutate({ dados, confirmarRecriacao: false })
     else salvarOcorrencia.mutate({ dados, versaoBase })
@@ -255,29 +270,57 @@ function EditarEvento({
     !(conflito && ehErroDaApi(erro, 'conflito'))
   const salvando = salvarOcorrencia.isPending || salvarSerie.isPending
 
+  const resumo = resumoDosErros(Object.keys(erros).length)
+  const motivo = conflito
+    ? 'Resolva o conflito acima primeiro.'
+    : 'Escolha acima se a mudança vale só para esta ocorrência ou para a série.'
+
   return (
-    <Tela pilha titulo="Editar programação" descricao={inicial.titulo}>
-      {ehSerie ? (
-        <Cartao titulo="O que você quer mudar?" icone="repetir">
-          <Texto variante="legenda" cor="textoSuave">
-            Este evento faz parte de uma série. Escolha antes de salvar.
-          </Texto>
-          <GrupoDeOpcoes
-            rotulo="Alcance da mudança"
-            valor={escopo}
-            aoMudar={setEscopo}
-            opcoes={OPCOES_DE_ESCOPO}
+    <Tela
+      pilha
+      titulo="Editar programação"
+      descricao={inicial.titulo}
+      barraDeAcao={
+        <BarraDeAcao>
+          <Botao
+            titulo="Salvar alterações"
+            tamanho="grande"
+            carregando={salvando}
+            desabilitado={!escopo || conflito !== null}
+            motivo={motivo}
+            aoPressionar={() => enviar()}
           />
-          {daSerie ? (
-            <Aviso
-              tipo="info"
-              titulo="Na série valem título, categoria, descrição, local, hora e duração"
-            >
-              Vagas, visibilidade, prazo de inscrição e informações úteis são de cada ocorrência:
-              para mudá-los, escolha &quot;Só esta ocorrência&quot;.
-            </Aviso>
-          ) : null}
-        </Cartao>
+        </BarraDeAcao>
+      }
+    >
+      {resumo ? (
+        <AvisoDeFalha titulo={resumo} mensagem="As mensagens estão junto de cada campo." />
+      ) : null}
+      {semMudancas ? (
+        <Aviso tipo="info" anunciar>
+          {`Nada mudou${daSerie ? ' nos campos que valem para a série' : ''}. Altere algum campo antes de salvar.`}
+        </Aviso>
+      ) : null}
+      {erroVisivel ? <AvisoDeFalha erro={erro} titulo="As alterações não foram salvas" /> : null}
+
+      {ehSerie ? (
+        <Secao titulo="O que você quer mudar?">
+          <CartaoDeVidro opaco intervalo={ESPACO.e16}>
+            <ListaDeOpcoes
+              rotulo="Alcance da mudança"
+              valor={escopo}
+              aoMudar={setEscopo}
+              opcoes={OPCOES_DE_ESCOPO}
+            />
+            {daSerie ? (
+              <Texto variante="legenda" cor="textoSuave">
+                Na série valem título, categoria, descrição, local, hora e duração. Vagas,
+                visibilidade, prazo e informações úteis são de cada data: para mudá-los, escolha Só
+                esta ocorrência.
+              </Texto>
+            ) : null}
+          </CartaoDeVidro>
+        </Secao>
       ) : null}
 
       {conflito ? (
@@ -303,32 +346,17 @@ function EditarEvento({
         rascunho={rascunho}
         mudar={mudar}
         erros={erros}
+        refs={refs}
         visiveis={{ data: !daSerie, inscricoes: !daSerie, prazoEEspera: !daSerie }}
-      />
-
-      {Object.keys(erros).length ? (
-        <AvisoDeErro
-          titulo="Confira os campos"
-          mensagem="Alguns campos precisam de ajuste. As mensagens estão ao lado de cada um."
-        />
-      ) : null}
-      {semMudancas ? (
-        <Aviso tipo="info" anunciar>
-          Nada mudou{daSerie ? ' nos campos que valem para a série' : ''}. Altere algum campo antes
-          de salvar.
-        </Aviso>
-      ) : null}
-      {erroVisivel ? <AvisoDeErro erro={erro} /> : null}
-      <Botao
-        titulo="Salvar alterações"
-        carregando={salvando}
-        desabilitado={!escopo || conflito !== null}
-        motivo={
-          conflito
-            ? 'Resolva o conflito acima primeiro.'
-            : 'Escolha acima se a mudança vale só para esta ocorrência ou para a série.'
-        }
-        aoPressionar={() => enviar()}
+        {...(inicial.serieId
+          ? {
+              aoAbrirSerie: () =>
+                router.push({
+                  pathname: '/serie/[serieId]',
+                  params: { serieId: inicial.serieId! },
+                }),
+            }
+          : {})}
       />
     </Tela>
   )
@@ -337,7 +365,7 @@ function EditarEvento({
 function valorLegivel(campo: string, e: DetalheDoEvento, fuso: string): string {
   switch (campo) {
     case 'inicio':
-      return `${formatarHora(e.inicio, fuso)} de ${rascunhoDoEvento(e).data}`
+      return `${formatarHora(e.inicio, fuso)} de ${formatarDataLocal(dataDoInstante(e.inicio, fuso))}`
     case 'localId':
       return e.local?.nome ?? 'A definir'
     case 'duracaoMin':
@@ -347,7 +375,9 @@ function valorLegivel(campo: string, e: DetalheDoEvento, fuso: string): string {
     case 'listaDeEspera':
       return e.listaDeEspera ? 'Sim' : 'Não'
     case 'inscricaoAte':
-      return e.inscricaoAte ? rascunhoDoEvento(e).inscricaoData : 'Até o início'
+      return e.inscricaoAte
+        ? formatarDataLocal(dataDoInstante(e.inscricaoAte, fuso))
+        : 'Até o início'
     default: {
       const v = (e as unknown as Record<string, unknown>)[campo]
       return v === null || v === undefined || v === '' ? '(vazio)' : String(v)
@@ -368,31 +398,43 @@ function ConflitoDeEdicao({
   aoUsarAtual: () => void
 }) {
   return (
-    <Cartao titulo="Outra pessoa salvou antes de você" icone="erro">
+    <>
       <Aviso tipo="alerta" anunciar titulo="Conflito de edição">
         A programação mudou enquanto você editava. Compare e escolha o que fica.
       </Aviso>
-      {conflito.campos.length ? (
-        <View style={{ gap: ESPACO.e8 }}>
-          {conflito.campos.map((c) => (
+      <CartaoDeVidro
+        sobrancelha="Outra pessoa salvou antes de você"
+        opaco
+        acoes={
+          <View style={{ gap: ESPACO.e8 }}>
+            <Botao
+              titulo="Salvar a minha versão"
+              variante="secundario"
+              larguraTotal
+              aoPressionar={aoManterMinha}
+            />
+            <Botao
+              titulo="Descartar a minha e usar a atual"
+              variante="secundario"
+              larguraTotal
+              aoPressionar={aoUsarAtual}
+            />
+          </View>
+        }
+      >
+        {conflito.campos.length ? (
+          conflito.campos.map((c) => (
             <Texto key={c} variante="corpo">
-              {NOME_DO_CAMPO[c] ?? c}: na versão atual está &quot;
-              {valorLegivel(c, conflito.atual, fuso)}&quot;. A sua mudança substitui isso.
+              {`${NOME_DO_CAMPO[c] ?? c}: na versão atual está "${valorLegivel(c, conflito.atual, fuso)}". A sua mudança substitui isso.`}
             </Texto>
-          ))}
-        </View>
-      ) : (
-        <Texto variante="corpo">
-          A outra pessoa mudou campos diferentes dos seus: salvar a sua versão mantém as duas
-          mudanças.
-        </Texto>
-      )}
-      <Botao titulo="Salvar a minha versão" aoPressionar={aoManterMinha} />
-      <Botao
-        titulo="Descartar a minha e usar a atual"
-        variante="secundario"
-        aoPressionar={aoUsarAtual}
-      />
-    </Cartao>
+          ))
+        ) : (
+          <Texto variante="corpo">
+            A outra pessoa mudou campos diferentes dos seus: salvar a sua versão mantém as duas
+            mudanças.
+          </Texto>
+        )}
+      </CartaoDeVidro>
+    </>
   )
 }

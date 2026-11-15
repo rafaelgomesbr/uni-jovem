@@ -1,11 +1,11 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react-native'
+import { fireEvent, screen, userEvent, waitFor } from '@testing-library/react-native'
 import { QUEM_VE_O_PEDIDO } from '@uj/dominio'
-import { useLocalSearchParams } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { Alert } from 'react-native'
 
 import { BASE, pedidosPara, PESSOAS, renderizarTela } from '@/testes/telas'
 
-import { TelaNovoPedido } from '../TelaNovoPedido'
+import { AVISO_DO_TEXTO, TelaNovoPedido } from '../TelaNovoPedido'
 import { TelaOracao } from '../TelaOracao'
 import { TelaPedidoDeOracao } from '../TelaPedidoDeOracao'
 
@@ -58,8 +58,9 @@ describe('novo pedido de oração', () => {
     const somenteEu = await screen.findByRole('radio', { name: 'Somente eu (padrão)' })
     expect(somenteEu).toBeChecked()
     expect(screen.getByRole('radio', { name: 'Comunidade' })).not.toBeChecked()
-    // A explicação está na tela antes de qualquer envio.
-    expect(screen.getByText('Antes de publicar')).toBeOnTheScreen()
+    // O aviso de privacidade e a explicação de quem vê estão na tela antes de qualquer envio.
+    expect(screen.getByText(AVISO_DO_TEXTO)).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Entenda como é guardado' })).toBeOnTheScreen()
     expect(
       screen.getByText(
         'Só você vê. Nem administradores nem o Criador do app têm tela para ler. Você pode mudar isso depois, sempre com confirmação.',
@@ -125,10 +126,44 @@ describe('lista e pedido', () => {
     await waitFor(() =>
       expect(pedidosPara(servidor, 'POST', `${BASE}/oracao/${DE_OUTRA.id}/orando`)).toHaveLength(1),
     )
+    const usuario = userEvent.setup()
+    // Nada de botões largos no cartão: denunciar, editar e excluir ficam em "Mais ações".
+    expect(screen.queryByRole('button', { name: 'Denunciar' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Editar ou mudar quem vê' })).toBeNull()
+
     // Só o pedido da comunidade, de outra pessoa, pode ser denunciado.
-    expect(screen.getAllByRole('button', { name: 'Denunciar' })).toHaveLength(1)
-    // Os próprios pedidos têm editar e excluir.
-    expect(screen.getByRole('button', { name: 'Editar ou mudar quem vê' })).toBeOnTheScreen()
+    await usuario.press(screen.getByRole('button', { name: 'Mais ações do pedido de bruno lima' }))
+    expect(await screen.findAllByRole('button', { name: 'Denunciar' })).toHaveLength(1)
+    expect(screen.queryByRole('button', { name: 'Editar ou mudar quem vê' })).toBeNull()
+    await usuario.press(screen.getByRole('button', { name: 'Fechar' }))
+
+    // Os próprios pedidos têm editar e excluir, e não denunciar.
+    await usuario.press(screen.getByRole('button', { name: 'Mais ações do seu pedido' }))
+    await usuario.press(await screen.findByRole('button', { name: 'Editar ou mudar quem vê' }))
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/oracao/[pedidoId]',
+      params: { pedidoId: PEDIDO.id, editar: '1' },
+    })
+    expect(screen.queryByRole('button', { name: 'Denunciar' })).toBeNull()
+  })
+
+  test('excluir o próprio pedido pede confirmação com o verbo explícito', async () => {
+    const dialogo = responderDialogos()
+    const { servidor } = await renderizarTela(<TelaOracao />, {
+      papel: 'membro',
+      rotas: {
+        [`GET ${BASE}/oracao`]: () => ({ status: 200, corpo: { pedidos: [PEDIDO] } }),
+        [`DELETE ${BASE}/oracao/${PEDIDO.id}`]: () => ({ status: 200, corpo: { ok: true } }),
+      },
+    })
+    const usuario = userEvent.setup()
+    await usuario.press(await screen.findByRole('button', { name: 'Mais ações do seu pedido' }))
+    await usuario.press(await screen.findByRole('button', { name: 'Excluir pedido' }))
+    await waitFor(() =>
+      expect(pedidosPara(servidor, 'DELETE', `${BASE}/oracao/${PEDIDO.id}`)).toHaveLength(1),
+    )
+    expect(dialogo.mock.calls[0]![0]).toBe('Excluir este pedido?')
+    expect(dialogo.mock.calls[0]![2]?.at(-1)?.text).toBe('Excluir pedido')
   })
 
   test('o texto não fica no cache depois que a tela fecha (gcTime 0)', async () => {
@@ -152,7 +187,8 @@ describe('lista e pedido', () => {
 
   test('mudar quem vê exige confirmação e manda o público visto e o novo', async () => {
     const dialogo = responderDialogos()
-    ;(useLocalSearchParams as jest.Mock).mockReturnValue({ pedidoId: PEDIDO.id })
+    // "Editar ou mudar quem vê" abre o pedido no modo de edição.
+    ;(useLocalSearchParams as jest.Mock).mockReturnValue({ pedidoId: PEDIDO.id, editar: '1' })
     const { servidor } = await renderizarTela(<TelaPedidoDeOracao />, {
       papel: 'membro',
       rotas: {

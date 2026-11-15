@@ -2,18 +2,22 @@ import { VISIBILIDADE_PADRAO_DE_ORACAO, type VisibilidadeDeOracao } from '@uj/do
 import { router } from 'expo-router'
 import { useState } from 'react'
 
+import { useSessao } from '@/estado/sessao'
 import { origemPublica } from '@/servicos/enderecos'
 import { abrirLink } from '@/utilidades/compartilhar'
 import { confirmar } from '@/utilidades/confirmar'
 import { Aviso } from '@/ui/Aviso'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
+import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
-import { Cartao } from '@/ui/Cartao'
-import { GrupoDeOpcoes } from '@/ui/GrupoDeOpcoes'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
+import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
+import { TextoAnunciado } from '@/ui/TextoAnunciado'
 
-import { TelaDaComunidade } from '../navegacao/TelaDaComunidade'
+import { AvisoDeFalha } from '../agenda/ErroAoCarregar'
+import { SemComunidade } from '../navegacao/SemComunidade'
 import { useCriarPedido } from './consultas'
 import {
   explicarVisibilidade,
@@ -22,19 +26,37 @@ import {
   useContagemDeLeitores,
 } from './visibilidade'
 
-/** Aviso fixo abaixo do campo de texto (TC-06.v1). */
+/** Aviso fixo junto do campo de texto (TC-06.v1). */
 export const AVISO_DO_TEXTO =
   'Escreva só o necessário. Evite nomes e detalhes de saúde de outras pessoas sem a permissão delas. O texto é guardado cifrado, mas não é criptografia de ponta a ponta: quem administra o servidor tem capacidade técnica de ler.'
 
+/** "Entenda como é guardado": a seção de oração da política de privacidade. */
+export function entenderComoEGuardado() {
+  void abrirLink(`${origemPublica()}/privacidade#oracao`)
+}
+
 /** Rota `/oracao/novo`. */
 export function TelaNovoPedido() {
+  const { comunidadeAtiva } = useSessao()
+  if (!comunidadeAtiva) {
+    return (
+      <Tela pilha titulo="Novo pedido">
+        <SemComunidade oQue="o novo pedido" />
+      </Tela>
+    )
+  }
   return (
-    <TelaDaComunidade oQue="o novo pedido" titulo="Novo pedido de oração">
-      {(c) => <FormularioDoPedido comunidadeId={c.id} nomeDaComunidade={c.nome} />}
-    </TelaDaComunidade>
+    <FormularioDoPedido comunidadeId={comunidadeAtiva.id} nomeDaComunidade={comunidadeAtiva.nome} />
   )
 }
 
+/**
+ * Novo pedido (3.7.1): o texto em multilinha com o contador, o aviso de
+ * privacidade com "Entenda como é guardado", "Quem vai ver" em lista de
+ * opções com a contagem de leitores (e, abaixo, quem vê por extenso, antes
+ * de publicar) e a barra de ação com "Publicar pedido". Ampliar o público
+ * pede a confirmação nativa.
+ */
 function FormularioDoPedido({
   comunidadeId,
   nomeDaComunidade,
@@ -80,8 +102,21 @@ function FormularioDoPedido({
   }
 
   return (
-    <>
-      <Cartao>
+    <Tela
+      pilha
+      titulo="Novo pedido"
+      barraDeAcao={
+        <BarraDeAcao>
+          <Botao
+            titulo="Publicar pedido"
+            tamanho="grande"
+            carregando={criar.isPending}
+            aoPressionar={() => void publicar()}
+          />
+        </BarraDeAcao>
+      }
+    >
+      <CartaoDeVidro opaco>
         <Campo
           rotulo="Seu pedido"
           value={texto}
@@ -89,40 +124,26 @@ function FormularioDoPedido({
           erro={erro}
           multiline
           maxLength={2000}
-          ajuda="Até 2.000 caracteres."
+          mostrarContador
         />
-        <Texto variante="legenda" cor="textoSuave">
-          {AVISO_DO_TEXTO}
-        </Texto>
-        <Botao
-          titulo="Entenda como o pedido é guardado"
-          icone="documento"
-          variante="terciario"
-          larguraTotal={false}
-          aoPressionar={() => void abrirLink(`${origemPublica()}/privacidade#oracao`)}
-        />
-      </Cartao>
-
-      <Cartao titulo="Quem vai ver" icone="mostrar">
-        <GrupoDeOpcoes
-          rotulo="Escolha quem pode ler este pedido"
-          opcoes={opcoesDeVisibilidade(nomeDaComunidade, contagem)}
-          valor={visibilidade}
-          aoMudar={setVisibilidade}
-        />
-        <Aviso tipo="info" titulo="Antes de publicar">
-          {`${explicarVisibilidade(visibilidade, nomeDaComunidade, contagem)} Você pode mudar isso depois, sempre com confirmação.`}
-        </Aviso>
-      </Cartao>
-
-      {criar.error ? <AvisoDeErro erro={criar.error} /> : null}
-      <Botao
-        titulo="Publicar pedido"
-        icone="publicar"
-        carregando={criar.isPending}
-        aoPressionar={() => void publicar()}
+      </CartaoDeVidro>
+      <Aviso
+        tipo="info"
+        acao={{ titulo: 'Entenda como é guardado', aoPressionar: entenderComoEGuardado }}
+      >
+        <Texto variante="legenda">{AVISO_DO_TEXTO}</Texto>
+      </Aviso>
+      <ListaDeOpcoes
+        rotulo="Quem vai ver"
+        opcoes={opcoesDeVisibilidade(contagem)}
+        valor={visibilidade}
+        aoMudar={setVisibilidade}
       />
-      <Botao titulo="Cancelar" variante="terciario" aoPressionar={() => router.back()} />
-    </>
+      {/* Quem vê, por extenso, antes de publicar; anunciado quando a escolha muda. */}
+      <TextoAnunciado soMudancas variante="legenda" cor="textoSuave">
+        {`${explicarVisibilidade(visibilidade, nomeDaComunidade, contagem)} Você pode mudar isso depois, sempre com confirmação.`}
+      </TextoAnunciado>
+      {criar.error ? <AvisoDeFalha erro={criar.error} /> : null}
+    </Tela>
   )
 }

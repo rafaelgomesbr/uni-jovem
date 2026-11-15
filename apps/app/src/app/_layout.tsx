@@ -10,6 +10,7 @@ import { ProvedorDeSessao, useSessao } from '@/estado/sessao'
 import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { DialogoDeConfirmacao } from '@/ui/DialogoDeConfirmacao'
 import { EstilosDaWeb } from '@/ui/EstilosDaWeb'
+import { useDestinoDepoisDeEntrar } from '@/funcionalidades/autenticacao/destinoDepoisDeEntrar'
 import { useOpcoesDaPilha } from '@/funcionalidades/navegacao/opcoesDaPilha'
 import { ProvedorOffline } from '@/funcionalidades/offline/ProvedorOffline'
 import { ARQUIVOS_DE_FONTE } from '@/ui/fontes'
@@ -45,6 +46,8 @@ function Navegacao({ fontesProntas }: { fontesProntas: boolean }) {
   const { cores, escuro } = useTema()
   const opcoesDaPilha = useOpcoesDaPilha()
   const pronto = fontesProntas && (sessao.pronto || sessao.falhaAoIniciar !== null)
+  // A4: o endereço pedido sem sessão (web e link no celular) é o destino depois de entrar.
+  useDestinoDepoisDeEntrar(sessao.estado)
 
   useEffect(() => {
     if (pronto) SplashScreen.hide()

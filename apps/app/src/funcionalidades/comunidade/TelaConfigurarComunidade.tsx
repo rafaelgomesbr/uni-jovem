@@ -1,27 +1,31 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { ESPACO } from '@uj/tokens'
 import { router } from 'expo-router'
 import { useState } from 'react'
 
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
-import type { DetalheDaComunidade } from '@/servicos/contrato'
-import { Aviso } from '@/ui/Aviso'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
+import type { ComunidadeDoVinculo, DetalheDaComunidade } from '@/servicos/contrato'
+import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
-import { Carregando } from '@/ui/Carregando'
-import { Cartao } from '@/ui/Cartao'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
-import { GrupoDeOpcoes } from '@/ui/GrupoDeOpcoes'
+import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
+import { Secao } from '@/ui/Secao'
+import { Tela } from '@/ui/Tela'
+import { mostrarToast } from '@/ui/Toast'
 
+import { AvisoDeFalha, ErroDaTela } from '../eventos/Falha'
 import { SemComunidade } from '../navegacao/SemComunidade'
+import { logoDaComunidade } from '../perfil/imagens'
 import { useDetalheDaComunidade } from './consultas'
 import { opcoesDeFuso } from './fusos'
-import { IdentidadeDaComunidade } from './Identidade'
+import { EditorDoLogotipo, IdentidadeDaComunidade } from './Identidade'
 import { usePode } from './permissoes'
 import { COR_PADRAO, ehCorDaLista, SeletorDeCor, type CorDaComunidade } from './SeletorDeCor'
-import { CabecalhoDeTela, TelaPropria } from './visual'
 
 /** Nome, cor e fuso da comunidade ativa (só para quem pode configurar). */
 export function TelaConfigurarComunidade() {
@@ -31,44 +35,55 @@ export function TelaConfigurarComunidade() {
 
   if (!comunidadeAtiva) {
     return (
-      <TelaPropria>
+      <Tela pilha titulo="Configurações">
         <SemComunidade oQue="as configurações" />
-      </TelaPropria>
+      </Tela>
     )
   }
   if (!pode('comunidade', 'configurar')) {
     return (
-      <TelaPropria>
-        <CabecalhoDeTela sobrancelha={comunidadeAtiva.nome} titulo="Configurações" />
-        <Cartao>
-          <EstadoVazio
-            icone="seguranca"
-            titulo="Só a administração configura a comunidade"
-            descricao="Se algo precisa mudar no nome, na cor ou no fuso, fale com uma pessoa administradora."
-            acao={{ titulo: 'Voltar', aoPressionar: () => router.back() }}
-          />
-        </Cartao>
-      </TelaPropria>
+      <Tela pilha titulo="Configurações" descricao={comunidadeAtiva.nome}>
+        <EstadoVazio
+          icone="seguranca"
+          titulo="Só a administração configura a comunidade"
+          descricao="Se algo precisa mudar no nome, na cor ou no fuso, fale com uma pessoa administradora."
+          acao={{ titulo: 'Voltar para a Equipe', aoPressionar: () => router.back() }}
+        />
+      </Tela>
     )
   }
   if (detalhe.isPending) {
     return (
-      <TelaPropria>
-        <Carregando texto="Carregando as configurações" />
-      </TelaPropria>
+      <Tela pilha titulo="Configurações">
+        <Esqueleto rotulo="Carregando as configurações">
+          <CartaoDeEsqueleto />
+          <CartaoDeEsqueleto />
+        </Esqueleto>
+      </Tela>
     )
   }
   if (detalhe.error) {
     return (
-      <TelaPropria>
-        <AvisoDeErro erro={detalhe.error} aoTentarDeNovo={() => void detalhe.refetch()} />
-      </TelaPropria>
+      <Tela pilha titulo="Configurações">
+        <ErroDaTela erro={detalhe.error} aoTentarDeNovo={() => void detalhe.refetch()} />
+      </Tela>
     )
   }
-  return <Formulario detalhe={detalhe.data} />
+  return <Formulario detalhe={detalhe.data} comunidade={comunidadeAtiva} />
 }
 
-function Formulario({ detalhe }: { detalhe: DetalheDaComunidade }) {
+/**
+ * O que todo mundo da comunidade vê: o logotipo (só admin troca), o nome, a
+ * cor em amostras com a prévia e o fuso dos horários. "Salvar" na barra.
+ */
+function Formulario({
+  detalhe,
+  comunidade,
+}: {
+  detalhe: DetalheDaComunidade
+  /** O vínculo traz a versão do logotipo (D33), que volta nova de `/eu` depois da troca. */
+  comunidade: ComunidadeDoVinculo
+}) {
   const consultas = useQueryClient()
   const [nome, setNome] = useState(detalhe.nome)
   const [cor, setCor] = useState<CorDaComunidade>(
@@ -88,6 +103,7 @@ function Formulario({ detalhe }: { detalhe: DetalheDaComunidade }) {
   const salvar = useMutation({
     mutationFn: () => api.patch(`/api/v1/c/${detalhe.id}`, mudancas),
     onSuccess: async () => {
+      mostrarToast({ texto: 'Configurações salvas.' })
       await Promise.all([
         consultas.invalidateQueries({ queryKey: CHAVES.comunidade(detalhe.id) }),
         // Nome e cor aparecem no cabeçalho e no seletor, que vêm de `/eu`.
@@ -106,13 +122,37 @@ function Formulario({ detalhe }: { detalhe: DetalheDaComunidade }) {
   }
 
   return (
-    <TelaPropria>
-      <CabecalhoDeTela
-        sobrancelha={detalhe.nome}
-        titulo="Configurações"
-        descricao="O que todo mundo da comunidade vê: nome, cor e o fuso dos horários."
+    <Tela
+      pilha
+      titulo="Configurações"
+      descricao={detalhe.nome}
+      barraDeAcao={
+        <BarraDeAcao>
+          <Botao
+            titulo="Salvar"
+            rotuloAcessivel={`Salvar configurações de ${detalhe.nome}`}
+            tamanho="grande"
+            desabilitado={!mudou}
+            motivo="Nada foi alterado ainda."
+            carregando={salvar.isPending}
+            aoPressionar={enviar}
+          />
+        </BarraDeAcao>
+      }
+    >
+      {salvar.error ? (
+        <AvisoDeFalha erro={salvar.error} titulo="As configurações não foram salvas" />
+      ) : null}
+      <EditorDoLogotipo
+        comunidade={{
+          id: detalhe.id,
+          nome: detalhe.nome,
+          cor: detalhe.cor,
+          ...(comunidade.temLogo !== undefined ? { temLogo: comunidade.temLogo } : {}),
+          ...(comunidade.logoVersao !== undefined ? { logoVersao: comunidade.logoVersao } : {}),
+        }}
       />
-      <Cartao titulo="Identidade" icone="comunidade">
+      <CartaoDeVidro opaco>
         <Campo
           rotulo="Nome da comunidade"
           value={nome}
@@ -121,36 +161,35 @@ function Formulario({ detalhe }: { detalhe: DetalheDaComunidade }) {
           autoCapitalize="words"
           maxLength={80}
         />
-        <SeletorDeCor valor={cor} aoMudar={setCor} />
-        <IdentidadeDaComunidade nome={nomeLimpo || detalhe.nome} cor={cor} detalhe="Prévia" />
-      </Cartao>
-      <Cartao
+      </CartaoDeVidro>
+      <Secao titulo="Cor">
+        <CartaoDeVidro opaco>
+          <SeletorDeCor valor={cor} aoMudar={setCor} />
+        </CartaoDeVidro>
+      </Secao>
+      <Secao titulo="Prévia">
+        <CartaoDeVidro>
+          <IdentidadeDaComunidade
+            nome={nomeLimpo || detalhe.nome}
+            cor={cor}
+            detalhe="Como a comunidade aparece para todos"
+            logo={logoDaComunidade(comunidade)}
+          />
+        </CartaoDeVidro>
+      </Secao>
+      <Secao
         titulo="Fuso horário"
-        icone="relogio"
-        descricao="Agenda e programações seguem o fuso do lugar dos encontros."
+        rodape="Agenda e programações seguem o fuso do lugar dos encontros."
       >
-        <GrupoDeOpcoes
-          rotulo="Fuso"
-          valor={fuso}
-          aoMudar={setFuso}
-          opcoes={opcoesDeFuso(detalhe.fuso)}
-        />
-      </Cartao>
-      {salvar.isSuccess && !mudou ? (
-        <Aviso tipo="sucesso" anunciar>
-          Configurações salvas.
-        </Aviso>
-      ) : null}
-      {salvar.error ? <AvisoDeErro erro={salvar.error} /> : null}
-      <Botao
-        titulo="Salvar configurações"
-        rotuloAcessivel={`Salvar configurações de ${detalhe.nome}`}
-        icone="confirmado"
-        desabilitado={!mudou}
-        motivo="Nada foi alterado ainda."
-        carregando={salvar.isPending}
-        aoPressionar={enviar}
-      />
-    </TelaPropria>
+        <CartaoDeVidro opaco intervalo={ESPACO.e8}>
+          <ListaDeOpcoes
+            rotulo="Fuso"
+            valor={fuso}
+            aoMudar={setFuso}
+            opcoes={opcoesDeFuso(detalhe.fuso)}
+          />
+        </CartaoDeVidro>
+      </Secao>
+    </Tela>
   )
 }

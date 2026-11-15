@@ -1,20 +1,22 @@
-import { DURACAO, ESPACO } from '@uj/tokens'
+import { DURACAO } from '@uj/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useEffect, useState } from 'react'
-import { Animated, View } from 'react-native'
+import { Animated } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
 import { parametro } from '@/utilidades/parametros'
 import { usePreferenciasDeAcessibilidade } from '@/ui/acessibilidade'
 import { anunciar } from '@/ui/anunciar'
-import { BarraDeProgresso } from '@/ui/BarraDeProgresso'
+import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
-import { Carregando } from '@/ui/Carregando'
-import { Cartao } from '@/ui/Cartao'
+import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { Chip } from '@/ui/Chip'
+import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { Icone } from '@/ui/Icone'
-import { Linha } from '@/ui/Linha'
+import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
+import { Secao } from '@/ui/Secao'
 import { Tela } from '@/ui/Tela'
-import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
 
 import { DemonstracaoDaEtapa } from './Demonstracoes'
@@ -31,8 +33,10 @@ export function TelaMapaDaMissao() {
 
   if (!progresso) {
     return (
-      <Tela pilha>
-        <Carregando texto="Abrindo o mapa" />
+      <Tela pilha aurora={1} titulo="Mapa da missão">
+        <Esqueleto rotulo="Abrindo o mapa">
+          <CartaoDeEsqueleto titulo />
+        </Esqueleto>
       </Tela>
     )
   }
@@ -50,6 +54,12 @@ export function TelaMapaDaMissao() {
   )
 }
 
+/**
+ * Mapa da missão (3.7.7): Aurora total, "PASSO 2 DE 5" com a barra de
+ * passos, o objetivo do passo em `tituloTela` e a explicação em `corpo`, a
+ * demonstração num cartão de destaque com o chip "Exemplo" e "Pausar" e
+ * "Próxima etapa" na barra de ação. "Pular" fica no cabeçalho.
+ */
 function Mapa({
   inicial,
   progresso,
@@ -60,11 +70,11 @@ function Mapa({
   salvar: (p: ProgressoDaMissao) => void
 }) {
   const { comunidadeAtiva } = useSessao()
-  const { cores } = useTema()
   const etapas = ETAPAS_POR_PAPEL[comunidadeAtiva?.papel ?? 'membro']
   const [atual, setAtual] = useState(inicial)
   const [concluido, setConcluido] = useState(false)
   const etapa = etapas[atual]!
+  const ultima = atual + 1 >= etapas.length
 
   function irPara(i: number) {
     setAtual(i)
@@ -72,7 +82,7 @@ function Mapa({
   }
 
   function proxima() {
-    if (atual + 1 < etapas.length) {
+    if (!ultima) {
       irPara(atual + 1)
       return
     }
@@ -82,15 +92,30 @@ function Mapa({
 
   if (concluido) {
     return (
-      <Tela pilha titulo="Mapa da missão">
+      <Tela
+        pilha
+        aurora={1}
+        titulo="Mapa da missão"
+        barraDeAcao={
+          <BarraDeAcao>
+            <Botao
+              titulo="Ir para o Início"
+              tamanho="grande"
+              aoPressionar={() => router.replace('/')}
+            />
+          </BarraDeAcao>
+        }
+      >
         <Celebracao />
-        <Cartao titulo="Para deixar tudo pronto" icone="tarefas">
-          <MissoesDeConfiguracao />
-        </Cartao>
-        <Botao titulo="Ir para o Início" aoPressionar={() => router.replace('/')} />
+        <Secao titulo="Para deixar tudo pronto">
+          <CartaoDeVidro>
+            <MissoesDeConfiguracao />
+          </CartaoDeVidro>
+        </Secao>
         <Botao
           titulo="Rever o mapa"
           variante="terciario"
+          alinhado
           aoPressionar={() => {
             setConcluido(false)
             setAtual(0)
@@ -103,75 +128,83 @@ function Mapa({
   return (
     <Tela
       pilha
-      titulo="Mapa da missão"
-      descricao={`Etapa ${atual + 1} de ${etapas.length}. Sem pontos nem ranking: é só para conhecer o app.`}
-    >
-      <BarraDeProgresso
-        fracao={(atual + 1) / etapas.length}
-        rotulo={`Etapa ${atual + 1} de ${etapas.length}`}
-      />
-      <Cartao titulo="O caminho" icone="missao">
-        {etapas.map((e, i) => (
-          <Linha
-            key={e.id}
-            icone={i < atual ? 'confirmado' : i === atual ? 'avancar' : 'pendente'}
-            titulo={`${i + 1}. ${e.titulo}`}
-            descricao={i < atual ? 'Visto' : i === atual ? 'Você está aqui' : 'A seguir'}
-            {...(i !== atual ? { aoPressionar: () => irPara(i) } : {})}
+      aurora={1}
+      passos={{ atual: atual + 1, total: etapas.length }}
+      titulo={etapa.titulo}
+      descricao={etapa.texto}
+      acoes={
+        <Botao
+          titulo="Pular"
+          variante="terciario"
+          rotuloAcessivel="Pular o mapa"
+          dica="Dá para rever quando quiser, no Perfil."
+          aoPressionar={() => {
+            salvar({ ...progresso, estado: 'pulado', etapa: 0 })
+            router.back()
+          }}
+        />
+      }
+      barraDeAcao={
+        <BarraDeAcao>
+          <Botao
+            titulo="Pausar"
+            rotuloAcessivel="Pausar e continuar depois"
+            variante="secundario"
+            tamanho="grande"
+            aoPressionar={() => {
+              salvar({ ...progresso, estado: 'pausado', etapa: atual })
+              router.back()
+            }}
           />
-        ))}
-      </Cartao>
-      <Cartao>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}>
-          <Icone nome="missao" cor={cores.destaque} />
-          <Texto variante="tituloItem" accessibilityRole="header" style={{ flex: 1 }}>
-            {etapa.titulo}
-          </Texto>
-        </View>
-        <Texto>{etapa.texto}</Texto>
-        <DemonstracaoDaEtapa key={etapa.id} demo={etapa.demo} />
-      </Cartao>
-      <Botao
-        titulo={atual + 1 < etapas.length ? 'Próxima etapa' : 'Concluir o mapa'}
-        icone="avancar"
-        aoPressionar={proxima}
-      />
+          <Botao
+            titulo={ultima ? 'Concluir o mapa' : 'Próxima etapa'}
+            tamanho="grande"
+            aoPressionar={proxima}
+          />
+        </BarraDeAcao>
+      }
+    >
+      {etapa.demo ? (
+        <CartaoDeDestaque
+          meta="Não muda nada de verdade"
+          chip={<Chip texto="Exemplo" tom="neutro" />}
+        >
+          <DemonstracaoDaEtapa key={etapa.id} demo={etapa.demo} />
+        </CartaoDeDestaque>
+      ) : null}
       {atual > 0 ? (
         <Botao
           titulo="Etapa anterior"
-          variante="secundario"
-          icone="voltar"
+          variante="terciario"
+          alinhado
           aoPressionar={() => irPara(atual - 1)}
         />
       ) : null}
-      <Botao
-        titulo="Pausar e continuar depois"
-        icone="pausar"
-        variante="secundario"
-        aoPressionar={() => {
-          salvar({ ...progresso, estado: 'pausado', etapa: atual })
-          router.back()
-        }}
-      />
-      <Botao
-        titulo="Pular o mapa"
-        variante="terciario"
-        dica="Dá para rever quando quiser, no Perfil."
-        aoPressionar={() => {
-          salvar({ ...progresso, estado: 'pulado', etapa: 0 })
-          router.back()
-        }}
-      />
+      <Secao titulo="O caminho">
+        <CartaoDeVidro lista>
+          <Lista>
+            {etapas.map((e, i) => (
+              <LinhaDeLista
+                key={e.id}
+                icone={i < atual ? 'confirmado' : i === atual ? 'avancar' : 'pendente'}
+                titulo={`${i + 1}. ${e.titulo}`}
+                descricao={i < atual ? 'Visto' : i === atual ? 'Você está aqui' : 'A seguir'}
+                {...(i !== atual ? { aoPressionar: () => irPara(i) } : {})}
+              />
+            ))}
+          </Lista>
+        </CartaoDeVidro>
+      </Secao>
     </Tela>
   )
 }
 
 /**
- * Celebração discreta: um ícone e uma frase. Com "Reduzir movimento", aparece
- * parada; sem, entra com um leve aumento. O leitor de tela ouve a frase.
+ * Celebração discreta (3.7.7): cartão de destaque com o ícone de brilhos de
+ * 48 e "Tudo pronto", sem confete. Com "Reduzir movimento", aparece parada;
+ * sem, entra com um leve aumento. O leitor de tela ouve a frase.
  */
 export function Celebracao() {
-  const { cores } = useTema()
   const { reduzirMovimento } = usePreferenciasDeAcessibilidade()
   const [escala] = useState(() => new Animated.Value(reduzirMovimento ? 1 : 0.85))
   useEffect(() => {
@@ -189,16 +222,22 @@ export function Celebracao() {
     return () => animacao.stop()
   }, [reduzirMovimento, escala])
   return (
-    <Cartao>
-      <Animated.View
-        style={{ alignItems: 'center', gap: ESPACO.e8, transform: [{ scale: escala }] }}
-      >
-        <Icone nome="celebrar" cor={cores.destaque} tamanho={40} />
-        <Texto variante="tituloItem" centralizado accessibilityRole="header">
-          Mapa concluído
-        </Texto>
-        <Texto centralizado>Você já conhece o caminho. Quando quiser rever, está no Perfil.</Texto>
-      </Animated.View>
-    </Cartao>
+    <CartaoDeDestaque
+      sobrancelha="Mapa concluído"
+      titulo="Tudo pronto"
+      descricao="Você já conhece o caminho. Quando quiser rever, está no Perfil."
+    >
+      <IconeDaCelebracao escala={escala} />
+    </CartaoDeDestaque>
+  )
+}
+
+/** Dentro do destaque, a cor vem da paleta inversa (por isso o tema é lido aqui). */
+function IconeDaCelebracao({ escala }: { escala: Animated.Value }) {
+  const { cores } = useTema()
+  return (
+    <Animated.View style={{ alignSelf: 'flex-start', transform: [{ scale: escala }] }}>
+      <Icone nome="celebrar" cor={cores.destaque} tamanho={48} />
+    </Animated.View>
   )
 }

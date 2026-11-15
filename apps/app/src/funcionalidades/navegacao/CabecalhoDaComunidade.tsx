@@ -8,6 +8,7 @@ import { PilulaDaComunidade as Pilula } from '@/ui/PilulaDaComunidade'
 import { soNaWeb } from '@/ui/web'
 
 import { NOME_DO_ESTADO_DA_COMUNIDADE } from '../comunidade/nomes'
+import { logoDaComunidade } from '../perfil/imagens'
 import { IndicadorDeSincronizacao } from '../offline/IndicadorDeSincronizacao'
 
 /** O que a pílula mostra e faz, a partir da sessão. */
@@ -40,7 +41,9 @@ function usePilula() {
     : vazia
       ? () => router.push('/entrar-com-convite')
       : null
-  return { nome, vazia, podeTrocar, rotulo, aoPressionar }
+  // Logotipo da comunidade (D33): sem ele, as iniciais em coral do mockup.
+  const logo = comunidadeAtiva ? logoDaComunidade(comunidadeAtiva) : null
+  return { nome, vazia, podeTrocar, rotulo, aoPressionar, logo }
 }
 
 /** Pílula da comunidade com a sessão (o desenho está em `ui/PilulaDaComunidade`). */

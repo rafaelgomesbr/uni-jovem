@@ -1,44 +1,39 @@
-import { ESPACO } from '@uj/tokens'
+import { ESPACO, RAIO, TIPO } from '@uj/tokens'
 import { router } from 'expo-router'
 import { useState } from 'react'
-import { View } from 'react-native'
+import { useWindowDimensions, View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
 import type { ResumoDoEvento } from '@/servicos/contratoDosEventos'
-import {
-  formatarDataPorExtenso,
-  formatarDiaCurto,
-  hojeNoFuso,
-  nomeDoMesEAno,
-  somarDias,
-  type DataLocal,
-} from '@/utilidades/datas'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
-import { Botao } from '@/ui/Botao'
-import { Carregando } from '@/ui/Carregando'
-import { Cartao } from '@/ui/Cartao'
+import { hojeNoFuso, type DataLocal } from '@/utilidades/datas'
+import { Aviso } from '@/ui/Aviso'
+import { Botao, BotaoIcone } from '@/ui/Botao'
+import { BlocoDeEsqueleto, CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
 import { LayoutDividido, useLayoutLargo } from '@/ui/LayoutDividido'
 import { Segmentos } from '@/ui/Segmentos'
-import { Texto } from '@/ui/Texto'
 import { TextoAnunciado } from '@/ui/TextoAnunciado'
 
 import { useFusoDaComunidade } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
 import { useEventosNoPeriodo } from '../eventos/consultas'
-import { LinhaDoEvento } from '../eventos/LinhaDoEvento'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { TelaDoApp } from '../navegacao/TelaDoApp'
 import {
   agruparPorDia,
-  contarEventos,
-  DIAS_DA_LISTA,
+  descreverPeriodo,
   intervaloDoModo,
   limitesParaApi,
+  NOMES_DOS_PASSOS,
   passo,
+  periodoTemHoje,
   type ModoDaAgenda,
 } from './calendario'
-import { VistaDoMes } from './VistaDoMes'
+import { ErroAoCarregar } from './ErroAoCarregar'
+import { CartaoDoDia, SobrancelhaDoDia } from './ListaDoDia'
+import { ESQUELETO_DA_GRADE } from './medidas'
+import { VistaDaSemana } from './VistaDaSemana'
+import { ESCALA_DA_LISTA, VistaDoMes } from './VistaDoMes'
 
 export function TelaAgenda() {
   const { comunidadeAtiva } = useSessao()
@@ -52,35 +47,29 @@ export function TelaAgenda() {
   return <Agenda comunidadeId={comunidadeAtiva.id} />
 }
 
-function abrirEvento(id: string) {
-  router.push({ pathname: '/evento/[eventoId]', params: { eventoId: id } })
-}
-
-function abrirDia(data: DataLocal) {
-  router.push({ pathname: '/agenda/[data]', params: { data } })
-}
-
+/**
+ * Agenda (3.3 e quadro 06): segmentos Mês, Semana e Lista; a linha do
+ * período com o título em `tituloCartao`, o terciário "Hoje" (fora do
+ * período atual) e os botões só ícone de anterior e próximo; a grade num
+ * cartão de vidro e, abaixo, o dia escolhido. Com fonte grande, abre em Lista.
+ */
 function Agenda({ comunidadeId }: { comunidadeId: string }) {
   const fuso = useFusoDaComunidade()
   const pode = usePode()
+  const podeCriar = pode('evento', 'criar')
   const largo = useLayoutLargo()
+  const { fontScale } = useWindowDimensions()
   const hoje = hojeNoFuso(fuso)
-  const [modo, setModo] = useState<ModoDaAgenda>('mes')
+  const [modo, setModo] = useState<ModoDaAgenda>(() =>
+    fontScale >= ESCALA_DA_LISTA ? 'lista' : 'mes',
+  )
   const [referencia, setReferencia] = useState<DataLocal>(hoje)
   const [selecionado, setSelecionado] = useState<DataLocal>(hoje)
   const intervalo = intervaloDoModo(modo, referencia)
   const { de, ate } = limitesParaApi(intervalo, fuso)
   const eventos = useEventosNoPeriodo(comunidadeId, de, ate)
   const porDia = agruparPorDia(eventos.data ?? [])
-
-  const titulo =
-    modo === 'mes'
-      ? nomeDoMesEAno(referencia)
-      : modo === 'semana'
-        ? `Semana de ${formatarDiaCurto(intervalo.inicio)} a ${formatarDiaCurto(somarDias(intervalo.fim, -1))}`
-        : `De ${formatarDiaCurto(intervalo.inicio)} a ${formatarDiaCurto(somarDias(intervalo.fim, -1))}`
-  const nomeDoPasso =
-    modo === 'mes' ? 'Mês' : modo === 'semana' ? 'Semana' : `${DIAS_DA_LISTA} dias`
+  const pronto = !eventos.isPending && !eventos.error
 
   function mover(sentido: 1 | -1) {
     const nova = passo(modo, referencia, sentido)
@@ -88,24 +77,13 @@ function Agenda({ comunidadeId }: { comunidadeId: string }) {
     setSelecionado(modo === 'mes' ? nova : intervaloDoModo(modo, nova).inicio)
   }
 
+  function irParaHoje() {
+    setReferencia(hoje)
+    setSelecionado(hoje)
+  }
+
   const controles = (
     <>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
-        <Botao
-          titulo="Minhas escalas"
-          icone="escalas"
-          variante="secundario"
-          larguraTotal={false}
-          aoPressionar={() => router.push('/escalas')}
-        />
-        <Botao
-          titulo="Linha do tempo de hoje"
-          icone="relogio"
-          variante="secundario"
-          larguraTotal={false}
-          aoPressionar={() => abrirDia(hoje)}
-        />
-      </View>
       <Segmentos
         rotulo="Modo de exibição"
         valor={modo}
@@ -119,64 +97,67 @@ function Agenda({ comunidadeId }: { comunidadeId: string }) {
           { valor: 'lista', rotulo: 'Lista' },
         ]}
       />
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}>
-        <Botao
-          titulo="Anterior"
-          icone="voltar"
-          variante="secundario"
-          larguraTotal={false}
-          rotuloAcessivel={`Anterior: ${nomeDoPasso.toLowerCase()} anterior`}
-          aoPressionar={() => mover(-1)}
-        />
-        <TextoAnunciado soMudancas variante="tituloItem" centralizado style={{ flex: 1 }}>
-          {titulo}
-        </TextoAnunciado>
-        <Botao
-          titulo="Próximo"
-          variante="secundario"
-          larguraTotal={false}
-          rotuloAcessivel={`Próximo: ${nomeDoPasso.toLowerCase()} seguinte`}
-          aoPressionar={() => mover(1)}
-        />
-      </View>
-      <Botao
-        titulo="Voltar para hoje"
-        variante="terciario"
-        larguraTotal={false}
-        aoPressionar={() => {
-          setReferencia(hoje)
-          setSelecionado(hoje)
-        }}
+      <LinhaDoPeriodo
+        titulo={descreverPeriodo(modo, referencia)}
+        nomes={NOMES_DOS_PASSOS[modo]}
+        mostrarHoje={!periodoTemHoje(modo, referencia, hoje)}
+        aoIrParaHoje={irParaHoje}
+        aoMover={mover}
       />
     </>
   )
 
-  const conteudo = eventos.isPending ? (
-    <Carregando texto="Carregando a agenda" />
+  const grade = eventos.isPending ? (
+    eventos.fetchStatus === 'paused' ? (
+      <Aviso tipo="alerta" titulo="Sem conexão: a agenda volta quando a internet voltar">
+        O que foi preparado neste aparelho continua no Início.
+      </Aviso>
+    ) : (
+      <EsqueletoDaAgenda modo={modo} />
+    )
   ) : eventos.error ? (
-    <AvisoDeErro erro={eventos.error} aoTentarDeNovo={() => void eventos.refetch()} />
+    <ErroAoCarregar
+      erro={eventos.error}
+      oQue="a agenda"
+      aoTentarDeNovo={() => void eventos.refetch()}
+    />
   ) : modo === 'mes' ? (
-    <Cartao>
-      <VistaDoMes
-        referencia={referencia}
-        hoje={hoje}
-        selecionado={selecionado}
-        porDia={porDia}
-        aoEscolher={setSelecionado}
-      />
-    </Cartao>
+    <VistaDoMes
+      referencia={referencia}
+      hoje={hoje}
+      selecionado={selecionado}
+      porDia={porDia}
+      aoEscolher={setSelecionado}
+    />
   ) : modo === 'semana' ? (
-    <VistaDaSemana inicio={intervalo.inicio} hoje={hoje} porDia={porDia} />
+    <VistaDaSemana
+      inicio={intervalo.inicio}
+      hoje={hoje}
+      selecionado={selecionado}
+      porDia={porDia}
+      aoEscolher={setSelecionado}
+    />
   ) : (
-    <VistaDeLista porDia={porDia} hoje={hoje} podeCriar={pode('evento', 'criar')} />
+    <VistaDeLista porDia={porDia} hoje={hoje} podeCriar={podeCriar} aoAvancar={() => mover(1)} />
   )
 
   const painelDoDia =
-    modo === 'mes' && !eventos.isPending && !eventos.error ? (
-      <PainelDoDia dia={selecionado} hoje={hoje} eventos={porDia.get(selecionado) ?? []} />
+    modo !== 'lista' && pronto ? (
+      <View style={{ gap: ESPACO.e8 }}>
+        <SobrancelhaDoDia
+          dia={selecionado}
+          hoje={hoje}
+          quantidade={porDia.get(selecionado)?.length ?? 0}
+        />
+        <CartaoDoDia
+          dia={selecionado}
+          eventos={porDia.get(selecionado) ?? []}
+          podeCriar={podeCriar}
+        />
+      </View>
     ) : null
 
-  if (largo && modo === 'mes') {
+  if (largo && modo !== 'lista') {
     return (
       <TelaDoApp titulo="Agenda" rolar={false} larga>
         <LayoutDividido
@@ -184,7 +165,7 @@ function Agenda({ comunidadeId }: { comunidadeId: string }) {
           lista={
             <>
               {controles}
-              {conteudo}
+              {grade}
             </>
           }
           detalhe={painelDoDia}
@@ -196,157 +177,133 @@ function Agenda({ comunidadeId }: { comunidadeId: string }) {
   return (
     <TelaDoApp titulo="Agenda">
       {controles}
-      {conteudo}
+      {grade}
       {painelDoDia}
     </TelaDoApp>
   )
 }
 
-function PainelDoDia({
-  dia,
-  hoje,
-  eventos,
+/**
+ * Linha do período: o título à esquerda, anunciado quando muda; à direita,
+ * "Hoje" (só fora do período atual) e os só ícone de 44 com 8 entre eles.
+ * Com fonte grande, os botões descem para baixo do título.
+ */
+function LinhaDoPeriodo({
+  titulo,
+  nomes,
+  mostrarHoje,
+  aoIrParaHoje,
+  aoMover,
 }: {
-  dia: DataLocal
-  hoje: DataLocal
-  eventos: ResumoDoEvento[]
+  titulo: string
+  nomes: { anterior: string; proximo: string }
+  mostrarHoje: boolean
+  aoIrParaHoje: () => void
+  aoMover: (sentido: 1 | -1) => void
 }) {
+  const { fontScale } = useWindowDimensions()
+  const empilhar = fontScale >= ESCALA_DA_LISTA
   return (
-    <Cartao
-      titulo={`${formatarDataPorExtenso(dia)}${dia === hoje ? ' (hoje)' : ''}`}
-      icone="agenda"
+    <View
+      style={{
+        flexDirection: empilhar ? 'column' : 'row',
+        alignItems: empilhar ? 'flex-start' : 'center',
+        gap: ESPACO.e12,
+      }}
     >
-      {eventos.length === 0 ? (
-        <Texto variante="legenda" cor="textoSuave">
-          Nada marcado para este dia.
-        </Texto>
-      ) : (
-        <View style={{ gap: ESPACO.e8 }}>
-          {eventos.map((e) => (
-            <LinhaDoEvento
-              key={e.id}
-              evento={e}
-              fuso={e.fuso}
-              soHora
-              aoPressionar={() => abrirEvento(e.id)}
-            />
-          ))}
+      <TextoAnunciado soMudancas variante="tituloCartao" style={empilhar ? null : { flex: 1 }}>
+        {titulo}
+      </TextoAnunciado>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}>
+        {mostrarHoje ? (
           <Botao
-            titulo="Ver a linha do tempo do dia"
-            icone="relogio"
-            variante="secundario"
-            aoPressionar={() => abrirDia(dia)}
+            titulo="Hoje"
+            variante="terciario"
+            dica="Volta para o período de hoje."
+            aoPressionar={aoIrParaHoje}
           />
-        </View>
-      )}
-    </Cartao>
-  )
-}
-
-function VistaDaSemana({
-  inicio,
-  hoje,
-  porDia,
-}: {
-  inicio: DataLocal
-  hoje: DataLocal
-  porDia: Map<DataLocal, ResumoDoEvento[]>
-}) {
-  const dias = Array.from({ length: 7 }, (_, i) => somarDias(inicio, i))
-  return (
-    <View style={{ gap: ESPACO.e12 }}>
-      {dias.map((dia) => {
-        const lista = porDia.get(dia) ?? []
-        return (
-          <Cartao
-            key={dia}
-            titulo={`${formatarDataPorExtenso(dia, false)}${dia === hoje ? ' (hoje)' : ''}`}
-          >
-            {lista.length === 0 ? (
-              <Texto variante="legenda" cor="textoSuave">
-                Sem eventos.
-              </Texto>
-            ) : (
-              <View style={{ gap: ESPACO.e8 }}>
-                {lista.map((e) => (
-                  <LinhaDoEvento
-                    key={e.id}
-                    evento={e}
-                    fuso={e.fuso}
-                    soHora
-                    aoPressionar={() => abrirEvento(e.id)}
-                  />
-                ))}
-                <Botao
-                  titulo="Linha do tempo"
-                  icone="relogio"
-                  variante="terciario"
-                  larguraTotal={false}
-                  rotuloAcessivel={`Linha do tempo: ${formatarDataPorExtenso(dia)}`}
-                  aoPressionar={() => abrirDia(dia)}
-                />
-              </View>
-            )}
-          </Cartao>
-        )
-      })}
+        ) : null}
+        <BotaoIcone icone="voltar" rotulo={nomes.anterior} aoPressionar={() => aoMover(-1)} />
+        <BotaoIcone icone="avancar" rotulo={nomes.proximo} aoPressionar={() => aoMover(1)} />
+      </View>
     </View>
   )
 }
 
+/** Esqueleto da grade (ou das listas), com a altura do que vai chegar. */
+function EsqueletoDaAgenda({ modo }: { modo: ModoDaAgenda }) {
+  const sobrancelha = Math.round(TIPO.sobrancelha.altura * 0.6)
+  return (
+    <Esqueleto rotulo="Carregando a agenda">
+      {modo === 'lista' ? null : (
+        <BlocoDeEsqueleto
+          altura={modo === 'mes' ? ESQUELETO_DA_GRADE.mes : ESQUELETO_DA_GRADE.semana}
+          raio={RAIO.cartao}
+        />
+      )}
+      <BlocoDeEsqueleto largura="48%" altura={sobrancelha} />
+      <CartaoDeEsqueleto />
+      {modo === 'lista' ? (
+        <>
+          <BlocoDeEsqueleto largura="48%" altura={sobrancelha} />
+          <CartaoDeEsqueleto />
+        </>
+      ) : null}
+    </Esqueleto>
+  )
+}
+
+/**
+ * Lista (3.3.3): um grupo por dia, cada um com a sobrancelha (hoje com o
+ * ponto coral e "Hoje") e um cartão lista com as linhas de evento. Vazio:
+ * estado vazio com "Nova programação" para quem cria e o período seguinte
+ * para os demais.
+ */
 function VistaDeLista({
   porDia,
   hoje,
   podeCriar,
+  aoAvancar,
 }: {
   porDia: Map<DataLocal, ResumoDoEvento[]>
   hoje: DataLocal
   podeCriar: boolean
+  aoAvancar: () => void
 }) {
   const dias = [...porDia.keys()].sort()
   if (dias.length === 0) {
     return (
-      <Cartao>
-        <EstadoVazio
-          icone="agenda"
-          titulo="Nada marcado neste período"
-          descricao={
-            podeCriar
-              ? 'Crie a próxima programação para ela aparecer aqui.'
-              : 'Avance para os próximos dias ou volte mais tarde.'
-          }
-          {...(podeCriar
+      <EstadoVazio
+        icone="agenda"
+        titulo="Nada marcado neste período"
+        descricao={
+          podeCriar
+            ? 'Crie a próxima programação para ela aparecer aqui.'
+            : 'Quando a organização marcar algo, aparece aqui. Veja também os dias seguintes.'
+        }
+        acao={
+          podeCriar
             ? {
-                acao: {
-                  titulo: 'Nova programação',
-                  icone: 'adicionar' as const,
-                  aoPressionar: () => router.push('/evento/novo'),
-                },
+                titulo: 'Nova programação',
+                icone: 'adicionar',
+                aoPressionar: () => router.push('/evento/novo'),
               }
-            : {})}
-        />
-      </Cartao>
+            : { titulo: 'Ver o período seguinte', variante: 'secundario', aoPressionar: aoAvancar }
+        }
+      />
     )
   }
   return (
-    <View style={{ gap: ESPACO.e12 }}>
-      {dias.map((dia) => (
-        <View key={dia} style={{ gap: ESPACO.e8 }}>
-          <Texto variante="tituloItem" accessibilityRole="header">
-            {formatarDataPorExtenso(dia)}
-            {dia === hoje ? ' (hoje)' : ''} · {contarEventos(porDia.get(dia)!.length)}
-          </Texto>
-          {porDia.get(dia)!.map((e) => (
-            <LinhaDoEvento
-              key={e.id}
-              evento={e}
-              fuso={e.fuso}
-              soHora
-              aoPressionar={() => abrirEvento(e.id)}
-            />
-          ))}
-        </View>
-      ))}
-    </View>
+    <>
+      {dias.map((dia) => {
+        const lista = porDia.get(dia) ?? []
+        return (
+          <View key={dia} style={{ gap: ESPACO.e8 }}>
+            <SobrancelhaDoDia dia={dia} hoje={hoje} quantidade={lista.length} />
+            <CartaoDoDia dia={dia} eventos={lista} podeCriar={false} comLinhaDoTempo={false} />
+          </View>
+        )
+      })}
+    </>
   )
 }

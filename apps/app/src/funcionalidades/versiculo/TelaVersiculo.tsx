@@ -1,21 +1,22 @@
 import { ATRIBUICAO, versiculoDoDia } from '@uj/conteudo'
+import { ESPACO } from '@uj/tokens'
 import { router } from 'expo-router'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { View } from 'react-native'
 
 import { NOTIFICACOES_DISPONIVEIS } from '@/servicos/notificacoesDoSistema'
 import { abrirLink } from '@/utilidades/compartilhar'
-import { lerHoraDigitada } from '@/utilidades/datas'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
-import { Botao } from '@/ui/Botao'
-import { CaixaDeMarcar } from '@/ui/CaixaDeMarcar'
-import { Campo } from '@/ui/Campo'
-import { Carregando } from '@/ui/Carregando'
-import { Cartao } from '@/ui/Cartao'
-import { Linha } from '@/ui/Linha'
+import { CampoDeHora } from '@/ui/CampoDeMomento'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
+import { Interruptor } from '@/ui/Interruptor'
+import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
+import { Secao } from '@/ui/Secao'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
-import { TextoAnunciado } from '@/ui/TextoAnunciado'
+import { mostrarToast } from '@/ui/Toast'
 
+import { AvisoDeFalha } from '../agenda/ErroAoCarregar'
 import { usePreferenciasDaConta, useSalvarVersiculo } from '../notificacoes/consultas'
 import { PermissaoDoSistema } from '../notificacoes/PermissaoDoSistema'
 import { CartaoDoVersiculo, useHoje } from './CartaoDoVersiculo'
@@ -24,129 +25,166 @@ import { CartaoDoVersiculo, useHoje } from './CartaoDoVersiculo'
 export const TEXTO_DO_VERSICULO =
   'O versículo do dia é agendado no seu aparelho. Nada sobre ele é enviado ao servidor. Você pode desligar ou mudar o horário quando quiser.'
 
-/** Rota `/versiculo`: ligar, desligar, horário e o estado da permissão do aparelho. */
+/**
+ * Quanto esperar depois do último giro do seletor para salvar: a roda do iOS
+ * avisa a cada parada, e só o horário final deve ir para a conta.
+ */
+const ESPERA_PARA_SALVAR_MS = 600
+
+/**
+ * Rota `/versiculo` (3.6.7): a prévia igual à do Início; o cartão com o
+ * interruptor "Receber todo dia" e o horário pelo seletor nativo (salva ao
+ * escolher e confirma com toast, sem botão Salvar); a permissão do aparelho;
+ * e "Sobre a tradução".
+ */
 export function TelaVersiculo() {
   const prefs = usePreferenciasDaConta()
   return (
     <Tela pilha titulo="Versículo do dia" descricao={TEXTO_DO_VERSICULO}>
-      <CartaoDoVersiculo comAtalho={false} />
+      <CartaoDoVersiculo />
       {prefs.isPending ? (
-        <Carregando texto="Carregando a sua preferência" />
+        <Esqueleto rotulo="Carregando a sua preferência">
+          <CartaoDeEsqueleto />
+        </Esqueleto>
       ) : prefs.error ? (
-        <AvisoDeErro erro={prefs.error} aoTentarDeNovo={() => void prefs.refetch()} />
+        <AvisoDeFalha
+          erro={prefs.error}
+          titulo="Não deu para carregar a sua preferência"
+          aoTentarDeNovo={() => void prefs.refetch()}
+        />
       ) : (
-        <Preferencia
-          key={`${prefs.data.versiculo.ativo}-${prefs.data.versiculo.hora}`}
-          ativo={prefs.data.versiculo.ativo}
-          hora={prefs.data.versiculo.hora}
-        />
+        <Preferencia ativo={prefs.data.versiculo.ativo} hora={prefs.data.versiculo.hora} />
       )}
-      <Cartao titulo="Sobre a tradução" icone="documento">
-        <Linha
-          titulo={ATRIBUICAO.traducao}
-          descricao={`Licença ${ATRIBUICAO.licenca}. Toque para ver o crédito completo.`}
-          aoPressionar={() => router.push('/versiculo/traducao')}
-        />
-      </Cartao>
+      <Secao titulo="Sobre a tradução">
+        <CartaoDeVidro lista>
+          <LinhaDeLista
+            icone="documento"
+            titulo={ATRIBUICAO.traducao}
+            descricao="CC BY 4.0"
+            rotuloAcessivel={`${ATRIBUICAO.traducao}. ${ATRIBUICAO.licenca}`}
+            dica="Abre o crédito completo da tradução."
+            aoPressionar={() => router.push('/versiculo/traducao')}
+          />
+        </CartaoDeVidro>
+      </Secao>
     </Tela>
   )
 }
 
 function Preferencia({ ativo, hora }: { ativo: boolean; hora: string }) {
   const salvar = useSalvarVersiculo()
-  const [texto, setTexto] = useState(hora)
-  const [erro, setErro] = useState<string | null>(null)
-  const lida = lerHoraDigitada(texto)
+  // O horário escolhido que ainda não voltou do servidor: o campo mostra ele, não o antigo.
+  const [pendente, setPendente] = useState<string | null>(null)
+  const espera = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  function salvarHora() {
-    if (!lida) {
-      setErro('Use o formato HH:MM, por exemplo 07:00.')
-      return
-    }
-    setErro(null)
-    salvar.mutate({ versiculoHora: lida })
+  // O relógio da espera é externo à tela: some com ela.
+  useEffect(
+    () => () => {
+      if (espera.current) clearTimeout(espera.current)
+    },
+    [],
+  )
+
+  function escolherHora(nova: string) {
+    setPendente(nova)
+    if (espera.current) clearTimeout(espera.current)
+    espera.current = setTimeout(() => {
+      if (nova === hora) {
+        setPendente(null)
+        return
+      }
+      salvar.mutate(
+        { versiculoHora: nova },
+        {
+          onSuccess: () => {
+            setPendente((p) => (p === nova ? null : p))
+            mostrarToast({ texto: `Horário salvo: ${nova}.` })
+          },
+        },
+      )
+    }, ESPERA_PARA_SALVAR_MS)
   }
 
   return (
     <>
-      <Cartao titulo="No app" icone="versiculo">
-        <CaixaDeMarcar
-          rotulo="Receber o versículo do dia"
-          descricao={
-            ativo
-              ? `Ligado, todo dia às ${hora}. Vale para a sua conta, não importa em quantas comunidades você está.`
-              : 'Desligado. O versículo continua no Início.'
-          }
-          marcada={ativo}
-          desabilitada={salvar.isPending}
-          aoMudar={(v) => salvar.mutate({ versiculoAtivo: v })}
-        />
-        <Campo
-          rotulo="Horário"
-          exemplo="07:00"
-          formato="hora"
-          ajuda="No fuso do aparelho. Se você viajar, o app reagenda sozinho."
-          value={texto}
-          onChangeText={setTexto}
-          erro={erro}
-          inputMode="numeric"
-          maxLength={5}
-          onSubmitEditing={salvarHora}
-        />
-        {salvar.error ? <AvisoDeErro erro={salvar.error} /> : null}
-        {salvar.isSuccess ? (
-          <TextoAnunciado variante="corpo" cor="sucesso">
-            Preferência salva.
-          </TextoAnunciado>
-        ) : null}
-        <Botao
-          titulo="Salvar horário"
-          variante="secundario"
-          desabilitado={lida === hora}
-          motivo="Digite outro horário para salvar."
-          carregando={salvar.isPending}
-          aoPressionar={salvarHora}
-        />
-      </Cartao>
-      {NOTIFICACOES_DISPONIVEIS ? (
-        <Cartao titulo="No aparelho" icone="aparelho">
+      <CartaoDeVidro opaco intervalo={0}>
+        <Lista>
+          <Interruptor
+            rotulo="Receber todo dia"
+            descricao={
+              ativo
+                ? `Ligado, todo dia às ${pendente ?? hora}. Vale para a sua conta, em todas as comunidades.`
+                : 'Desligado. Vale para a sua conta, em todas as comunidades.'
+            }
+            ligado={ativo}
+            desabilitado={salvar.isPending}
+            aoMudar={(v) =>
+              salvar.mutate(
+                { versiculoAtivo: v },
+                {
+                  onSuccess: () =>
+                    mostrarToast({
+                      texto: v ? 'Versículo do dia ligado.' : 'Versículo do dia desligado.',
+                    }),
+                },
+              )
+            }
+          />
+          <View style={{ paddingVertical: ESPACO.e12 }}>
+            <CampoDeHora
+              rotulo="Horário"
+              valor={pendente ?? hora}
+              aoMudar={escolherHora}
+              ajuda="No fuso do aparelho. Se você viajar, o app reagenda sozinho."
+            />
+          </View>
+        </Lista>
+      </CartaoDeVidro>
+      {salvar.error ? <AvisoDeFalha erro={salvar.error} /> : null}
+      <Secao titulo="Neste aparelho">
+        {NOTIFICACOES_DISPONIVEIS ? (
           <PermissaoDoSistema ligadoNoApp={ativo} />
-        </Cartao>
-      ) : (
-        <Texto variante="legenda" cor="textoSuave">
-          Na web o versículo aparece só no Início. A notificação diária chega no app do celular.
-        </Texto>
-      )}
+        ) : (
+          <Texto variante="corpo" cor="textoSuave">
+            Na web o versículo aparece só no Início. A notificação diária chega no app do celular.
+          </Texto>
+        )}
+      </Secao>
     </>
   )
 }
 
-/** Rota `/versiculo/traducao`: crédito completo exigido pela licença CC BY 4.0. */
+/**
+ * Rota `/versiculo/traducao`: o crédito completo exigido pela licença CC BY
+ * 4.0, em `leitura` num cartão de vidro, e as linhas com os links externos.
+ */
 export function TelaSobreATraducao() {
   const hoje = useHoje()
   return (
     <Tela pilha titulo="Sobre a tradução">
-      <Cartao>
-        <Texto selectable>{ATRIBUICAO.texto}</Texto>
-      </Cartao>
-      <Cartao>
-        <Linha titulo="Tradução" descricao={ATRIBUICAO.traducao} />
-        <Linha titulo="Autores" descricao={ATRIBUICAO.autores} />
-        <Linha titulo="Versão" descricao={ATRIBUICAO.versao} />
-        <Linha titulo="Licença" descricao={ATRIBUICAO.licenca} />
-        <Botao
-          titulo="Ver a licença"
-          icone="link"
-          variante="secundario"
-          aoPressionar={() => void abrirLink(ATRIBUICAO.linkDaLicenca)}
-        />
-        <Botao
-          titulo="Conhecer a Bíblia Livre"
-          icone="link"
-          variante="secundario"
-          aoPressionar={() => void abrirLink(ATRIBUICAO.linkDaTraducao)}
-        />
-      </Cartao>
+      <CartaoDeVidro>
+        <Texto variante="leitura" selectable>
+          {ATRIBUICAO.texto}
+        </Texto>
+      </CartaoDeVidro>
+      <CartaoDeVidro lista>
+        <Lista>
+          <LinhaDeLista
+            icone="documento"
+            titulo="Ver a licença"
+            descricao={ATRIBUICAO.licenca}
+            externo
+            aoPressionar={() => void abrirLink(ATRIBUICAO.linkDaLicenca)}
+          />
+          <LinhaDeLista
+            icone="versiculo"
+            titulo="Conhecer a Bíblia Livre"
+            descricao={`${ATRIBUICAO.autores}, ${ATRIBUICAO.versao}`}
+            externo
+            aoPressionar={() => void abrirLink(ATRIBUICAO.linkDaTraducao)}
+          />
+        </Lista>
+      </CartaoDeVidro>
       <Texto variante="legenda" cor="textoSuave">
         Hoje: {versiculoDoDia(hoje).referencia}. Os 366 versículos do plano são citados sem
         alteração.

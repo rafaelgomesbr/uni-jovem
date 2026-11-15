@@ -75,7 +75,9 @@ describe('avisos', () => {
         fixado: true,
       }),
     )
-    await fireEvent.press(screen.getByRole('button', { name: 'Despublicar' }))
+    // Despublicar fica na folha "Mais ações" (3.7.4), com confirmação.
+    await fireEvent.press(screen.getByRole('button', { name: 'Mais ações' }))
+    await fireEvent.press(await screen.findByRole('button', { name: 'Despublicar' }))
     await waitFor(() =>
       expect(pedidosPara(servidor, 'POST', `${BASE}/avisos/${AVISO.id}/despublicar`)).toHaveLength(
         1,

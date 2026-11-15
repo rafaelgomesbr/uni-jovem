@@ -98,15 +98,8 @@ export default tseslint.config(
     rules: { 'no-restricted-syntax': ['error', ESPACO_FINO] },
   },
   {
-    // Telas já redesenhadas (D1): também nenhum literal numérico de estilo.
-    files: [
-      'src/funcionalidades/inicio/**/*.tsx',
-      'src/funcionalidades/navegacao/**/*.tsx',
-      'src/funcionalidades/autenticacao/**/*.tsx',
-      'src/funcionalidades/convite/**/*.tsx',
-      'src/funcionalidades/perfil/TelaPerfil.tsx',
-      'src/funcionalidades/perfil/TelaAjuda.tsx',
-    ],
+    // Telas redesenhadas (D1 a D4): também nenhum literal numérico de estilo.
+    files: ['src/funcionalidades/**/*.tsx', 'src/app/**/*.tsx'],
     ignores: ['**/__tests__/**'],
     rules: { 'no-restricted-syntax': ['error', ESPACO_FINO, LITERAL_DE_ESTILO] },
   },

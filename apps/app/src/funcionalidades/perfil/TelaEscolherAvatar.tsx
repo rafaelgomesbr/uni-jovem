@@ -1,5 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
+  ALTURA,
+  BORDA,
   CORES_DO_AVATAR,
   corDoAvatarPeloNome,
   ESPACO,
@@ -8,6 +10,7 @@ import {
   ICONES_DO_AVATAR,
   NOME_DO_ICONE_DO_AVATAR,
   NOMES_DAS_CORES_DO_AVATAR,
+  TAMANHO_DO_AVATAR,
   type IconeDoAvatar,
   type NomeDaCorDoAvatar,
 } from '@uj/tokens'
@@ -20,34 +23,45 @@ import { CHAVES } from '@/estado/clienteDeConsulta'
 import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
 import type { AvatarDaConta, Conta } from '@/servicos/contrato'
+import { mensagemDoErro } from '@/servicos/erros'
 import { Avatar, SIMBOLO_DO_AVATAR } from '@/ui/Avatar'
 import { Aviso } from '@/ui/Aviso'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
+import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
-import { Cartao } from '@/ui/Cartao'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { ALFA_DESABILITADO, comOpacidade } from '@/ui/cor'
 import { Icone } from '@/ui/Icone'
 import { ALVO } from '@/ui/medidas'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
+import { mostrarToast } from '@/ui/Toast'
 
-/** Lado de cada opção da grade: acima do alvo mínimo, para o toque ser folgado. */
-const LADO = Math.max(ALVO, 52)
+import { fotoDaConta } from './imagens'
 
-/** Rota `/escolher-avatar`: grade de ícones e de cores, prévia ao vivo e salvar. */
+/** Lado de cada opção da grade: o avatar da linha (40) mais folga, acima do alvo mínimo. */
+const LADO = Math.max(ALVO, TAMANHO_DO_AVATAR.linha + ESPACO.e12)
+
+/**
+ * Rota `/escolher-avatar`: o avatar de ícone e cor (D31), alternativa à foto
+ * (D33). Prévia ao vivo, grade de ícones e de cores e "Salvar avatar" na barra
+ * de ação.
+ */
 export function TelaEscolherAvatar() {
   const { conta } = useSessao()
-  return (
-    <Tela pilha titulo="Escolher avatar">
-      <Stack.Screen options={{ title: 'Avatar' }} />
-      {conta ? <EscolhaDoAvatar conta={conta} /> : null}
-    </Tela>
-  )
+  if (!conta)
+    return (
+      <Tela pilha titulo="Escolher avatar">
+        {null}
+      </Tela>
+    )
+  return <EscolhaDoAvatar conta={conta} />
 }
 
 function EscolhaDoAvatar({ conta }: { conta: Conta }) {
   const consultas = useQueryClient()
   const atual = conta.avatar ?? null
+  const temFoto = fotoDaConta(conta) !== null
   const [icone, setIcone] = useState<IconeDoAvatar | null>(
     ehIconeDoAvatar(atual?.icone) ? atual.icone : null,
   )
@@ -65,26 +79,60 @@ function EscolhaDoAvatar({ conta }: { conta: Conta }) {
       api.put('/api/v1/eu/avatar', corpo ?? { icone: null, cor: null }),
     onSuccess: async () => {
       await consultas.invalidateQueries({ queryKey: CHAVES.eu })
+      mostrarToast({ texto: 'Avatar salvo' })
       if (router.canGoBack()) router.back()
     },
   })
 
   return (
-    <>
-      <Cartao>
-        <View style={{ alignItems: 'center', gap: ESPACO.e12, paddingVertical: ESPACO.e8 }}>
+    <Tela
+      pilha
+      titulo="Escolher avatar"
+      barraDeAcao={
+        <BarraDeAcao>
+          <Botao
+            titulo="Cancelar"
+            variante="secundario"
+            tamanho="grande"
+            aoPressionar={() => (router.canGoBack() ? router.back() : router.replace('/perfil'))}
+          />
+          <Botao
+            titulo="Salvar avatar"
+            tamanho="grande"
+            carregando={salvar.isPending}
+            desabilitado={!mudou}
+            motivo="Escolha outro ícone ou outra cor para salvar."
+            aoPressionar={() => salvar.mutate(escolha)}
+          />
+        </BarraDeAcao>
+      }
+    >
+      <Stack.Screen options={{ title: 'Avatar' }} />
+      {temFoto ? (
+        <Aviso
+          tipo="info"
+          titulo="Você está usando uma foto"
+          acao={{ titulo: 'Trocar a foto', aoPressionar: () => router.push('/editar-perfil') }}
+        >
+          O ícone e a cor aparecem para as pessoas quando você remove a foto.
+        </Aviso>
+      ) : null}
+      <CartaoDeVidro>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e16 }}>
           <Avatar nome={conta.nome} avatar={escolha} tamanho="perfil" />
-          <Texto variante="tituloItem" centralizado accessibilityRole="text">
-            {conta.nome}
-          </Texto>
-          <Texto variante="legenda" cor="textoSuave" centralizado>
-            É assim que as pessoas das suas comunidades veem você: na lista de pessoas, nas escalas,
-            no check-in e em quem está orando.
-          </Texto>
+          <View style={{ flex: 1, minWidth: 0, gap: ESPACO.e4 }}>
+            <Texto variante="tituloItem" accessibilityRole="text">
+              {conta.nome}
+            </Texto>
+            <Texto variante="legenda" cor="textoSuave">
+              É assim que as pessoas das suas comunidades veem você: na lista de pessoas, nas
+              escalas, no check-in e em quem está orando.
+            </Texto>
+          </View>
         </View>
-      </Cartao>
+      </CartaoDeVidro>
 
-      <Cartao titulo="Ícone" icone="celebrar">
+      <CartaoDeVidro sobrancelha="Ícone">
         <Grade rotulo="Ícone do avatar">
           <Opcao
             rotulo="Iniciais, sem ícone"
@@ -105,21 +153,20 @@ function EscolhaDoAvatar({ conta }: { conta: Conta }) {
               <SymbolView
                 name={SIMBOLO_DO_AVATAR[nome]}
                 tintColor={CORES_DO_AVATAR[cor].frente}
-                size={24}
+                size={ESPACO.e24}
                 accessible={false}
               />
             </Opcao>
           ))}
         </Grade>
-      </Cartao>
+      </CartaoDeVidro>
 
-      <Cartao
-        titulo="Cor"
-        icone="ajustes"
-        {...(icone === null
-          ? { descricao: 'Com as iniciais, a cor vem do seu nome. Escolha um ícone para trocar.' }
-          : {})}
-      >
+      <CartaoDeVidro sobrancelha="Cor">
+        {icone === null ? (
+          <Texto variante="legenda" cor="textoSuave">
+            Com as iniciais, a cor vem do seu nome. Escolha um ícone para trocar.
+          </Texto>
+        ) : null}
         <Grade rotulo="Cor do avatar">
           {NOMES_DAS_CORES_DO_AVATAR.map((nome) => (
             <Opcao
@@ -134,30 +181,14 @@ function EscolhaDoAvatar({ conta }: { conta: Conta }) {
             </Opcao>
           ))}
         </Grade>
-      </Cartao>
+      </CartaoDeVidro>
 
-      {salvar.error ? <AvisoDeErro erro={salvar.error} /> : null}
-      {salvar.isSuccess && !router.canGoBack() ? (
-        <Aviso tipo="sucesso" anunciar>
-          Avatar salvo.
+      {salvar.error ? (
+        <Aviso tipo="erro" titulo="Não deu para salvar o avatar" anunciar>
+          {mensagemDoErro(salvar.error)}
         </Aviso>
       ) : null}
-      <View style={{ gap: ESPACO.e8 }}>
-        <Botao
-          titulo="Salvar avatar"
-          icone="confirmado"
-          carregando={salvar.isPending}
-          desabilitado={!mudou}
-          motivo="Escolha outro ícone ou outra cor para salvar."
-          aoPressionar={() => salvar.mutate(escolha)}
-        />
-        <Botao
-          titulo="Cancelar"
-          variante="terciario"
-          aoPressionar={() => (router.canGoBack() ? router.back() : router.replace('/perfil'))}
-        />
-      </View>
-    </>
+    </Tela>
   )
 }
 
@@ -184,7 +215,7 @@ interface PropsDaOpcao {
 
 /**
  * Uma opção da grade (papel `radio`). A escolhida tem anel em destaque e uma
- * marca de confirmação: forma, não só cor.
+ * marca de confirmação: forma, não só cor. Desabilitada, a cor fica a 40%.
  */
 function Opcao({
   rotulo,
@@ -209,10 +240,9 @@ function Opcao({
         borderRadius: LADO / 2,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: fundo,
-        borderWidth: 3,
+        backgroundColor: desabilitada ? comOpacidade(fundo, ALFA_DESABILITADO) : fundo,
+        borderWidth: BORDA.contraste,
         borderColor: marcada ? cores.destaque : pressed ? cores.campoBorda : 'transparent',
-        opacity: desabilitada ? 0.4 : 1,
       })}
     >
       {children}
@@ -220,19 +250,19 @@ function Opcao({
         <View
           style={{
             position: 'absolute',
-            right: -4,
-            bottom: -4,
-            width: 22,
-            height: 22,
-            borderRadius: 11,
+            right: -ESPACO.e4,
+            bottom: -ESPACO.e4,
+            width: ALTURA.chip,
+            height: ALTURA.chip,
+            borderRadius: ALTURA.chip / 2,
             backgroundColor: cores.destaque,
-            borderWidth: 2,
+            borderWidth: BORDA.contraste,
             borderColor: cores.superficie,
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Icone nome="confirmado" cor={cores.superficie} tamanho={14} />
+          <Icone nome="check" cor={cores.superficie} tamanho={14} peso="forte" />
         </View>
       ) : null}
     </Pressable>

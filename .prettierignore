@@ -9,3 +9,5 @@ docs/matriz-permissoes.md
 docs/design/*.html
 # Prévia local (Postgres embutido e arquivos gerados).
 .previa
+# Gerado pelo Expo (expo start) e ignorado pelo git.
+apps/app/expo-env.d.ts

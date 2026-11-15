@@ -4,9 +4,8 @@ import { Alert } from 'react-native'
 
 import { DIA_DO_INICIO, INICIO } from '@/testes/fixturas'
 import { BASE, pedidosPara, PESSOAS, renderizarTela } from '@/testes/telas'
-import { formatarDataPorExtenso } from '@/utilidades/datas'
 
-import { datasParaDisponibilidade, TelaEscalas } from '../TelaEscalas'
+import { datasParaDisponibilidade, rotuloDaData, TelaEscalas } from '../TelaEscalas'
 import { TelaPedirSubstituicao } from '../TelaPedirSubstituicao'
 
 jest.mock('expo-router', () => ({
@@ -85,6 +84,35 @@ describe('escalas', () => {
     )
   })
 
+  test('"Não posso ir" fica em Mais ações e recusa com confirmação', async () => {
+    const dialogo = confirmarDialogos()
+    const { servidor } = await renderizarTela(<TelaEscalas />, {
+      papel: 'membro',
+      rotas: {
+        ...ROTAS,
+        [`POST ${BASE}/atribuicoes/a1/recusar`]: () => ({ status: 200, corpo: { ok: true } }),
+      },
+    })
+    const usuario = userEvent.setup()
+
+    // Na linha ficam só Confirmar e Pedir substituição; recusar está na folha.
+    expect(
+      await screen.findByRole('button', {
+        name: 'Confirmar a escala em Sábado com a juventude, Louvor · responsável',
+      }),
+    ).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: /Não posso ir/ })).toBeNull()
+    await usuario.press(
+      screen.getByRole('button', { name: 'Mais ações da escala em Sábado com a juventude' }),
+    )
+    await usuario.press(await screen.findByRole('button', { name: /^Não posso ir/ }))
+
+    await waitFor(() =>
+      expect(pedidosPara(servidor, 'POST', `${BASE}/atribuicoes/a1/recusar`)).toHaveLength(1),
+    )
+    expect(dialogo.mock.calls[0]![0]).toBe('Recusar esta escala?')
+  })
+
   test('informar disponibilidade numa data manda PUT para aquele dia', async () => {
     const { servidor } = await renderizarTela(<TelaEscalas />, {
       papel: 'membro',
@@ -119,20 +147,22 @@ describe('escalas', () => {
       },
     })
 
-    const grupo = await screen.findByLabelText(
-      `Disponibilidade em ${formatarDataPorExtenso(DIA_DO_INICIO)}`,
-    )
-    expect(grupo).toBeOnTheScreen()
-    await userEvent.setup().press(screen.getAllByRole('radio', { name: 'Não posso' })[0]!)
+    const usuario = userEvent.setup()
+    await usuario.press(await screen.findByRole('radio', { name: 'Disponibilidade' }))
+    // Cada data é uma pílula: ativa quer dizer "posso ajudar".
+    const dia = await screen.findByRole('checkbox', { name: rotuloDaData(DIA_DO_INICIO) })
+    expect(dia).not.toBeChecked()
+    await usuario.press(dia)
 
     await waitFor(() =>
       expect(
         pedidosPara(servidor, 'PUT', `${BASE}/disponibilidade/${DIA_DO_INICIO}`)[0]?.corpo,
-      ).toEqual({ disponivel: false }),
+      ).toEqual({ disponivel: true }),
     )
   })
 
   test('datas para disponibilidade: dias com evento; sem eventos, os próximos sábados', () => {
+    expect(rotuloDaData('2026-11-21')).toBe('sáb 21 nov')
     expect(datasParaDisponibilidade('2026-11-14', ['2026-11-21', '2026-11-10'], [])).toEqual([
       '2026-11-21',
     ])
@@ -157,7 +187,7 @@ describe('pedir substituição', () => {
     })
     const usuario = userEvent.setup()
 
-    await usuario.press(await screen.findByRole('radio', { name: 'Para uma pessoa' }))
+    await usuario.press(await screen.findByRole('radio', { name: 'Uma pessoa específica' }))
     await usuario.press(screen.getByRole('button', { name: 'Pedir substituição' }))
     expect(
       await screen.findByText('Escolha para quem vai o pedido, ou deixe aberto à equipe.'),

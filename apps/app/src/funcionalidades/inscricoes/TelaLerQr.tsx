@@ -1,20 +1,22 @@
-import { ESPACO, RAIO } from '@uj/tokens'
+import { ALTURA, ESPACO, RAIO, RITMO } from '@uj/tokens'
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera'
 import { router, useLocalSearchParams } from 'expo-router'
-import { useRef, useState } from 'react'
-import { Linking, View } from 'react-native'
+import { useEffect, useRef, type ReactNode } from 'react'
+import { Linking, StyleSheet, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useSessao } from '@/estado/sessao'
 import { ehErroDaApi, mensagemDoErro, SemConexao } from '@/servicos/erros'
-import { parametro } from '@/utilidades/parametros'
 import { Aviso } from '@/ui/Aviso'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
-import { Botao } from '@/ui/Botao'
-import { Carregando } from '@/ui/Carregando'
-import { Cartao } from '@/ui/Cartao'
+import { Botao, BotaoIcone } from '@/ui/Botao'
+import { voltar } from '@/ui/CabecalhoDeTela'
+import { EstadoVazio } from '@/ui/EstadoVazio'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
-import { useTema } from '@/ui/tema'
+import { mostrarToast, registrarRodape } from '@/ui/Toast'
+import { ProvedorDeTemaForcado, useTema } from '@/ui/tema'
+import { Vidro } from '@/ui/Vidro'
+import { parametro } from '@/utilidades/parametros'
 
 import { usePode } from '../comunidade/permissoes'
 import { SemComunidade } from '../navegacao/SemComunidade'
@@ -27,6 +29,9 @@ import { useMarcarPresencaNoAparelho } from './TelaCheckin'
 /** O mesmo código lido de novo dentro deste intervalo é ignorado (a câmera lê várias vezes). */
 const INTERVALO_ENTRE_LEITURAS_MS = 3_000
 
+/** Visor de 240 por 240 com cantos em L de 32 (3.5.3); não há token de layout para o visor. */
+const LADO_DO_VISOR = 240
+
 /** Rota `/evento/[eventoId]/ler-qr`: atalho por câmera; a busca por nome segue a um toque. */
 export function TelaLerQr() {
   const { comunidadeAtiva } = useSessao()
@@ -34,7 +39,7 @@ export function TelaLerQr() {
   const pode = usePode()
   if (!comunidadeAtiva || !eventoId) {
     return (
-      <Tela pilha>
+      <Tela pilha titulo="Ler QR">
         <SemComunidade oQue="o check-in" />
       </Tela>
     )
@@ -48,13 +53,21 @@ export function TelaLerQr() {
       </Tela>
     )
   }
-  return <LerQr comunidadeId={comunidadeAtiva.id} eventoId={eventoId} />
+  // A câmera é sempre escura (3.5.3): o tema da tela não segue o sistema aqui.
+  return (
+    <ProvedorDeTemaForcado nome="escuro">
+      <LerQr comunidadeId={comunidadeAtiva.id} eventoId={eventoId} />
+    </ProvedorDeTemaForcado>
+  )
 }
 
-type Resultado = { tipo: 'sucesso' | 'alerta'; texto: string } | null
-
+/**
+ * Ler QR (3.5.3): câmera de ponta a ponta, sempre escura; o visor de 240 no
+ * centro com cantos em L na cor primária; a instrução numa pílula de vidro no
+ * topo; o resultado em toast (anunciado); embaixo, "Buscar pelo nome", que
+ * volta para a lista. Sem permissão, um estado vazio com a ação.
+ */
 function LerQr({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: string }) {
-  const { cores } = useTema()
   const [permissao, pedirPermissao] = useCameraPermissions()
   const lista = useListaDeCheckin(comunidadeId, eventoId)
   const marcar = useMarcarPresenca(comunidadeId, eventoId)
@@ -68,28 +81,19 @@ function LerQr({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: str
   // Sem conexão e com o evento preparado: a leitura entra na fila deste aparelho.
   const usarLocal = semRede && listaLocal !== null
   const marcarLocal = useMarcarPresencaNoAparelho(eventoId, guardado?.pacote.vinculoId ?? null)
-  const [resultado, setResultado] = useState<Resultado>(null)
   // A câmera chama o leitor muitas vezes por segundo: guarda a última leitura sem re-renderizar.
   const ultimaLeitura = useRef({ codigo: '', em: 0 })
-
-  const voltarParaBusca = (
-    <Botao
-      titulo="Buscar pelo nome, sem câmera"
-      icone="buscar"
-      variante="secundario"
-      aoPressionar={() => router.back()}
-    />
-  )
+  const registrando = marcar.isPending || marcarLocal.isPending
 
   function aoLer({ data }: BarcodeScanningResult) {
     const agora = Date.now()
     const codigo = codigoDeEntradaValido(data)
     const anterior = ultimaLeitura.current
-    if (marcar.isPending || marcarLocal.isPending) return
+    if (registrando) return
     if (data === anterior.codigo && agora - anterior.em < INTERVALO_ENTRE_LEITURAS_MS) return
     ultimaLeitura.current = { codigo: data, em: agora }
     if (!codigo) {
-      setResultado({ tipo: 'alerta', texto: 'Este QR não é um código de entrada do Uni Jovem.' })
+      mostrarToast({ texto: 'Este QR não é um código de entrada do Uni Jovem.', tipo: 'erro' })
       return
     }
     const nome = (usarLocal ? listaLocal : lista.data)?.inscritos.find(
@@ -100,16 +104,23 @@ function LerQr({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: str
         { alvo: { codigo }, origem: 'qr', nome: nome ?? formatarCodigo(codigo) },
         {
           onSuccess: (r) =>
-            setResultado({
-              tipo: r.situacao === 'repetida' || !nome ? 'alerta' : 'sucesso',
-              texto:
-                r.situacao === 'repetida'
-                  ? `${nome ?? 'Este código'} já estava anotado neste aparelho.`
-                  : nome
-                    ? `Presença de ${nome} anotada neste aparelho. Vai quando a internet voltar.`
-                    : 'Código fora da lista preparada. Ficou anotado e o servidor confere quando a internet voltar.',
-            }),
-          onError: (erro) => setResultado({ tipo: 'alerta', texto: mensagemDoErro(erro) }),
+            mostrarToast(
+              r.situacao === 'repetida'
+                ? {
+                    texto: `${nome ?? 'Este código'} já estava anotado neste aparelho.`,
+                    tipo: 'info',
+                  }
+                : nome
+                  ? {
+                      texto: `Presença de ${nome} anotada neste aparelho. Vai quando a internet voltar.`,
+                    }
+                  : {
+                      texto:
+                        'Código fora da lista preparada. Ficou anotado e o servidor confere depois.',
+                      tipo: 'info',
+                    },
+            ),
+          onError: (erro) => mostrarToast({ texto: mensagemDoErro(erro), tipo: 'erro' }),
         },
       )
       return
@@ -118,102 +129,192 @@ function LerQr({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: str
       { alvo: { codigo }, origem: 'qr', nome: nome ?? formatarCodigo(codigo) },
       {
         onSuccess: (r) =>
-          setResultado({
-            tipo: r.jaRegistrada ? 'alerta' : 'sucesso',
-            texto: r.jaRegistrada
-              ? `${nome ?? 'Esta pessoa'} já estava com presença.`
-              : `Presença de ${nome ?? 'quem tem este código'} registrada.`,
-          }),
+          mostrarToast(
+            r.jaRegistrada
+              ? { texto: `${nome ?? 'Esta pessoa'} já estava com presença.`, tipo: 'info' }
+              : { texto: `Presença de ${nome ?? 'quem tem este código'} registrada.` },
+          ),
         onError: (erro) =>
-          setResultado({
-            tipo: 'alerta',
+          mostrarToast({
             texto:
               ehErroDaApi(erro) && erro.status === 404
                 ? 'Código não encontrado neste evento. Confira se a inscrição é deste encontro.'
                 : 'Não deu para registrar agora. Tente de novo ou use a busca por nome.',
+            tipo: 'erro',
           }),
       },
     )
   }
 
-  if (!permissao) {
-    return (
-      <Tela pilha titulo="Ler QR">
-        <Carregando texto="Conferindo a permissão da câmera" />
-        {voltarParaBusca}
-      </Tela>
-    )
-  }
+  const instrucao = registrando
+    ? 'Registrando a presença'
+    : usarLocal
+      ? 'Sem conexão: a leitura fica neste aparelho'
+      : 'Aponte para o QR de entrada'
 
-  if (!permissao.granted) {
+  if (permissao && !permissao.granted) {
     return (
-      <Tela pilha titulo="Ler QR">
-        <Cartao titulo="Câmera" icone="qr">
-          <Texto>
-            Para ler o QR de entrada, o Uni Jovem precisa usar a câmera. A imagem não é gravada nem
-            enviada: só o código lido.
-          </Texto>
-          {permissao.canAskAgain ? (
-            <Botao
-              titulo="Permitir a câmera"
-              icone="qr"
-              aoPressionar={() => void pedirPermissao()}
-            />
-          ) : (
-            <>
-              <Texto variante="legenda" cor="textoSuave">
-                A câmera foi negada antes. Para liberar, abra os ajustes do aparelho.
-              </Texto>
-              <Botao
-                titulo="Abrir os ajustes"
-                variante="secundario"
-                aoPressionar={() => void Linking.openSettings().catch(() => undefined)}
-              />
-            </>
-          )}
-        </Cartao>
-        {voltarParaBusca}
-      </Tela>
+      <Moldura instrucao="A câmera está desligada">
+        <EstadoVazio
+          icone="qr"
+          titulo="Permita a câmera para ler o QR"
+          descricao="O Uni Jovem usa a câmera só para ler o código de entrada. A imagem não é gravada nem enviada."
+          acao={
+            permissao.canAskAgain
+              ? { titulo: 'Permitir a câmera', aoPressionar: () => void pedirPermissao() }
+              : {
+                  titulo: 'Abrir os ajustes',
+                  aoPressionar: () => void Linking.openSettings().catch(() => undefined),
+                }
+          }
+        />
+      </Moldura>
     )
   }
 
   return (
-    <Tela pilha titulo="Ler QR">
-      <Texto variante="legenda" cor="textoSuave">
-        {usarLocal
-          ? 'Sem conexão: cada leitura fica anotada neste aparelho e vai quando a internet voltar.'
-          : 'Aponte para o QR de entrada. Cada leitura registra a presença na hora.'}
-      </Texto>
+    <Moldura
+      instrucao={permissao ? instrucao : 'Conferindo a permissão da câmera'}
+      camera={
+        permissao ? (
+          <View
+            accessible
+            accessibilityLabel="Visor da câmera. Aponte para o QR de entrada."
+            style={StyleSheet.absoluteFill}
+          >
+            <CameraView
+              style={StyleSheet.absoluteFill}
+              facing="back"
+              barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+              onBarcodeScanned={aoLer}
+            />
+          </View>
+        ) : null
+      }
+    >
+      {lista.error && !usarLocal && !(lista.error instanceof SemConexao) ? (
+        <Aviso tipo="alerta" titulo="A lista de entrada não abriu">
+          A leitura continua: o servidor confere cada código.
+        </Aviso>
+      ) : null}
+      <View pointerEvents="none" style={{ alignItems: 'center' }}>
+        <Visor />
+      </View>
+    </Moldura>
+  )
+}
+
+/** Fundo escuro, a câmera atrás, a pílula no topo e "Buscar pelo nome" embaixo. */
+function Moldura({
+  instrucao,
+  camera,
+  children,
+}: {
+  instrucao: string
+  camera?: ReactNode
+  children: ReactNode
+}) {
+  const { cores } = useTema()
+  const margens = useSafeAreaInsets()
+  const rodape = margens.bottom + ESPACO.e24 + ALTURA.controle
+  // O toast aparece acima do botão de baixo: a tela diz onde ele termina.
+  useEffect(() => registrarRodape(rodape), [rodape])
+  return (
+    <View style={{ flex: 1, backgroundColor: cores.fundo }}>
+      {camera}
       <View
-        accessible
-        accessibilityLabel="Visor da câmera. Aponte para o QR de entrada."
         style={{
-          height: 320,
-          borderRadius: RAIO.cartao,
-          overflow: 'hidden',
-          borderWidth: 2,
-          borderColor: cores.texto,
+          flex: 1,
+          paddingTop: margens.top + RITMO.topoDaTela,
+          paddingBottom: rodape,
+          paddingHorizontal: RITMO.margemDaTela,
+          gap: RITMO.entreSecoes,
         }}
       >
-        <CameraView
-          style={{ flex: 1 }}
-          facing="back"
-          barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-          onBarcodeScanned={aoLer}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e12 }}>
+          <BotaoIcone icone="fechar" rotulo="Fechar" circular aoPressionar={voltar} />
+          <Vidro
+            style={{
+              flexShrink: 1,
+              minHeight: ALTURA.pilula,
+              justifyContent: 'center',
+              paddingHorizontal: ESPACO.e16,
+              borderRadius: RAIO.pilula,
+            }}
+          >
+            <Texto variante="botao" accessibilityRole="text" accessibilityLiveRegion="polite">
+              {instrucao}
+            </Texto>
+          </Vidro>
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center', gap: RITMO.entreSecoes }}>
+          {children}
+        </View>
+      </View>
+      <View
+        style={{
+          position: 'absolute',
+          left: RITMO.margemDaTela,
+          right: RITMO.margemDaTela,
+          bottom: margens.bottom + ESPACO.e24,
+        }}
+      >
+        <Botao
+          titulo="Buscar pelo nome"
+          rotuloAcessivel="Buscar pelo nome, sem câmera"
+          variante="secundario"
+          tamanho="grande"
+          larguraTotal
+          aoPressionar={() => router.back()}
         />
       </View>
-      <View style={{ gap: ESPACO.e8 }}>
-        {marcar.isPending || marcarLocal.isPending ? (
-          <Carregando texto="Registrando a presença" />
-        ) : null}
-        {resultado ? (
-          <Aviso tipo={resultado.tipo} anunciar>
-            {resultado.texto}
-          </Aviso>
-        ) : null}
-        {lista.error && !usarLocal ? <AvisoDeErro erro={lista.error} /> : null}
-      </View>
-      {voltarParaBusca}
-    </Tela>
+    </View>
+  )
+}
+
+/** Visor de 240 com cantos em L de 4 de espessura e 32 de comprimento, raio 22. */
+function Visor() {
+  const { cores } = useTema()
+  const canto = {
+    position: 'absolute' as const,
+    width: ESPACO.e32,
+    height: ESPACO.e32,
+    borderColor: cores.primaria,
+  }
+  return (
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={{ width: LADO_DO_VISOR, height: LADO_DO_VISOR }}
+    >
+      <View
+        style={[
+          canto,
+          { top: 0, left: 0, borderTopWidth: ESPACO.e4, borderLeftWidth: ESPACO.e4 },
+          { borderTopLeftRadius: RAIO.cartao },
+        ]}
+      />
+      <View
+        style={[
+          canto,
+          { top: 0, right: 0, borderTopWidth: ESPACO.e4, borderRightWidth: ESPACO.e4 },
+          { borderTopRightRadius: RAIO.cartao },
+        ]}
+      />
+      <View
+        style={[
+          canto,
+          { bottom: 0, left: 0, borderBottomWidth: ESPACO.e4, borderLeftWidth: ESPACO.e4 },
+          { borderBottomLeftRadius: RAIO.cartao },
+        ]}
+      />
+      <View
+        style={[
+          canto,
+          { bottom: 0, right: 0, borderBottomWidth: ESPACO.e4, borderRightWidth: ESPACO.e4 },
+          { borderBottomRightRadius: RAIO.cartao },
+        ]}
+      />
+    </View>
   )
 }

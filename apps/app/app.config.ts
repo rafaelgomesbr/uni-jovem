@@ -46,8 +46,14 @@ const DOMINIO: Record<Variante, string> = {
  * sem promessa vaga (a Apple recusa "para melhorar sua experiência").
  */
 const TEXTO_CAMERA =
-  'A câmera é usada só para ler o QR Code de presença na entrada de um evento. ' +
-  'Nenhuma foto é tirada nem guardada.'
+  'A câmera lê o QR Code de presença na entrada de um evento e, quando você escolhe, tira a ' +
+  'sua foto de perfil ou o logotipo da sua comunidade. Só a foto que você confirmar é enviada, ' +
+  'recortada e sem a localização.'
+
+/** Galeria (D33): só a imagem escolhida chega ao app; nada mais da galeria é lido. */
+const TEXTO_GALERIA =
+  'A galeria é usada quando você escolhe uma foto de perfil ou o logotipo da sua comunidade. ' +
+  'Só a imagem escolhida é enviada, recortada e sem a localização.'
 
 const TEXTO_FACE_ID =
   'O Face ID protege a sua sessão no Uni Jovem: com ele ligado, o app só abre a sua conta ' +
@@ -93,6 +99,7 @@ const config: ExpoConfig = {
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
       NSCameraUsageDescription: TEXTO_CAMERA,
+      NSPhotoLibraryUsageDescription: TEXTO_GALERIA,
       // Textos do sistema (botões nativos, folhas, Face ID) em português.
       CFBundleDevelopmentRegion: 'pt-BR',
       CFBundleLocalizations: ['pt-BR'],
@@ -151,6 +158,15 @@ const config: ExpoConfig = {
     [
       'expo-camera',
       { cameraPermission: TEXTO_CAMERA, microphonePermission: false, recordAudioAndroid: false },
+    ],
+    // Foto de perfil e logotipo (D33): câmera ou galeria, com o recorte 1:1 do sistema.
+    [
+      'expo-image-picker',
+      {
+        photosPermission: TEXTO_GALERIA,
+        cameraPermission: TEXTO_CAMERA,
+        microphonePermission: false,
+      },
     ],
     // Face ID: o cofre da sessão (SecureStore com requireAuthentication) e a
     // confirmação ao ligar (LocalAuthentication) usam o mesmo texto.

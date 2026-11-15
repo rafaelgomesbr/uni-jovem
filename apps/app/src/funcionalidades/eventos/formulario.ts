@@ -9,7 +9,6 @@ import type { DetalheDoEvento, TipoDeLocal, Visibilidade } from '@/servicos/cont
 import {
   dataDoInstante,
   diaDaSemana,
-  formatarDataLocal,
   formatarHora,
   instanteDeDataEHora,
   lerDataDigitada,
@@ -28,6 +27,10 @@ export interface NovoLocal {
   referencia: string
 }
 
+/**
+ * Datas em `AAAA-MM-DD` e horas em `HH:MM`, como saem dos seletores nativos
+ * (`CampoDeData` e `CampoDeHora`): nada é digitado. Vazio = ainda não escolhido.
+ */
 export interface RascunhoDoEvento {
   titulo: string
   categoria: string
@@ -76,14 +79,14 @@ export function rascunhoDoEvento(e: DetalheDoEvento): RascunhoDoEvento {
     ...rascunhoVazio(),
     titulo: e.titulo,
     categoria: e.categoria,
-    data: formatarDataLocal(dataDoInstante(e.inicio, e.fuso)),
+    data: dataDoInstante(e.inicio, e.fuso),
     hora: formatarHora(e.inicio, e.fuso),
     duracao: String(e.duracaoMin),
     local: e.local?.id ?? null,
     visibilidade: e.visibilidade,
     capacidade: e.capacidade ? String(e.capacidade) : '',
     listaDeEspera: e.listaDeEspera,
-    inscricaoData: e.inscricaoAte ? formatarDataLocal(dataDoInstante(e.inscricaoAte, e.fuso)) : '',
+    inscricaoData: e.inscricaoAte ? dataDoInstante(e.inscricaoAte, e.fuso) : '',
     inscricaoHora: e.inscricaoAte ? formatarHora(e.inscricaoAte, e.fuso) : '',
     descricao: e.descricao ?? '',
     informacoesUteis: e.informacoesUteis ?? '',
@@ -128,9 +131,9 @@ export function validarRascunho(
   if (categoria.length < 2) erros.categoria = 'Escolha ou escreva uma categoria.'
 
   const data = lerDataDigitada(r.data)
-  if (!data && !ignorarData) erros.data = 'Use uma data real, no formato DD/MM/AAAA.'
+  if (!data && !ignorarData) erros.data = 'Escolha a data.'
   const hora = lerHoraDigitada(r.hora)
-  if (!hora) erros.hora = 'Use a hora no formato HH:MM, como 16:00.'
+  if (!hora) erros.hora = 'Escolha a hora.'
 
   let duracaoMin: number | undefined
   if (r.duracao.trim()) {
@@ -154,8 +157,8 @@ export function validarRascunho(
   if (r.inscricaoData.trim() || r.inscricaoHora.trim()) {
     const d = lerDataDigitada(r.inscricaoData)
     const h = r.inscricaoHora.trim() ? lerHoraDigitada(r.inscricaoHora) : '23:59'
-    if (!d) erros.inscricaoData = 'Use uma data real, no formato DD/MM/AAAA.'
-    if (!h) erros.inscricaoHora = 'Use a hora no formato HH:MM.'
+    if (!d) erros.inscricaoData = 'Escolha o dia do prazo.'
+    if (!h) erros.inscricaoHora = 'Escolha a hora do prazo.'
     if (d && h) inscricaoAte = instanteDeDataEHora(d, h, fuso)
   }
 
@@ -260,7 +263,7 @@ export function regraVazia(): RascunhoDaRegra {
 
 /** Rascunho a partir de uma regra salva (para editar dia ou horário da série). */
 export function rascunhoDaRegra(regra: RegraDeRecorrencia, fim: string | null): RascunhoDaRegra {
-  const base = { ...regraVazia(), fim: fim ? formatarDataLocal(fim) : '' }
+  const base = { ...regraVazia(), fim: fim ?? '' }
   if (regra.frequencia === 'semanal') {
     return {
       ...base,

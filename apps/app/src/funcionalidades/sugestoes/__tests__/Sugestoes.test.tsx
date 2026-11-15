@@ -35,7 +35,8 @@ describe('sugestões', () => {
     })
     await fireEvent.changeText(await screen.findByLabelText('Título'), 'Lanche coletivo')
     await fireEvent.changeText(screen.getByLabelText('Sua sugestão'), 'Cada um traz algo.')
-    const caixa = screen.getByRole('checkbox', { name: 'Enviar como anônima' })
+    // Interruptor (3.7.2): liga e desliga, com o estado também escrito.
+    const caixa = screen.getByRole('switch', { name: 'Enviar como anônima' })
     expect(caixa).not.toBeChecked()
     expect(screen.getByText(TEXTO_DO_ANONIMATO)).toBeOnTheScreen()
     await fireEvent.press(caixa)

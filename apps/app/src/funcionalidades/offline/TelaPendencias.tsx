@@ -2,20 +2,22 @@ import { useMutation } from '@tanstack/react-query'
 import { ESPACO, RAIO } from '@uj/tokens'
 import { router } from 'expo-router'
 import { useState } from 'react'
-import { View } from 'react-native'
+import { useWindowDimensions, View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
+import { mensagemDoErro } from '@/servicos/erros'
 import { copiarTexto } from '@/utilidades/compartilhar'
 import { confirmar } from '@/utilidades/confirmar'
 import { Aviso } from '@/ui/Aviso'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
-import { Botao } from '@/ui/Botao'
-import { Cartao } from '@/ui/Cartao'
+import { Botao, ParDeBotoes } from '@/ui/Botao'
+import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { anunciar } from '@/ui/anunciar'
+import { Chip } from '@/ui/Chip'
 import { EstadoVazio } from '@/ui/EstadoVazio'
 import { useFocoAoMudar, type NoDeTexto } from '@/ui/foco'
-import { Linha } from '@/ui/Linha'
-import { Selo } from '@/ui/Selo'
+import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
+import { Secao } from '@/ui/Secao'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
@@ -36,7 +38,11 @@ import { MENSAGEM_DA_WEB } from './mensagens'
 import { useOffline, type Offline } from './ProvedorOffline'
 import type { OperacaoNaFila } from './tipos'
 
-/** Rota `/pendencias`: sincronização, conflitos, recusadas, fila e eventos preparados. */
+/**
+ * Rota `/pendencias` (3.7.6): o estado da sincronização num cartão de
+ * destaque com "Sincronizar agora"; depois conflitos, recusadas, o que
+ * aguarda envio e o que está guardado neste aparelho.
+ */
 export function TelaPendencias() {
   const offline = useOffline()
   const { comunidadeAtiva } = useSessao()
@@ -48,7 +54,7 @@ export function TelaPendencias() {
     <Tela
       pilha
       refDoTitulo={tituloRef}
-      titulo="Pendências"
+      titulo="Pendências e uso sem internet"
       descricao="O que foi feito sem internet e ainda não chegou ao servidor."
     >
       <AlteracoesDescartadas />
@@ -111,140 +117,169 @@ function Pendencias({
 
   return (
     <>
-      <Sincronizacao offline={offline} nomeDaComunidade={nomeDaComunidade} />
+      <Sincronizacao
+        offline={offline}
+        nomeDaComunidade={nomeDaComunidade}
+        pendentes={aguardando.length}
+      />
       {conflitos.length ? (
-        <Cartao titulo={`Conflitos a resolver (${conflitos.length})`} icone="erro">
-          <Texto variante="corpo">
-            Isto mudou no servidor enquanto você estava sem conexão. Compare e escolha qual versão
-            vale; nada é decidido sem você.
-          </Texto>
+        <Secao
+          titulo={`Conflitos a resolver (${conflitos.length})`}
+          rodape="Isto mudou no servidor enquanto você estava sem conexão. Compare e escolha qual versão vale; nada é decidido sem você."
+        >
           {conflitos.map((op) => (
             <Conflito key={op.chave} op={op} offline={offline} pedirFoco={pedirFoco} />
           ))}
-        </Cartao>
+        </Secao>
       ) : null}
       {recusadas.length ? (
-        <Cartao titulo={`Recusadas pelo servidor (${recusadas.length})`} icone="cancelar">
+        <Secao titulo={`Recusadas pelo servidor (${recusadas.length})`}>
           {recusadas.map((op) => (
             <Recusada key={op.chave} op={op} offline={offline} pedirFoco={pedirFoco} />
           ))}
-        </Cartao>
+        </Secao>
       ) : null}
       {aguardando.length ? (
-        <Cartao titulo={`Aguardando envio (${aguardando.length})`} icone="relogio">
-          <Texto variante="legenda" cor="textoSuave">
-            {offline.online
+        <Secao
+          titulo={`Aguardando envio (${aguardando.length})`}
+          rodape={
+            offline.online
               ? 'Vão para o servidor na próxima sincronização.'
-              : 'Ficam guardadas neste aparelho e vão sozinhas quando a internet voltar.'}
-          </Texto>
-          {aguardando.map((op) => (
-            <Linha
-              key={op.chave}
-              titulo={op.descricao}
-              descricao={`${seloDaOperacao(op)} · feita em ${quandoNoAparelho(op.criadaEm)}${op.tentativas ? ' · já tentamos enviar' : ''}`}
-            />
-          ))}
-        </Cartao>
+              : 'Ficam guardadas neste aparelho e vão sozinhas quando a internet voltar.'
+          }
+        >
+          <CartaoDeVidro lista>
+            <Lista>
+              {aguardando.map((op) => (
+                <LinhaDeLista
+                  key={op.chave}
+                  icone="relogio"
+                  titulo={op.descricao}
+                  descricao={`Feita em ${quandoNoAparelho(op.criadaEm)}${op.tentativas ? ' · já tentamos enviar' : ''}`}
+                  extra={<Chip texto={seloDaOperacao(op)} tom="alerta" />}
+                  rotuloAcessivel={`${op.descricao}. ${seloDaOperacao(op)}. Feita em ${quandoNoAparelho(op.criadaEm)}`}
+                />
+              ))}
+            </Lista>
+          </CartaoDeVidro>
+        </Secao>
       ) : null}
       <Preparados offline={offline} pedirFoco={pedirFoco} />
       {nada ? (
-        <Cartao>
-          <EstadoVazio
-            icone="confirmado"
-            titulo="Nada pendente"
-            descricao="Tudo o que você fez já está no servidor. Para usar um evento sem internet, abra a programação e toque em Preparar para usar sem internet."
-            acao={{
-              titulo: 'Ver programações',
-              icone: 'programacoes',
-              aoPressionar: () => router.push('/programacoes'),
-            }}
-          />
-        </Cartao>
+        <EstadoVazio
+          icone="confirmado"
+          titulo="Nada pendente"
+          descricao="Tudo o que você fez já está no servidor. Para usar um evento sem internet, abra a programação e toque em Preparar para usar sem internet."
+          acao={{
+            titulo: 'Ver programações',
+            icone: 'programacoes',
+            aoPressionar: () => router.push('/programacoes'),
+          }}
+        />
       ) : null}
     </>
   )
 }
 
+/**
+ * Cartão de destaque (3.7.6): "SINCRONIZAÇÃO", o estado em `tituloCartao`
+ * ("Tudo sincronizado", "3 alterações pendentes", "Sem conexão"), a última
+ * vez e o prazo de uso sem internet, e "Sincronizar agora" (primário inverso).
+ */
 function Sincronizacao({
   offline,
   nomeDaComunidade,
+  pendentes,
 }: {
   offline: Offline
   nomeDaComunidade: string
+  pendentes: number
 }) {
   const [pediu, setPediu] = useState(false)
   const { online, fase, erro, ultimaSincronizacao, validoAte } = offline
+  const titulo = !online
+    ? 'Sem conexão'
+    : pendentes
+      ? contar(pendentes, 'alteração pendente', 'alterações pendentes')
+      : 'Tudo sincronizado'
+  const detalhes = [
+    ultimaSincronizacao
+      ? `Última às ${horaNoAparelho(ultimaSincronizacao)} de ${diaEMesNoAparelho(ultimaSincronizacao)}.`
+      : `Ainda não houve sincronização neste aparelho para ${nomeDaComunidade}.`,
+    online
+      ? 'As alterações vão sozinhas: ao abrir o app, ao voltar para ele e quando a rede volta.'
+      : 'O que você fizer fica guardado neste aparelho e vai quando a internet voltar.',
+    validoAte
+      ? `Uso sem internet válido até ${diaEMesNoAparelho(validoAte)} às ${horaNoAparelho(validoAte)}; cada sincronização renova o prazo.`
+      : null,
+  ]
   return (
-    <Cartao titulo="Sincronização" icone="sincronizar">
-      <Linha
-        icone={online ? 'confirmado' : 'semConexao'}
-        titulo={online ? 'Conectado' : 'Sem conexão'}
-        descricao={
-          online
-            ? 'As alterações vão para o servidor sozinhas: ao abrir o app, ao voltar para ele e quando a rede volta.'
-            : 'O que você fizer fica guardado neste aparelho e vai quando a internet voltar.'
+    <>
+      <CartaoDeDestaque
+        sobrancelha="Sincronização"
+        titulo={titulo}
+        acoes={
+          <Botao
+            titulo="Sincronizar agora"
+            icone="sincronizar"
+            carregando={fase === 'sincronizando'}
+            desabilitado={!online}
+            motivo="Sem conexão. A sincronização acontece sozinha quando a internet voltar."
+            aoPressionar={() => {
+              setPediu(true)
+              void offline.sincronizarAgora()
+            }}
+          />
         }
-      />
-      <Linha
-        icone="relogio"
-        titulo="Última sincronização"
-        descricao={
-          ultimaSincronizacao
-            ? quandoNoAparelho(ultimaSincronizacao)
-            : `Ainda não houve neste aparelho para ${nomeDaComunidade}.`
-        }
-      />
-      {validoAte ? (
-        <Linha
-          icone="seguranca"
-          titulo={`Uso sem internet válido até ${diaEMesNoAparelho(validoAte)} às ${horaNoAparelho(validoAte)}`}
-          descricao="Cada sincronização renova o prazo. Vencido, o que está guardado é apagado deste aparelho."
-        />
-      ) : null}
+      >
+        <View style={{ gap: ESPACO.e4 }}>
+          {detalhes.filter(Boolean).map((t) => (
+            <Texto key={t} variante="legenda" cor="textoSuave">
+              {t}
+            </Texto>
+          ))}
+        </View>
+      </CartaoDeDestaque>
       {fase === 'falha' && erro ? (
-        <AvisoDeErro
+        <Aviso
+          tipo="erro"
           titulo="Falha ao sincronizar"
-          mensagem={erro}
-          aoTentarDeNovo={() => void offline.sincronizarAgora()}
-        />
+          anunciar
+          acao={{ titulo: 'Tentar de novo', aoPressionar: () => void offline.sincronizarAgora() }}
+        >
+          {erro}
+        </Aviso>
       ) : null}
       {pediu && fase === 'concluido' ? (
         <Aviso tipo="sucesso" anunciar>
           Sincronização concluída.
         </Aviso>
       ) : null}
-      <Botao
-        titulo="Sincronizar agora"
-        icone="sincronizar"
-        carregando={fase === 'sincronizando'}
-        desabilitado={!online}
-        motivo="Sem conexão. A sincronização acontece sozinha quando a internet voltar."
-        aoPressionar={() => {
-          setPediu(true)
-          void offline.sincronizarAgora()
-        }}
-      />
-    </Cartao>
+    </>
   )
 }
 
-function Bloco({ titulo, linhas }: { titulo: string; linhas: string[] }) {
-  const { cores } = useTema()
+/**
+ * Uma das versões do conflito, lado a lado com a outra: bloco tonal sem
+ * borda (nada de caixa com borda dentro do cartão), lido como um item só.
+ */
+function Versao({ titulo, linhas }: { titulo: string; linhas: string[] }) {
+  const { cores, solido } = useTema()
   return (
     <View
       accessible
       accessibilityLabel={`${titulo}: ${linhas.join('. ')}`}
       style={{
         flex: 1,
-        minWidth: 200,
         gap: ESPACO.e4,
         padding: ESPACO.e12,
         borderRadius: RAIO.controle,
-        borderWidth: 1,
-        borderColor: cores.campoBorda,
+        backgroundColor: solido(cores.tonal),
       }}
     >
-      <Texto variante="rotulo">{titulo}</Texto>
+      <Texto variante="rotulo" cor="textoSuave">
+        {titulo}
+      </Texto>
       {linhas.map((l) => (
         <Texto key={l} variante="corpo">
           {l}
@@ -263,47 +298,54 @@ function Conflito({
   offline: Offline
   pedirFoco: PedirFoco
 }) {
+  const { fontScale } = useWindowDimensions()
   const acao = useAcaoLocal(pedirFoco)
   const ocupado = acao.isPending && acao.variables?.chave === op.chave
   return (
-    <View style={{ gap: ESPACO.e8 }}>
-      <Texto variante="tituloItem">{op.descricao}</Texto>
+    <CartaoDeVidro
+      titulo={op.descricao}
+      acoes={
+        <ParDeBotoes>
+          <Botao
+            titulo="Ficar com a do servidor"
+            variante="secundario"
+            rotuloAcessivel={`Ficar com a do servidor: ${op.descricao}`}
+            desabilitado={ocupado}
+            aoPressionar={() =>
+              acao.mutate({
+                chave: op.chave,
+                executar: () => offline.descartar(op.chave),
+                feito: 'Conflito resolvido: ficou a versão do servidor.',
+              })
+            }
+          />
+          <Botao
+            titulo="Aplicar a minha"
+            variante="secundario"
+            rotuloAcessivel={`Aplicar a minha: ${op.descricao}`}
+            carregando={ocupado}
+            aoPressionar={() =>
+              acao.mutate({
+                chave: op.chave,
+                executar: () => offline.refazer(op.chave),
+                feito: 'Conflito resolvido: sua versão vai para o servidor.',
+              })
+            }
+          />
+        </ParDeBotoes>
+      }
+    >
       {op.mensagem ? <Texto variante="corpo">{op.mensagem}</Texto> : null}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
-        <Bloco titulo="Sua versão (neste aparelho)" linhas={suaVersao(op)} />
-        <Bloco titulo="Versão atual do servidor" linhas={versaoDoServidor(op)} />
+      <View style={{ flexDirection: fontScale >= 1.35 ? 'column' : 'row', gap: ESPACO.e12 }}>
+        <Versao titulo="Sua versão (neste aparelho)" linhas={suaVersao(op)} />
+        <Versao titulo="Versão atual do servidor" linhas={versaoDoServidor(op)} />
       </View>
-      {acao.error && acao.variables?.chave === op.chave ? <AvisoDeErro erro={acao.error} /> : null}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
-        <Botao
-          titulo="Ficar com a do servidor"
-          variante="secundario"
-          larguraTotal={false}
-          rotuloAcessivel={`Ficar com a do servidor: ${op.descricao}`}
-          desabilitado={ocupado}
-          aoPressionar={() =>
-            acao.mutate({
-              chave: op.chave,
-              executar: () => offline.descartar(op.chave),
-              feito: 'Conflito resolvido: ficou a versão do servidor.',
-            })
-          }
-        />
-        <Botao
-          titulo="Aplicar a minha"
-          larguraTotal={false}
-          rotuloAcessivel={`Aplicar a minha: ${op.descricao}`}
-          carregando={ocupado}
-          aoPressionar={() =>
-            acao.mutate({
-              chave: op.chave,
-              executar: () => offline.refazer(op.chave),
-              feito: 'Conflito resolvido: sua versão vai para o servidor.',
-            })
-          }
-        />
-      </View>
-    </View>
+      {acao.error && acao.variables?.chave === op.chave ? (
+        <Aviso tipo="erro" titulo="Não deu certo" anunciar>
+          {mensagemDoErro(acao.error)}
+        </Aviso>
+      ) : null}
+    </CartaoDeVidro>
   )
 }
 
@@ -337,9 +379,42 @@ function Recusada({
   }
 
   return (
-    <View style={{ gap: ESPACO.e8 }}>
-      <Texto variante="tituloItem">{op.descricao}</Texto>
-      <Selo texto="Recusada" cor="erro" />
+    <CartaoDeVidro
+      titulo={op.descricao}
+      extra={<Chip texto="Recusada" tom="erro" />}
+      acoes={
+        <View style={{ gap: ESPACO.e12 }}>
+          <ParDeBotoes>
+            <Botao
+              titulo="Refazer"
+              variante="secundario"
+              rotuloAcessivel={`Refazer: ${op.descricao}`}
+              carregando={ocupado}
+              aoPressionar={() =>
+                acao.mutate({
+                  chave: op.chave,
+                  executar: () => offline.refazer(op.chave),
+                  feito: 'Alteração enviada de novo para a fila.',
+                })
+              }
+            />
+            <Botao
+              titulo="Copiar"
+              variante="secundario"
+              rotuloAcessivel={`Copiar: ${op.descricao}`}
+              aoPressionar={() => void copiarTexto(textoParaCopiar(op)).then(setCopiado)}
+            />
+          </ParDeBotoes>
+          <Botao
+            titulo="Descartar"
+            variante="destrutivo"
+            rotuloAcessivel={`Descartar: ${op.descricao}`}
+            desabilitado={ocupado}
+            aoPressionar={() => void descartar()}
+          />
+        </View>
+      }
+    >
       <Texto variante="corpo">
         Motivo: {op.mensagem ?? 'O servidor não aceitou esta alteração.'}
       </Texto>
@@ -351,79 +426,56 @@ function Recusada({
           Copiado.
         </Aviso>
       ) : null}
-      {acao.error && acao.variables?.chave === op.chave ? <AvisoDeErro erro={acao.error} /> : null}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
-        <Botao
-          titulo="Descartar"
-          icone="excluir"
-          variante="destrutivo"
-          larguraTotal={false}
-          rotuloAcessivel={`Descartar: ${op.descricao}`}
-          desabilitado={ocupado}
-          aoPressionar={() => void descartar()}
-        />
-        <Botao
-          titulo="Copiar"
-          icone="copiar"
-          variante="secundario"
-          larguraTotal={false}
-          rotuloAcessivel={`Copiar: ${op.descricao}`}
-          aoPressionar={() => void copiarTexto(textoParaCopiar(op)).then(setCopiado)}
-        />
-        <Botao
-          titulo="Refazer"
-          icone="repetir"
-          larguraTotal={false}
-          rotuloAcessivel={`Refazer: ${op.descricao}`}
-          carregando={ocupado}
-          aoPressionar={() =>
-            acao.mutate({
-              chave: op.chave,
-              executar: () => offline.refazer(op.chave),
-              feito: 'Alteração enviada de novo para a fila.',
-            })
-          }
-        />
-      </View>
-    </View>
+      {acao.error && acao.variables?.chave === op.chave ? (
+        <Aviso tipo="erro" titulo="Não deu certo" anunciar>
+          {mensagemDoErro(acao.error)}
+        </Aviso>
+      ) : null}
+    </CartaoDeVidro>
   )
 }
 
+/** "Guardado neste aparelho" (3.7.6): cada programação abre o detalhe e pode sair do aparelho. */
 function Preparados({ offline, pedirFoco }: { offline: Offline; pedirFoco: PedirFoco }) {
   const acao = useAcaoLocal(pedirFoco)
   if (!offline.pacotes.length) return null
   return (
-    <Cartao titulo="Preparados neste aparelho" icone="guardadoNoAparelho">
-      <Texto variante="legenda" cor="textoSuave">
-        {contar(offline.pacotes.length, 'programação guardada', 'programações guardadas')},
-        cifradas, para usar sem internet.
-      </Texto>
-      {offline.pacotes.map((p) => (
-        <View key={p.eventoId} style={{ gap: ESPACO.e4 }}>
-          <Linha
-            titulo={p.titulo}
-            descricao={textoDoPreparo(p.baixadoEm, offline.validoAte ?? p.validoAte)}
-            aoPressionar={() =>
-              router.push({ pathname: '/evento/[eventoId]', params: { eventoId: p.eventoId } })
-            }
-          />
-          <Botao
-            titulo="Remover deste aparelho"
-            variante="terciario"
-            icone="excluir"
-            larguraTotal={false}
-            rotuloAcessivel={`Remover deste aparelho: ${p.titulo}`}
-            carregando={acao.isPending && acao.variables?.chave === p.eventoId}
-            aoPressionar={() =>
-              acao.mutate({
-                chave: p.eventoId,
-                executar: () => offline.removerPacote(p.eventoId),
-                feito: `${p.titulo} saiu deste aparelho.`,
-              })
-            }
-          />
-        </View>
-      ))}
-    </Cartao>
+    <Secao
+      titulo="Guardado neste aparelho"
+      rodape={`${contar(offline.pacotes.length, 'programação guardada', 'programações guardadas')}, cifradas, para usar sem internet.`}
+    >
+      <CartaoDeVidro lista opaco>
+        <Lista>
+          {offline.pacotes.flatMap((p) => [
+            <LinhaDeLista
+              key={p.eventoId}
+              icone="guardadoNoAparelho"
+              titulo={p.titulo}
+              descricao={textoDoPreparo(p.baixadoEm, offline.validoAte ?? p.validoAte)}
+              aoPressionar={() =>
+                router.push({ pathname: '/evento/[eventoId]', params: { eventoId: p.eventoId } })
+              }
+            />,
+            <LinhaDeLista
+              key={`${p.eventoId}-remover`}
+              icone="excluir"
+              titulo="Remover deste aparelho"
+              destrutivo
+              rotuloAcessivel={`Remover deste aparelho: ${p.titulo}`}
+              aoPressionar={
+                acao.isPending && acao.variables?.chave === p.eventoId
+                  ? undefined
+                  : () =>
+                      acao.mutate({
+                        chave: p.eventoId,
+                        executar: () => offline.removerPacote(p.eventoId),
+                        feito: `${p.titulo} saiu deste aparelho.`,
+                      })
+              }
+            />,
+          ])}
+        </Lista>
+      </CartaoDeVidro>
+    </Secao>
   )
 }

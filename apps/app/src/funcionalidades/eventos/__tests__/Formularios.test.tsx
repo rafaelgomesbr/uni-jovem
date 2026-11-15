@@ -14,6 +14,18 @@ jest.mock('expo-router', () => ({
 }))
 
 const parametros = useLocalSearchParams as jest.Mock
+
+/**
+ * Escolhe no seletor nativo (dublê do `@expo/ui`): toca o campo, o seletor
+ * abre logo abaixo, o teste faz o papel da roda e o campo fecha de novo.
+ */
+async function escolher(rotulo: RegExp, valor: Date) {
+  const usuario = userEvent.setup()
+  await usuario.press(screen.getByRole('button', { name: rotulo }))
+  const seletor = screen.getAllByTestId('seletor-de-data').at(-1)!
+  await fireEvent(seletor, 'valueChange', {}, valor)
+  await usuario.press(screen.getByRole('button', { name: rotulo }))
+}
 const CAMINHO = `${BASE}/eventos/${EVENTO_ID}`
 const SABADO = {
   chave: 'sabado_padrao',
@@ -44,8 +56,11 @@ describe('criar programação', () => {
     })
 
     expect(await screen.findByDisplayValue('Sábado')).toBeOnTheScreen()
-    await fireEvent.changeText(screen.getByLabelText('Data'), '21/11/2026')
-    await userEvent.setup().press(screen.getByRole('button', { name: 'Salvar como rascunho' }))
+    // A hora do Sábado padrão já vem escolhida; a data vem do seletor, nada é digitado.
+    expect(screen.getByRole('button', { name: 'Hora: 16:00' })).toBeOnTheScreen()
+    await escolher(/^Data:/, new Date(2026, 10, 21, 12))
+    expect(screen.getByRole('button', { name: /^Data: Sáb\., 21 de nov\. de 2026/ })).toBeTruthy()
+    await userEvent.setup().press(screen.getByRole('button', { name: 'Salvar rascunho' }))
 
     await waitFor(() => expect(pedidosPara(servidor, 'POST', `${BASE}/eventos`)).toHaveLength(1))
     expect(pedidosPara(servidor, 'POST', `${BASE}/eventos`)[0]?.corpo).toMatchObject({
@@ -68,16 +83,24 @@ describe('criar programação', () => {
     )
   })
 
+  test('"Nova programação neste dia" (Agenda): a data já vem escolhida', async () => {
+    parametros.mockReturnValue({ data: '2026-12-05' })
+    await renderizarTela(<TelaNovoEvento />, { rotas: ROTAS_DO_FORMULARIO })
+    expect(
+      await screen.findByRole('button', { name: /^Data: Sáb\., 5 de dez\. de 2026/ }),
+    ).toBeOnTheScreen()
+  })
+
   test('campos inválidos não vão à rede e mostram o erro junto do campo', async () => {
     parametros.mockReturnValue({})
     const { servidor } = await renderizarTela(<TelaNovoEvento />, { rotas: ROTAS_DO_FORMULARIO })
 
-    await userEvent
-      .setup()
-      .press(await screen.findByRole('button', { name: 'Salvar como rascunho' }))
+    await userEvent.setup().press(await screen.findByRole('button', { name: 'Salvar rascunho' }))
 
     expect(await screen.findByText('Dê um título com pelo menos 2 letras.')).toBeOnTheScreen()
-    expect(screen.getByText('Use uma data real, no formato DD/MM/AAAA.')).toBeOnTheScreen()
+    expect(screen.getByText('Escolha a data.')).toBeOnTheScreen()
+    // O resumo do topo diz quantos campos faltam.
+    expect(screen.getByText(/^Faltam \d+ campos$/)).toBeOnTheScreen()
     expect(pedidosPara(servidor, 'POST', `${BASE}/eventos`)).toHaveLength(0)
   })
 
@@ -93,12 +116,12 @@ describe('criar programação', () => {
 
     await fireEvent.changeText(await screen.findByLabelText('Título'), 'Sábado')
     await fireEvent.changeText(screen.getByLabelText('Categoria'), 'Programação de sábado')
-    await fireEvent.changeText(screen.getByLabelText('Data'), '21/11/2026')
-    await fireEvent.changeText(screen.getByLabelText('Hora de início'), '16:00')
-    await fireEvent.changeText(screen.getByLabelText('Duração em minutos'), '60')
+    await escolher(/^Data:/, new Date(2026, 10, 21, 12))
+    await escolher(/^Hora:/, new Date(2026, 10, 21, 16, 0))
+    await fireEvent.changeText(screen.getByLabelText('Duração'), '60')
     await usuario.press(screen.getByRole('radio', { name: 'Toda semana' }))
     expect(await screen.findByText('Toda semana, aos sábados, às 16:00')).toBeOnTheScreen()
-    await usuario.press(screen.getByRole('button', { name: 'Criar série e publicar' }))
+    await usuario.press(screen.getByRole('button', { name: 'Publicar' }))
 
     await waitFor(() => expect(pedidosPara(servidor, 'POST', `${BASE}/series`)).toHaveLength(1))
     expect(pedidosPara(servidor, 'POST', `${BASE}/series`)[0]?.corpo).toMatchObject({
@@ -199,14 +222,14 @@ describe('cancelar ou adiar', () => {
     })
     const usuario = userEvent.setup()
 
-    await usuario.press(await screen.findByRole('button', { name: 'Cancelar e avisar' }))
+    await usuario.press(await screen.findByRole('button', { name: 'Cancelar evento' }))
     expect(
       await screen.findByText('Explique o motivo: ele vai para quem participa.'),
     ).toBeOnTheScreen()
     expect(pedidosPara(servidor, 'POST', `${CAMINHO}/status`)).toHaveLength(0)
 
     await fireEvent.changeText(screen.getByLabelText('Motivo'), 'Chuva forte na região')
-    await usuario.press(screen.getByRole('button', { name: 'Cancelar e avisar' }))
+    await usuario.press(screen.getByRole('button', { name: 'Cancelar evento' }))
 
     await waitFor(() =>
       expect(pedidosPara(servidor, 'POST', `${CAMINHO}/status`)[0]?.corpo).toEqual({
@@ -224,6 +247,6 @@ describe('cancelar ou adiar', () => {
       rotas: { [`GET ${CAMINHO}`]: () => ({ status: 200, corpo: eventoDeTeste() }) },
     })
     expect(await screen.findByText('Só a organização cancela ou adia eventos.')).toBeOnTheScreen()
-    expect(screen.queryByRole('button', { name: 'Cancelar e avisar' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Cancelar evento' })).toBeNull()
   })
 })

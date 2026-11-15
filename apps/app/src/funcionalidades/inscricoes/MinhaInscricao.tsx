@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ESPACO } from '@uj/tokens'
+import { ESPACO, RAIO } from '@uj/tokens'
+import type { ReactNode, Ref } from 'react'
 import { View } from 'react-native'
 
 import { CHAVES } from '@/estado/clienteDeConsulta'
@@ -8,20 +9,26 @@ import type { DetalheDoEvento, MinhaInscricao as Inscricao } from '@/servicos/co
 import { SemConexao } from '@/servicos/erros'
 import { confirmar } from '@/utilidades/confirmar'
 import { Aviso } from '@/ui/Aviso'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { Botao } from '@/ui/Botao'
+import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { Chip } from '@/ui/Chip'
 import { CodigoQR } from '@/ui/CodigoQR'
-import { useFocoAoMudar } from '@/ui/foco'
-import { Selo } from '@/ui/Selo'
+import { useFocoAoMudar, type NoDeView } from '@/ui/foco'
 import { Texto } from '@/ui/Texto'
+import { useTema } from '@/ui/tema'
 import { soNaWeb } from '@/ui/web'
 
+import { AvisoDeFalha } from '../agenda/ErroAoCarregar'
 import { useMeuVinculo } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
 import { naComunidade, useInvalidarEventos } from '../eventos/consultas'
 import { useOffline, usePacoteDoEvento } from '../offline/ProvedorOffline'
 import { EXPLICACAO_SEM_INSCRICAO, motivoSemInscricao } from '../eventos/regras'
-import { COR_DO_ESTADO_DA_INSCRICAO, formatarCodigo, NOME_DO_ESTADO_DA_INSCRICAO } from './nomes'
+import { formatarCodigo, NOME_DO_ESTADO_DA_INSCRICAO } from './nomes'
+
+/** Lado do QR de entrada (3.5.3). */
+const LADO_DO_QR = 200
 
 interface Props {
   evento: DetalheDoEvento
@@ -32,9 +39,17 @@ interface Props {
  * Inscrição da própria pessoa. A API não tem leitura de "minha inscrição":
  * inscrever é idempotente (devolve a que já existe), então o mesmo botão
  * serve para se inscrever e para ver o código de entrada de novo.
+ *
+ * Inscrita, vira o QR de entrada (3.5.3): o cartão de destaque "SUA
+ * ENTRADA", com o QR de 200 sobre o quadro branco de raio 14, o código em
+ * algarismos largos e "Cancelar inscrição". Fora de um cartão, cada estado
+ * traz o próprio cartão; dentro de um (a seção de participação do evento),
+ * entra só o conteúdo, para não haver cartão dentro de cartão.
  */
 export function MinhaInscricao({ evento, comunidadeId }: Props) {
   const pode = usePode()
+  const { superficie } = useTema()
+  const dentroDeCartao = superficie !== 'fundo'
   const consultas = useQueryClient()
   const invalidar = useInvalidarEventos(comunidadeId)
   const chave = CHAVES.minhaInscricao(comunidadeId, evento.id)
@@ -119,81 +134,180 @@ export function MinhaInscricao({ evento, comunidadeId }: Props) {
   }
 
   if (ativa) {
-    return (
-      <View style={{ gap: ESPACO.e12 }}>
-        <View ref={focoRef} accessible {...soNaWeb({ tabIndex: -1 })}>
-          <Selo
-            texto={`Sua inscrição: ${NOME_DO_ESTADO_DA_INSCRICAO[ativa.estado]}`}
-            cor={COR_DO_ESTADO_DA_INSCRICAO[ativa.estado]}
-          />
+    const entrada = (
+      <EntradaComQR ativa={ativa} focoRef={focoRef} erro={cancelar.error} recuo={!dentroDeCartao} />
+    )
+    const cancelarInscricao = (
+      <Botao
+        titulo="Cancelar inscrição"
+        variante="secundario"
+        rotuloAcessivel={`Cancelar inscrição em ${evento.titulo}`}
+        carregando={cancelar.isPending}
+        aoPressionar={() => void pedirCancelamento(ativa.inscricaoId)}
+      />
+    )
+    if (dentroDeCartao) {
+      return (
+        <View style={{ gap: ESPACO.e12 }}>
+          <Texto variante="sobrancelha">Sua entrada</Texto>
+          {entrada}
+          {cancelarInscricao}
         </View>
-        {ativa.estado === 'espera' ? (
-          <Texto variante="corpo">
-            Você está na lista de espera. Se abrir uma vaga, sua inscrição é confirmada sozinha.
-          </Texto>
-        ) : null}
-        <Texto variante="legenda" cor="textoSuave">
-          Na entrada, mostre o QR ou diga o código.
-        </Texto>
-        <CodigoQR
-          valor={ativa.codigoCheckin}
-          rotulo={`QR do seu código de entrada, ${ativa.codigoCheckin.split('').join(' ')}`}
-        />
-        <Texto variante="tituloItem" centralizado selectable accessibilityRole="text">
-          {formatarCodigo(ativa.codigoCheckin)}
-        </Texto>
-        {cancelar.error ? <AvisoDeErro erro={cancelar.error} /> : null}
-        <Botao
-          titulo="Cancelar minha inscrição"
-          variante="destrutivo"
-          carregando={cancelar.isPending}
-          aoPressionar={() => void pedirCancelamento(ativa.inscricaoId)}
-        />
-      </View>
+      )
+    }
+    return (
+      <CartaoDeDestaque sobrancelha="Sua entrada" acoes={cancelarInscricao}>
+        {entrada}
+      </CartaoDeDestaque>
     )
   }
 
   if (intencao?.estado === 'pendente') {
     return (
-      <View style={{ gap: ESPACO.e8 }}>
+      <Bloco
+        dentroDeCartao={dentroDeCartao}
+        sobrancelha="Sua inscrição"
+        extra={<Chip texto="Pendente" tom="alerta" />}
+      >
         <View ref={focoRef} accessible {...soNaWeb({ tabIndex: -1 })}>
-          <Selo texto="Pendente: vaga não garantida" cor="alerta" />
+          <Texto variante="corpo">
+            Pendente: vaga não garantida. Sua inscrição foi anotada neste aparelho, sem internet. A
+            vaga só fica garantida quando o servidor confirmar, assim que a conexão voltar.
+          </Texto>
         </View>
-        <Texto variante="corpo">
-          Sua inscrição foi anotada neste aparelho, sem internet. A vaga só fica garantida quando o
-          servidor confirmar, assim que a conexão voltar.
-        </Texto>
-      </View>
+      </Bloco>
     )
   }
 
+  const inscreverMe = (
+    <Botao
+      ref={focoRef}
+      titulo="Inscrever-me"
+      icone="inscricoes"
+      carregando={inscrever.isPending}
+      desabilitado={motivo !== null}
+      {...(motivo ? { motivo: EXPLICACAO_SEM_INSCRICAO[motivo] } : {})}
+      dica="Se você já se inscreveu, mostra a sua inscrição sem duplicar."
+      aoPressionar={() => {
+        pedirFoco()
+        inscrever.mutate()
+      }}
+    />
+  )
+  const avisos =
+    intencao || inscrever.error || (!offline.online && offline.disponivel && motivo === null)
   return (
-    <View style={{ gap: ESPACO.e8 }}>
-      {intencao ? (
-        <Aviso tipo="alerta" titulo="A inscrição feita sem internet não entrou">
-          {`${intencao.mensagem ?? 'O servidor não confirmou a vaga.'} Veja em Pendências.`}
-        </Aviso>
+    <Bloco dentroDeCartao={dentroDeCartao} sobrancelha="Inscrição" acoes={inscreverMe}>
+      {avisos ? (
+        <>
+          {intencao ? (
+            <Aviso tipo="alerta" titulo="A inscrição feita sem internet não entrou">
+              {`${intencao.mensagem ?? 'O servidor não confirmou a vaga.'} Veja em Pendências.`}
+            </Aviso>
+          ) : null}
+          {inscrever.error ? <AvisoDeFalha erro={inscrever.error} /> : null}
+          {!offline.online && offline.disponivel && motivo === null ? (
+            <Texto variante="corpo">
+              Sem internet: a inscrição fica anotada neste aparelho e a vaga só é garantida quando o
+              servidor confirmar.
+            </Texto>
+          ) : null}
+        </>
       ) : null}
-      {inscrever.error ? <AvisoDeErro erro={inscrever.error} /> : null}
-      {!offline.online && offline.disponivel && motivo === null ? (
+    </Bloco>
+  )
+}
+
+/**
+ * O QR de entrada: a situação (anunciada quando a inscrição troca), o QR de
+ * 200 sobre o quadro branco de raio 14 (preto no branco nos dois temas), 12,
+ * o código em algarismos largos e a legenda. O QR e o código ficam
+ * centralizados, como pede a grade (2.13).
+ */
+function EntradaComQR({
+  ativa,
+  focoRef,
+  erro,
+  recuo,
+}: {
+  ativa: Inscricao
+  focoRef: Ref<NoDeView>
+  erro: unknown
+  /** No cartão de destaque: 8 entre a sobrancelha e o conteúdo (M). */
+  recuo: boolean
+}) {
+  return (
+    <View style={{ gap: ESPACO.e12, marginTop: recuo ? ESPACO.e8 : 0 }}>
+      <View ref={focoRef} accessible {...soNaWeb({ tabIndex: -1 })}>
+        <Texto variante="rotulo" cor="textoSuave">
+          {`Sua inscrição: ${NOME_DO_ESTADO_DA_INSCRICAO[ativa.estado]}`}
+        </Texto>
+      </View>
+      {ativa.estado === 'espera' ? (
         <Texto variante="corpo">
-          Sem internet: a inscrição fica anotada neste aparelho e a vaga só é garantida quando o
-          servidor confirmar.
+          Você está na lista de espera. Se abrir uma vaga, sua inscrição é confirmada sozinha.
         </Texto>
       ) : null}
-      <Botao
-        ref={focoRef}
-        titulo="Inscrever-me"
-        icone="inscricoes"
-        carregando={inscrever.isPending}
-        desabilitado={motivo !== null}
-        {...(motivo ? { motivo: EXPLICACAO_SEM_INSCRICAO[motivo] } : {})}
-        dica="Se você já se inscreveu, mostra a sua inscrição sem duplicar."
-        aoPressionar={() => {
-          pedirFoco()
-          inscrever.mutate()
-        }}
-      />
+      <View style={{ alignSelf: 'center', borderRadius: RAIO.controle, overflow: 'hidden' }}>
+        <CodigoQR
+          valor={ativa.codigoCheckin}
+          tamanho={LADO_DO_QR}
+          rotulo={`QR do seu código de entrada, ${ativa.codigoCheckin.split('').join(' ')}`}
+        />
+      </View>
+      <View style={{ gap: ESPACO.e4 }}>
+        <Texto variante="tituloCartao" accessibilityRole="text" tabular centralizado selectable>
+          {formatarCodigo(ativa.codigoCheckin)}
+        </Texto>
+        <Texto variante="legenda" cor="textoSuave" centralizado>
+          Mostre na entrada. Aumente o brilho da tela se precisar.
+        </Texto>
+      </View>
+      {erro ? <AvisoDeFalha erro={erro} /> : null}
+    </View>
+  )
+}
+
+/**
+ * Fora de um cartão, o estado vem no próprio cartão de vidro (sobrancelha,
+ * conteúdo e ações); dentro de um, só a sobrancelha e o conteúdo.
+ */
+function Bloco({
+  dentroDeCartao,
+  sobrancelha,
+  extra,
+  acoes,
+  children,
+}: {
+  dentroDeCartao: boolean
+  sobrancelha: string
+  extra?: ReactNode
+  acoes?: ReactNode
+  children?: ReactNode
+}) {
+  if (!dentroDeCartao) {
+    return (
+      <CartaoDeVidro
+        sobrancelha={sobrancelha}
+        {...(extra ? { extra } : {})}
+        {...(acoes ? { acoes } : {})}
+      >
+        {children}
+      </CartaoDeVidro>
+    )
+  }
+  return (
+    <View style={{ gap: ESPACO.e8 }}>
+      {extra ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}>
+          <Texto variante="sobrancelha" style={{ flex: 1 }}>
+            {sobrancelha}
+          </Texto>
+          {extra}
+        </View>
+      ) : null}
+      {children}
+      {acoes}
     </View>
   )
 }

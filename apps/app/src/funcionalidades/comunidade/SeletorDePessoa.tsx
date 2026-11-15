@@ -3,12 +3,12 @@ import { useState } from 'react'
 import { View } from 'react-native'
 
 import type { Membro } from '@/servicos/contrato'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
-import { Campo } from '@/ui/Campo'
-import { Carregando } from '@/ui/Carregando'
-import { GrupoDeOpcoes } from '@/ui/GrupoDeOpcoes'
+import { CampoDeBusca } from '@/ui/Campo'
+import { BlocoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
+import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
 import { Texto } from '@/ui/Texto'
 
+import { AvisoDeFalha } from '../eventos/Falha'
 import { usePessoasAtivas } from './consultas'
 
 const MAXIMO_VISIVEL = 8
@@ -31,8 +31,9 @@ interface PropsDoSeletor {
 }
 
 /**
- * Escolher uma pessoa da comunidade: busca por nome e lista curta de opções
- * (papel `radio`). Funciona igual com teclado, leitor de tela e toque.
+ * Escolher uma pessoa da comunidade: campo de busca de 48 e a lista de
+ * opções (papel `radio`), com a observação de cada pessoa na descrição.
+ * Funciona igual com teclado, leitor de tela e toque.
  */
 export function SeletorDePessoa({
   comunidadeId,
@@ -46,8 +47,23 @@ export function SeletorDePessoa({
   const [busca, setBusca] = useState('')
   const { pessoas, isPending, error, refetch } = usePessoasAtivas(comunidadeId)
 
-  if (isPending) return <Carregando texto="Carregando as pessoas" />
-  if (error) return <AvisoDeErro erro={error} aoTentarDeNovo={() => void refetch()} />
+  if (isPending) {
+    return (
+      <Esqueleto rotulo="Carregando as pessoas">
+        <BlocoDeEsqueleto altura={ESPACO.e40} />
+        <BlocoDeEsqueleto altura={ESPACO.e40} largura="72%" />
+      </Esqueleto>
+    )
+  }
+  if (error) {
+    return (
+      <AvisoDeFalha
+        erro={error}
+        titulo="As pessoas não carregaram"
+        aoTentarDeNovo={() => void refetch()}
+      />
+    )
+  }
 
   const termo = semAcento(busca.trim())
   const candidatas = pessoas.filter(
@@ -68,26 +84,23 @@ export function SeletorDePessoa({
 
   return (
     <View style={{ gap: ESPACO.e8 }}>
-      <Campo
+      <CampoDeBusca
         rotulo={`Buscar pessoa (${rotulo.toLowerCase()})`}
-        value={busca}
-        onChangeText={setBusca}
+        valor={busca}
+        aoMudar={setBusca}
         autoCapitalize="words"
-        autoCorrect={false}
-        exemplo="Digite parte do nome"
       />
       {candidatas.length > MAXIMO_VISIVEL ? (
         <Texto variante="legenda" cor="textoSuave">
-          Mostrando {MAXIMO_VISIVEL} de {candidatas.length}. Digite parte do nome para achar outras
-          pessoas.
+          {`Mostrando ${MAXIMO_VISIVEL} de ${candidatas.length}. Digite parte do nome para achar outras pessoas.`}
         </Texto>
       ) : null}
       {opcoes.length === 0 ? (
-        <Texto variante="legenda" cor="textoSuave">
+        <Texto variante="corpo" cor="textoSuave">
           Ninguém encontrado com esse nome.
         </Texto>
       ) : (
-        <GrupoDeOpcoes
+        <ListaDeOpcoes
           rotulo={rotulo}
           valor={valor ?? (permitirNinguem ? '' : null)}
           aoMudar={(v) => aoMudar(v === '' ? null : v)}

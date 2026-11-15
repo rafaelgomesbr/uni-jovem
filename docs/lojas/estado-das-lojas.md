@@ -161,9 +161,9 @@ The backend is our own server and is online during the review period. If anythin
 
 ## 6. Divergências encontradas e recomendações
 
-1. **[`metadados.md`](metadados.md) está desatualizado na idade:** a seção 5.1 espera 4+ e a seção 6 lista o público 13 a 15. O código, os termos e a política dizem 16 anos ou mais (D27). As lojas foram preenchidas com 16+; o `metadados.md` precisa ser corrigido (este agente só podia editar a declaração de dados e este arquivo).
-2. **ID de publicidade:** a resposta "não usa" depende de o manifesto final não trazer `com.google.android.gms.permission.AD_ID` por alguma biblioteca. Recomendação: incluir essa permissão em `apps/app/app.config.ts#blockedPermissions` e conferir o manifesto do AAB.
-3. **Câmera e foto de perfil (D33):** o texto de permissão da câmera ainda diz "Nenhuma foto é tirada nem guardada". Se a tela de foto de perfil usar câmera ou galeria, o texto muda antes do build (e a nota ao revisor também).
+1. **[`metadados.md`](metadados.md) na idade:** corrigido em 15/11/2026 (16+ na Apple pela idade mínima dos termos; público 16 a 17 e 18 ou mais no Google).
+2. **ID de publicidade:** `com.google.android.gms.permission.AD_ID` já está em `apps/app/app.config.ts#blockedPermissions`; conferir o manifesto do AAB final.
+3. **Câmera e foto de perfil (D33):** resolvido em 15/11/2026. Os textos de permissão da câmera e da galeria citam o QR de presença, a foto de perfil e o logotipo (TC-11.v2); a nota ao revisor deve mencionar a foto de perfil opcional.
 4. **Google, Detalhes do login:** a opção "Permita que o Google use esses detalhes de login para testes em dispositivos do Google e de parceiros" ficou ligada (padrão do Console). Desligar se o dono não quiser testes automáticos mexendo na comunidade demo.
 5. **Apple, disponibilidade em Mac com Apple Silicon e Vision Pro:** ficou o padrão do App Store Connect; não foi alterado.
 6. **Apple, Acessibilidade do app (rótulos de acessibilidade):** seção opcional nova, não preenchida.

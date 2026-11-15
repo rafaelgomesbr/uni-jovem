@@ -11,21 +11,159 @@ import {
   TAMANHO_DO_AVATAR,
   type IconeDoAvatar,
 } from '@uj/tokens'
+import { Image, type ImageSource } from 'expo-image'
 import { SymbolView, type SymbolViewProps } from 'expo-symbols'
-import { Text, View } from 'react-native'
+import { useEffect, useState } from 'react'
+import { Platform, StyleSheet, Text, View } from 'react-native'
+
+import { registrarAoEncerrarSessao } from '@/estado/aoEncerrarSessao'
 
 import { usePreferenciasDeAcessibilidade } from './acessibilidade'
 import { FAMILIA } from './fontes'
 import { Texto } from './Texto'
 import { useTema } from './tema'
 
+/**
+ * Foto de perfil ou logotipo guardado na API (D33): o caminho protegido e a
+ * versão. A versão vai no `?v=` do endereço: trocou a foto, trocou o
+ * endereço, e o cache nunca mostra a antiga.
+ */
+export interface FotoDoAvatar {
+  caminho: string
+  versao: string
+}
+
 /** O que a API manda em `conta.avatar` (e nos membros). Nomes fora da lista viram iniciais. */
 export interface DadosDoAvatar {
   icone?: string | null
   cor?: string | null
+  /** Foto ou logotipo: tem precedência sobre o ícone e a cor, que ficam como alternativa. */
+  foto?: FotoDoAvatar | null
 }
 
 export type TamanhoDoAvatar = keyof typeof TAMANHO_DO_AVATAR
+
+/** Endereço completo e cabeçalhos (o de acesso) para baixar uma imagem protegida. */
+export interface EnderecoDaImagem {
+  url: string
+  cabecalhos: Record<string, string>
+}
+
+/** Como baixar uma imagem protegida: quem tem a sessão (o cliente da API) responde. */
+export type AcessoDasImagens = (caminho: string) => Promise<EnderecoDaImagem | null>
+
+/**
+ * A `ui` não conhece o cliente da API: ele se registra aqui ao abrir o app.
+ * Sem registro (ou sem sessão), o avatar mostra o ícone, a cor ou as iniciais.
+ */
+let acessoDasImagens: AcessoDasImagens | null = null
+
+export function definirAcessoDasImagens(acesso: AcessoDasImagens | null): void {
+  acessoDasImagens = acesso
+}
+
+/**
+ * Na web, a imagem vem por `fetch` com o cabeçalho de acesso e vira um blob
+ * local (o `<img>` não manda cabeçalho). Um por endereço, só em memória.
+ */
+const blobsDaWeb = new Map<string, Promise<string | null>>()
+
+/** Esquece as imagens baixadas (troca de conta, saída): nada de foto alheia depois de sair. */
+export function esquecerImagens(): void {
+  if (Platform.OS === 'web') {
+    for (const pedido of blobsDaWeb.values()) {
+      void pedido.then((url) => (url ? URL.revokeObjectURL(url) : undefined))
+    }
+  }
+  blobsDaWeb.clear()
+  try {
+    void Image.clearMemoryCache().catch(() => false)
+  } catch {
+    // Sem o módulo nativo (testes, web antiga): não há cache para limpar.
+  }
+}
+
+registrarAoEncerrarSessao(esquecerImagens)
+
+function enderecoVersionado(foto: FotoDoAvatar): string {
+  return `${foto.caminho}?v=${encodeURIComponent(foto.versao)}`
+}
+
+async function blobDaWeb(endereco: EnderecoDaImagem): Promise<string | null> {
+  try {
+    const resposta = await fetch(endereco.url, {
+      headers: endereco.cabecalhos,
+      credentials: 'include',
+    })
+    if (!resposta.ok) return null
+    return URL.createObjectURL(await resposta.blob())
+  } catch {
+    return null
+  }
+}
+
+/** Fonte da imagem para o `expo-image`, ou `null` quando não dá para baixar (sem sessão, 404). */
+async function fonteDaFoto(caminho: string, novaTentativa: boolean): Promise<ImageSource | null> {
+  const acesso = acessoDasImagens
+  if (!acesso) return null
+  if (Platform.OS !== 'web') {
+    const endereco = await acesso(caminho).catch(() => null)
+    // `memory`: a foto de outra pessoa não fica gravada no disco do aparelho.
+    return endereco ? { uri: endereco.url, headers: endereco.cabecalhos } : null
+  }
+  if (novaTentativa) blobsDaWeb.delete(caminho)
+  let pedido = blobsDaWeb.get(caminho)
+  if (!pedido) {
+    pedido = acesso(caminho)
+      .catch(() => null)
+      .then((endereco) => (endereco ? blobDaWeb(endereco) : null))
+    blobsDaWeb.set(caminho, pedido)
+  }
+  const url = await pedido
+  // Falha não fica guardada: a próxima vez tenta de novo.
+  if (!url) blobsDaWeb.delete(caminho)
+  return url ? { uri: url } : null
+}
+
+interface EstadoDaFoto {
+  caminho: string
+  fonte: ImageSource | null
+  /** A imagem carregou: a borda da foto aparece e o fundo some. */
+  carregada: boolean
+}
+
+/**
+ * Baixa a foto (sistema externo: a rede) quando o endereço muda. Um erro ao
+ * desenhar (acesso vencido no meio do caminho) pede o endereço de novo uma
+ * vez; na segunda falha, fica o avatar de ícone, cor ou iniciais.
+ */
+function useFoto(foto: FotoDoAvatar | null | undefined) {
+  const caminho = foto ? enderecoVersionado(foto) : null
+  const [estado, setEstado] = useState<EstadoDaFoto | null>(null)
+  const [tentativa, setTentativa] = useState(0)
+
+  useEffect(() => {
+    if (!caminho) return
+    let vivo = true
+    void fonteDaFoto(caminho, tentativa > 0).then((fonte) => {
+      if (vivo) setEstado({ caminho, fonte, carregada: false })
+    })
+    return () => {
+      vivo = false
+    }
+  }, [caminho, tentativa])
+
+  const atual = estado && estado.caminho === caminho ? estado : null
+  return {
+    fonte: atual?.fonte ?? null,
+    carregada: !!atual?.carregada,
+    aoCarregar: () => setEstado((e) => (e ? { ...e, carregada: true } : e)),
+    aoFalhar: () => {
+      if (tentativa === 0) setTentativa(1)
+      else setEstado((e) => (e ? { ...e, fonte: null } : e))
+    },
+  }
+}
 
 /** Símbolo de cada ícone do avatar: SF Symbols no iOS, Material Symbols no Android e na web. */
 export const SIMBOLO_DO_AVATAR: Readonly<
@@ -60,6 +198,8 @@ export const SIMBOLO_DO_AVATAR: Readonly<
 interface PropsDoAvatar {
   nome: string
   avatar?: DadosDoAvatar | null
+  /** Foto ou logotipo (D33). Na falta, vale `avatar.foto`; sem nenhum, o avatar de sempre. */
+  foto?: FotoDoAvatar | null
   tamanho?: TamanhoDoAvatar
   /** Lado em pontos, quando nenhum dos tamanhos da 2.12.13 serve. */
   lado?: number
@@ -100,13 +240,16 @@ export function aparenciaDoAvatar(nome: string, avatar?: DadosDoAvatar | null) {
 }
 
 /**
- * Avatar (seção 2.12.13): o ícone escolhido sobre a cor escolhida ou, sem
- * escolha, as iniciais (Bricolage 800, 40% do lado) em branco sobre uma cor
- * estável. A própria pessoa usa a cor primária; a comunidade, a cor dela.
+ * Avatar (seção 2.12.13): a foto, quando há (D33), cobrindo o círculo com
+ * borda de 1 `tonalBorda`; sem foto (ou enquanto ela chega), o ícone escolhido
+ * sobre a cor escolhida ou as iniciais (Bricolage 800, 40% do lado) em branco
+ * sobre uma cor estável. A própria pessoa usa a cor primária; a comunidade, a
+ * cor dela.
  */
 export function Avatar({
   nome,
   avatar,
+  foto: fotoPedida,
   tamanho = 'linha',
   lado: ladoPedido,
   decorativo = false,
@@ -116,6 +259,7 @@ export function Avatar({
 }: PropsDoAvatar) {
   const { cores } = useTema()
   const { aumentarContraste } = usePreferenciasDeAcessibilidade()
+  const foto = useFoto(fotoPedida ?? avatar?.foto)
   const lado = ladoPedido ?? TAMANHO_DO_AVATAR[tamanho]
   const aparencia = aparenciaDoAvatar(nome, avatar)
   const escolhido = ehCorDoAvatar(avatar?.cor) || !!aparencia.icone
@@ -135,6 +279,7 @@ export function Avatar({
         : INICIAIS_SOBRE_COR
   const iniciais = iniciaisDoNome(nome)
   const tamanhoDaLetra = ladoPedido ? Math.round(lado * 0.4) : INICIAIS_DO_AVATAR[tamanho]
+  const comFoto = foto.carregada && !!foto.fonte
 
   const circulo = (
     <View
@@ -152,8 +297,8 @@ export function Avatar({
         backgroundColor: fundo,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: aumentarContraste ? 2 : 0,
-        borderColor: aumentarContraste ? cores.texto : 'transparent',
+        borderWidth: aumentarContraste ? 2 : comFoto ? 1 : 0,
+        borderColor: aumentarContraste ? cores.texto : comFoto ? cores.tonalBorda : 'transparent',
         overflow: 'hidden',
       }}
     >
@@ -183,6 +328,20 @@ export function Avatar({
           {iniciais}
         </Text>
       )}
+      {foto.fonte ? (
+        // Por cima do avatar de sempre: enquanto a foto chega, nada pisca nem muda de tamanho.
+        <Image
+          testID="foto-do-avatar"
+          source={foto.fonte}
+          cachePolicy="memory"
+          contentFit="cover"
+          accessible={false}
+          accessibilityIgnoresInvertColors
+          onLoad={foto.aoCarregar}
+          onError={foto.aoFalhar}
+          style={StyleSheet.absoluteFill}
+        />
+      ) : null}
     </View>
   )
   if (!anel) return circulo

@@ -83,6 +83,7 @@ export default function LayoutAutenticado() {
         <Stack.Screen name="sugestoes/index" options={{ title: 'Sugestões' }} />
         <Stack.Screen name="sugestoes/nova" options={{ title: 'Nova sugestão' }} />
         <Stack.Screen name="sugestoes/[sugestaoId]" options={{ title: 'Sugestão' }} />
+        <Stack.Screen name="bloqueados" options={{ title: 'Pessoas bloqueadas' }} />
         <Stack.Screen name="conteudos/index" options={{ title: 'Conteúdos' }} />
         <Stack.Screen name="conteudos/[tipo]/novo" options={{ title: 'Novo conteúdo' }} />
         <Stack.Screen name="conteudos/[tipo]/[itemId]" options={{ title: 'Conteúdo' }} />

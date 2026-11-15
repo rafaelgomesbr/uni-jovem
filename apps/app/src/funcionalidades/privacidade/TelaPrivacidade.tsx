@@ -4,13 +4,15 @@ import { Platform } from 'react-native'
 
 import { api } from '@/servicos/api'
 import { origemPublica } from '@/servicos/enderecos'
+import { mensagemDoErro } from '@/servicos/erros'
 import { abrirLink } from '@/utilidades/compartilhar'
 import { salvarArquivo } from '@/utilidades/salvarArquivo'
 import { Aviso } from '@/ui/Aviso'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { Botao } from '@/ui/Botao'
-import { Cartao } from '@/ui/Cartao'
-import { Linha } from '@/ui/Linha'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { Chip } from '@/ui/Chip'
+import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
+import { Secao } from '@/ui/Secao'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 
@@ -28,7 +30,11 @@ export function abrirDocumento(caminho: string) {
   return abrirLink(`${origemPublica()}${caminho}`)
 }
 
-/** Rota `/privacidade`: meus dados, documentos e excluir conta. */
+/**
+ * Rota `/privacidade` (3.7.8): cartão "SEUS DADOS" com a exportação (chip
+ * "Preparando" enquanto o arquivo é gerado), os documentos com
+ * `arrow.up.right` e a linha destrutiva "Excluir minha conta".
+ */
 export function TelaPrivacidade() {
   const exportar = useMutation({
     mutationFn: async () =>
@@ -43,9 +49,29 @@ export function TelaPrivacidade() {
 
   return (
     <Tela pilha titulo="Privacidade e dados">
-      <Cartao titulo="Exportar meus dados" icone="baixar">
-        <Texto>{TEXTO_DA_EXPORTACAO}</Texto>
-        {exportar.error ? <AvisoDeErro erro={exportar.error} /> : null}
+      <CartaoDeVidro
+        sobrancelha="Seus dados"
+        {...(exportar.isPending ? { extra: <Chip texto="Preparando" tom="info" /> } : {})}
+        acoes={
+          <Botao
+            titulo="Gerar arquivo"
+            icone="baixar"
+            variante="secundario"
+            dica="Exportar meus dados num arquivo."
+            carregando={exportar.isPending}
+            aoPressionar={() => exportar.mutate()}
+          />
+        }
+      >
+        <Texto variante="corpo">{TEXTO_DA_EXPORTACAO}</Texto>
+        {exportar.isPending ? (
+          <Aviso tipo="info">Preparando o arquivo. Pode levar alguns segundos.</Aviso>
+        ) : null}
+        {exportar.error ? (
+          <Aviso tipo="erro" titulo="Não deu para gerar o arquivo" anunciar>
+            {mensagemDoErro(exportar.error)}
+          </Aviso>
+        ) : null}
         {exportar.isSuccess ? (
           <Aviso tipo="sucesso" anunciar>
             {Platform.OS === 'web'
@@ -53,37 +79,36 @@ export function TelaPrivacidade() {
               : 'Arquivo pronto. Escolha onde guardar na folha de compartilhamento.'}
           </Aviso>
         ) : null}
-        <Botao
-          titulo="Gerar arquivo"
-          icone="baixar"
-          carregando={exportar.isPending}
-          aoPressionar={() => exportar.mutate()}
-        />
-      </Cartao>
+      </CartaoDeVidro>
 
-      <Cartao titulo="Documentos" icone="documento">
-        {DOCUMENTOS.map((d) => (
-          <Linha
-            key={d.caminho}
-            icone={d.icone}
-            titulo={d.titulo}
-            descricao="Abre no navegador."
-            aoPressionar={() => void abrirDocumento(d.caminho)}
-          />
-        ))}
-      </Cartao>
+      <Secao titulo="Documentos">
+        <CartaoDeVidro lista>
+          <Lista>
+            {DOCUMENTOS.map((d) => (
+              <LinhaDeLista
+                key={d.caminho}
+                icone={d.icone}
+                titulo={d.titulo}
+                descricao="Abre no navegador."
+                externo
+                aoPressionar={() => void abrirDocumento(d.caminho)}
+              />
+            ))}
+          </Lista>
+        </CartaoDeVidro>
+      </Secao>
 
-      <Cartao titulo="Excluir conta" icone="excluir">
-        <Texto variante="legenda" cor="textoSuave">
-          Apaga sua conta e sai de todas as comunidades. Pede sua senha.
-        </Texto>
-        <Botao
-          titulo="Excluir minha conta"
+      <CartaoDeVidro lista opaco>
+        <LinhaDeLista
           icone="excluir"
-          variante="destrutivo"
+          titulo="Excluir minha conta"
+          descricao="Apaga sua conta e sai de todas as comunidades. Pede sua senha."
+          rotuloAcessivel="Excluir minha conta"
+          dica="Apaga sua conta e sai de todas as comunidades. Pede sua senha."
+          destrutivo
           aoPressionar={() => router.push('/excluir-conta')}
         />
-      </Cartao>
+      </CartaoDeVidro>
     </Tela>
   )
 }

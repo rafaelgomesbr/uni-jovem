@@ -3,15 +3,16 @@ import { router } from 'expo-router'
 import { useState } from 'react'
 
 import { useSessao } from '@/estado/sessao'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
-import { CaixaDeMarcar } from '@/ui/CaixaDeMarcar'
-import { Carregando } from '@/ui/Carregando'
-import { Cartao } from '@/ui/Cartao'
-import { GrupoDeOpcoes } from '@/ui/GrupoDeOpcoes'
-import { Linha } from '@/ui/Linha'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
+import { EstadoVazio } from '@/ui/EstadoVazio'
+import { Interruptor } from '@/ui/Interruptor'
+import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
+import { PilulasDeFiltro } from '@/ui/PilulasDeFiltro'
+import { Secao } from '@/ui/Secao'
 import { Tela } from '@/ui/Tela'
-import { Texto } from '@/ui/Texto'
 
+import { AvisoDeFalha } from '../agenda/ErroAoCarregar'
 import {
   usePreferenciasDaComunidade,
   usePreferenciasDaConta,
@@ -29,38 +30,53 @@ const DESCRICAO_DO_TIPO: Readonly<Record<TipoDeNotificacao, string>> = {
   avisos: 'Aviso novo da organização.',
 }
 
-/** Rota `/notificacoes`: estado do sistema e preferências por tipo e por comunidade. */
+/**
+ * Rota `/notificacoes` (3.6.6): "NESTE APARELHO" (a permissão do sistema),
+ * "POR COMUNIDADE" (pílulas com os nomes, quando há mais de uma, e o cartão
+ * de interruptores: o principal primeiro e um por tipo) e "VERSÍCULO" (o
+ * horário e o atalho para a tela dele).
+ */
 export function TelaNotificacoes() {
   const { comunidades, comunidadeAtiva } = useSessao()
-  const [escolhida, setEscolhida] = useState<string | null>(
-    comunidadeAtiva?.id ?? comunidades[0]?.id ?? null,
-  )
+  // Só a escolha explícita é estado; sem ela, vale a comunidade em uso (derivada a cada render).
+  const [escolhaFeita, setEscolhida] = useState<string | null>(null)
+  const escolhida =
+    (escolhaFeita && comunidades.some((c) => c.id === escolhaFeita) ? escolhaFeita : null) ??
+    comunidadeAtiva?.id ??
+    comunidades[0]?.id ??
+    null
   const conta = usePreferenciasDaConta()
   const versiculo = conta.data?.versiculo
 
   return (
-    <Tela
-      pilha
-      titulo="Notificações"
-      descricao="O que o app avisa e em quais comunidades. A permissão do aparelho é separada."
-    >
-      <Cartao titulo="Neste aparelho" icone="aparelho">
+    <Tela pilha titulo="Notificações">
+      <Secao titulo="Neste aparelho">
         <PermissaoDoSistema ligadoNoApp />
-      </Cartao>
+      </Secao>
 
-      <Cartao titulo="Por comunidade" icone="comunidade">
+      <Secao titulo="Por comunidade">
         {comunidades.length === 0 ? (
-          <Texto variante="legenda" cor="textoSuave">
-            Quando você entrar numa comunidade, escolha aqui o que ela pode avisar.
-          </Texto>
+          <EstadoVazio
+            icone="pessoas"
+            titulo="Nenhuma comunidade ainda"
+            descricao="Quando você entrar numa comunidade, escolha aqui o que ela pode avisar."
+            acao={{
+              titulo: 'Colar link de convite',
+              icone: 'link',
+              variante: 'secundario',
+              aoPressionar: () => router.push('/entrar-com-convite'),
+            }}
+          />
         ) : (
           <>
             {comunidades.length > 1 ? (
-              <GrupoDeOpcoes
+              <PilulasDeFiltro
                 rotulo="Comunidade"
-                valor={escolhida}
-                aoMudar={setEscolhida}
-                opcoes={comunidades.map((c) => ({ valor: c.id, rotulo: c.nome }))}
+                pilulas={comunidades.map((c) => ({ valor: c.id, rotulo: c.nome }))}
+                selecionadas={escolhida ? [escolhida] : []}
+                aoMudar={(v) => {
+                  if (v[0]) setEscolhida(v[0])
+                }}
               />
             ) : null}
             {escolhida ? (
@@ -72,55 +88,85 @@ export function TelaNotificacoes() {
             ) : null}
           </>
         )}
-      </Cartao>
+      </Secao>
 
-      <Cartao titulo="Versículo do dia" icone="versiculo">
-        <Linha
-          titulo="Versículo do dia"
-          descricao={
-            versiculo
-              ? versiculo.ativo
-                ? `Ligado, às ${versiculo.hora}. Vale para todas as suas comunidades.`
-                : 'Desligado.'
-              : 'Ligar, desligar e escolher o horário.'
-          }
-          aoPressionar={() => router.push('/versiculo')}
-        />
-      </Cartao>
+      <Secao titulo="Versículo">
+        <CartaoDeVidro lista>
+          <LinhaDeLista
+            icone="versiculo"
+            titulo="Versículo do dia"
+            descricao={
+              versiculo
+                ? versiculo.ativo
+                  ? 'Ligado. Vale para todas as suas comunidades.'
+                  : 'Desligado.'
+                : 'Ligar, desligar e escolher o horário.'
+            }
+            {...(versiculo?.ativo ? { valor: versiculo.hora } : {})}
+            rotuloAcessivel={`Versículo do dia. ${
+              versiculo ? (versiculo.ativo ? `Ligado, às ${versiculo.hora}` : 'Desligado') : ''
+            }`}
+            dica="Abre o horário e a notificação do versículo."
+            aoPressionar={() => router.push('/versiculo')}
+          />
+        </CartaoDeVidro>
+      </Secao>
     </Tela>
   )
 }
 
+/**
+ * Interruptores de uma comunidade: o principal ("Receber de Jovens Centro")
+ * e, abaixo, um por tipo com a descrição. Com o principal desligado, os
+ * tipos ficam desabilitados e dizem por quê.
+ */
 function PreferenciasDaComunidade({ comunidadeId, nome }: { comunidadeId: string; nome: string }) {
   const prefs = usePreferenciasDaComunidade(comunidadeId)
   const salvar = useSalvarPreferenciasDaComunidade(comunidadeId)
-  if (prefs.isPending) return <Carregando texto="Carregando as preferências" />
+  if (prefs.isPending) {
+    return (
+      <Esqueleto rotulo="Carregando as preferências">
+        <CartaoDeEsqueleto />
+      </Esqueleto>
+    )
+  }
   if (prefs.error) {
-    return <AvisoDeErro erro={prefs.error} aoTentarDeNovo={() => void prefs.refetch()} />
+    return (
+      <AvisoDeFalha
+        erro={prefs.error}
+        titulo="Não deu para carregar as preferências"
+        aoTentarDeNovo={() => void prefs.refetch()}
+      />
+    )
   }
   const { todas, tipos } = prefs.data
+  const principal = `Receber de ${nome}`
   return (
     <>
-      <CaixaDeMarcar
-        rotulo={`Receber notificações de ${nome}`}
-        descricao={todas ? 'Ligado: escolha os tipos abaixo.' : 'Desligado: nada desta comunidade.'}
-        marcada={todas}
-        desabilitada={salvar.isPending}
-        aoMudar={(v) => salvar.mutate({ todas: v })}
-      />
-      {tipos.map((t) => (
-        <CaixaDeMarcar
-          key={t.tipo}
-          rotulo={NOME_DO_TIPO_DE_NOTIFICACAO[t.tipo]}
-          descricao={
-            todas ? DESCRICAO_DO_TIPO[t.tipo] : 'Ligue as notificações da comunidade para escolher.'
-          }
-          marcada={todas && t.ativo}
-          desabilitada={!todas || salvar.isPending}
-          aoMudar={(v) => salvar.mutate({ tipos: { [t.tipo]: v } })}
-        />
-      ))}
-      {salvar.error ? <AvisoDeErro erro={salvar.error} /> : null}
+      <CartaoDeVidro intervalo={0}>
+        <Lista>
+          <Interruptor
+            rotulo={principal}
+            descricao={
+              todas ? 'Ligado: escolha os tipos abaixo.' : 'Desligado: nada desta comunidade.'
+            }
+            ligado={todas}
+            desabilitado={salvar.isPending}
+            aoMudar={(v) => salvar.mutate({ todas: v })}
+          />
+          {tipos.map((t) => (
+            <Interruptor
+              key={t.tipo}
+              rotulo={NOME_DO_TIPO_DE_NOTIFICACAO[t.tipo]}
+              descricao={todas ? DESCRICAO_DO_TIPO[t.tipo] : `Ligue "${principal}" para escolher.`}
+              ligado={todas && t.ativo}
+              desabilitado={!todas || salvar.isPending}
+              aoMudar={(v) => salvar.mutate({ tipos: { [t.tipo]: v } })}
+            />
+          ))}
+        </Lista>
+      </CartaoDeVidro>
+      {salvar.error ? <AvisoDeFalha erro={salvar.error} /> : null}
     </>
   )
 }

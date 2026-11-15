@@ -1,24 +1,43 @@
 import type { VisibilidadeDeOracao } from '@uj/dominio'
+import { ALTURA, ESPACO } from '@uj/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 
+import { useSessao } from '@/estado/sessao'
 import type { PedidoDeOracao } from '@/servicos/contratoDosModulos'
 import { ehErroDaApi } from '@/servicos/erros'
 import { confirmar } from '@/utilidades/confirmar'
 import { parametro } from '@/utilidades/parametros'
 import { Aviso } from '@/ui/Aviso'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
-import { Botao } from '@/ui/Botao'
+import { BarraDeAcao } from '@/ui/BarraDeAcao'
+import { Botao, BotaoIcone } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
-import { Carregando } from '@/ui/Carregando'
-import { Cartao } from '@/ui/Cartao'
-import { GrupoDeOpcoes } from '@/ui/GrupoDeOpcoes'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
+import { EstadoVazio } from '@/ui/EstadoVazio'
+import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
+import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
+import { Secao } from '@/ui/Secao'
+import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
-import { TextoAnunciado } from '@/ui/TextoAnunciado'
+import { mostrarToast } from '@/ui/Toast'
 
-import { TelaDaComunidade } from '../navegacao/TelaDaComunidade'
-import { useEditarPedido, useMudarVisibilidade, usePedidoDeOracao } from './consultas'
-import { AVISO_DO_TEXTO } from './TelaNovoPedido'
+import { AvisoDeFalha, ErroAoCarregar } from '../agenda/ErroAoCarregar'
+import { SemComunidade } from '../navegacao/SemComunidade'
+import {
+  autorDoPedido,
+  CartaoDoPedido,
+  MaisAcoesDoPedido,
+  podeDenunciar,
+  quantosOrando,
+} from './CartaoDoPedido'
+import {
+  useEditarPedido,
+  useEstouOrando,
+  useMudarVisibilidade,
+  usePedidoDeOracao,
+} from './consultas'
+import { AVISO_DO_TEXTO, entenderComoEGuardado } from './TelaNovoPedido'
 import {
   ampliando,
   explicarVisibilidade,
@@ -29,46 +48,186 @@ import {
   type Contagem,
 } from './visibilidade'
 
-/** Rota `/oracao/[pedidoId]`: editar o texto e mudar quem vê, cada um com o seu botão. */
+function voltarAosPedidos() {
+  if (router.canGoBack()) router.back()
+  else router.replace('/oracao')
+}
+
+/**
+ * Rota `/oracao/[pedidoId]`: o detalhe do pedido (3.7.1) ou, com
+ * `?editar=1` (vindo de "Editar ou mudar quem vê"), a edição do texto e de
+ * quem vê, cada um com o seu botão.
+ */
 export function TelaPedidoDeOracao() {
-  const pedidoId = parametro(useLocalSearchParams<{ pedidoId: string }>().pedidoId)
+  const { comunidadeAtiva } = useSessao()
+  const params = useLocalSearchParams<{ pedidoId: string; editar?: string }>()
+  const pedidoId = parametro(params.pedidoId)
+  const editar = parametro(params.editar) === '1'
+  const titulo = editar ? 'Editar pedido' : 'Pedido de oração'
+  if (!comunidadeAtiva) {
+    return (
+      <Tela pilha titulo={titulo}>
+        <SemComunidade oQue="o pedido" />
+      </Tela>
+    )
+  }
+  if (!pedidoId) {
+    return (
+      <Tela pilha titulo={titulo}>
+        <EstadoVazio
+          icone="oracao"
+          titulo="Pedido não encontrado"
+          descricao="O link pode estar incompleto. Os pedidos que você pode ler estão na lista."
+          acao={{ titulo: 'Ver os pedidos', aoPressionar: () => router.replace('/oracao') }}
+        />
+      </Tela>
+    )
+  }
+  const props = {
+    comunidadeId: comunidadeAtiva.id,
+    nomeDaComunidade: comunidadeAtiva.nome,
+    pedidoId,
+  }
+  return editar ? <EditarPedido {...props} /> : <DetalheDoPedido {...props} />
+}
+
+interface PropsDoPedido {
+  comunidadeId: string
+  nomeDaComunidade: string
+  pedidoId: string
+}
+
+/**
+ * Detalhe (3.7.1): o cartão do pedido completo, quem está orando e a barra
+ * de ação com "Estou orando" e "Mais ações".
+ */
+function DetalheDoPedido({ comunidadeId, pedidoId }: PropsDoPedido) {
+  const pedido = usePedidoDeOracao(comunidadeId, pedidoId)
+  const orar = useEstouOrando(comunidadeId)
+  const [folhaAberta, setFolhaAberta] = useState(false)
+  const p = pedido.data
+  const autor = p ? autorDoPedido(p).toLowerCase() : ''
+
   return (
-    <TelaDaComunidade oQue="o pedido" titulo="Seu pedido de oração">
-      {(c) =>
-        pedidoId ? (
-          <Pedido comunidadeId={c.id} nomeDaComunidade={c.nome} pedidoId={pedidoId} />
-        ) : null
-      }
-    </TelaDaComunidade>
+    <Tela
+      pilha
+      titulo="Pedido de oração"
+      {...(p
+        ? {
+            barraDeAcao: (
+              <BarraDeAcao>
+                <Botao
+                  titulo={p.orando.euEstouOrando ? 'Orando' : 'Estou orando'}
+                  icone={p.orando.euEstouOrando ? 'confirmado' : 'oracao'}
+                  variante={p.orando.euEstouOrando ? 'secundario' : 'primario'}
+                  tamanho="grande"
+                  rotuloAcessivel={
+                    p.orando.euEstouOrando
+                      ? `Deixar de marcar que estou orando pelo ${autor}`
+                      : `Estou orando pelo ${autor}`
+                  }
+                  carregando={orar.isPending}
+                  aoPressionar={() => orar.mutate({ id: p.id, orando: !p.orando.euEstouOrando })}
+                />
+                {p.minha || podeDenunciar(p) ? (
+                  <BotaoIcone
+                    icone="maisAcoes"
+                    rotulo={`Mais ações do ${autor}`}
+                    lado={ALTURA.controle}
+                    aoPressionar={() => setFolhaAberta(true)}
+                  />
+                ) : null}
+              </BarraDeAcao>
+            ),
+          }
+        : {})}
+    >
+      {pedido.isPending ? (
+        <Esqueleto rotulo="Carregando o pedido">
+          <CartaoDeEsqueleto titulo />
+        </Esqueleto>
+      ) : pedido.error ? (
+        <ErroAoCarregar
+          erro={pedido.error}
+          oQue="o pedido"
+          aoTentarDeNovo={() => void pedido.refetch()}
+        />
+      ) : (
+        <>
+          <CartaoDoPedido pedido={pedido.data} comunidadeId={comunidadeId} completo />
+          <QuemEstaOrando pedido={pedido.data} />
+          {orar.error ? <AvisoDeFalha erro={orar.error} /> : null}
+          <MaisAcoesDoPedido
+            pedido={pedido.data}
+            comunidadeId={comunidadeId}
+            aberta={folhaAberta}
+            aoFechar={() => setFolhaAberta(false)}
+            aoExcluir={voltarAosPedidos}
+            aoBloquear={voltarAosPedidos}
+          />
+        </>
+      )}
+    </Tela>
   )
 }
 
-function Pedido(props: { comunidadeId: string; nomeDaComunidade: string; pedidoId: string }) {
+/** Quem está orando: os nomes que a API manda; sem nomes (pedido privado), só a contagem. */
+function QuemEstaOrando({ pedido }: { pedido: PedidoDeOracao }) {
+  const { pessoas, total } = pedido.orando
+  return (
+    <Secao titulo="Quem está orando">
+      {pessoas.length === 0 ? (
+        <Texto variante="corpo" cor="textoSuave">
+          {total === 0 ? 'Ninguém marcou que está orando ainda.' : `${quantosOrando(pedido)}.`}
+        </Texto>
+      ) : (
+        <CartaoDeVidro lista>
+          <Lista>
+            {pessoas.map((nome, i) => (
+              <LinhaDeLista key={`${nome}-${i}`} avatar={{ nome }} titulo={nome} />
+            ))}
+          </Lista>
+        </CartaoDeVidro>
+      )}
+    </Secao>
+  )
+}
+
+/** Edição: só de quem escreveu. Texto e quem vê se salvam separados. */
+function EditarPedido(props: PropsDoPedido) {
   const pedido = usePedidoDeOracao(props.comunidadeId, props.pedidoId)
   const contagem = useContagemDeLeitores(props.comunidadeId)
-  if (pedido.isPending) return <Carregando texto="Carregando o pedido" />
-  if (pedido.error) {
-    return <AvisoDeErro erro={pedido.error} aoTentarDeNovo={() => void pedido.refetch()} />
-  }
-  if (!pedido.data.minha) {
-    return (
-      <Aviso tipo="alerta" titulo="Só quem escreveu altera">
-        Este pedido não é seu. Você pode marcar que está orando na lista de pedidos.
-      </Aviso>
-    )
-  }
   return (
-    <>
-      {/* A chave recria o formulário quando o servidor manda uma versão nova. */}
-      <EditarTexto key={`t${pedido.data.versao}`} {...props} pedido={pedido.data} />
-      <MudarVisibilidade
-        key={`v${pedido.data.visibilidade}`}
-        {...props}
-        pedido={pedido.data}
-        contagem={contagem}
-        recarregar={() => void pedido.refetch()}
-      />
-    </>
+    <Tela pilha titulo="Editar pedido">
+      {pedido.isPending ? (
+        <Esqueleto rotulo="Carregando o pedido">
+          <CartaoDeEsqueleto titulo />
+          <CartaoDeEsqueleto />
+        </Esqueleto>
+      ) : pedido.error ? (
+        <ErroAoCarregar
+          erro={pedido.error}
+          oQue="o pedido"
+          aoTentarDeNovo={() => void pedido.refetch()}
+        />
+      ) : !pedido.data.minha ? (
+        <Aviso tipo="alerta" titulo="Só quem escreveu altera">
+          Este pedido não é seu. Você pode marcar que está orando na lista de pedidos.
+        </Aviso>
+      ) : (
+        <>
+          {/* A chave recria o formulário quando o servidor manda uma versão nova. */}
+          <EditarTexto key={`t${pedido.data.versao}`} {...props} pedido={pedido.data} />
+          <MudarVisibilidade
+            key={`v${pedido.data.visibilidade}`}
+            {...props}
+            pedido={pedido.data}
+            contagem={contagem}
+            recarregar={() => void pedido.refetch()}
+          />
+        </>
+      )}
+    </Tela>
   )
 }
 
@@ -77,28 +236,42 @@ function EditarTexto({ comunidadeId, pedido }: { comunidadeId: string; pedido: P
   const editar = useEditarPedido(comunidadeId)
   const mudou = texto.trim() !== (pedido.texto ?? '').trim()
   return (
-    <Cartao titulo="Texto" icone="editar">
-      <Campo rotulo="Seu pedido" value={texto} onChangeText={setTexto} multiline maxLength={2000} />
-      <Texto variante="legenda" cor="textoSuave">
-        {AVISO_DO_TEXTO}
-      </Texto>
-      {editar.error ? <AvisoDeErro erro={editar.error} /> : null}
-      {editar.isSuccess && !mudou ? (
-        <TextoAnunciado variante="corpo" cor="sucesso">
-          Texto salvo.
-        </TextoAnunciado>
-      ) : null}
-      <Botao
-        titulo="Salvar texto"
-        variante="secundario"
-        desabilitado={!mudou || !texto.trim()}
-        motivo={texto.trim() ? 'Altere o texto para salvar.' : 'O pedido não pode ficar vazio.'}
-        carregando={editar.isPending}
-        aoPressionar={() =>
-          editar.mutate({ id: pedido.id, texto: texto.trim(), versao: pedido.versao })
-        }
+    <CartaoDeVidro
+      sobrancelha="Texto"
+      opaco
+      intervalo={ESPACO.e16}
+      acoes={
+        <Botao
+          titulo="Salvar texto"
+          variante="secundario"
+          desabilitado={!mudou || !texto.trim()}
+          motivo={texto.trim() ? 'Altere o texto para salvar.' : 'O pedido não pode ficar vazio.'}
+          carregando={editar.isPending}
+          aoPressionar={() =>
+            editar.mutate(
+              { id: pedido.id, texto: texto.trim(), versao: pedido.versao },
+              { onSuccess: () => mostrarToast({ texto: 'Texto salvo.' }) },
+            )
+          }
+        />
+      }
+    >
+      <Campo
+        rotulo="Seu pedido"
+        value={texto}
+        onChangeText={setTexto}
+        multiline
+        maxLength={2000}
+        mostrarContador
       />
-    </Cartao>
+      <Aviso
+        tipo="info"
+        acao={{ titulo: 'Entenda como é guardado', aoPressionar: entenderComoEGuardado }}
+      >
+        <Texto variante="legenda">{AVISO_DO_TEXTO}</Texto>
+      </Aviso>
+      {editar.error ? <AvisoDeFalha erro={editar.error} /> : null}
+    </CartaoDeVidro>
   )
 }
 
@@ -134,38 +307,54 @@ function MudarVisibilidade({
       confirmar: 'Mudar',
     })
     if (!ok) return
-    mudar.mutate({ id: pedido.id, de, para: escolhida })
+    mudar.mutate(
+      { id: pedido.id, de, para: escolhida },
+      {
+        onSuccess: () =>
+          mostrarToast({ texto: `Agora quem vê: ${NOME_DA_VISIBILIDADE[escolhida]}.` }),
+      },
+    )
   }
 
   return (
-    <Cartao titulo="Quem vê" icone="mostrar">
-      <Texto>
+    <CartaoDeVidro
+      sobrancelha="Quem vê"
+      opaco
+      intervalo={ESPACO.e16}
+      acoes={
+        <Botao
+          titulo="Mudar quem vê"
+          variante="secundario"
+          desabilitado={!mudou}
+          motivo="Escolha um público diferente do atual."
+          carregando={mudar.isPending}
+          aoPressionar={() => void aplicar()}
+        />
+      }
+    >
+      <Texto variante="corpo">
         Agora: {NOME_DA_VISIBILIDADE[pedido.visibilidade]}. {pedido.quemVe}
       </Texto>
-      <GrupoDeOpcoes
+      <ListaDeOpcoes
         rotulo="Escolha o novo público"
-        opcoes={opcoesDeVisibilidade(nomeDaComunidade, contagem)}
+        opcoes={opcoesDeVisibilidade(contagem)}
         valor={escolhida}
         aoMudar={setEscolhida}
       />
+      {mudou ? (
+        <Texto variante="legenda" cor="textoSuave">
+          {explicarVisibilidade(escolhida, nomeDaComunidade, contagem)}
+        </Texto>
+      ) : null}
       {ehErroDaApi(mudar.error, 'visibilidade_mudou') ? (
-        <AvisoDeErro
+        <AvisoDeFalha
           erro={mudar.error}
           titulo="Quem vê já tinha mudado"
           aoTentarDeNovo={recarregar}
         />
       ) : mudar.error ? (
-        <AvisoDeErro erro={mudar.error} />
+        <AvisoDeFalha erro={mudar.error} />
       ) : null}
-      <Botao
-        titulo="Mudar quem vê"
-        variante="secundario"
-        desabilitado={!mudou}
-        motivo="Escolha um público diferente do atual."
-        carregando={mudar.isPending}
-        aoPressionar={() => void aplicar()}
-      />
-      <Botao titulo="Voltar aos pedidos" variante="terciario" aoPressionar={() => router.back()} />
-    </Cartao>
+    </CartaoDeVidro>
   )
 }

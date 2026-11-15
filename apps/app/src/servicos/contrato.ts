@@ -37,6 +37,9 @@ export interface Conta {
   doisFatores: boolean
   /** Ausente em API anterior à migração 0016; `null` sem escolha. */
   avatar?: AvatarDaConta | null
+  /** Foto de perfil (D33); ausentes em API anterior à migração 0018. */
+  temFoto?: boolean
+  fotoVersao?: string | null
 }
 
 export interface ComunidadeDoVinculo {
@@ -46,6 +49,9 @@ export interface ComunidadeDoVinculo {
   estado: EstadoDaComunidade
   papel: Papel
   designacoes: Designacao[]
+  /** Logotipo (D33); ausentes em API anterior à migração 0018. */
+  temLogo?: boolean
+  logoVersao?: string | null
 }
 
 export interface RespostaEu {
@@ -85,6 +91,9 @@ export interface Membro {
   criador: boolean
   desde: string
   avatar?: AvatarDaConta | null
+  /** Foto de perfil (D33), servida só a quem é da mesma comunidade. */
+  temFoto?: boolean
+  fotoVersao?: string | null
 }
 
 export type SituacaoDoConvite =

@@ -7,17 +7,16 @@ import { Tela } from '@/ui/Tela'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { DetalheDoEvento } from './DetalheDoEvento'
 
-/** Rota `/evento/[eventoId]`: o detalhe em tela cheia (celular e web estreita). */
+/** Rota `/evento/[eventoId]`: o detalhe em tela cheia (celular e web estreita), com a própria tela. */
 export function TelaEvento() {
   const { comunidadeAtiva } = useSessao()
   const eventoId = parametro(useLocalSearchParams<{ eventoId: string }>().eventoId)
-  return (
-    <Tela pilha>
-      {comunidadeAtiva && eventoId ? (
-        <DetalheDoEvento comunidadeId={comunidadeAtiva.id} eventoId={eventoId} />
-      ) : (
+  if (!comunidadeAtiva || !eventoId) {
+    return (
+      <Tela pilha>
         <SemComunidade oQue="a programação" />
-      )}
-    </Tela>
-  )
+      </Tela>
+    )
+  }
+  return <DetalheDoEvento comunidadeId={comunidadeAtiva.id} eventoId={eventoId} />
 }

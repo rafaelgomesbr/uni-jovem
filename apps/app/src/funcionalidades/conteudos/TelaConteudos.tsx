@@ -1,38 +1,69 @@
 import { router, useLocalSearchParams } from 'expo-router'
+import { useState } from 'react'
 
+import { useSessao } from '@/estado/sessao'
 import type { TipoDeConteudo } from '@/servicos/contratoDosModulos'
+import { mensagemDoErro, SemConexao } from '@/servicos/erros'
 import { parametro } from '@/utilidades/parametros'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
-import { Botao } from '@/ui/Botao'
-import { Carregando } from '@/ui/Carregando'
-import { Cartao } from '@/ui/Cartao'
+import { BotaoIcone } from '@/ui/Botao'
+import { CampoDeBusca } from '@/ui/Campo'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { Chip } from '@/ui/Chip'
+import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
-import { Linha } from '@/ui/Linha'
+import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
 import { Segmentos } from '@/ui/Segmentos'
-import { Selo } from '@/ui/Selo'
+import { Tela } from '@/ui/Tela'
 
 import { usePode } from '../comunidade/permissoes'
-import { TelaDaComunidade } from '../navegacao/TelaDaComunidade'
+import { SemComunidade } from '../navegacao/SemComunidade'
 import { useConteudos } from './consultas'
 import { ehTipoDeConteudo, estaArquivado, TIPOS_DE_CONTEUDO, type DefinicaoDoTipo } from './tipos'
 
-/** Rota `/conteudos?tipo=`: o tipo fica na URL para voltar ao mesmo lugar. */
+/** Pessoas aparecem com avatar; músicas e dinâmicas, com o ladrilho do tipo. */
+const DE_PESSOA: Readonly<Record<TipoDeConteudo, boolean>> = {
+  musicas: false,
+  musicos: true,
+  palestrantes: true,
+  dinamicas: false,
+}
+
+/**
+ * Rota `/conteudos?tipo=` (3.7.3): título com "+" (para quem gerencia),
+ * segmentos do tipo (fica na URL para voltar ao mesmo lugar), busca e o
+ * cartão lista.
+ */
 export function TelaConteudos() {
   const doParametro = parametro(useLocalSearchParams<{ tipo?: string }>().tipo)
   const tipo: TipoDeConteudo = ehTipoDeConteudo(doParametro) ? doParametro : 'musicas'
+  const { comunidadeAtiva } = useSessao()
   const pode = usePode()
   const gerencia = pode('conteudo', 'gerenciar')
+  const def = TIPOS_DE_CONTEUDO[tipo]
+  const novo = () => router.push({ pathname: '/conteudos/[tipo]/novo', params: { tipo } })
   return (
-    <TelaDaComunidade
-      oQue="os conteúdos"
+    <Tela
+      pilha
       titulo="Conteúdos"
       descricao={
         gerencia
           ? 'O repertório da comunidade: músicas e quem toca, músicos, palestrantes e dinâmicas.'
           : 'Músicas, músicos, palestrantes e dinâmicas da comunidade.'
       }
+      {...(comunidadeAtiva && gerencia
+        ? {
+            acoes: (
+              <BotaoIcone
+                icone="adicionar"
+                rotulo={`Adicionar ${def.singular}`}
+                circular
+                aoPressionar={novo}
+              />
+            ),
+          }
+        : {})}
     >
-      {(c) => (
+      {comunidadeAtiva ? (
         <>
           <Segmentos
             rotulo="Tipo de conteúdo"
@@ -41,13 +72,20 @@ export function TelaConteudos() {
             segmentos={(Object.keys(TIPOS_DE_CONTEUDO) as TipoDeConteudo[]).map((t) => ({
               valor: t,
               rotulo: TIPOS_DE_CONTEUDO[t].plural,
-              icone: TIPOS_DE_CONTEUDO[t].icone,
             }))}
           />
-          <Lista key={tipo} comunidadeId={c.id} def={TIPOS_DE_CONTEUDO[tipo]} gerencia={gerencia} />
+          <ListaDoTipo
+            key={tipo}
+            comunidadeId={comunidadeAtiva.id}
+            def={def}
+            gerencia={gerencia}
+            aoAdicionar={novo}
+          />
         </>
+      ) : (
+        <SemComunidade oQue="os conteúdos" />
       )}
-    </TelaDaComunidade>
+    </Tela>
   )
 }
 
@@ -57,11 +95,9 @@ function descricaoDoItem(def: DefinicaoDoTipo, item: Record<string, unknown>): s
     case 'musicas': {
       const musicos = (item['musicos'] as { nome: string }[] | undefined) ?? []
       partes.push(
+        item['tom'] ? `Tom ${String(item['tom'])}` : null,
         item['artista'] ? String(item['artista']) : null,
-        item['tom'] ? `tom ${String(item['tom'])}` : null,
-        musicos.length
-          ? `toca: ${musicos.map((m) => m.nome).join(', ')}`
-          : 'ninguém escalado para tocar',
+        musicos.length ? musicos.map((m) => m.nome).join(', ') : 'Ninguém escalado para tocar',
       )
       break
     }
@@ -69,7 +105,7 @@ function descricaoDoItem(def: DefinicaoDoTipo, item: Record<string, unknown>): s
       partes.push(
         Array.isArray(item['instrumentos']) && item['instrumentos'].length
           ? (item['instrumentos'] as string[]).join(', ')
-          : 'instrumentos não informados',
+          : 'Instrumentos não informados',
       )
       break
     case 'palestrantes':
@@ -85,75 +121,121 @@ function descricaoDoItem(def: DefinicaoDoTipo, item: Record<string, unknown>): s
       )
       break
   }
-  if (estaArquivado(def, item)) partes.push(def.arquivo.selo)
   return partes.filter(Boolean).join(' · ')
 }
 
-function Lista({
+/** Busca sem acento e sem caixa: "musica" acha "Música". */
+function normalizar(texto: string): string {
+  return texto
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-BR')
+}
+
+function ListaDoTipo({
   comunidadeId,
   def,
   gerencia,
+  aoAdicionar,
 }: {
   comunidadeId: string
   def: DefinicaoDoTipo
   gerencia: boolean
+  aoAdicionar: () => void
 }) {
   const itens = useConteudos(comunidadeId, def.tipo)
-  const novo = () => router.push({ pathname: '/conteudos/[tipo]/novo', params: { tipo: def.tipo } })
+  const [busca, setBusca] = useState('')
+  const termo = normalizar(busca.trim())
+
+  if (itens.isPending) {
+    return (
+      <Esqueleto rotulo={`Carregando ${def.plural.toLowerCase()}`}>
+        <CartaoDeEsqueleto />
+      </Esqueleto>
+    )
+  }
+  if (itens.error) {
+    return (
+      <EstadoVazio
+        icone={itens.error instanceof SemConexao ? 'semConexao' : 'erro'}
+        titulo={`Não deu para carregar ${def.artigo === 'a' ? 'as' : 'os'} ${def.plural.toLowerCase()}`}
+        descricao={mensagemDoErro(itens.error)}
+        acao={{ titulo: 'Tentar de novo', aoPressionar: () => void itens.refetch() }}
+      />
+    )
+  }
+  if (itens.data.length === 0) {
+    return (
+      <EstadoVazio
+        icone={def.icone}
+        titulo={`Nenhum${def.artigo === 'a' ? 'a' : ''} ${def.singular} cadastrad${def.artigo}`}
+        descricao={
+          gerencia
+            ? `Cadastre ${def.artigo} primeir${def.artigo} ${def.singular} para a equipe consultar antes dos encontros.`
+            : 'Quando a organização cadastrar, aparece aqui.'
+        }
+        acao={
+          gerencia
+            ? { titulo: `Adicionar ${def.singular}`, icone: 'adicionar', aoPressionar: aoAdicionar }
+            : { titulo: 'Voltar ao Início', aoPressionar: () => router.push('/') }
+        }
+      />
+    )
+  }
+
+  const registros = itens.data.map((item) => item as unknown as Record<string, unknown>)
+  const visiveis = termo
+    ? registros.filter((r) =>
+        normalizar(`${String(r[def.principal] ?? '')} ${descricaoDoItem(def, r)}`).includes(termo),
+      )
+    : registros
 
   return (
     <>
-      {gerencia ? (
-        <Botao titulo={`Adicionar ${def.singular}`} icone="adicionar" aoPressionar={novo} />
-      ) : null}
-      {itens.isPending ? (
-        <Carregando texto={`Carregando ${def.plural.toLowerCase()}`} />
-      ) : itens.error ? (
-        <AvisoDeErro erro={itens.error} aoTentarDeNovo={() => void itens.refetch()} />
-      ) : itens.data.length === 0 ? (
-        <Cartao>
-          <EstadoVazio
-            icone={def.icone}
-            titulo={`Nenhum${def.artigo === 'a' ? 'a' : ''} ${def.singular} cadastrad${def.artigo}`}
-            descricao={
-              gerencia
-                ? `Cadastre ${def.artigo} primeir${def.artigo} ${def.singular} para a equipe consultar antes dos encontros.`
-                : 'Quando a organização cadastrar, aparece aqui.'
-            }
-            {...(gerencia
-              ? {
-                  acao: {
-                    titulo: `Adicionar ${def.singular}`,
-                    icone: 'adicionar',
-                    aoPressionar: novo,
-                  },
-                }
-              : {})}
-          />
-        </Cartao>
+      <CampoDeBusca
+        rotulo={`Buscar em ${def.plural.toLowerCase()}`}
+        valor={busca}
+        aoMudar={setBusca}
+      />
+      {visiveis.length === 0 ? (
+        <EstadoVazio
+          icone="buscar"
+          titulo="Nada encontrado"
+          descricao={`Nenhum${def.artigo === 'a' ? 'a' : ''} ${def.singular} com "${busca.trim()}". Confira a grafia ou limpe a busca.`}
+          acao={{
+            titulo: 'Limpar a busca',
+            variante: 'secundario',
+            aoPressionar: () => setBusca(''),
+          }}
+        />
       ) : (
-        <Cartao>
-          {itens.data.map((item) => {
-            const registro = item as unknown as Record<string, unknown>
-            return (
-              <Linha
-                key={item.id}
-                icone={def.icone}
-                titulo={String(registro[def.principal] ?? '')}
-                descricao={descricaoDoItem(def, registro)}
-                {...(estaArquivado(def, registro)
-                  ? { extra: <Selo texto={def.arquivo.selo} /> }
-                  : {})}
-                aoPressionar={() =>
-                  router.push({
-                    pathname: '/conteudos/[tipo]/[itemId]',
-                    params: { tipo: def.tipo, itemId: item.id },
-                  })
-                }
-              />
-            )
-          })}
-        </Cartao>
+        <CartaoDeVidro lista>
+          <Lista>
+            {visiveis.map((registro) => {
+              const nome = String(registro[def.principal] ?? '')
+              const arquivado = estaArquivado(def, registro)
+              const descricao = descricaoDoItem(def, registro)
+              return (
+                <LinhaDeLista
+                  key={String(registro['id'])}
+                  {...(DE_PESSOA[def.tipo] ? { avatar: { nome } } : { icone: def.icone })}
+                  titulo={nome}
+                  descricao={descricao}
+                  rotuloAcessivel={[nome, descricao, arquivado ? def.arquivo.selo : null]
+                    .filter(Boolean)
+                    .join('. ')}
+                  {...(arquivado ? { extra: <Chip texto={def.arquivo.selo} tom="neutro" /> } : {})}
+                  aoPressionar={() =>
+                    router.push({
+                      pathname: '/conteudos/[tipo]/[itemId]',
+                      params: { tipo: def.tipo, itemId: String(registro['id']) },
+                    })
+                  }
+                />
+              )
+            })}
+          </Lista>
+        </CartaoDeVidro>
       )}
     </>
   )

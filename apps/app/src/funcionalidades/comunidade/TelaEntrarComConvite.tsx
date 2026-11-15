@@ -1,14 +1,16 @@
+import { ESPACO } from '@uj/tokens'
 import { router } from 'expo-router'
 import { useState } from 'react'
 
 import { lerParametroDoFragmento } from '@/utilidades/fragmento'
+import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
-import { Cartao } from '@/ui/Cartao'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 
 import { guardarConviteEmEspera } from '../convite/conviteEmEspera'
-import { CabecalhoDeTela, TelaPropria } from './visual'
 
 /** Token do convite: base64url de 256 bits (43 caracteres); aceita folga para o futuro. */
 const TOKEN = /^[A-Za-z0-9_-]{20,200}$/
@@ -34,6 +36,10 @@ export function abrirConvite(token: string) {
   router.push('/convite')
 }
 
+/**
+ * Entrar com um convite: cole o link (ou o código) e "Continuar" na barra.
+ * A próxima tela mostra a comunidade e o papel; nada muda antes de confirmar.
+ */
 export function TelaEntrarComConvite() {
   const [texto, setTexto] = useState('')
   const [erro, setErro] = useState<string | null>(null)
@@ -52,13 +58,17 @@ export function TelaEntrarComConvite() {
   }
 
   return (
-    <TelaPropria>
-      <CabecalhoDeTela
-        sobrancelha="Comunidades"
-        titulo="Entrar com um convite"
-        descricao="Recebeu um link de convite? Cole aqui para entrar na comunidade com a conta que você já tem."
-      />
-      <Cartao titulo="Link ou código do convite" icone="link">
+    <Tela
+      pilha
+      titulo="Entrar com um convite"
+      descricao="Recebeu um link de convite? Cole aqui para entrar na comunidade com a conta que você já tem."
+      barraDeAcao={
+        <BarraDeAcao>
+          <Botao titulo="Continuar" tamanho="grande" aoPressionar={continuar} />
+        </BarraDeAcao>
+      }
+    >
+      <CartaoDeVidro opaco intervalo={ESPACO.e8}>
         <Campo
           rotulo="Link ou código do convite"
           value={texto}
@@ -70,12 +80,11 @@ export function TelaEntrarComConvite() {
           autoComplete="off"
           onSubmitEditing={continuar}
         />
-        <Botao titulo="Continuar" icone="avancar" aoPressionar={continuar} />
         <Texto variante="legenda" cor="textoSuave">
           Na próxima tela aparecem a comunidade e o papel do convite. Nada muda antes de você
           confirmar.
         </Texto>
-      </Cartao>
-    </TelaPropria>
+      </CartaoDeVidro>
+    </Tela>
   )
 }

@@ -1,7 +1,7 @@
 import type { VisibilidadeDeOracao } from '@uj/dominio'
 
 import { useSessao } from '@/estado/sessao'
-import type { Opcao } from '@/ui/GrupoDeOpcoes'
+import type { Opcao } from '@/ui/ListaDeOpcoes'
 
 import { useMembros } from '../comunidade/consultas'
 
@@ -57,14 +57,24 @@ export function explicarVisibilidade(
   }
 }
 
-export function opcoesDeVisibilidade(
-  comunidade: string,
-  c: Contagem,
-): Opcao<VisibilidadeDeOracao>[] {
+/**
+ * Quantas pessoas leem, para a descrição de cada opção (3.7.1): "Só você",
+ * "4 pessoas além de você". A explicação completa vem abaixo da lista.
+ */
+export function contagemDaVisibilidade(v: VisibilidadeDeOracao, c: Contagem): string {
+  if (v === 'somente_eu') return 'Só você lê.'
+  const n = v === 'equipe_oracao' ? c.equipe : c.comunidade
+  if (n === null)
+    return v === 'equipe_oracao' ? 'Quem está na equipe de oração.' : 'Todos os membros ativos.'
+  if (n === 0) return 'Hoje, ninguém além de você.'
+  return `${pessoas(n)} além de você.`
+}
+
+export function opcoesDeVisibilidade(c: Contagem): Opcao<VisibilidadeDeOracao>[] {
   return (Object.keys(NOME_DA_VISIBILIDADE) as VisibilidadeDeOracao[]).map((valor) => ({
     valor,
     rotulo: valor === 'somente_eu' ? 'Somente eu (padrão)' : NOME_DA_VISIBILIDADE[valor],
-    descricao: explicarVisibilidade(valor, comunidade, c),
+    descricao: contagemDaVisibilidade(valor, c),
   }))
 }
 

@@ -5,7 +5,7 @@ import { View } from 'react-native'
 
 import { NOME_DO_APP } from '@/constantes'
 import { useSessao } from '@/estado/sessao'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
+import { Aviso } from '@/ui/Aviso'
 import { Botao, ParDeBotoes } from '@/ui/Botao'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { IconeDoApp } from '@/ui/IconeDoApp'
@@ -67,7 +67,9 @@ export function TelaOfertaDeBiometria() {
         </Texto>
       </CartaoDeVidro>
       {ligar.error ? (
-        <AvisoDeErro mensagem={mensagemDaBiometria(ligar.error, biometria.nome)} />
+        <Aviso tipo="erro" titulo="Não deu certo" anunciar>
+          {mensagemDaBiometria(ligar.error, biometria.nome)}
+        </Aviso>
       ) : null}
     </Tela>
   )

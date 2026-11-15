@@ -14,6 +14,7 @@ import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
 import { soNaWeb } from '@/ui/web'
 
+import { fotoDaConta } from '../perfil/imagens'
 import { ABAS } from './abas'
 import { espacoDaBarra, itensDaBarraFlutuante, propsDaBarraFlutuante } from './BarraDeAbas'
 import { useGruposDoMais } from './mais'
@@ -56,6 +57,7 @@ function ItemLateral({ rotulo, icone, isFocused, onPress, onLongPress }: PropsDo
         <Avatar
           nome={conta.nome}
           avatar={conta.avatar ?? null}
+          foto={fotoDaConta(conta)}
           proprio
           tamanho="aba"
           anel={ativo ? 'ativo' : 'inativo'}

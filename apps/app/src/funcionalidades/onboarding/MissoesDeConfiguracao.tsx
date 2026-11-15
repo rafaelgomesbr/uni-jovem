@@ -2,8 +2,8 @@ import { router } from 'expo-router'
 
 import { useSessao } from '@/estado/sessao'
 import { NOTIFICACOES_DISPONIVEIS } from '@/servicos/notificacoesDoSistema'
-import { Linha } from '@/ui/Linha'
-import { Selo } from '@/ui/Selo'
+import { Chip } from '@/ui/Chip'
+import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
 import { Texto } from '@/ui/Texto'
 
 import { usePode } from '../comunidade/permissoes'
@@ -85,16 +85,19 @@ export function MissoesDeConfiguracao() {
           ? 'Tudo configurado.'
           : `Opcional. ${restantes === 1 ? 'Falta 1 item' : `Faltam ${restantes} itens`}, no seu ritmo.`}
       </Texto>
-      {missoes.map((m) => (
-        <Linha
-          key={m.id}
-          icone={m.feita ? 'confirmado' : 'pendente'}
-          titulo={m.titulo}
-          descricao={`${m.feita ? 'Feito. ' : ''}${m.descricao}`}
-          extra={m.feita ? <Selo texto="Feito" cor="sucesso" /> : undefined}
-          aoPressionar={m.ir}
-        />
-      ))}
+      <Lista>
+        {missoes.map((m) => (
+          <LinhaDeLista
+            key={m.id}
+            icone={m.feita ? 'confirmado' : 'pendente'}
+            titulo={m.titulo}
+            descricao={m.descricao}
+            rotuloAcessivel={`${m.titulo}. ${m.feita ? 'Feito. ' : ''}${m.descricao}`}
+            {...(m.feita ? { extra: <Chip texto="Feito" tom="sucesso" icone="check" /> } : {})}
+            aoPressionar={m.ir}
+          />
+        ))}
+      </Lista>
     </>
   )
 }

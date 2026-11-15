@@ -5,6 +5,7 @@ import { CHAVES } from '@/estado/clienteDeConsulta'
 import { api } from '@/servicos/api'
 import type { ComandoDoAoVivo, RetratoAoVivo } from '@/servicos/contratoDosEventos'
 import { ehCancelamento, ehErroDaApi } from '@/servicos/erros'
+import { mostrarToast } from '@/ui/Toast'
 
 import { naComunidade } from '../eventos/consultas'
 
@@ -34,14 +35,14 @@ const ESPERA_APOS_FALHA_MS = 3_000
  * Andamento ao vivo de um evento. Primeiro lê o retrato; depois acompanha por
  * LONG POLLING (`?depoisDaVersao=N`, a API segura até 25 s ou até mudar).
  * Comandos levam a versão que a tela conhece; se outra pessoa mudou antes, a
- * API responde 409 com o estado atual, a tela se atualiza e avisa.
+ * API responde 409 com o estado atual, a tela se atualiza e avisa num toast
+ * anunciado ("O andamento mudou...", 3.5.1).
  */
 export function useAoVivo(comunidadeId: string, eventoId: string) {
   const consultas = useQueryClient()
   const chave = CHAVES.aoVivo(comunidadeId, eventoId)
   const caminho = `${naComunidade(comunidadeId)}/eventos/${eventoId}/ao-vivo`
   const [conexao, setConexao] = useState<EstadoDaConexao>('ao_vivo')
-  const [aviso, setAviso] = useState<string | null>(null)
 
   const retrato = useQuery({
     queryKey: chave,
@@ -89,18 +90,17 @@ export function useAoVivo(comunidadeId: string, eventoId: string) {
         ...(forcar ? { forcar: true } : {}),
       })
     },
-    onMutate: () => setAviso(null),
     onSuccess: (novo) => consultas.setQueryData(chave, carimbar(novo)),
     onError: (erro) => {
       // Conflito de versão ou de condução: a resposta traz o estado atual.
       if (ehErroDaApi(erro) && erro.status === 409 && erro.atual) {
         consultas.setQueryData(chave, carimbar(erro.atual as RetratoAoVivo))
-        setAviso(`${erro.mensagem} A tela já mostra o andamento atual.`)
+        mostrarToast({ texto: `O andamento mudou. ${erro.mensagem}`, tipo: 'info' })
       }
     },
   })
 
-  return { retrato, conexao, aviso, comandar, limparAviso: () => setAviso(null) }
+  return { retrato, conexao, comandar }
 }
 
 /** Relógio que anda de segundo em segundo (para o cronômetro). */

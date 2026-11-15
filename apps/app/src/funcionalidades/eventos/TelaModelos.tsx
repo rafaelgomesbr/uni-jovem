@@ -1,136 +1,179 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ESPACO } from '@uj/tokens'
 import { router } from 'expo-router'
-import { View } from 'react-native'
+import { useState } from 'react'
 
 import { CHAVES } from '@/estado/clienteDeConsulta'
+import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
 import type { ModeloDaComunidade } from '@/servicos/contratoDosEventos'
+import { Aviso } from '@/ui/Aviso'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
+import { EstadoVazio } from '@/ui/EstadoVazio'
+import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
+import { Secao } from '@/ui/Secao'
+import { Tela } from '@/ui/Tela'
+import { mostrarToast } from '@/ui/Toast'
 import { confirmar } from '@/utilidades/confirmar'
 import { formatarDuracao } from '@/utilidades/datas'
-import { Aviso } from '@/ui/Aviso'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
-import { Botao } from '@/ui/Botao'
-import { Carregando } from '@/ui/Carregando'
-import { Cartao } from '@/ui/Cartao'
-import { EstadoVazio } from '@/ui/EstadoVazio'
-import { Texto } from '@/ui/Texto'
 
 import { usePode } from '../comunidade/permissoes'
-import { TelaDaComunidade } from '../navegacao/TelaDaComunidade'
+import { SemComunidade } from '../navegacao/SemComunidade'
 import { naComunidade, useModelos } from './consultas'
+import { AvisoDeFalha, ErroDaTela } from './Falha'
+import { MenuDeAcoes } from './FolhaNaTela'
 
 function resumo(etapas: readonly { duracaoMin: number }[]): string {
   const total = etapas.reduce((s, e) => s + e.duracaoMin, 0)
   return `${etapas.length} ${etapas.length === 1 ? 'etapa' : 'etapas'}, ${formatarDuracao(total)}`
 }
 
-/** Rota `/modelos`: modelos da comunidade (criados a partir de um evento) e os do app. */
+const usar = (modelo: string) => router.push({ pathname: '/evento/novo', params: { modelo } })
+
+/**
+ * Rota `/modelos` (3.4.6): cartões lista com os modelos da comunidade
+ * (criados a partir de um evento, em "Salvar como modelo") e os do app.
+ * Tocar abre a folha com "Usar este modelo" e, para quem gerencia, "Apagar".
+ */
 export function TelaModelos() {
+  const { comunidadeAtiva } = useSessao()
   const pode = usePode()
   return (
-    <TelaDaComunidade
-      oQue="os modelos"
-      titulo="Modelos de programação"
-      descricao="Pontos de partida para novas programações. Para criar um, abra um evento e salve-o como modelo."
+    <Tela
+      pilha
+      titulo="Modelos"
+      descricao="Pontos de partida para novas programações. Para criar um, abra um evento e use Salvar como modelo."
     >
-      {(c) =>
-        pode('modelo', 'ler') ? (
-          <Lista comunidadeId={c.id} gerencia={pode('modelo', 'gerenciar')} />
-        ) : (
-          <Aviso tipo="alerta" titulo="Só a organização">
-            Organizadores e administradores usam os modelos.
-          </Aviso>
-        )
-      }
-    </TelaDaComunidade>
+      {!comunidadeAtiva ? (
+        <SemComunidade oQue="os modelos" />
+      ) : pode('modelo', 'ler') ? (
+        <ModelosDaComunidade
+          comunidadeId={comunidadeAtiva.id}
+          gerencia={pode('modelo', 'gerenciar')}
+        />
+      ) : (
+        <Aviso tipo="info" titulo="Só a organização usa os modelos">
+          Organizadores e administradores montam programações a partir deles.
+        </Aviso>
+      )}
+    </Tela>
   )
 }
 
-function Lista({ comunidadeId, gerencia }: { comunidadeId: string; gerencia: boolean }) {
-  const modelos = useModelos(comunidadeId, true)
-  if (modelos.isPending) return <Carregando texto="Carregando os modelos" />
-  if (modelos.error) {
-    return <AvisoDeErro erro={modelos.error} aoTentarDeNovo={() => void modelos.refetch()} />
-  }
-  const { embutidos, daComunidade } = modelos.data
-  return (
-    <>
-      <Cartao titulo="Da comunidade" icone="modelo">
-        {daComunidade.length === 0 ? (
-          <EstadoVazio
-            icone="modelo"
-            titulo="Nenhum modelo próprio"
-            descricao="Abra uma programação que deu certo e use “Salvar como modelo” para repetir depois."
-            acao={{
-              titulo: 'Ver as programações',
-              icone: 'programacoes',
-              aoPressionar: () => router.push('/programacoes'),
-            }}
-          />
-        ) : (
-          daComunidade.map((m) => (
-            <ModeloDaLista key={m.id} comunidadeId={comunidadeId} modelo={m} gerencia={gerencia} />
-          ))
-        )}
-      </Cartao>
-      <Cartao titulo="Do app" icone="modelo">
-        {embutidos.map((m) => (
-          <View key={m.chave} style={{ gap: ESPACO.e4 }}>
-            <Texto variante="tituloItem">{m.nome}</Texto>
-            <Texto variante="legenda" cor="textoSuave">
-              {resumo(m.etapas)}. Já vem com o app e não pode ser apagado.
-            </Texto>
-          </View>
-        ))}
-      </Cartao>
-    </>
-  )
-}
-
-function ModeloDaLista({
+function ModelosDaComunidade({
   comunidadeId,
-  modelo,
   gerencia,
 }: {
   comunidadeId: string
-  modelo: ModeloDaComunidade
   gerencia: boolean
 }) {
   const consultas = useQueryClient()
+  const modelos = useModelos(comunidadeId, true)
+  const [escolhido, setEscolhido] = useState<ModeloDaComunidade | null>(null)
   const apagar = useMutation({
-    mutationFn: () => api.delete(`${naComunidade(comunidadeId)}/modelos/${modelo.id}`),
-    onSuccess: () => consultas.invalidateQueries({ queryKey: CHAVES.modelos(comunidadeId) }),
+    mutationFn: (m: ModeloDaComunidade) =>
+      api.delete(`${naComunidade(comunidadeId)}/modelos/${m.id}`),
+    onSuccess: async () => {
+      mostrarToast({ texto: 'Modelo apagado.' })
+      await consultas.invalidateQueries({ queryKey: CHAVES.modelos(comunidadeId) })
+    },
   })
 
-  async function pedir() {
+  async function pedirApagar(m: ModeloDaComunidade) {
     const ok = await confirmar({
-      titulo: `Apagar o modelo ${modelo.nome}?`,
+      titulo: `Apagar o modelo ${m.nome}?`,
       mensagem: 'As programações criadas com ele continuam iguais. Só o modelo some.',
       confirmar: 'Apagar modelo',
       destrutivo: true,
     })
-    if (ok) apagar.mutate()
+    if (ok) apagar.mutate(m)
   }
 
+  if (modelos.isPending) {
+    return (
+      <Esqueleto rotulo="Carregando os modelos">
+        <CartaoDeEsqueleto />
+        <CartaoDeEsqueleto />
+      </Esqueleto>
+    )
+  }
+  if (modelos.error) {
+    return <ErroDaTela erro={modelos.error} aoTentarDeNovo={() => void modelos.refetch()} />
+  }
+  const { embutidos, daComunidade } = modelos.data
   return (
-    <View style={{ gap: ESPACO.e4 }}>
-      <Texto variante="tituloItem">{modelo.nome}</Texto>
-      <Texto variante="legenda" cor="textoSuave">
-        {[modelo.categoria, resumo(modelo.etapas)].join(' · ')}
-      </Texto>
-      {apagar.error ? <AvisoDeErro erro={apagar.error} /> : null}
-      {gerencia ? (
-        <Botao
-          titulo="Apagar"
-          icone="excluir"
-          variante="terciario"
-          larguraTotal={false}
-          rotuloAcessivel={`Apagar o modelo ${modelo.nome}`}
-          carregando={apagar.isPending}
-          aoPressionar={() => void pedir()}
-        />
-      ) : null}
-    </View>
+    <>
+      {apagar.error ? <AvisoDeFalha erro={apagar.error} titulo="O modelo não foi apagado" /> : null}
+      <Secao titulo="Da comunidade">
+        {daComunidade.length === 0 ? (
+          <EstadoVazio
+            icone="modelo"
+            titulo="Nenhum modelo próprio"
+            descricao="Abra uma programação que deu certo e use Salvar como modelo para repetir depois."
+            acao={{
+              titulo: 'Ver os programas',
+              variante: 'secundario',
+              aoPressionar: () => router.push('/programacoes'),
+            }}
+          />
+        ) : (
+          <CartaoDeVidro lista>
+            <Lista>
+              {daComunidade.map((m) => (
+                <LinhaDeLista
+                  key={m.id}
+                  icone="modelo"
+                  titulo={m.nome}
+                  descricao={[m.categoria, resumo(m.etapas)].join(' · ')}
+                  semSeta
+                  dica="Abre as opções do modelo."
+                  aoPressionar={() => setEscolhido(m)}
+                />
+              ))}
+            </Lista>
+          </CartaoDeVidro>
+        )}
+      </Secao>
+      <Secao titulo="Do app">
+        <CartaoDeVidro lista>
+          <Lista>
+            {embutidos.map((m) => (
+              <LinhaDeLista
+                key={m.chave}
+                icone="modelo"
+                titulo={m.nome}
+                descricao={`${resumo(m.etapas)}. Vem com o app.`}
+                rotuloAcessivel={`${m.nome}. ${resumo(m.etapas)}. Usar este modelo`}
+                aoPressionar={() => usar(m.chave)}
+              />
+            ))}
+          </Lista>
+        </CartaoDeVidro>
+      </Secao>
+      <MenuDeAcoes
+        aberto={escolhido !== null}
+        titulo={escolhido?.nome ?? 'Modelo'}
+        aoFechar={() => setEscolhido(null)}
+        acoes={
+          escolhido
+            ? [
+                {
+                  titulo: 'Usar este modelo',
+                  icone: 'adicionar',
+                  descricao: 'Nova programação com as etapas dele',
+                  navega: true,
+                  aoPressionar: () => usar(escolhido.id),
+                },
+                gerencia && {
+                  titulo: 'Apagar modelo',
+                  icone: 'excluir',
+                  destrutiva: true,
+                  aoPressionar: () => void pedirApagar(escolhido),
+                },
+              ]
+            : []
+        }
+      />
+    </>
   )
 }

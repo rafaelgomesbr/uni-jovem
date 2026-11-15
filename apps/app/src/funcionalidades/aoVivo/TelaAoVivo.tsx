@@ -1,33 +1,44 @@
-import { ESPACO, RAIO } from '@uj/tokens'
+import { ALTURA, BORDA, ESPACO, RAIO, TIPO } from '@uj/tokens'
 import { useKeepAwake } from 'expo-keep-awake'
 import { useLocalSearchParams } from 'expo-router'
-import { View } from 'react-native'
+import { useEffect, useState, type ReactNode } from 'react'
+import { ActivityIndicator, Pressable, useWindowDimensions, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useSessao } from '@/estado/sessao'
-import type { ComandoDoAoVivo, RetratoAoVivo } from '@/servicos/contratoDosEventos'
+import type { ComandoDoAoVivo, EtapaAoVivo, RetratoAoVivo } from '@/servicos/contratoDosEventos'
 import { ehErroDaApi, SemConexao } from '@/servicos/erros'
+import { Aviso } from '@/ui/Aviso'
+import { BarraDeProgresso } from '@/ui/BarraDeProgresso'
+import { aparenciaDoBotao, Botao, BotaoIcone } from '@/ui/Botao'
+import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { Chip } from '@/ui/Chip'
+import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
+import { useAnelDeFoco } from '@/ui/foco'
+import { Icone } from '@/ui/Icone'
+import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
+import { Secao } from '@/ui/Secao'
+import { Tela } from '@/ui/Tela'
+import { Texto } from '@/ui/Texto'
+import { registrarRodape } from '@/ui/Toast'
+import { sombra, useTema } from '@/ui/tema'
+import { useAnunciar } from '@/ui/useAnunciar'
+import { Vidro } from '@/ui/Vidro'
 import { confirmar } from '@/utilidades/confirmar'
 import {
   falarCronometro,
   formatarCronometro,
   formatarDuracao,
   formatarHora,
+  minutosEntre,
 } from '@/utilidades/datas'
 import { parametro } from '@/utilidades/parametros'
-import { Aviso } from '@/ui/Aviso'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
-import { BarraDeProgresso } from '@/ui/BarraDeProgresso'
-import { Botao } from '@/ui/Botao'
-import { Carregando } from '@/ui/Carregando'
-import { Icone, type NomeDoIcone } from '@/ui/Icone'
-import { Selo } from '@/ui/Selo'
-import { Tela } from '@/ui/Tela'
-import { Texto } from '@/ui/Texto'
-import { useTema } from '@/ui/tema'
-import { useAnunciar } from '@/ui/useAnunciar'
 
 import { useFusoDaComunidade } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
+import { AvisoDeFalha, ErroDaTela } from '../eventos/Falha'
+import { MenuDeAcoes } from '../eventos/FolhaNaTela'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { useEstaOnline } from '../offline/ProvedorOffline'
 import { useAoVivoLocal } from '../offline/useAoVivoLocal'
@@ -36,10 +47,15 @@ import {
   CONTROLES_POR_SITUACAO,
   descreverAtraso,
   motivoDaRecusa,
-  NOME_DA_SITUACAO,
   type ControleDoAoVivo,
 } from './tempo'
 import { useAgora, useAoVivo } from './useAoVivo'
+
+/** Controles do ao vivo: 56 de altura (a mesma da linha), porque a tela é usada sob pressão (3.5.1). */
+const ALTURA_DO_CONTROLE = ALTURA.linha
+
+/** Separador da lista de etapas recuado até o texto, depois da coluna de hora. */
+const RECUO_DA_HORA = ALTURA.iconeSo + ESPACO.e12 + ESPACO.e16
 
 /** Rota `/evento/[eventoId]/ao-vivo`. */
 export function TelaAoVivo() {
@@ -47,7 +63,7 @@ export function TelaAoVivo() {
   const eventoId = parametro(useLocalSearchParams<{ eventoId: string }>().eventoId)
   if (!comunidadeAtiva || !eventoId) {
     return (
-      <Tela pilha>
+      <Tela pilha aurora={0}>
         <SemComunidade oQue="o ao vivo" />
       </Tela>
     )
@@ -56,7 +72,7 @@ export function TelaAoVivo() {
 }
 
 export function AoVivo({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: string }) {
-  const { retrato, conexao, aviso, comandar } = useAoVivo(comunidadeId, eventoId)
+  const { retrato, conexao, comandar } = useAoVivo(comunidadeId, eventoId)
   const online = useEstaOnline()
   const local = useAoVivoLocal(eventoId, retrato.data ?? null)
   const semRede =
@@ -69,7 +85,6 @@ export function AoVivo({ comunidadeId, eventoId }: { comunidadeId: string; event
       <Painel
         r={local.retrato}
         conexao="so_neste_aparelho"
-        aviso={null}
         comandar={(comando) => {
           if (comando !== 'assumir' && comando !== 'liberar') local.comandar(comando)
         }}
@@ -80,15 +95,22 @@ export function AoVivo({ comunidadeId, eventoId }: { comunidadeId: string; event
   }
   if (retrato.isPending) {
     return (
-      <Tela pilha>
-        <Carregando texto="Carregando o andamento" />
+      <Tela pilha aurora={0} titulo="Ao vivo">
+        <Esqueleto rotulo="Carregando o andamento">
+          <CartaoDeEsqueleto titulo />
+          <CartaoDeEsqueleto />
+        </Esqueleto>
       </Tela>
     )
   }
   if (retrato.error) {
     return (
-      <Tela pilha>
-        <AvisoDeErro erro={retrato.error} aoTentarDeNovo={() => void retrato.refetch()} />
+      <Tela pilha aurora={0} titulo="Ao vivo">
+        <ErroDaTela
+          erro={retrato.error}
+          titulo="O andamento não abriu"
+          aoTentarDeNovo={() => void retrato.refetch()}
+        />
       </Tela>
     )
   }
@@ -96,7 +118,6 @@ export function AoVivo({ comunidadeId, eventoId }: { comunidadeId: string; event
     <Painel
       r={retrato.data}
       conexao={conexao}
-      aviso={aviso}
       comandar={(comando, forcar) => comandar.mutate({ comando, ...(forcar ? { forcar } : {}) })}
       enviando={comandar.isPending ? (comandar.variables?.comando ?? null) : null}
       erro={
@@ -117,57 +138,55 @@ function ManterTelaAcesa() {
   return null
 }
 
-const ROTULO_DO_CONTROLE: Readonly<Record<ControleDoAoVivo, string>> = {
-  iniciar: 'Iniciar',
-  voltar: 'Voltar etapa',
-  avancar: 'Avançar etapa',
-  pausar: 'Pausar',
-  retomar: 'Retomar',
-  encerrar: 'Encerrar',
-}
-
-const ICONE_DO_CONTROLE: Readonly<Record<ControleDoAoVivo, NomeDoIcone>> = {
-  iniciar: 'iniciar',
-  voltar: 'etapaAnterior',
-  avancar: 'proximaEtapa',
-  pausar: 'pausar',
-  retomar: 'iniciar',
-  encerrar: 'encerrar',
-}
-
 interface PropsDoPainel {
   /** `recebidoEm` vem do `useAoVivo`; sem ele, usa o relógio do aparelho. */
   r: RetratoAoVivo & { recebidoEm?: number }
   /** `so_neste_aparelho`: sem conexão, comandos guardados como proposta (F13). */
   conexao: 'ao_vivo' | 'reconectando' | 'so_neste_aparelho'
-  aviso: string | null
   comandar: (comando: ComandoDoAoVivo, forcar?: boolean) => void
   enviando: ComandoDoAoVivo | null
   erro: unknown
 }
 
+const CHIP_DA_CONEXAO = {
+  ao_vivo: { texto: 'Ao vivo', tom: 'sucesso' },
+  reconectando: { texto: 'Reconectando', tom: 'alerta' },
+  so_neste_aparelho: { texto: 'Só neste aparelho', tom: 'alerta' },
+} as const
+
 /**
- * Tela grande, de alto contraste (texto do tema sobre o fundo, bordas
- * grossas), para ler de longe. O cronômetro não é região viva (seria lido a
- * cada segundo); a troca de etapa, sim, é anunciada.
+ * Ao vivo (3.5.1 e quadro 09): fundo chapado (sem Aurora), cartões opacos, a
+ * etapa atual no cartão de destaque com os dois cronômetros, "A SEGUIR", o
+ * atraso acumulado, o progresso e todas as etapas. Quem conduz tem a barra
+ * de controle de 56. O cronômetro não é região viva (seria lido a cada
+ * segundo); a troca de etapa, sim, é anunciada.
  */
-function Painel({ r, conexao, aviso, comandar, enviando, erro }: PropsDoPainel) {
-  const { cores } = useTema()
+function Painel({ r, conexao, comandar, enviando, erro }: PropsDoPainel) {
   const pode = usePode()
   const fuso = useFusoDaComunidade()
   const agora = useAgora()
+  const [menu, setMenu] = useState(false)
   // Relógio do aparelho corrigido pelo do servidor (o que vale é o andamento compartilhado).
   const desvioMs = r.recebidoEm === undefined ? 0 : Date.parse(r.agora) - r.recebidoEm
   const t = calcularTempo(r, agora + desvioMs)
   const conduz = pode('ao_vivo', 'conduzir')
   const local = conexao === 'so_neste_aparelho'
   const outroConduz = !local && r.condutor !== null && !r.souCondutor
+  const controles = CONTROLES_POR_SITUACAO[r.situacao]
 
   // Avisa o leitor de tela quando a etapa muda (o resto da tela não é lido sozinho).
-  const idAtual = t.atual?.id
   const tituloAtual = t.atual?.titulo
   useAnunciar(
-    idAtual ? `Agora: ${tituloAtual}` : r.situacao === 'encerrado' ? 'Evento encerrado' : null,
+    tituloAtual ? `Agora: ${tituloAtual}` : r.situacao === 'encerrado' ? 'Evento encerrado' : null,
+  )
+  // Perder e recuperar a conexão muda o que a tela mostra: o leitor de tela fica sabendo.
+  useAnunciar(
+    conexao === 'ao_vivo'
+      ? 'Conexão de volta. Atualizando em tempo real.'
+      : local
+        ? 'Sem conexão. Mostrando o andamento guardado neste aparelho.'
+        : 'Sem conexão. Tentando de novo.',
+    { soMudancas: true },
   )
 
   async function executar(controle: ControleDoAoVivo) {
@@ -194,39 +213,138 @@ function Painel({ r, conexao, aviso, comandar, enviando, erro }: PropsDoPainel) 
     if (ok) comandar('assumir', outroConduz)
   }
 
-  // Perder e recuperar a conexão muda o que a tela mostra: o leitor de tela fica sabendo.
-  useAnunciar(
-    conexao === 'ao_vivo'
-      ? 'Conexão de volta. Atualizando em tempo real.'
-      : local
-        ? 'Sem conexão. Mostrando o andamento guardado neste aparelho.'
-        : 'Sem conexão. Tentando de novo.',
-    { soMudancas: true },
+  async function liberar() {
+    const ok = await confirmar({
+      titulo: 'Liberar a condução?',
+      mensagem: 'O andamento continua; outra pessoa da organização pode assumir.',
+      confirmar: 'Liberar',
+    })
+    if (ok) comandar('liberar')
+  }
+
+  const recusa = (c: ControleDoAoVivo) =>
+    outroConduz
+      ? 'Outra pessoa está conduzindo. Assuma a condução para mudar o andamento.'
+      : controles.includes(c)
+        ? motivoDaRecusa(r, c)
+        : 'Disponível com o evento em andamento.'
+
+  const encerrado = r.situacao === 'encerrado'
+  const acoesDoMenu = conduz
+    ? [
+        !local &&
+          !r.souCondutor &&
+          !encerrado && {
+            titulo: 'Assumir a condução',
+            icone: 'trocar' as const,
+            descricao: outroConduz
+              ? `${r.condutor?.nome ?? 'Outra pessoa'} está conduzindo agora`
+              : 'Os comandos passam a ser seus',
+            aoPressionar: () => void assumir(),
+          },
+        !local &&
+          r.souCondutor &&
+          !encerrado && {
+            titulo: 'Liberar a condução',
+            icone: 'sair' as const,
+            aoPressionar: () => void liberar(),
+          },
+        controles.includes('encerrar') && {
+          titulo: 'Encerrar o ao vivo',
+          icone: 'encerrar' as const,
+          destrutiva: true,
+          motivo: recusa('encerrar'),
+          aoPressionar: () => void executar('encerrar'),
+        },
+      ]
+    : []
+  const temMenu = acoesDoMenu.some(Boolean)
+
+  const chip = CHIP_DA_CONEXAO[conexao]
+  const cabecalho = (
+    <>
+      <Chip texto={chip.texto} tom={chip.tom} ponto />
+      {temMenu ? (
+        <BotaoIcone
+          icone="maisAcoes"
+          rotulo="Mais ações"
+          circular
+          aoPressionar={() => setMenu(true)}
+        />
+      ) : null}
+    </>
   )
 
-  const borda = { borderWidth: 2, borderColor: cores.texto, borderRadius: RAIO.cartao }
-  const estourou = t.restanteMs !== null && t.restanteMs < 0
-  const atraso = r.situacao === 'nao_iniciado' ? null : t.atrasoMin
+  const barra =
+    !conduz || encerrado ? null : outroConduz ? (
+      <BarraDeControle>
+        <View style={{ flex: 1 }}>
+          <Texto variante="corpo">
+            {`${r.condutor?.nome ?? 'Outra pessoa'} está conduzindo. Você está acompanhando.`}
+          </Texto>
+        </View>
+        <Botao
+          titulo="Assumir a condução"
+          variante="terciario"
+          carregando={enviando === 'assumir'}
+          aoPressionar={() => void assumir()}
+        />
+      </BarraDeControle>
+    ) : (
+      <BarraDeControle>
+        {r.situacao !== 'nao_iniciado' ? (
+          <BotaoIcone
+            icone="etapaAnterior"
+            rotulo="Voltar etapa"
+            lado={ALTURA_DO_CONTROLE}
+            desabilitado={recusa('voltar') !== null || enviando !== null}
+            dica={recusa('voltar') ?? 'Volta para a etapa anterior.'}
+            aoPressionar={() => void executar('voltar')}
+          />
+        ) : null}
+        <BotaoDoControle
+          titulo={
+            r.situacao === 'nao_iniciado'
+              ? 'Iniciar'
+              : r.situacao === 'pausado'
+                ? 'Retomar'
+                : t.indiceAtual === t.total - 1
+                  ? 'Concluir a última etapa'
+                  : 'Avançar etapa'
+          }
+          controle={
+            r.situacao === 'nao_iniciado'
+              ? 'iniciar'
+              : r.situacao === 'pausado'
+                ? 'retomar'
+                : 'avancar'
+          }
+          recusa={recusa}
+          enviando={enviando}
+          executar={(c) => void executar(c)}
+        />
+        {r.situacao === 'em_andamento' ? (
+          <BotaoIcone
+            icone="pausar"
+            rotulo="Pausar"
+            lado={ALTURA_DO_CONTROLE}
+            desabilitado={recusa('pausar') !== null || enviando !== null}
+            dica={recusa('pausar') ?? 'Para o relógio da etapa.'}
+            aoPressionar={() => void executar('pausar')}
+          />
+        ) : null}
+      </BarraDeControle>
+    )
 
   return (
-    <Tela pilha>
-      {r.situacao !== 'encerrado' ? <ManterTelaAcesa /> : null}
-      <View style={{ gap: ESPACO.e8 }}>
-        <Texto variante="tituloTela">{r.evento.titulo}</Texto>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
-          <Selo texto={NOME_DA_SITUACAO[r.situacao]} cor="texto" />
-          <Selo
-            texto={
-              conexao === 'ao_vivo'
-                ? 'Atualizando em tempo real'
-                : local
-                  ? 'Só neste aparelho'
-                  : 'Sem conexão, tentando de novo'
-            }
-            cor={conexao === 'ao_vivo' ? 'sucesso' : 'alerta'}
-          />
-        </View>
-      </View>
+    <Tela
+      pilha
+      aurora={0}
+      titulo={r.evento.titulo}
+      acoes={cabecalho}
+      {...(barra ? { barraDeAcao: barra } : {})}
+    >
+      {!encerrado ? <ManterTelaAcesa /> : null}
 
       {local ? (
         <Aviso tipo="alerta" titulo="Sem conexão: só neste aparelho">
@@ -235,239 +353,355 @@ function Painel({ r, conexao, aviso, comandar, enviando, erro }: PropsDoPainel) 
             : 'Este é o andamento da última sincronização. Ele volta a se atualizar quando a internet voltar.'}
         </Aviso>
       ) : null}
+      {erro ? <AvisoDeFalha erro={erro} titulo="O comando não foi" /> : null}
 
-      {aviso ? (
-        <Aviso tipo="alerta" titulo="O andamento mudou" anunciar>
-          {aviso}
-        </Aviso>
-      ) : null}
-
-      <View
-        style={[borda, { padding: ESPACO.e20, gap: ESPACO.e12, backgroundColor: cores.superficie }]}
-      >
-        {r.situacao === 'nao_iniciado' ? (
-          <>
-            <Texto variante="rotulo">AINDA NÃO COMEÇOU</Texto>
-            <Texto variante="display">Previsto para {formatarHora(r.evento.inicio, fuso)}</Texto>
-            {t.atrasoParaComecarMin > 0 ? (
-              <LinhaComIcone
-                icone="relogio"
-                texto={`${t.atrasoParaComecarMin} min além do horário previsto`}
-              />
-            ) : null}
-          </>
-        ) : r.situacao === 'encerrado' ? (
-          <>
-            <Texto variante="rotulo">ENCERRADO</Texto>
-            <Texto variante="display">Evento encerrado</Texto>
-            <LinhaComIcone
-              icone="relogio"
-              texto={`Atraso final: ${descreverAtraso(r.atrasoMin)}`}
-            />
-          </>
-        ) : t.atual ? (
-          <>
-            <Texto variante="rotulo">
-              {r.situacao === 'pausado' ? 'PAUSADO EM' : 'AGORA'} · ETAPA {t.indiceAtual + 1} DE{' '}
-              {t.total}
-            </Texto>
-            <Texto variante="display" accessibilityRole="header">
-              {t.atual.titulo}
-            </Texto>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e24 }}>
-              <Cronometro
-                rotulo="Decorrido"
-                valor={formatarCronometro(t.decorridoMs)}
-                falado={`Tempo decorrido: ${falarCronometro(t.decorridoMs)}`}
-              />
-              <Cronometro
-                rotulo={estourou ? 'Além do previsto' : 'Restante'}
-                valor={`${estourou ? '+' : ''}${formatarCronometro(Math.abs(t.restanteMs ?? 0))}`}
-                falado={
-                  estourou
-                    ? `Passou ${falarCronometro(-(t.restanteMs ?? 0))} do previsto`
-                    : `Faltam ${falarCronometro(t.restanteMs ?? 0)}`
-                }
-              />
-            </View>
-            <Texto variante="corpo">
-              Previsto: {formatarDuracao(t.atual.duracaoMin)}, das{' '}
-              {formatarHora(t.atual.inicioPrevisto, fuso)} às{' '}
-              {formatarHora(t.atual.fimPrevisto, fuso)}.
-            </Texto>
-          </>
-        ) : null}
-        {atraso !== null ? (
-          <LinhaComIcone
-            icone={atraso > 0 ? 'erro' : 'confirmado'}
-            texto={`Atraso acumulado: ${descreverAtraso(atraso)}`}
-            cor={atraso > 0 ? 'alerta' : 'sucesso'}
-          />
-        ) : null}
-      </View>
+      <EtapaAtual r={r} t={t} fuso={fuso} />
 
       {t.proxima ? (
-        <View style={[borda, { padding: ESPACO.e16, gap: ESPACO.e4 }]}>
-          <Texto variante="rotulo">A SEGUIR</Texto>
-          <Texto variante="tituloItem">{t.proxima.titulo}</Texto>
-          <Texto variante="corpo">
-            {formatarDuracao(t.proxima.duracaoMin)} · prevista para{' '}
-            {formatarHora(t.proxima.inicioPrevisto, fuso)}
+        <CartaoDeVidro sobrancelha="A seguir" opaco comecaComTitulo titulo={t.proxima.titulo}>
+          <Texto variante="legenda" cor="textoSuave">
+            {`${formatarDuracao(t.proxima.duracaoMin)} · das ${formatarHora(t.proxima.inicioPrevisto, fuso)} às ${formatarHora(t.proxima.fimPrevisto, fuso)}`}
           </Texto>
-        </View>
+        </CartaoDeVidro>
       ) : null}
 
-      <BarraDeProgresso
-        fracao={t.total ? t.concluidas / t.total : 0}
-        rotulo={`${t.concluidas} de ${t.total} etapas concluídas`}
-        altura={12}
-      />
-      <Texto variante="corpo">
-        {t.concluidas} de {t.total} etapas concluídas
-      </Texto>
-
-      {conduz ? (
-        <View style={{ gap: ESPACO.e12 }}>
-          <Texto variante="tituloItem">Condução</Texto>
-          <Texto>
-            {local
-              ? 'Sem conexão: você conduz neste aparelho.'
-              : r.souCondutor
-                ? 'Você está conduzindo.'
-                : r.condutor
-                  ? `${r.condutor.nome ?? 'Outra pessoa'} está conduzindo.`
-                  : 'Ninguém está conduzindo. Quem der o próximo comando passa a conduzir.'}
-          </Texto>
-          {erro ? <AvisoDeErro erro={erro} /> : null}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e12 }}>
-            {CONTROLES_POR_SITUACAO[r.situacao].map((c) => {
-              const recusa = outroConduz
-                ? 'Outra pessoa está conduzindo. Assuma a condução para mudar o andamento.'
-                : motivoDaRecusa(r, c)
-              const rotulo =
-                c === 'avancar' && t.indiceAtual === t.total - 1
-                  ? 'Concluir a última etapa'
-                  : ROTULO_DO_CONTROLE[c]
-              return (
-                <Botao
-                  key={c}
-                  titulo={rotulo}
-                  icone={ICONE_DO_CONTROLE[c]}
-                  variante={
-                    c === 'encerrar'
-                      ? 'destrutivo'
-                      : c === 'avancar' || c === 'iniciar'
-                        ? 'primario'
-                        : 'secundario'
-                  }
-                  larguraTotal={false}
-                  desabilitado={recusa !== null}
-                  {...(recusa ? { motivo: recusa } : {})}
-                  carregando={enviando === c}
-                  aoPressionar={() => void executar(c)}
-                />
-              )
-            })}
-          </View>
-          {!local && !r.souCondutor && r.situacao !== 'encerrado' ? (
-            <Botao
-              titulo="Assumir a condução"
-              icone="trocar"
-              variante="secundario"
-              carregando={enviando === 'assumir'}
-              aoPressionar={() => void assumir()}
-            />
-          ) : null}
-          {!local && r.souCondutor && r.situacao !== 'encerrado' ? (
-            <Botao
-              titulo="Liberar a condução"
-              variante="terciario"
-              carregando={enviando === 'liberar'}
-              aoPressionar={() => comandar('liberar')}
-            />
-          ) : null}
-        </View>
-      ) : (
-        <Texto variante="corpo">
-          Você está acompanhando. Quem conduz o andamento é a organização.
-        </Texto>
-      )}
+      {r.situacao !== 'nao_iniciado' ? (
+        <LinhaDoAtraso atrasoMin={t.atrasoMin} final={encerrado} />
+      ) : null}
 
       <View style={{ gap: ESPACO.e8 }}>
-        <Texto variante="tituloItem">Todas as etapas</Texto>
-        {r.etapas.map((e, i) => (
-          <View
-            key={e.id}
-            accessible
-            accessibilityLabel={`Etapa ${i + 1} de ${r.etapas.length}: ${e.titulo}, ${formatarDuracao(e.duracaoMin)}, prevista às ${formatarHora(e.inicioPrevisto, fuso)}. ${e.situacao === 'concluida' ? 'Concluída' : e.situacao === 'atual' ? 'Em curso agora' : 'A seguir'}.`}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: ESPACO.e12,
-              padding: ESPACO.e12,
-              borderRadius: RAIO.controle,
-              borderWidth: e.situacao === 'atual' ? 3 : 1,
-              borderColor: e.situacao === 'atual' ? cores.texto : cores.campoBorda,
-            }}
-          >
-            <Icone
-              nome={
-                e.situacao === 'concluida'
-                  ? 'confirmado'
-                  : e.situacao === 'atual'
-                    ? 'aoVivo'
-                    : 'pendente'
-              }
-              cor={cores.texto}
-            />
-            <View style={{ flex: 1 }}>
-              <Texto variante="tituloItem">{e.titulo}</Texto>
-              <Texto variante="legenda" cor="textoSuave">
-                {formatarHora(e.inicioPrevisto, fuso)} · {formatarDuracao(e.duracaoMin)} ·{' '}
-                {e.situacao === 'concluida'
-                  ? 'Concluída'
-                  : e.situacao === 'atual'
-                    ? 'Agora'
-                    : 'A seguir'}
-              </Texto>
-            </View>
-          </View>
-        ))}
+        <Trilho fracao={t.total ? t.concluidas / t.total : 0} />
+        <Texto variante="legenda" cor="textoSuave" tabular>
+          {`${t.concluidas} de ${t.total} etapas concluídas`}
+        </Texto>
       </View>
+
+      <Secao titulo="Todas as etapas">
+        <CartaoDeVidro lista opaco>
+          <Lista recuo={RECUO_DA_HORA}>
+            {r.etapas.map((e, i) => (
+              <LinhaDaEtapaAoVivo key={e.id} etapa={e} posicao={i} etapas={r.etapas} fuso={fuso} />
+            ))}
+          </Lista>
+        </CartaoDeVidro>
+      </Secao>
+
+      {!conduz ? (
+        <Texto variante="corpo" cor="textoSuave">
+          Você está acompanhando. Quem conduz o andamento é a organização.
+        </Texto>
+      ) : null}
+      {barra ? <View style={{ height: ALTURA_DO_CONTROLE - ALTURA.controle }} /> : null}
+
+      <MenuDeAcoes
+        aberto={menu}
+        titulo="Mais ações"
+        aoFechar={() => setMenu(false)}
+        acoes={acoesDoMenu}
+      />
     </Tela>
   )
 }
 
-function Cronometro({ rotulo, valor, falado }: { rotulo: string; valor: string; falado: string }) {
+/**
+ * A etapa atual no cartão de destaque (quadro 09): "AGORA · ETAPA 2 DE 7",
+ * o título em `display` e os cronômetros empilhados, cada um com o rótulo à
+ * esquerda e o valor em 64/68 à direita. Com fonte grande, o rótulo vai
+ * acima do valor. O estouro tem "+", o chip "Atrasado" e o texto.
+ */
+function EtapaAtual({
+  r,
+  t,
+  fuso,
+}: {
+  r: RetratoAoVivo
+  t: ReturnType<typeof calcularTempo>
+  fuso: string
+}) {
+  if (r.situacao === 'nao_iniciado') {
+    return (
+      <CartaoDeDestaque sobrancelha="Ainda não começou">
+        <Texto variante="display" nivel={2} style={{ marginTop: ESPACO.e8 }}>
+          {`Previsto para ${formatarHora(r.evento.inicio, fuso)}`}
+        </Texto>
+        {t.atrasoParaComecarMin > 0 ? (
+          <Texto variante="legenda" cor="textoSuave" style={{ marginTop: ESPACO.e12 }}>
+            {`${t.atrasoParaComecarMin} min além do horário previsto`}
+          </Texto>
+        ) : null}
+      </CartaoDeDestaque>
+    )
+  }
+  if (r.situacao === 'encerrado' || !t.atual) {
+    return (
+      <CartaoDeDestaque sobrancelha="Encerrado">
+        <Texto variante="display" nivel={2} style={{ marginTop: ESPACO.e8 }}>
+          Evento encerrado
+        </Texto>
+      </CartaoDeDestaque>
+    )
+  }
+  const estourou = t.restanteMs !== null && t.restanteMs < 0
   return (
-    <View accessible accessibilityLabel={falado} style={{ gap: ESPACO.e4 }}>
-      <Texto variante="sobrancelha" cor="textoSuave" accessibilityRole="text">
-        {rotulo}
+    <CartaoDeDestaque
+      sobrancelha={`${r.situacao === 'pausado' ? 'Pausado' : 'Agora'} · etapa ${t.indiceAtual + 1} de ${t.total}`}
+    >
+      <Texto variante="display" nivel={2} style={{ marginTop: ESPACO.e8 }}>
+        {t.atual.titulo}
       </Texto>
+      <View style={{ marginTop: ESPACO.e16 }}>
+        <Cronometro
+          rotulo="Decorrido"
+          valor={formatarCronometro(t.decorridoMs)}
+          falado={`Tempo decorrido: ${falarCronometro(t.decorridoMs)}`}
+        />
+        <Cronometro
+          rotulo={estourou ? 'Além do previsto' : 'Restante'}
+          valor={`${estourou ? '+' : ''}${formatarCronometro(Math.abs(t.restanteMs ?? 0))}`}
+          falado={
+            estourou
+              ? `Atrasado. Passou ${falarCronometro(-(t.restanteMs ?? 0))} do previsto`
+              : `Faltam ${falarCronometro(t.restanteMs ?? 0)}`
+          }
+          chip={estourou ? <Chip texto="Atrasado" tom="alerta" /> : null}
+          separado
+        />
+      </View>
+      <Texto variante="legenda" cor="textoSuave" style={{ marginTop: ESPACO.e12 }}>
+        {`Previsto ${formatarDuracao(t.atual.duracaoMin)}, das ${formatarHora(t.atual.inicioPrevisto, fuso)} às ${formatarHora(t.atual.fimPrevisto, fuso)}`}
+      </Texto>
+    </CartaoDeDestaque>
+  )
+}
+
+function Cronometro({
+  rotulo,
+  valor,
+  falado,
+  chip,
+  separado = false,
+}: {
+  rotulo: string
+  valor: string
+  falado: string
+  chip?: ReactNode
+  separado?: boolean
+}) {
+  const { cores } = useTema()
+  const { fontScale } = useWindowDimensions()
+  // Com fonte grande, o valor (teto de 1,4) não cabe ao lado do rótulo: empilha.
+  const empilhar = fontScale >= 1.35
+  return (
+    <View
+      accessible
+      accessibilityLabel={falado}
+      style={{
+        minHeight: TIPO.cronometro.altura,
+        flexDirection: empilhar ? 'column' : 'row',
+        alignItems: empilhar ? 'flex-start' : 'center',
+        justifyContent: 'space-between',
+        gap: empilhar ? ESPACO.e4 : ESPACO.e12,
+        borderTopWidth: separado ? BORDA.fina : 0,
+        borderTopColor: cores.separador,
+        paddingVertical: empilhar ? ESPACO.e8 : 0,
+      }}
+    >
+      <View style={{ gap: ESPACO.e4, alignItems: 'flex-start', flexShrink: 1 }}>
+        <Texto variante="sobrancelha" cor="textoSuave" accessibilityRole="text">
+          {rotulo}
+        </Texto>
+        {chip}
+      </View>
       {/* Papel `cronometro` (64/68, teto 1,4): o número já é enorme e não pode sair da tela. */}
-      <Texto variante="cronometro" accessibilityRole="text">
+      <Texto variante="cronometro" accessibilityRole="text" adjustsFontSizeToFit numberOfLines={1}>
         {valor}
       </Texto>
     </View>
   )
 }
 
-function LinhaComIcone({
-  icone,
-  texto,
-  cor = 'texto',
-}: {
-  icone: NomeDoIcone
-  texto: string
-  cor?: 'texto' | 'alerta' | 'sucesso'
-}) {
+/** "Atraso acumulado: 4 min de atraso" (alerta) ou "No horário" (sucesso), com ícone. */
+function LinhaDoAtraso({ atrasoMin, final }: { atrasoMin: number | null; final: boolean }) {
   const { cores } = useTema()
+  if (atrasoMin === null) return null
+  const atrasado = atrasoMin > 0
+  const texto = atrasado
+    ? `${final ? 'Atraso final' : 'Atraso acumulado'}: ${descreverAtraso(atrasoMin)}`
+    : atrasoMin === 0
+      ? 'No horário'
+      : `Adiantado: ${-atrasoMin} min`
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}>
-      <Icone nome={icone} cor={cores[cor]} />
-      <Texto variante="tituloItem" cor={cor}>
+      <Icone nome="relogio" cor={atrasado ? cores.alerta : cores.sucesso} tamanho={18} />
+      <Texto
+        variante="corpo"
+        peso="forte"
+        cor={atrasado ? 'alerta' : 'sucesso'}
+        style={{ flex: 1 }}
+      >
         {texto}
       </Texto>
     </View>
+  )
+}
+
+/**
+ * Barra de progresso de 6 (quadro 09), em `primaria`. Fica oculta para o
+ * leitor de tela: a legenda logo abaixo diz o mesmo em texto.
+ */
+function Trilho({ fracao }: { fracao: number }) {
+  return (
+    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <BarraDeProgresso fracao={fracao} rotulo="Progresso das etapas" cor="primaria" altura={6} />
+    </View>
+  )
+}
+
+/** Duração real de uma etapa concluída, quando a seguinte já começou. */
+function duracaoReal(etapas: readonly EtapaAoVivo[], i: number): number | null {
+  const atual = etapas[i]
+  const seguinte = etapas[i + 1]
+  if (!atual?.inicioReal || !seguinte?.inicioReal) return null
+  return minutosEntre(Date.parse(atual.inicioReal), Date.parse(seguinte.inicioReal))
+}
+
+function LinhaDaEtapaAoVivo({
+  etapa: e,
+  posicao,
+  etapas,
+  fuso,
+}: {
+  etapa: EtapaAoVivo
+  posicao: number
+  etapas: readonly EtapaAoVivo[]
+  fuso: string
+}) {
+  const { cores, solido } = useTema()
+  const real = e.situacao === 'concluida' ? duracaoReal(etapas, posicao) : null
+  const descricao =
+    e.situacao === 'concluida'
+      ? real !== null
+        ? `Concluída em ${real} min, previsto ${e.duracaoMin}`
+        : `Concluída · ${formatarDuracao(e.duracaoMin)}`
+      : formatarDuracao(e.duracaoMin)
+  const situacao =
+    e.situacao === 'concluida'
+      ? 'Concluída'
+      : e.situacao === 'atual'
+        ? 'Em curso agora'
+        : 'A seguir'
+  return (
+    <View
+      accessible
+      accessibilityLabel={`Etapa ${posicao + 1} de ${etapas.length}: ${e.titulo}, ${formatarDuracao(e.duracaoMin)}, prevista às ${formatarHora(e.inicioPrevisto, fuso)}. ${situacao}.`}
+      {...(e.situacao === 'atual' ? { 'aria-current': 'step' as const } : {})}
+      style={e.situacao === 'atual' ? { backgroundColor: solido(cores.quenteFundo) } : null}
+    >
+      <LinhaDeLista
+        inicio={
+          <Texto
+            variante="lista"
+            peso="forte"
+            tabular
+            style={{
+              minWidth: ALTURA.iconeSo,
+              alignSelf: 'flex-start',
+              lineHeight: TIPO.tituloItem.altura,
+            }}
+          >
+            {formatarHora(e.inicioPrevisto, fuso)}
+          </Texto>
+        }
+        titulo={e.titulo}
+        descricao={descricao}
+        {...(e.situacao === 'concluida'
+          ? { extra: <Icone nome="check" cor={cores.sucesso} tamanho={18} peso="forte" /> }
+          : e.situacao === 'atual'
+            ? { extra: <Chip texto="Agora" tom="neutro" /> }
+            : {})}
+      />
+    </View>
+  )
+}
+
+/**
+ * Barra de controle fixa (quadro 09): o vidro da barra de ação, com botões
+ * de 56. Diz ao toast onde termina, para ele aparecer acima dela.
+ */
+function BarraDeControle({ children }: { children: ReactNode }) {
+  const { elevacao } = useTema()
+  const margens = useSafeAreaInsets()
+  const altura = ESPACO.e12 + ALTURA_DO_CONTROLE + margens.bottom + ESPACO.e12
+  // O toast é um sistema externo à tela: registra a altura ao montar e libera ao sair.
+  useEffect(() => registrarRodape(altura), [altura])
+  return (
+    <Vidro borda="cima" style={sombra(elevacao.flutuante)}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: ESPACO.e8,
+          paddingTop: ESPACO.e12,
+          paddingHorizontal: ESPACO.e20,
+          paddingBottom: margens.bottom + ESPACO.e12,
+        }}
+      >
+        {children}
+      </View>
+    </Vidro>
+  )
+}
+
+/** O primário da barra de controle: 56 de altura e `flex: 1`. */
+function BotaoDoControle({
+  titulo,
+  controle,
+  recusa,
+  enviando,
+  executar,
+}: {
+  titulo: string
+  controle: ControleDoAoVivo
+  recusa: (c: ControleDoAoVivo) => string | null
+  enviando: ComandoDoAoVivo | null
+  executar: (c: ControleDoAoVivo) => void
+}) {
+  const tema = useTema()
+  const anel = useAnelDeFoco(tema.cores.foco)
+  const motivo = recusa(controle)
+  const carregando = enviando === controle
+  const inativo = motivo !== null || enviando !== null
+  const aparencia = aparenciaDoBotao('primario', motivo !== null, tema)
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={titulo}
+      accessibilityHint={motivo ?? undefined}
+      aria-disabled={inativo}
+      aria-busy={carregando}
+      disabled={inativo}
+      onPress={() => executar(controle)}
+      onFocus={anel.onFocus}
+      onBlur={anel.onBlur}
+      style={({ pressed }) => [
+        {
+          flex: 1,
+          minHeight: ALTURA_DO_CONTROLE,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: ESPACO.e8,
+          paddingHorizontal: ESPACO.e8,
+          borderRadius: RAIO.controle,
+          backgroundColor: pressed && !inativo ? aparencia.fundoPressionado : aparencia.fundo,
+        },
+        anel.estilo,
+      ]}
+    >
+      {carregando ? <ActivityIndicator color={aparencia.texto} /> : null}
+      <Texto variante="botao" style={{ color: aparencia.texto }} centralizado>
+        {titulo}
+      </Texto>
+    </Pressable>
   )
 }

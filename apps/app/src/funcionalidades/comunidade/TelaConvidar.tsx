@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ehPapel, NOME_DO_PAPEL, PAPEIS, podeConcederPapel, type Papel } from '@uj/dominio'
+import { ESPACO } from '@uj/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 
@@ -8,21 +9,24 @@ import { CHAVES } from '@/estado/clienteDeConsulta'
 import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
 import type { ComunidadeDoVinculo, ConviteCriado } from '@/servicos/contrato'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
+import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
-import { CaixaDeMarcar } from '@/ui/CaixaDeMarcar'
 import { Campo } from '@/ui/Campo'
-import { Cartao } from '@/ui/Cartao'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { EstadoVazio } from '@/ui/EstadoVazio'
 import { useFocoAoMudar, type NoDeTexto } from '@/ui/foco'
-import { GrupoDeOpcoes } from '@/ui/GrupoDeOpcoes'
+import { Interruptor } from '@/ui/Interruptor'
+import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
+import { Secao } from '@/ui/Secao'
 import { Segmentos } from '@/ui/Segmentos'
+import { Tela } from '@/ui/Tela'
+import { Texto } from '@/ui/Texto'
 
+import { AvisoDeFalha } from '../eventos/Falha'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { LinkCompartilhavel } from './LinkCompartilhavel'
 import { DESCRICAO_DO_PAPEL } from './nomes'
 import { usePode } from './permissoes'
-import { CabecalhoDeTela, TelaPropria } from './visual'
 
 type Validade = '1' | '3' | '7'
 
@@ -45,30 +49,32 @@ export function TelaConvidar() {
 
   if (!comunidadeAtiva) {
     return (
-      <TelaPropria>
-        <CabecalhoDeTela sobrancelha="Equipe" titulo="Convidar pessoas" />
+      <Tela pilha titulo="Convidar">
         <SemComunidade oQue="os convites" />
-      </TelaPropria>
+      </Tela>
     )
   }
   if (!pode('convite', 'criar') || papeisConcedidosPor(comunidadeAtiva.papel).length === 0) {
     return (
-      <TelaPropria>
-        <CabecalhoDeTela sobrancelha={comunidadeAtiva.nome} titulo="Convidar pessoas" />
-        <Cartao>
-          <EstadoVazio
-            icone="seguranca"
-            titulo="Convites são criados pela administração"
-            descricao="Só quem administra a comunidade pode convidar pessoas. Fale com uma pessoa administradora."
-            acao={{ titulo: 'Voltar', aoPressionar: () => router.back() }}
-          />
-        </Cartao>
-      </TelaPropria>
+      <Tela pilha titulo="Convidar">
+        <EstadoVazio
+          icone="seguranca"
+          titulo="Convites são criados pela administração"
+          descricao="Só quem administra a comunidade pode convidar pessoas. Fale com uma pessoa administradora."
+          acao={{ titulo: 'Voltar para a Equipe', aoPressionar: () => router.back() }}
+        />
+      </Tela>
     )
   }
   return <FormularioDeConvite comunidade={comunidadeAtiva} />
 }
 
+/**
+ * Convidar (3.6.2): "PAPEL" em lista de opções com a descrição de cada
+ * papel, "VALIDADE" em segmentos, "PARA QUEM (OPCIONAL)" com o e-mail e o
+ * interruptor de envio, e o primário "Criar convite" na barra. O resultado é
+ * o cartão de destaque com o link, Copiar e Compartilhar.
+ */
 function FormularioDeConvite({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
   const consultas = useQueryClient()
   const parametros = useLocalSearchParams<{ papel?: string; email?: string }>()
@@ -96,7 +102,7 @@ function FormularioDeConvite({ comunidade }: { comunidade: ComunidadeDoVinculo }
     onSuccess: () => consultas.invalidateQueries({ queryKey: CHAVES.convites(comunidade.id) }),
   })
 
-  // Criar e "Convidar outra pessoa" trocam a tela inteira: o foco vai para o título novo.
+  // Criar e "Criar outro convite" trocam a tela inteira: o foco vai para o título novo.
   const { alvo: tituloRef, pedirFoco } = useFocoAoMudar<NoDeTexto>(
     criar.data ? 'criado' : 'formulario',
   )
@@ -113,13 +119,12 @@ function FormularioDeConvite({ comunidade }: { comunidade: ComunidadeDoVinculo }
 
   if (criar.data) {
     return (
-      <TelaPropria>
-        <CabecalhoDeTela
-          sobrancelha={comunidade.nome}
-          titulo="Convite criado"
-          descricao="Mande o link agora: por segurança, ele só aparece uma vez."
-          refDoTitulo={tituloRef}
-        />
+      <Tela
+        pilha
+        titulo="Convite criado"
+        descricao="Mande o link agora: por segurança, ele só aparece uma vez."
+        refDoTitulo={tituloRef}
+      >
         <LinkCompartilhavel
           titulo={`Convite para ${comunidade.nome}`}
           papel={NOME_DO_PAPEL[papel]}
@@ -130,81 +135,85 @@ function FormularioDeConvite({ comunidade }: { comunidade: ComunidadeDoVinculo }
           mensagem={`Você foi convidado para participar de ${comunidade.nome} no ${NOME_DO_APP}. Abra o link para aceitar:`}
         />
         <Botao
-          titulo="Convidar outra pessoa"
-          icone="convidar"
-          variante="secundario"
+          titulo="Criar outro convite"
+          variante="terciario"
+          alinhado
           aoPressionar={() => {
             pedirFoco()
             criar.reset()
             setEmail('')
           }}
         />
-        <Botao
-          titulo="Voltar para a Equipe"
-          variante="terciario"
-          aoPressionar={() => router.back()}
-        />
-      </TelaPropria>
+      </Tela>
     )
   }
 
   return (
-    <TelaPropria>
-      <CabecalhoDeTela
-        sobrancelha={comunidade.nome}
-        titulo="Convidar pessoas"
-        descricao="O convite gera um link de uso único. Quem abrir cria a conta (ou usa a que já tem) e entra com o papel escolhido."
-        refDoTitulo={tituloRef}
-      />
-      <Cartao titulo="Papel de quem entra" icone="pessoa">
-        <GrupoDeOpcoes
-          rotulo="Papel"
-          valor={papel}
-          aoMudar={setPapel}
-          opcoes={concedidos.map((p) => ({
-            valor: p,
-            rotulo: NOME_DO_PAPEL[p],
-            descricao: DESCRICAO_DO_PAPEL[p],
-          }))}
-        />
-      </Cartao>
-      <Cartao titulo="Para quem" icone="email">
-        <Campo
-          rotulo="E-mail de quem vai receber (opcional)"
-          ajuda="Com e-mail, o convite fica preso a ele: só essa pessoa consegue usar."
-          value={email}
-          onChangeText={setEmail}
-          erro={erroDoEmail}
-          keyboardType="email-address"
-          inputMode="email"
-          autoCapitalize="none"
-          autoCorrect={false}
-          autoComplete="off"
-        />
-        {emailLimpo ? (
-          <CaixaDeMarcar
-            rotulo="Enviar o convite também por e-mail"
-            marcada={enviarPorEmail}
-            aoMudar={setEnviarPorEmail}
+    <Tela
+      pilha
+      titulo="Convidar"
+      descricao="O link vale para uma pessoa, que entra com o papel escolhido."
+      refDoTitulo={tituloRef}
+      barraDeAcao={
+        <BarraDeAcao>
+          <Botao
+            titulo="Criar convite"
+            tamanho="grande"
+            rotuloAcessivel={`Criar convite de ${NOME_DO_PAPEL[papel].toLowerCase()} para ${comunidade.nome}`}
+            carregando={criar.isPending}
+            aoPressionar={enviar}
           />
-        ) : null}
-      </Cartao>
-      <Cartao titulo="Validade do link" icone="relogio" descricao="O máximo são 7 dias.">
+        </BarraDeAcao>
+      }
+    >
+      {criar.error ? <AvisoDeFalha erro={criar.error} titulo="O convite não foi criado" /> : null}
+      <ListaDeOpcoes
+        rotulo="Papel"
+        valor={papel}
+        aoMudar={setPapel}
+        opcoes={concedidos.map((p) => ({
+          valor: p,
+          rotulo: NOME_DO_PAPEL[p],
+          descricao: DESCRICAO_DO_PAPEL[p],
+        }))}
+      />
+      <Secao titulo="Validade" rodape="O máximo são 7 dias.">
         <Segmentos
           rotulo="Validade do link"
           segmentos={VALIDADES}
           valor={validade}
           aoMudar={setValidade}
         />
-      </Cartao>
-      {criar.error ? <AvisoDeErro erro={criar.error} /> : null}
-      <Botao
-        titulo={`Criar convite de ${NOME_DO_PAPEL[papel].toLowerCase()}`}
-        rotuloAcessivel={`Criar convite de ${NOME_DO_PAPEL[papel].toLowerCase()} para ${comunidade.nome}`}
-        icone="convidar"
-        aoPressionar={enviar}
-        carregando={criar.isPending}
-      />
-    </TelaPropria>
+      </Secao>
+      <Secao titulo="Para quem (opcional)">
+        <CartaoDeVidro opaco intervalo={ESPACO.e8}>
+          <Campo
+            rotulo="E-mail"
+            opcional
+            ajuda="Com e-mail, o convite fica preso a ele: só essa pessoa consegue usar."
+            value={email}
+            onChangeText={setEmail}
+            erro={erroDoEmail}
+            keyboardType="email-address"
+            inputMode="email"
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="off"
+          />
+          {emailLimpo ? (
+            <Interruptor
+              rotulo="Enviar também por e-mail"
+              descricao={enviarPorEmail ? 'Ligado: o link vai também para o e-mail' : 'Desligado'}
+              ligado={enviarPorEmail}
+              aoMudar={setEnviarPorEmail}
+            />
+          ) : (
+            <Texto variante="legenda" cor="textoSuave">
+              Sem e-mail, vale para quem abrir o link primeiro.
+            </Texto>
+          )}
+        </CartaoDeVidro>
+      </Secao>
+    </Tela>
   )
 }

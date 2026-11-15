@@ -1,33 +1,38 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { ESPACO } from '@uj/tokens'
 import { router } from 'expo-router'
 import { useEffect, useRef, useState, type Ref } from 'react'
+import { View } from 'react-native'
 
 import { NOME_DO_APP } from '@/constantes'
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
-import { copiarTexto } from '@/utilidades/compartilhar'
 import type { ComunidadeCriada } from '@/servicos/contrato'
 import { Aviso } from '@/ui/Aviso'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
-import { Botao } from '@/ui/Botao'
+import { BarraDeAcao } from '@/ui/BarraDeAcao'
+import { Botao, ParDeBotoes } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
-import { Carregando } from '@/ui/Carregando'
-import { Cartao } from '@/ui/Cartao'
+import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { EstadoVazio } from '@/ui/EstadoVazio'
 import { useFocoAoMudar, type NoDeTexto } from '@/ui/foco'
-import { GrupoDeOpcoes } from '@/ui/GrupoDeOpcoes'
+import { LinhaDeLista } from '@/ui/LinhaDeLista'
+import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
+import { PilulaDaComunidade } from '@/ui/PilulaDaComunidade'
+import { Secao } from '@/ui/Secao'
 import { Segmentos } from '@/ui/Segmentos'
+import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
-import { TextoAnunciado } from '@/ui/TextoAnunciado'
+import { mostrarToast } from '@/ui/Toast'
+import { copiarTexto } from '@/utilidades/compartilhar'
 
 import { FUSO_PADRAO, nomeDoFuso, opcoesDeFuso } from '../comunidade/fusos'
-import { IdentidadeDaComunidade } from '../comunidade/Identidade'
 import { LinkCompartilhavel } from '../comunidade/LinkCompartilhavel'
 import { COR_PADRAO, SeletorDeCor, type CorDaComunidade } from '../comunidade/SeletorDeCor'
 import { lerTokenDoConvite } from '../comunidade/TelaEntrarComConvite'
-import { CabecalhoDeTela, CartaoDeDestaque, TelaPropria } from '../comunidade/visual'
 import { AceitarComConta } from '../convite/AceitarComConta'
+import { AvisoDeFalha } from '../eventos/Falha'
 import { useAcaoDePlataforma } from './acaoDePlataforma'
 import { PedidoDeCodigo } from './ProvaDeSegundoFator'
 
@@ -44,10 +49,12 @@ interface Pedido {
 }
 
 /**
- * Criar comunidade (só o Criador). A API cria a comunidade e um convite de
- * administrador; não vincula ninguém direto (D12). Por isso "Eu serei o
- * administrador" prende o convite ao e-mail do Criador e abre o aceite aqui
- * mesmo, com o consentimento da comunidade, como qualquer pessoa.
+ * Criar comunidade (3.6.3, só o Criador): Nome, "COR" em amostras, "PRÉVIA"
+ * com a pílula como vai aparecer, quem administra e o fuso, e "Criar
+ * comunidade" na barra. A API cria a comunidade e um convite de
+ * administrador; não vincula ninguém direto (D12). Por isso "Eu mesmo" prende
+ * o convite ao e-mail do Criador e abre o aceite aqui, com o consentimento
+ * da comunidade, como qualquer pessoa.
  */
 export function TelaNovaComunidade() {
   const { conta } = useSessao()
@@ -76,19 +83,17 @@ export function TelaNovaComunidade() {
 
   if (!conta?.criador) {
     return (
-      <TelaPropria>
-        <Cartao>
-          <EstadoVazio
-            icone="seguranca"
-            titulo="Área do Criador"
-            descricao="Só o Criador da plataforma cria comunidades. Para entrar numa, use o convite que você recebeu."
-            acao={{
-              titulo: 'Entrar com um convite',
-              aoPressionar: () => router.replace('/entrar-com-convite'),
-            }}
-          />
-        </Cartao>
-      </TelaPropria>
+      <Tela pilha titulo="Nova comunidade">
+        <EstadoVazio
+          icone="seguranca"
+          titulo="Área do Criador"
+          descricao="Só o Criador da plataforma cria comunidades. Para entrar numa, use o convite que você recebeu."
+          acao={{
+            titulo: 'Entrar com um convite',
+            aoPressionar: () => router.replace('/entrar-com-convite'),
+          }}
+        />
+      </Tela>
     )
   }
 
@@ -122,51 +127,72 @@ export function TelaNovaComunidade() {
   }
 
   return (
-    <TelaPropria>
-      <CabecalhoDeTela
-        sobrancelha="Plataforma"
-        titulo="Criar comunidade"
-        descricao="Nome, identidade e quem vai administrar. Depois dá para ajustar tudo nas configurações."
-        refDoTitulo={tituloRef}
-      />
-      <Cartao titulo="Identidade" icone="comunidade">
+    <Tela
+      pilha
+      titulo="Nova comunidade"
+      descricao="Depois dá para ajustar tudo nas configurações."
+      refDoTitulo={tituloRef}
+      barraDeAcao={
+        <BarraDeAcao>
+          <Botao
+            titulo="Criar comunidade"
+            tamanho="grande"
+            rotuloAcessivel={nome.trim() ? `Criar a comunidade ${nome.trim()}` : 'Criar comunidade'}
+            aoPressionar={enviar}
+            carregando={criar.executando}
+          />
+        </BarraDeAcao>
+      }
+    >
+      {criar.erro ? <AvisoDeFalha erro={criar.erro} titulo="A comunidade não foi criada" /> : null}
+      <CartaoDeVidro opaco>
         <Campo
           rotulo="Nome da comunidade"
-          exemplo="Ex.: Jovens Central"
+          exemplo="Jovens Central"
           value={nome}
           onChangeText={setNome}
           erro={erroDoNome}
           autoCapitalize="words"
           maxLength={80}
         />
-        <SeletorDeCor valor={cor} aoMudar={setCor} />
-        <IdentidadeDaComunidade
-          nome={nome.trim() || 'Nova comunidade'}
-          cor={cor}
-          detalhe="Prévia de como ela aparece"
-        />
-      </Cartao>
+      </CartaoDeVidro>
 
-      <Cartao titulo="Primeiro administrador" icone="chave">
-        <Segmentos
-          rotulo="Quem vai administrar"
-          valor={quem}
-          aoMudar={setQuem}
-          segmentos={[
-            { valor: 'eu', rotulo: 'Eu serei o administrador' },
-            { valor: 'outra', rotulo: 'Outra pessoa' },
-          ]}
+      <Secao titulo="Cor">
+        <CartaoDeVidro opaco>
+          <SeletorDeCor valor={cor} aoMudar={setCor} />
+        </CartaoDeVidro>
+      </Secao>
+
+      <Secao titulo="Prévia" rodape="Assim ela aparece no topo do app de quem participa.">
+        <PilulaDaComunidade
+          nome={nome.trim() || 'Nova comunidade'}
+          vazia={false}
+          podeTrocar={false}
+          rotulo={`Prévia: comunidade ${nome.trim() || 'Nova comunidade'}`}
+          aoPressionar={null}
         />
-        {quem === 'eu' ? (
-          <Texto variante="legenda" cor="textoSuave">
-            Logo depois de criar, você confirma a entrada com a sua conta ({conta.email}) e a
-            comunidade já abre para você.
-          </Texto>
-        ) : (
-          <>
+      </Secao>
+
+      <Secao titulo="Quem vai administrar">
+        <CartaoDeVidro opaco intervalo={ESPACO.e16}>
+          <Segmentos
+            rotulo="Quem vai administrar"
+            valor={quem}
+            aoMudar={setQuem}
+            segmentos={[
+              { valor: 'eu', rotulo: 'Eu mesmo' },
+              { valor: 'outra', rotulo: 'Outra pessoa' },
+            ]}
+          />
+          {quem === 'eu' ? (
+            <Texto variante="legenda" cor="textoSuave">
+              {`Logo depois de criar, você confirma a entrada com a sua conta (${conta.email}) e a comunidade já abre para você.`}
+            </Texto>
+          ) : (
             <Campo
-              rotulo="E-mail de quem vai administrar (opcional)"
-              ajuda="Com e-mail, só essa pessoa consegue usar o convite. Sem e-mail, vale para quem abrir o link primeiro."
+              rotulo="E-mail de quem vai administrar"
+              opcional
+              ajuda="Com e-mail, só essa pessoa usa o convite. Sem e-mail, vale para quem abrir o link primeiro. O link vale 7 dias."
               value={emailDoAdmin}
               onChangeText={setEmailDoAdmin}
               erro={erroDoEmail}
@@ -176,38 +202,27 @@ export function TelaNovaComunidade() {
               autoCorrect={false}
               autoComplete="off"
             />
-            <Texto variante="legenda" cor="textoSuave">
-              Depois de criar, aparece o link do convite para copiar, compartilhar ou mostrar no QR.
-              Ele vale 7 dias.
-            </Texto>
-          </>
-        )}
-      </Cartao>
+          )}
+        </CartaoDeVidro>
+      </Secao>
 
       {quem === 'eu' ? (
-        <Cartao
+        <Secao
           titulo="Fuso horário"
-          icone="relogio"
-          descricao="Agenda e programações seguem o fuso do lugar dos encontros."
+          rodape="Agenda e programações seguem o fuso do lugar dos encontros."
         >
-          <GrupoDeOpcoes rotulo="Fuso" valor={fuso} aoMudar={setFuso} opcoes={opcoesDeFuso()} />
-        </Cartao>
+          <CartaoDeVidro opaco intervalo={ESPACO.e8}>
+            <ListaDeOpcoes rotulo="Fuso" valor={fuso} aoMudar={setFuso} opcoes={opcoesDeFuso()} />
+          </CartaoDeVidro>
+        </Secao>
       ) : (
         <Texto variante="legenda" cor="textoSuave">
-          Fuso: {nomeDoFuso(FUSO_PADRAO)}. Quem administrar ajusta em Equipe, Configurações.
+          {`Fuso: ${nomeDoFuso(FUSO_PADRAO)}. Quem administrar ajusta em Equipe, Configurações.`}
         </Texto>
       )}
 
-      {criar.erro ? <AvisoDeErro erro={criar.erro} /> : null}
-      <Botao
-        titulo="Criar comunidade"
-        rotuloAcessivel={nome.trim() ? `Criar a comunidade ${nome.trim()}` : 'Criar comunidade'}
-        icone="adicionar"
-        aoPressionar={enviar}
-        carregando={criar.executando}
-      />
       <PedidoDeCodigo prova={criar.prova} motivo="Para criar a comunidade" />
-    </TelaPropria>
+    </Tela>
   )
 }
 
@@ -228,18 +243,12 @@ function ComunidadeCriadaAgora({
   }
 
   return (
-    <TelaPropria>
-      <CabecalhoDeTela
-        sobrancelha="Plataforma"
-        titulo="Comunidade criada"
-        descricao={`Agora mande o convite para quem vai administrar ${pedido.nome}. Por segurança, o link só aparece agora.`}
-        refDoTitulo={refDoTitulo}
-      />
-      <IdentidadeDaComunidade
-        nome={pedido.nome}
-        cor={pedido.cor}
-        detalhe="Aguardando o administrador"
-      />
+    <Tela
+      pilha
+      titulo="Comunidade criada"
+      descricao={`Agora mande o convite para quem vai administrar ${pedido.nome}. Por segurança, o link só aparece agora.`}
+      refDoTitulo={refDoTitulo}
+    >
       <LinkCompartilhavel
         titulo={`Convite de administrador de ${pedido.nome}`}
         papel="Administrador"
@@ -249,18 +258,20 @@ function ComunidadeCriadaAgora({
         mostrarQr
         mensagem={`Você foi convidado para administrar ${pedido.nome} no ${NOME_DO_APP}. Abra o link para aceitar:`}
       />
-      <Botao
-        titulo="Ver na Plataforma"
-        icone="plataforma"
-        variante="secundario"
-        aoPressionar={() =>
-          router.replace({
-            pathname: '/plataforma/[comunidadeId]',
-            params: { comunidadeId: criada.id },
-          })
-        }
-      />
-    </TelaPropria>
+      <CartaoDeVidro lista>
+        <LinhaDeLista
+          avatar={{ nome: pedido.nome, cor: pedido.cor }}
+          titulo={pedido.nome}
+          descricao="Aguardando o administrador. Ver na Plataforma"
+          aoPressionar={() =>
+            router.replace({
+              pathname: '/plataforma/[comunidadeId]',
+              params: { comunidadeId: criada.id },
+            })
+          }
+        />
+      </CartaoDeVidro>
+    </Tela>
   )
 }
 
@@ -285,7 +296,6 @@ function EntrarNaNova({
   const entrou = comunidades.some((c) => c.id === criada.id)
   const ajustado = useRef(false)
 
-  const [copiado, setCopiado] = useState<string | null>(null)
   const gravarFuso = useMutation({
     mutationFn: () => api.patch(`/api/v1/c/${criada.id}`, { fuso: pedido.fuso }),
     onSuccess: () => consultas.invalidateQueries({ queryKey: CHAVES.comunidade(criada.id) }),
@@ -303,62 +313,67 @@ function EntrarNaNova({
 
   if (entrou) {
     return (
-      <TelaPropria>
-        <CabecalhoDeTela
-          sobrancelha="Tudo pronto"
-          titulo={`Bem-vindo a ${pedido.nome}`}
-          refDoTitulo={refDoTitulo}
-        />
+      <Tela pilha titulo={`Bem-vindo a ${pedido.nome}`} refDoTitulo={refDoTitulo}>
         <CartaoDeDestaque
           sobrancelha="Próximo passo"
           titulo="Chame a sua equipe"
           descricao={`Você é o administrador de ${pedido.nome}, que já está aberta no app. Convide a liderança para começar.`}
-        >
-          <Botao
-            titulo="Abrir a Equipe"
-            icone="comunidade"
-            aoPressionar={() => router.replace('/comunidade')}
-          />
-          <Botao
-            titulo="Ir para o início"
-            variante="secundario"
-            aoPressionar={() => router.replace('/')}
-          />
-        </CartaoDeDestaque>
-        {gravarFuso.isPending ? <Carregando texto="Gravando o fuso horário" /> : null}
+          acoes={
+            <ParDeBotoes>
+              <Botao titulo="Abrir a Equipe" aoPressionar={() => router.replace('/comunidade')} />
+              <Botao
+                titulo="Ir para o início"
+                variante="secundario"
+                aoPressionar={() => router.replace('/')}
+              />
+            </ParDeBotoes>
+          }
+        />
+        {gravarFuso.isPending ? (
+          <Texto variante="legenda" cor="textoSuave" accessibilityLiveRegion="polite">
+            Gravando o fuso horário
+          </Texto>
+        ) : null}
         {gravarFuso.error ? (
           <Aviso tipo="alerta" titulo="O fuso não foi gravado">
             {`A comunidade ficou no ${nomeDoFuso(FUSO_PADRAO)}. Ajuste em Equipe, Configurações.`}
           </Aviso>
         ) : null}
-      </TelaPropria>
+      </Tela>
     )
   }
 
   return (
-    <TelaPropria>
-      <CabecalhoDeTela
-        sobrancelha="Comunidade criada"
-        titulo="Agora, entre nela"
-        descricao={`${pedido.nome} foi criada. Confirme a sua entrada como administrador para ela abrir no app.`}
-        refDoTitulo={refDoTitulo}
-      />
-      <IdentidadeDaComunidade nome={pedido.nome} cor={pedido.cor} detalhe="Papel: Administrador" />
-      <AceitarComConta token={token} comunidade={pedido.nome} papel="Administrador" />
-      <Texto variante="legenda" cor="textoSuave">
-        Prefere entrar depois? Guarde o link: ele vale 7 dias, só funciona com a sua conta e, por
-        segurança, não aparece de novo.
-      </Texto>
-      <Botao
-        titulo="Copiar o link para entrar depois"
-        icone="copiar"
-        variante="terciario"
-        aoPressionar={async () => {
-          const ok = await copiarTexto(criada.conviteDoPrimeiroAdmin.link)
-          setCopiado(ok ? 'Link copiado.' : 'Não foi possível copiar agora.')
-        }}
-      />
-      {copiado ? <TextoAnunciado variante="corpo">{copiado}</TextoAnunciado> : null}
-    </TelaPropria>
+    <AceitarComConta
+      token={token}
+      comunidade={pedido.nome}
+      papel="Administrador"
+      cartaoDoConvite={
+        <CartaoDeDestaque
+          sobrancelha="Comunidade criada"
+          titulo="Agora, entre nela"
+          descricao={`${pedido.nome} foi criada. Confirme a sua entrada como administrador para ela abrir no app. Prefere entrar depois? Guarde o link: vale 7 dias, só funciona com a sua conta e não aparece de novo.`}
+          acoes={
+            <View style={{ alignItems: 'flex-start' }}>
+              <Botao
+                titulo="Copiar o link"
+                icone="copiar"
+                variante="terciario"
+                alinhado
+                rotuloAcessivel="Copiar o link para entrar depois"
+                aoPressionar={async () => {
+                  const ok = await copiarTexto(criada.conviteDoPrimeiroAdmin.link)
+                  mostrarToast(
+                    ok
+                      ? { texto: 'Link copiado.' }
+                      : { texto: 'Não foi possível copiar agora.', tipo: 'erro' },
+                  )
+                }}
+              />
+            </View>
+          }
+        />
+      }
+    />
   )
 }

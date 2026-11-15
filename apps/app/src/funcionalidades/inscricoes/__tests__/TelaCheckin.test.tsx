@@ -4,6 +4,7 @@ import { useLocalSearchParams } from 'expo-router'
 
 import { EVENTO_ID } from '@/testes/fixturas'
 import { BASE, pedidosPara, PESSOAS, renderizarTela } from '@/testes/telas'
+import { mostrarToast } from '@/ui/Toast'
 
 import { TelaCheckin } from '../TelaCheckin'
 import { TelaInscricoes } from '../TelaInscricoes'
@@ -13,6 +14,14 @@ jest.mock('expo-router', () => ({
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), setParams: jest.fn() },
   useLocalSearchParams: jest.fn(() => ({})),
 }))
+
+// As confirmações vão em toast: o teste confere o que foi pedido (e usa o "Desfazer").
+jest.mock('@/ui/Toast', () => ({
+  ...jest.requireActual('@/ui/Toast'),
+  mostrarToast: jest.fn(),
+}))
+
+beforeEach(() => jest.mocked(mostrarToast).mockClear())
 
 const CAMINHO = `${BASE}/eventos/${EVENTO_ID}`
 const INSCRICAO_DANI = '66666666-6666-4666-8666-000000000001'
@@ -73,12 +82,22 @@ function montar(rotas = {}) {
 }
 
 describe('check-in sem câmera', () => {
+  test('contador em texto: presentes de inscritos', async () => {
+    await montar()
+    expect(await screen.findByLabelText('1 presente de 2 inscritos')).toBeOnTheScreen()
+    // Campo e botão de 48 na mesma linha: o código e o "Marcar".
+    expect(screen.getByLabelText('Código de entrada')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Marcar presença pelo código' })).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Ler QR' })).toBeOnTheScreen()
+  })
+
   test('busca pelo nome e marca a presença da inscrição, com chave de idempotência', async () => {
     const { servidor } = await montar({
       [`POST ${CAMINHO}/presencas`]: () => ({
         status: 200,
         corpo: { id: 'pres-dani', jaRegistrada: false },
       }),
+      [`DELETE ${CAMINHO}/presencas/pres-dani`]: () => ({ status: 200, corpo: { ok: true } }),
     })
 
     await fireEvent.changeText(await screen.findByLabelText('Buscar pelo nome'), 'dani')
@@ -94,7 +113,17 @@ describe('check-in sem câmera', () => {
         chaveIdempotencia: expect.stringMatching(/^[0-9a-f-]{36}$/),
       }),
     )
-    expect(await screen.findByText('Presença de Daniela Prado registrada.')).toBeOnTheScreen()
+    await waitFor(() =>
+      expect(mostrarToast).toHaveBeenCalledWith(
+        expect.objectContaining({ texto: 'Presença de Daniela Prado registrada.' }),
+      ),
+    )
+    // O "Desfazer" do toast apaga a presença que acabou de ser criada.
+    const pedido = jest.mocked(mostrarToast).mock.calls[0]?.[0]
+    await act(async () => pedido?.acao?.aoPressionar())
+    await waitFor(() =>
+      expect(pedidosPara(servidor, 'DELETE', `${CAMINHO}/presencas/pres-dani`)).toHaveLength(1),
+    )
   })
 
   test('membro sem inscrição aparece uma vez só e é marcado pelo vínculo', async () => {
@@ -121,9 +150,10 @@ describe('check-in sem câmera', () => {
       [`DELETE ${CAMINHO}/presencas/pres-bruno`]: () => ({ status: 200, corpo: { ok: true } }),
     })
 
-    await userEvent
-      .setup()
-      .press(await screen.findByRole('button', { name: 'Desfazer presença: Bruno Lima' }))
+    const usuario = userEvent.setup()
+    // Tocar numa pessoa presente abre a folha com "Desfazer presença".
+    await usuario.press(await screen.findByRole('button', { name: /^Bruno Lima\..*Presente/ }))
+    await usuario.press(await screen.findByRole('button', { name: 'Desfazer presença' }))
 
     await waitFor(() =>
       expect(pedidosPara(servidor, 'DELETE', `${CAMINHO}/presencas/pres-bruno`)).toHaveLength(1),
@@ -132,7 +162,7 @@ describe('check-in sem câmera', () => {
 
   test('código digitado com formato errado não vai à rede', async () => {
     const { servidor } = await montar()
-    await fireEvent.changeText(await screen.findByLabelText('Ou digite o código de entrada'), 'XYZ')
+    await fireEvent.changeText(await screen.findByLabelText('Código de entrada'), 'XYZ')
     await userEvent
       .setup()
       .press(screen.getByRole('button', { name: 'Marcar presença pelo código' }))
@@ -219,7 +249,9 @@ describe('check-in por QR', () => {
         codigo: 'ABCDEF1234',
       }),
     )
-    expect(await screen.findByText('Presença de Daniela Prado registrada.')).toBeOnTheScreen()
+    await waitFor(() =>
+      expect(mostrarToast).toHaveBeenCalledWith({ texto: 'Presença de Daniela Prado registrada.' }),
+    )
     // O caminho sem câmera continua a um toque.
     expect(screen.getByRole('button', { name: 'Buscar pelo nome, sem câmera' })).toBeOnTheScreen()
   })

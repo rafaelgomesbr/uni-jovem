@@ -1,22 +1,25 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { ESPACO } from '@uj/tokens'
 import { router } from 'expo-router'
 import { useState } from 'react'
+import { View } from 'react-native'
 
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
 import { confirmar } from '@/utilidades/confirmar'
 import { formatarDataEHora } from '@/utilidades/formatos'
-import { Aviso } from '@/ui/Aviso'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
-import { Carregando } from '@/ui/Carregando'
-import { Cartao } from '@/ui/Cartao'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { Chip } from '@/ui/Chip'
+import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
+import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
+import { mostrarToast } from '@/ui/Toast'
 
-import { CabecalhoDeTela, Chip, Chips, TelaPropria } from '../comunidade/visual'
+import { AvisoDeFalha, ErroDaTela } from '../eventos/Falha'
 import { useAcaoDePlataforma } from './acaoDePlataforma'
 import { PedidoDeCodigo } from './ProvaDeSegundoFator'
 
@@ -46,7 +49,6 @@ export function TelaTransferencia() {
   const consultas = useQueryClient()
   const [email, setEmail] = useState('')
   const [erroDoEmail, setErroDoEmail] = useState<string | null>(null)
-  const [feito, setFeito] = useState<string | null>(null)
   // Momento em que a tela abriu: basta para saber se a espera de 72 h já passou.
   const [agora] = useState(Date.now)
 
@@ -64,7 +66,7 @@ export function TelaTransferencia() {
     mutationFn: (destino) => api.post('/api/v1/plataforma/transferencia', { email: destino }),
     onSuccess: async () => {
       setEmail('')
-      setFeito('Transferência iniciada. Agora a outra conta precisa aceitar.')
+      mostrarToast({ texto: 'Transferência iniciada. Agora a outra conta precisa aceitar.' })
       await atualizar()
     },
   })
@@ -72,19 +74,19 @@ export function TelaTransferencia() {
   const agir = useAcaoDePlataforma<unknown, Acao>({
     mutationFn: (acao) => api.post(`/api/v1/eu/transferencia/${acao}`),
     onSuccess: async (_r, acao) => {
-      setFeito(
-        acao === 'aceitar'
-          ? 'Você aceitou. A transferência pode ser concluída depois das 72 horas de espera.'
-          : acao === 'cancelar'
-            ? 'Transferência cancelada.'
-            : 'Transferência concluída. A outra conta agora é a Criadora da plataforma.',
-      )
+      mostrarToast({
+        texto:
+          acao === 'aceitar'
+            ? 'Você aceitou. A transferência pode ser concluída depois das 72 horas de espera.'
+            : acao === 'cancelar'
+              ? 'Transferência cancelada.'
+              : 'Transferência concluída. A outra conta agora é a Criadora da plataforma.',
+      })
       await Promise.all([atualizar(), consultas.invalidateQueries({ queryKey: CHAVES.eu })])
     },
   })
 
   async function pedir(acao: Acao, titulo: string, mensagem: string, rotulo: string) {
-    setFeito(null)
     const ok = await confirmar({
       titulo,
       mensagem,
@@ -101,7 +103,6 @@ export function TelaTransferencia() {
       return
     }
     setErroDoEmail(null)
-    setFeito(null)
     const ok = await confirmar({
       titulo: 'Iniciar a transferência?',
       mensagem: `A conta ${destino} vai poder aceitar ser a Criadora da plataforma. Depois do aceite, há 72 horas de espera antes de concluir.`,
@@ -116,100 +117,110 @@ export function TelaTransferencia() {
   const prazoPassou = t !== null && Date.parse(t.efetivaApos) <= agora
 
   return (
-    <TelaPropria>
-      <CabecalhoDeTela
-        sobrancelha="Plataforma"
-        titulo="Transferir propriedade"
-        descricao="O papel de Criador é único. A transferência tem aceite com o código do autenticador e 72 horas de espera, que qualquer um dos dois pode cancelar."
-      />
-      {feito ? (
-        <Aviso tipo="sucesso" anunciar>
-          {feito}
-        </Aviso>
+    <Tela
+      pilha
+      titulo="Transferir propriedade"
+      descricao="O papel de Criador é único: aceite com o código do autenticador e 72 horas de espera, que qualquer um dos dois pode cancelar."
+    >
+      {iniciar.erro ? (
+        <AvisoDeFalha erro={iniciar.erro} titulo="A transferência não começou" />
       ) : null}
-      {iniciar.erro ? <AvisoDeErro erro={iniciar.erro} /> : null}
-      {agir.erro ? <AvisoDeErro erro={agir.erro} /> : null}
+      {agir.erro ? <AvisoDeFalha erro={agir.erro} titulo="A transferência não mudou" /> : null}
 
       {aberta.isPending ? (
-        <Carregando texto="Procurando transferência em aberto" />
+        <Esqueleto rotulo="Procurando transferência em aberto">
+          <CartaoDeEsqueleto />
+        </Esqueleto>
       ) : aberta.error ? (
-        <AvisoDeErro erro={aberta.error} aoTentarDeNovo={() => void aberta.refetch()} />
+        <ErroDaTela erro={aberta.error} aoTentarDeNovo={() => void aberta.refetch()} />
       ) : t ? (
-        <Cartao
-          titulo={souDestino ? 'Transferência para você' : `Para ${t.paraNome}`}
-          icone="chave"
+        <CartaoDeVidro
+          sobrancelha={souDestino ? 'Transferência para você' : `Para ${t.paraNome}`}
+          acoes={
+            <View style={{ gap: ESPACO.e8 }}>
+              {souDestino && !t.aceitaEm ? (
+                <Botao
+                  titulo="Aceitar"
+                  rotuloAcessivel="Aceitar ser a Criadora da plataforma"
+                  larguraTotal
+                  carregando={agir.executando && agir.variaveis === 'aceitar'}
+                  aoPressionar={() =>
+                    void pedir(
+                      'aceitar',
+                      'Aceitar a transferência?',
+                      'Você passa a ter o poder de plataforma depois das 72 horas de espera, quando a transferência for concluída.',
+                      'Aceitar',
+                    )
+                  }
+                />
+              ) : null}
+              {!souDestino && conta?.criador ? (
+                <Botao
+                  titulo="Concluir a transferência"
+                  larguraTotal
+                  desabilitado={!t.aceitaEm || !prazoPassou}
+                  motivo={
+                    !t.aceitaEm
+                      ? 'A outra conta ainda não aceitou.'
+                      : `Disponível a partir de ${formatarDataEHora(t.efetivaApos)}.`
+                  }
+                  carregando={agir.executando && agir.variaveis === 'concluir'}
+                  aoPressionar={() =>
+                    void pedir(
+                      'concluir',
+                      'Concluir a transferência?',
+                      `${t.paraNome} passa a ser a Criadora da plataforma e você deixa de ter o poder de plataforma.`,
+                      'Concluir',
+                    )
+                  }
+                />
+              ) : null}
+              <Botao
+                titulo={souDestino ? 'Recusar' : 'Cancelar a transferência'}
+                variante="destrutivo"
+                larguraTotal
+                carregando={agir.executando && agir.variaveis === 'cancelar'}
+                aoPressionar={() =>
+                  void pedir(
+                    'cancelar',
+                    souDestino ? 'Recusar a transferência?' : 'Cancelar a transferência?',
+                    'Nada muda: o papel de Criador continua com quem tem hoje.',
+                    souDestino ? 'Recusar' : 'Cancelar transferência',
+                  )
+                }
+              />
+            </View>
+          }
         >
-          <Chips>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
             <Chip
-              texto={t.aceitaEm ? 'Aceita' : 'Aguardando aceite'}
-              icone={t.aceitaEm ? 'confirmado' : 'relogio'}
+              texto={t.aceitaEm ? 'Aceita' : 'Sem aceite'}
               tom={t.aceitaEm ? 'sucesso' : 'alerta'}
             />
             <Chip
               texto={prazoPassou ? 'Espera cumprida' : 'Em espera'}
-              icone="relogio"
               tom={prazoPassou ? 'sucesso' : 'neutro'}
             />
-          </Chips>
+          </View>
           <Texto variante="legenda" cor="textoSuave">
-            Iniciada em {formatarDataEHora(t.criadoEm)}. Pode ser concluída a partir de{' '}
-            {formatarDataEHora(t.efetivaApos)}
-            {t.aceitaEm ? `; aceita em ${formatarDataEHora(t.aceitaEm)}.` : ', depois do aceite.'}
+            {`Iniciada em ${formatarDataEHora(t.criadoEm)}. Pode ser concluída a partir de ${formatarDataEHora(t.efetivaApos)}${t.aceitaEm ? `; aceita em ${formatarDataEHora(t.aceitaEm)}.` : ', depois do aceite.'}`}
           </Texto>
-          {souDestino && !t.aceitaEm ? (
-            <Botao
-              titulo="Aceitar ser a Criadora da plataforma"
-              icone="confirmado"
-              carregando={agir.executando && agir.variaveis === 'aceitar'}
-              aoPressionar={() =>
-                void pedir(
-                  'aceitar',
-                  'Aceitar a transferência?',
-                  'Você passa a ter o poder de plataforma depois das 72 horas de espera, quando a transferência for concluída.',
-                  'Aceitar',
-                )
-              }
-            />
-          ) : null}
-          {!souDestino && conta?.criador ? (
-            <Botao
-              titulo="Concluir a transferência"
-              icone="chave"
-              desabilitado={!t.aceitaEm || !prazoPassou}
-              motivo={
-                !t.aceitaEm
-                  ? 'A outra conta ainda não aceitou.'
-                  : `Disponível a partir de ${formatarDataEHora(t.efetivaApos)}.`
-              }
-              carregando={agir.executando && agir.variaveis === 'concluir'}
-              aoPressionar={() =>
-                void pedir(
-                  'concluir',
-                  'Concluir a transferência?',
-                  `${t.paraNome} passa a ser a Criadora da plataforma e você deixa de ter o poder de plataforma.`,
-                  'Concluir',
-                )
-              }
-            />
-          ) : null}
-          <Botao
-            titulo={souDestino ? 'Recusar' : 'Cancelar a transferência'}
-            icone="cancelar"
-            variante="destrutivo"
-            carregando={agir.executando && agir.variaveis === 'cancelar'}
-            aoPressionar={() =>
-              void pedir(
-                'cancelar',
-                souDestino ? 'Recusar a transferência?' : 'Cancelar a transferência?',
-                'Nada muda: o papel de Criador continua com quem tem hoje.',
-                souDestino ? 'Recusar' : 'Cancelar transferência',
-              )
-            }
-          />
-        </Cartao>
+        </CartaoDeVidro>
       ) : conta?.criador ? (
-        <Cartao titulo="Iniciar transferência" icone="chave">
-          <Texto variante="legenda" cor="textoSuave">
+        <CartaoDeVidro
+          sobrancelha="Iniciar transferência"
+          opaco
+          acoes={
+            <Botao
+              titulo="Iniciar transferência"
+              variante="destrutivo"
+              larguraTotal
+              carregando={iniciar.executando}
+              aoPressionar={() => void comecar()}
+            />
+          }
+        >
+          <Texto variante="corpo" cor="textoSuave">
             A conta de destino precisa existir, estar ativa e ter a verificação em duas etapas
             ligada.
           </Texto>
@@ -224,27 +235,18 @@ export function TelaTransferencia() {
             autoCorrect={false}
             autoComplete="off"
           />
-          <Botao
-            titulo="Iniciar transferência"
-            icone="publicar"
-            variante="destrutivo"
-            carregando={iniciar.executando}
-            aoPressionar={() => void comecar()}
-          />
-        </Cartao>
+        </CartaoDeVidro>
       ) : (
-        <Cartao>
-          <EstadoVazio
-            icone="chave"
-            titulo="Nenhuma transferência para você"
-            descricao="Quando o Criador iniciar uma transferência para a sua conta, ela aparece aqui."
-            acao={{ titulo: 'Voltar', aoPressionar: () => router.back() }}
-          />
-        </Cartao>
+        <EstadoVazio
+          icone="chave"
+          titulo="Nenhuma transferência para você"
+          descricao="Quando o Criador iniciar uma transferência para a sua conta, ela aparece aqui."
+          acao={{ titulo: 'Voltar', variante: 'secundario', aoPressionar: () => router.back() }}
+        />
       )}
 
       <PedidoDeCodigo prova={iniciar.prova} motivo="Para iniciar a transferência" />
       <PedidoDeCodigo prova={agir.prova} motivo="Para continuar a transferência" />
-    </TelaPropria>
+    </Tela>
   )
 }

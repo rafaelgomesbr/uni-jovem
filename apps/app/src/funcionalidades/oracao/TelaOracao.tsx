@@ -1,30 +1,123 @@
-import { ESPACO } from '@uj/tokens'
+import { ALTURA, BORDA, ESPACO, RITMO } from '@uj/tokens'
 import { router } from 'expo-router'
 import { useState } from 'react'
-import { View } from 'react-native'
+import { ScrollView, View } from 'react-native'
 
+import { useSessao } from '@/estado/sessao'
 import type { FiltroDeOracao, FiltroDeRespondidos } from '@/servicos/contratoDosModulos'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
-import { Botao } from '@/ui/Botao'
-import { Carregando } from '@/ui/Carregando'
-import { Cartao } from '@/ui/Cartao'
+import { BotaoIcone } from '@/ui/Botao'
+import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
-import { Segmentos } from '@/ui/Segmentos'
+import { PilulasDeFiltro } from '@/ui/PilulasDeFiltro'
+import { Tela } from '@/ui/Tela'
+import { useTema } from '@/ui/tema'
 
-import { TelaDaComunidade } from '../navegacao/TelaDaComunidade'
+import { ErroAoCarregar } from '../agenda/ErroAoCarregar'
+import { SemComunidade } from '../navegacao/SemComunidade'
 import { CartaoDoPedido } from './CartaoDoPedido'
 import { usePedidosDeOracao } from './consultas'
 
-/** Rota `/oracao`. */
+function novoPedido() {
+  router.push('/oracao/novo')
+}
+
+/**
+ * Rota `/oracao` (3.7.1): título "Oração", o "+" no cabeçalho, as pílulas
+ * de filtro (de quem e situação, separadas) e um cartão por pedido.
+ */
 export function TelaOracao() {
+  const { comunidadeAtiva } = useSessao()
   return (
-    <TelaDaComunidade
-      oQue="os pedidos de oração"
+    <Tela
+      pilha
       titulo="Oração"
-      descricao="Pedidos que você pode ler nesta comunidade. Cada pedido mostra quem vê."
+      descricao="Cada pedido mostra quem vê."
+      {...(comunidadeAtiva
+        ? {
+            acoes: (
+              <BotaoIcone
+                icone="adicionar"
+                rotulo="Novo pedido de oração"
+                circular
+                aoPressionar={novoPedido}
+              />
+            ),
+          }
+        : {})}
     >
-      {(c) => <ListaDeOracao comunidadeId={c.id} />}
-    </TelaDaComunidade>
+      {comunidadeAtiva ? (
+        <ListaDeOracao comunidadeId={comunidadeAtiva.id} />
+      ) : (
+        <SemComunidade oQue="os pedidos de oração" />
+      )}
+    </Tela>
+  )
+}
+
+/**
+ * Pílulas "Todos", "Meus", "De outras pessoas", separador, "Em oração" e
+ * "Respondidos". A segunda turma liga e desliga: nenhuma marcada mostra
+ * todos. Uma linha só, rolando por baixo da margem.
+ */
+function Filtros({
+  filtro,
+  aoMudarFiltro,
+  respondidos,
+  aoMudarRespondidos,
+}: {
+  filtro: FiltroDeOracao
+  aoMudarFiltro: (f: FiltroDeOracao) => void
+  respondidos: FiltroDeRespondidos
+  aoMudarRespondidos: (r: FiltroDeRespondidos) => void
+}) {
+  const { cores } = useTema()
+  const situacao = respondidos === 'incluir' ? [] : [respondidos]
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={{ marginHorizontal: -RITMO.margemDaTela, flexGrow: 0 }}
+      contentContainerStyle={{
+        paddingHorizontal: RITMO.margemDaTela,
+        alignItems: 'center',
+        gap: ESPACO.e8,
+      }}
+    >
+      <PilulasDeFiltro
+        rotulo="De quem"
+        sangrar={false}
+        selecionadas={[filtro]}
+        aoMudar={(v) => {
+          if (v[0]) aoMudarFiltro(v[0])
+        }}
+        pilulas={[
+          { valor: 'todos', rotulo: 'Todos' },
+          { valor: 'meus', rotulo: 'Meus' },
+          { valor: 'outros', rotulo: 'De outras pessoas' },
+        ]}
+      />
+      <View
+        aria-hidden
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={{ width: BORDA.fina, height: ALTURA.chip, backgroundColor: cores.tonalBorda }}
+      />
+      <PilulasDeFiltro
+        rotulo="Situação"
+        sangrar={false}
+        multipla
+        selecionadas={situacao}
+        aoMudar={(v) => {
+          // Uma de cada vez: a recém-tocada vale; desmarcar volta para todos.
+          const nova = v.find((x) => !situacao.includes(x))
+          aoMudarRespondidos(nova ?? 'incluir')
+        }}
+        pilulas={[
+          { valor: 'ocultar' as const, rotulo: 'Em oração' },
+          { valor: 'somente' as const, rotulo: 'Respondidos' },
+        ]}
+      />
+    </ScrollView>
   )
 }
 
@@ -35,52 +128,30 @@ function ListaDeOracao({ comunidadeId }: { comunidadeId: string }) {
 
   return (
     <>
-      <Botao
-        titulo="Novo pedido de oração"
-        icone="adicionar"
-        aoPressionar={() => router.push('/oracao/novo')}
+      <Filtros
+        filtro={filtro}
+        aoMudarFiltro={setFiltro}
+        respondidos={respondidos}
+        aoMudarRespondidos={setRespondidos}
       />
-      <View style={{ gap: ESPACO.e8 }}>
-        <Segmentos
-          rotulo="De quem"
-          valor={filtro}
-          aoMudar={setFiltro}
-          segmentos={[
-            { valor: 'todos', rotulo: 'Todos' },
-            { valor: 'meus', rotulo: 'Meus' },
-            { valor: 'outros', rotulo: 'De outras pessoas' },
-          ]}
-        />
-        <Segmentos
-          rotulo="Respondidos"
-          valor={respondidos}
-          aoMudar={setRespondidos}
-          segmentos={[
-            { valor: 'incluir', rotulo: 'Todos' },
-            { valor: 'ocultar', rotulo: 'Em oração' },
-            { valor: 'somente', rotulo: 'Respondidos' },
-          ]}
-        />
-      </View>
       {pedidos.isPending ? (
-        <Carregando texto="Carregando os pedidos" />
+        <Esqueleto rotulo="Carregando os pedidos">
+          <CartaoDeEsqueleto />
+          <CartaoDeEsqueleto />
+        </Esqueleto>
       ) : pedidos.error ? (
-        <AvisoDeErro erro={pedidos.error} aoTentarDeNovo={() => void pedidos.refetch()} />
+        <ErroAoCarregar
+          erro={pedidos.error}
+          oQue="os pedidos"
+          aoTentarDeNovo={() => void pedidos.refetch()}
+        />
       ) : pedidos.data.length === 0 ? (
-        <Cartao>
-          <EstadoVazio
-            icone="oracao"
-            titulo={
-              respondidos === 'somente' ? 'Nenhum pedido respondido' : 'Nenhum pedido por aqui'
-            }
-            descricao="Compartilhe um pedido. Ele começa visível só para você, e você decide se a equipe de oração ou a comunidade pode ler."
-            acao={{
-              titulo: 'Novo pedido de oração',
-              icone: 'adicionar',
-              aoPressionar: () => router.push('/oracao/novo'),
-            }}
-          />
-        </Cartao>
+        <EstadoVazio
+          icone="oracao"
+          titulo={respondidos === 'somente' ? 'Nenhum pedido respondido' : 'Nenhum pedido por aqui'}
+          descricao="Compartilhe um pedido. Ele começa visível só para você, e você decide se a equipe de oração ou a comunidade pode ler."
+          acao={{ titulo: 'Novo pedido de oração', icone: 'adicionar', aoPressionar: novoPedido }}
+        />
       ) : (
         pedidos.data.map((p) => (
           <CartaoDoPedido key={p.id} pedido={p} comunidadeId={comunidadeId} />

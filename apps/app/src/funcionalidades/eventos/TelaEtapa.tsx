@@ -6,37 +6,38 @@ import { View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
-import type { DetalheDoEvento, Etapa } from '@/servicos/contratoDosEventos'
+import type { Atribuicao, DetalheDoEvento, Etapa } from '@/servicos/contratoDosEventos'
+import { BarraDeAcao } from '@/ui/BarraDeAcao'
+import { Botao, BotaoIcone } from '@/ui/Botao'
+import { Campo } from '@/ui/Campo'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
+import { EstadoVazio } from '@/ui/EstadoVazio'
+import { Lista } from '@/ui/LinhaDeLista'
+import { Segmentos } from '@/ui/Segmentos'
+import { Tela } from '@/ui/Tela'
+import { Texto } from '@/ui/Texto'
+import { mostrarToast } from '@/ui/Toast'
 import { confirmar } from '@/utilidades/confirmar'
 import { dataDoInstante, formatarDuracao, formatarHora } from '@/utilidades/datas'
 import { parametro } from '@/utilidades/parametros'
-import { Aviso } from '@/ui/Aviso'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
-import { Avatar } from '@/ui/Avatar'
-import { Botao } from '@/ui/Botao'
-import { Campo } from '@/ui/Campo'
-import { Carregando } from '@/ui/Carregando'
-import { Cartao } from '@/ui/Cartao'
-import { EstadoVazio } from '@/ui/EstadoVazio'
-import { Linha } from '@/ui/Linha'
-import { Segmentos } from '@/ui/Segmentos'
-import { Selo } from '@/ui/Selo'
-import { Tela } from '@/ui/Tela'
-import { Texto } from '@/ui/Texto'
 
 import { usePode } from '../comunidade/permissoes'
 import { SeletorDePessoa } from '../comunidade/SeletorDePessoa'
 import { useDisponibilidade } from '../escalas/consultas'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { naComunidade, useEvento, useInvalidarEventos } from './consultas'
-import { COR_DO_ESTADO_DA_ATRIBUICAO, NOME_DO_ESTADO_DA_ATRIBUICAO } from './nomes'
+import { AvisoDeFalha, ErroDaTela } from './Falha'
+import { FolhaNaTela, MenuDeAcoes } from './FolhaNaTela'
+import { EQUIPE_GERAL, linhaDaPessoaEscalada } from './SecaoEquipe'
 
-/** Valor do parâmetro para a equipe do evento como um todo (sem etapa). */
-export const EQUIPE_GERAL = 'geral'
+export { EQUIPE_GERAL }
 
 /**
- * Rota `/evento/[eventoId]/etapa/[etapaId]`: editar a etapa e escalar
- * responsáveis e integrantes. Com `etapaId = geral`, a equipe do evento.
+ * Rota `/evento/[eventoId]/etapa/[etapaId]` (3.4.4, "Etapa e equipe"): o
+ * cartão "DETALHES" (nome, duração e descrição) com "Salvar" na barra, e o
+ * cartão lista "EQUIPE" com "Escalar pessoa". Com `etapaId = geral`, a
+ * equipe do evento todo.
  */
 export function TelaEtapa() {
   const { comunidadeAtiva } = useSessao()
@@ -55,14 +56,17 @@ export function TelaEtapa() {
   if (evento.isPending) {
     return (
       <Tela pilha>
-        <Carregando />
+        <Esqueleto rotulo="Carregando a etapa">
+          <CartaoDeEsqueleto titulo />
+          <CartaoDeEsqueleto />
+        </Esqueleto>
       </Tela>
     )
   }
   if (evento.error) {
     return (
       <Tela pilha>
-        <AvisoDeErro erro={evento.error} aoTentarDeNovo={() => void evento.refetch()} />
+        <ErroDaTela erro={evento.error} aoTentarDeNovo={() => void evento.refetch()} />
       </Tela>
     )
   }
@@ -74,61 +78,58 @@ export function TelaEtapa() {
           icone="etapas"
           titulo="Etapa não encontrada"
           descricao="Ela pode ter sido removida por outra pessoa."
-          acao={{ titulo: 'Voltar', aoPressionar: () => router.back() }}
+          acao={{ titulo: 'Voltar para a programação', aoPressionar: () => router.back() }}
         />
       </Tela>
     )
   }
   return (
-    <Tela pilha titulo={etapa ? etapa.titulo : 'Equipe do evento'} descricao={evento.data.titulo}>
-      {etapa ? (
-        <EditarEtapa
-          key={`${etapa.id}-${etapa.versao}`}
-          etapa={etapa}
-          evento={evento.data}
-          comunidadeId={comunidadeAtiva.id}
-        />
-      ) : null}
-      <Equipe evento={evento.data} etapa={etapa} comunidadeId={comunidadeAtiva.id} />
-    </Tela>
+    <EtapaEEquipe
+      key={etapa ? `${etapa.id}-${etapa.versao}` : EQUIPE_GERAL}
+      etapa={etapa}
+      evento={evento.data}
+      comunidadeId={comunidadeAtiva.id}
+    />
   )
 }
 
-function EditarEtapa({
+function EtapaEEquipe({
   etapa,
   evento,
   comunidadeId,
 }: {
-  etapa: Etapa
+  etapa: Etapa | null
   evento: DetalheDoEvento
   comunidadeId: string
 }) {
   const pode = usePode()
   const invalidar = useInvalidarEventos(comunidadeId)
-  const [titulo, setTitulo] = useState(etapa.titulo)
-  const [duracao, setDuracao] = useState(String(etapa.duracaoMin))
-  const [descricao, setDescricao] = useState(etapa.descricao ?? '')
+  const gerenciar = !!etapa && pode('etapa', 'gerenciar')
+  const [titulo, setTitulo] = useState(etapa?.titulo ?? '')
+  const [duracao, setDuracao] = useState(etapa ? String(etapa.duracaoMin) : '')
+  const [descricao, setDescricao] = useState(etapa?.descricao ?? '')
   const [erros, setErros] = useState<{ titulo?: string; duracao?: string }>({})
-  const [salvo, setSalvo] = useState(false)
-  const base = `${naComunidade(comunidadeId)}/eventos/${evento.id}/etapas/${etapa.id}`
+  const [menu, setMenu] = useState(false)
+  const base = etapa ? `${naComunidade(comunidadeId)}/eventos/${evento.id}/etapas/${etapa.id}` : ''
 
   const salvar = useMutation({
-    mutationFn: (corpo: object) => api.patch(base, { versao: etapa.versao, ...corpo }),
+    mutationFn: (corpo: object) => api.patch(base, { versao: etapa?.versao, ...corpo }),
     onSuccess: async () => {
-      setSalvo(true)
+      mostrarToast({ texto: 'Etapa salva.' })
       await invalidar(evento.id)
     },
   })
   const remover = useMutation({
     mutationFn: () => api.delete(base),
     onSuccess: async () => {
+      mostrarToast({ texto: 'Etapa removida.' })
       await invalidar(evento.id)
       router.back()
     },
   })
-  if (!pode('etapa', 'gerenciar')) return null
 
   async function pedirRemocao() {
+    if (!etapa) return
     const ok = await confirmar({
       titulo: `Remover a etapa ${etapa.titulo}?`,
       mensagem: 'As etapas seguintes sobem de posição e os horários são recalculados.',
@@ -138,78 +139,119 @@ function EditarEtapa({
     if (ok) remover.mutate()
   }
 
+  function enviar() {
+    const minutos = Number(duracao)
+    const novos = {
+      ...(titulo.trim() ? {} : { titulo: 'Dê um nome à etapa.' }),
+      ...(Number.isInteger(minutos) && minutos >= 1 && minutos <= 600
+        ? {}
+        : { duracao: 'Use de 1 a 600 minutos.' }),
+    }
+    setErros(novos)
+    if (Object.keys(novos).length) return
+    salvar.mutate({
+      titulo: titulo.trim(),
+      duracaoMin: minutos,
+      descricao: descricao.trim() || null,
+    })
+  }
+
+  const algumErro = !!(erros.titulo || erros.duracao)
   return (
-    <Cartao titulo="Etapa" icone="etapas">
-      <Texto variante="legenda" cor="textoSuave">
-        Prevista das {formatarHora(etapa.inicioPrevisto, evento.fuso)} às{' '}
-        {formatarHora(etapa.fimPrevisto, evento.fuso)} ({formatarDuracao(etapa.duracaoMin)}).
-      </Texto>
-      <Campo
-        rotulo="Nome da etapa"
-        value={titulo}
-        onChangeText={(v) => {
-          setSalvo(false)
-          setTitulo(v)
-        }}
-        erro={erros.titulo ?? null}
-        maxLength={120}
-      />
-      <Campo
-        rotulo="Duração em minutos"
-        value={duracao}
-        onChangeText={(v) => {
-          setSalvo(false)
-          setDuracao(v)
-        }}
-        erro={erros.duracao ?? null}
-        keyboardType="number-pad"
-        maxLength={3}
-      />
-      <Campo
-        rotulo="Descrição (opcional)"
-        value={descricao}
-        onChangeText={(v) => {
-          setSalvo(false)
-          setDescricao(v)
-        }}
-        multiline
-        maxLength={2000}
-      />
-      {salvo ? (
-        <Aviso tipo="sucesso" anunciar>
-          Etapa salva.
-        </Aviso>
-      ) : null}
-      {salvar.error ? <AvisoDeErro erro={salvar.error} /> : null}
-      <Botao
-        titulo="Salvar etapa"
-        carregando={salvar.isPending}
-        aoPressionar={() => {
-          const minutos = Number(duracao)
-          const novos = {
-            ...(titulo.trim() ? {} : { titulo: 'Dê um nome à etapa.' }),
-            ...(Number.isInteger(minutos) && minutos >= 1 && minutos <= 600
-              ? {}
-              : { duracao: 'Use um número de 1 a 600 minutos.' }),
+    <Tela
+      pilha
+      titulo={etapa ? etapa.titulo : 'Evento todo'}
+      descricao={
+        etapa
+          ? `${evento.titulo} · das ${formatarHora(etapa.inicioPrevisto, evento.fuso)} às ${formatarHora(etapa.fimPrevisto, evento.fuso)}`
+          : `Equipe de ${evento.titulo}`
+      }
+      {...(gerenciar
+        ? {
+            acoes: (
+              <BotaoIcone
+                icone="maisAcoes"
+                rotulo="Mais ações"
+                circular
+                aoPressionar={() => setMenu(true)}
+              />
+            ),
+            barraDeAcao: (
+              <BarraDeAcao>
+                <Botao
+                  titulo="Salvar"
+                  rotuloAcessivel="Salvar a etapa"
+                  tamanho="grande"
+                  carregando={salvar.isPending}
+                  aoPressionar={enviar}
+                />
+              </BarraDeAcao>
+            ),
           }
-          setErros(novos)
-          if (Object.keys(novos).length) return
-          salvar.mutate({
-            titulo: titulo.trim(),
-            duracaoMin: minutos,
-            descricao: descricao.trim() || null,
-          })
-        }}
-      />
-      {remover.error ? <AvisoDeErro erro={remover.error} /> : null}
-      <Botao
-        titulo="Remover etapa"
-        icone="excluir"
-        variante="destrutivo"
-        carregando={remover.isPending}
-        aoPressionar={() => void pedirRemocao()}
-      />
-    </Cartao>
+        : {})}
+    >
+      {salvar.error ? <AvisoDeFalha erro={salvar.error} titulo="A etapa não foi salva" /> : null}
+      {remover.error ? (
+        <AvisoDeFalha erro={remover.error} titulo="A etapa não foi removida" />
+      ) : null}
+      {gerenciar ? (
+        <CartaoDeVidro sobrancelha="Detalhes" opaco intervalo={ESPACO.e16}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: ESPACO.e12 }}>
+            <View style={{ flex: 2 }}>
+              <Campo
+                rotulo="Nome da etapa"
+                value={titulo}
+                onChangeText={setTitulo}
+                erro={erros.titulo ?? null}
+                maxLength={120}
+                reservarApoio={algumErro}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Campo
+                rotulo="Duração"
+                value={duracao}
+                onChangeText={(v) => setDuracao(v.replace(/\D/g, ''))}
+                erro={erros.duracao ?? null}
+                sufixo="min"
+                keyboardType="number-pad"
+                maxLength={3}
+                reservarApoio={algumErro}
+              />
+            </View>
+          </View>
+          <Campo
+            rotulo="Descrição"
+            opcional
+            value={descricao}
+            onChangeText={setDescricao}
+            multiline
+            maxLength={2000}
+          />
+        </CartaoDeVidro>
+      ) : etapa ? (
+        <CartaoDeVidro sobrancelha="Detalhes">
+          <Texto variante="corpo">{`${formatarDuracao(etapa.duracaoMin)}${etapa.descricao ? `. ${etapa.descricao}` : ''}`}</Texto>
+        </CartaoDeVidro>
+      ) : null}
+      <Equipe evento={evento} etapa={etapa} comunidadeId={comunidadeId} />
+      {gerenciar ? (
+        <MenuDeAcoes
+          aberto={menu}
+          titulo="Mais ações"
+          aoFechar={() => setMenu(false)}
+          acoes={[
+            {
+              titulo: 'Remover etapa',
+              icone: 'excluir',
+              descricao: 'As etapas seguintes sobem de posição',
+              destrutiva: true,
+              aoPressionar: () => void pedirRemocao(),
+            },
+          ]}
+        />
+      ) : null}
+    </Tela>
   )
 }
 
@@ -226,131 +268,184 @@ function Equipe({
 }) {
   const pode = usePode()
   const invalidar = useInvalidarEventos(comunidadeId)
+  const [escalando, setEscalando] = useState(false)
+  const [escolhida, setEscolhida] = useState<Atribuicao | null>(null)
+  const base = `${naComunidade(comunidadeId)}/eventos/${evento.id}/atribuicoes`
+  const atribuicoes = evento.atribuicoes.filter((a) => a.etapaId === (etapa?.id ?? null))
+  const atribuir = pode('escala', 'atribuir')
+  const remover = useMutation({
+    mutationFn: (id: string) => api.delete(`${base}/${id}`),
+    onSuccess: async () => {
+      mostrarToast({ texto: 'A pessoa saiu da escala.' })
+      await invalidar(evento.id)
+    },
+  })
+
+  async function pedirRemocao(a: Atribuicao) {
+    const ok = await confirmar({
+      titulo: `Tirar ${a.nome} da escala?`,
+      mensagem: 'A pessoa deixa de ver esta escala entre as suas.',
+      confirmar: 'Tirar da escala',
+      destrutivo: true,
+    })
+    if (ok) remover.mutate(a.id)
+  }
+
+  const escalar = atribuir ? (
+    <Botao
+      titulo="Escalar pessoa"
+      icone="adicionar"
+      variante="terciario"
+      alinhado
+      aoPressionar={() => setEscalando(true)}
+    />
+  ) : undefined
+
+  return (
+    <>
+      {remover.error ? <AvisoDeFalha erro={remover.error} titulo="A escala não mudou" /> : null}
+      {atribuicoes.length ? (
+        <CartaoDeVidro sobrancelha="Equipe" lista {...(escalar ? { acoes: escalar } : {})}>
+          <Lista>
+            {atribuicoes.map((a) =>
+              linhaDaPessoaEscalada(a, atribuir ? () => setEscolhida(a) : undefined),
+            )}
+          </Lista>
+        </CartaoDeVidro>
+      ) : (
+        <CartaoDeVidro sobrancelha="Equipe" {...(escalar ? { acoes: escalar } : {})}>
+          <Texto variante="corpo" cor="textoSuave">
+            Ninguém escalado ainda.
+          </Texto>
+        </CartaoDeVidro>
+      )}
+      {atribuir ? (
+        <>
+          <Escalar
+            evento={evento}
+            etapa={etapa}
+            comunidadeId={comunidadeId}
+            aberta={escalando}
+            aoFechar={() => setEscalando(false)}
+          />
+          <MenuDeAcoes
+            aberto={escolhida !== null}
+            titulo={escolhida?.nome ?? 'Pessoa'}
+            aoFechar={() => setEscolhida(null)}
+            acoes={
+              escolhida
+                ? [
+                    {
+                      titulo: 'Tirar da escala',
+                      icone: 'excluir',
+                      descricao: escolhida.funcao,
+                      destrutiva: true,
+                      aoPressionar: () => void pedirRemocao(escolhida),
+                    },
+                  ]
+                : []
+            }
+          />
+        </>
+      ) : null}
+    </>
+  )
+}
+
+/** Folha "Escalar pessoa": a função, a busca e a lista com quem avisou que não pode. */
+function Escalar({
+  evento,
+  etapa,
+  comunidadeId,
+  aberta,
+  aoFechar,
+}: {
+  evento: DetalheDoEvento
+  etapa: Etapa | null
+  comunidadeId: string
+  aberta: boolean
+  aoFechar: () => void
+}) {
+  const pode = usePode()
+  const invalidar = useInvalidarEventos(comunidadeId)
   const [pessoa, setPessoa] = useState<string | null>(null)
   const [funcao, setFuncao] = useState<Funcao>(etapa ? 'responsável' : 'integrante')
   const [outra, setOutra] = useState('')
   const [erro, setErro] = useState<string | null>(null)
-  const base = `${naComunidade(comunidadeId)}/eventos/${evento.id}/atribuicoes`
   const dia = dataDoInstante(evento.inicio, evento.fuso)
-  const verDisponibilidade = pode('disponibilidade', 'ler')
-  const disponibilidade = useDisponibilidade(comunidadeId, dia, dia, verDisponibilidade)
+  const disponibilidade = useDisponibilidade(comunidadeId, dia, dia, pode('disponibilidade', 'ler'))
   const indisponiveis = new Map(
     (disponibilidade.data ?? [])
       .filter((d) => !d.disponivel)
       .map((d) => [d.vinculo_id, d.observacao]),
   )
-
-  const atribuicoes = evento.atribuicoes.filter((a) => a.etapaId === (etapa?.id ?? null))
   const adicionar = useMutation({
-    mutationFn: (corpo: object) => api.post(base, corpo),
+    mutationFn: (corpo: object) =>
+      api.post(`${naComunidade(comunidadeId)}/eventos/${evento.id}/atribuicoes`, corpo),
     onSuccess: () => invalidar(evento.id),
   })
-  const remover = useMutation({
-    mutationFn: (id: string) => api.delete(`${base}/${id}`),
-    onSuccess: () => invalidar(evento.id),
-  })
-  const atribuir = pode('escala', 'atribuir')
 
-  async function pedirRemocao(id: string, nome: string) {
-    const ok = await confirmar({
-      titulo: `Tirar ${nome} da escala?`,
-      mensagem: 'A pessoa deixa de ver esta escala entre as suas.',
-      confirmar: 'Tirar da escala',
-      destrutivo: true,
-    })
-    if (ok) remover.mutate(id)
+  function enviar() {
+    const nomeDaFuncao = funcao === 'outra' ? outra.trim() : funcao
+    if (!pessoa) return setErro('Escolha a pessoa.')
+    if (nomeDaFuncao.length < 2) return setErro('Diga qual é a função.')
+    setErro(null)
+    adicionar.mutate(
+      { vinculoId: pessoa, etapaId: etapa?.id ?? null, funcao: nomeDaFuncao },
+      {
+        onSuccess: () => {
+          mostrarToast({ texto: 'Pessoa escalada. Ela recebe o aviso para confirmar.' })
+          setPessoa(null)
+          setOutra('')
+          aoFechar()
+        },
+      },
+    )
   }
 
   return (
-    <Cartao titulo={etapa ? 'Quem cuida desta etapa' : 'Equipe do evento'} icone="escalas">
-      {atribuicoes.length === 0 ? (
-        <Texto variante="legenda" cor="textoSuave">
-          Ninguém escalado ainda.
-        </Texto>
-      ) : (
-        <View style={{ gap: ESPACO.e4 }}>
-          {atribuicoes.map((a) => (
-            <View key={a.id} style={{ gap: ESPACO.e4 }}>
-              <Linha
-                inicio={<Avatar nome={a.nome} tamanho="pilula" decorativo />}
-                titulo={a.nome}
-                descricao={a.funcao}
-                extra={
-                  <Selo
-                    texto={NOME_DO_ESTADO_DA_ATRIBUICAO[a.estado]}
-                    cor={COR_DO_ESTADO_DA_ATRIBUICAO[a.estado]}
-                  />
-                }
-              />
-              {atribuir ? (
-                <Botao
-                  titulo="Tirar da escala"
-                  variante="terciario"
-                  icone="excluir"
-                  larguraTotal={false}
-                  rotuloAcessivel={`Tirar da escala: ${a.nome} (${a.funcao})`}
-                  aoPressionar={() => void pedirRemocao(a.id, a.nome)}
-                />
-              ) : null}
-            </View>
-          ))}
-        </View>
-      )}
-      {remover.error ? <AvisoDeErro erro={remover.error} /> : null}
-      {atribuir ? (
-        <View style={{ gap: ESPACO.e12 }}>
-          <Texto variante="tituloItem" accessibilityRole="header">
-            Escalar alguém
-          </Texto>
-          <Segmentos
-            rotulo="Função"
-            valor={funcao}
-            aoMudar={setFuncao}
-            segmentos={[
-              { valor: 'responsável', rotulo: 'Responsável' },
-              { valor: 'integrante', rotulo: 'Integrante' },
-              { valor: 'outra', rotulo: 'Outra função' },
-            ]}
-          />
-          {funcao === 'outra' ? (
-            <Campo
-              rotulo="Nome da função"
-              value={outra}
-              onChangeText={setOutra}
-              exemplo="Som, recepção, fotografia"
-              maxLength={60}
-            />
-          ) : null}
-          <SeletorDePessoa
-            comunidadeId={comunidadeId}
-            rotulo="Pessoa"
-            valor={pessoa}
-            aoMudar={setPessoa}
-            observacao={(p) =>
-              indisponiveis.has(p.vinculoId)
-                ? `Avisou que não pode neste dia${indisponiveis.get(p.vinculoId) ? `: ${indisponiveis.get(p.vinculoId)}` : ''}`
-                : undefined
-            }
-          />
-          {erro ? <AvisoDeErro mensagem={erro} titulo="Falta escolher" /> : null}
-          {adicionar.error ? <AvisoDeErro erro={adicionar.error} /> : null}
-          <Botao
-            titulo="Escalar"
-            icone="convidar"
-            carregando={adicionar.isPending}
-            aoPressionar={() => {
-              const nomeDaFuncao = funcao === 'outra' ? outra.trim() : funcao
-              if (!pessoa) return setErro('Escolha a pessoa.')
-              if (nomeDaFuncao.length < 2) return setErro('Diga qual é a função.')
-              setErro(null)
-              adicionar.mutate(
-                { vinculoId: pessoa, etapaId: etapa?.id ?? null, funcao: nomeDaFuncao },
-                { onSuccess: () => setPessoa(null) },
-              )
-            }}
-          />
-        </View>
+    <FolhaNaTela aberta={aberta} titulo="Escalar pessoa" aoFechar={aoFechar}>
+      <Segmentos
+        rotulo="Função"
+        valor={funcao}
+        aoMudar={setFuncao}
+        segmentos={[
+          { valor: 'responsável', rotulo: 'Responsável' },
+          { valor: 'integrante', rotulo: 'Integrante' },
+          { valor: 'outra', rotulo: 'Outra' },
+        ]}
+      />
+      {funcao === 'outra' ? (
+        <Campo
+          rotulo="Nome da função"
+          value={outra}
+          onChangeText={setOutra}
+          exemplo="Som, recepção, fotografia"
+          maxLength={60}
+        />
       ) : null}
-    </Cartao>
+      <SeletorDePessoa
+        comunidadeId={comunidadeId}
+        rotulo="Pessoa"
+        valor={pessoa}
+        aoMudar={setPessoa}
+        observacao={(p) =>
+          indisponiveis.has(p.vinculoId)
+            ? `Avisou que não pode neste dia${indisponiveis.get(p.vinculoId) ? `: ${indisponiveis.get(p.vinculoId)}` : ''}`
+            : undefined
+        }
+      />
+      {erro ? <AvisoDeFalha mensagem={erro} titulo="Falta escolher" /> : null}
+      {adicionar.error ? (
+        <AvisoDeFalha erro={adicionar.error} titulo="A pessoa não foi escalada" />
+      ) : null}
+      <Botao
+        titulo="Escalar"
+        tamanho="grande"
+        larguraTotal
+        carregando={adicionar.isPending}
+        aoPressionar={enviar}
+      />
+    </FolhaNaTela>
   )
 }

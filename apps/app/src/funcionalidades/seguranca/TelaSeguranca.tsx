@@ -2,22 +2,25 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ESPACO } from '@uj/tokens'
 import { router } from 'expo-router'
 import { useState } from 'react'
-import { Platform, Switch, View } from 'react-native'
+import { Platform, View } from 'react-native'
 
 import { useSessao, type CredencialDoProvedor } from '@/estado/sessao'
 import { api } from '@/servicos/api'
 import type { ContaConectada, Provedor, RespostaProvedores } from '@/servicos/contrato'
+import { mensagemDoErro, SemConexao } from '@/servicos/erros'
 import { confirmar } from '@/utilidades/confirmar'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
+import { Aviso } from '@/ui/Aviso'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
-import { Carregando } from '@/ui/Carregando'
-import { Cartao } from '@/ui/Cartao'
-import { Linha } from '@/ui/Linha'
-import { Selo } from '@/ui/Selo'
+import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { Chip } from '@/ui/Chip'
+import { Esqueleto, LinhasDeEsqueleto } from '@/ui/Esqueleto'
+import { Interruptor } from '@/ui/Interruptor'
+import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
+import { Secao } from '@/ui/Secao'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
-import { useTema } from '@/ui/tema'
 
 import {
   BotaoApple,
@@ -32,8 +35,9 @@ const NOME: Record<Provedor, string> = { google: 'Google', apple: 'Apple' }
 const CHAVE_PROVEDORES = ['eu', 'provedores'] as const
 
 /**
- * Perfil, Segurança: biometria deste aparelho, contas do Google e da Apple
- * conectadas, verificação em duas etapas e aparelhos conectados.
+ * Perfil, Segurança (3.6.5): Face ID deste aparelho (interruptor), contas do
+ * Google e da Apple conectadas, verificação em duas etapas (cartão de
+ * destaque "RECOMENDADO" quando desligada) e aparelhos conectados.
  */
 export function TelaSeguranca() {
   const { conta } = useSessao()
@@ -44,99 +48,99 @@ export function TelaSeguranca() {
       titulo="Segurança"
       descricao="Como você entra no Uni Jovem e onde a sua conta está aberta."
     >
-      <SecaoBiometria />
-      <SecaoContasConectadas />
-      <Cartao titulo="Verificação em duas etapas" icone="chave">
-        <Linha
-          titulo="App autenticador"
-          descricao={
-            conta.doisFatores
-              ? conta.criador
-                ? 'Ligada. Como Criador, o código é pedido nas ações da plataforma, não ao entrar.'
-                : 'Ligada: o código do app autenticador é pedido ao entrar.'
-              : 'Desligada. Recomendado para quem administra uma comunidade.'
-          }
-          extra={
-            <Selo
-              texto={conta.doisFatores ? 'Ligada' : 'Desligada'}
-              cor={conta.doisFatores ? 'sucesso' : 'alerta'}
+      {conta.doisFatores ? null : (
+        <CartaoDeDestaque
+          sobrancelha="Recomendado"
+          titulo="Ligue a verificação em duas etapas"
+          descricao="Além da senha, um código do app autenticador passa a ser pedido ao entrar. Recomendado para quem administra uma comunidade."
+          acoes={
+            <Botao
+              titulo="Ligar"
+              icone="seguranca"
+              rotuloAcessivel="Ligar a verificação em duas etapas"
+              aoPressionar={() => router.push('/ativar-2fa')}
             />
           }
         />
-        {!conta.doisFatores ? (
-          <Botao
-            titulo="Ligar a verificação em duas etapas"
-            icone="seguranca"
-            variante="secundario"
-            aoPressionar={() => router.push('/ativar-2fa')}
+      )}
+      <SecaoBiometria />
+      <SecaoContasConectadas />
+      {conta.doisFatores ? (
+        <Secao titulo="Verificação em duas etapas">
+          <CartaoDeVidro lista>
+            <LinhaDeLista
+              icone="chave"
+              titulo="App autenticador"
+              descricao={
+                conta.criador
+                  ? 'Ligada. Como Criador, o código é pedido nas ações da plataforma, não ao entrar.'
+                  : 'Ligada: o código do app autenticador é pedido ao entrar.'
+              }
+              extra={<Chip texto="Ligada" tom="sucesso" />}
+            />
+          </CartaoDeVidro>
+        </Secao>
+      ) : null}
+      <Secao titulo="Aparelhos">
+        <CartaoDeVidro lista>
+          <LinhaDeLista
+            icone="aparelho"
+            titulo="Aparelhos conectados"
+            descricao="Veja onde sua conta está aberta e desconecte o que não reconhecer."
+            aoPressionar={() => router.push('/aparelhos')}
           />
-        ) : null}
-      </Cartao>
-      <Cartao titulo="Aparelhos" icone="aparelho">
-        <Linha
-          titulo="Aparelhos conectados"
-          descricao="Veja onde sua conta está aberta e desconecte o que não reconhecer."
-          icone="aparelho"
-          aoPressionar={() => router.push('/aparelhos')}
-        />
-      </Cartao>
+        </CartaoDeVidro>
+      </Secao>
     </Tela>
   )
 }
 
+/**
+ * Face ID ou digital (3.6.5): linha de interruptor com o estado escrito
+ * ("Ligado", "Desligado"); a explicação vem abaixo do cartão.
+ */
 function SecaoBiometria() {
   const sessao = useSessao()
-  const { cores } = useTema()
   const { biometria } = sessao
   const mudar = useMutation({
     mutationFn: (ligar: boolean) => (ligar ? sessao.ligarBiometria() : sessao.desligarBiometria()),
   })
 
   if (Platform.OS === 'web') return null
-  const titulo = `Entrar com ${biometria.nome}`
+  const nome = biometria.nome === 'biometria' ? 'Biometria' : biometria.nome
 
   return (
-    <Cartao
-      titulo={biometria.nome === 'biometria' ? 'Biometria' : biometria.nome}
-      icone="seguranca"
+    <Secao
+      titulo={nome}
+      {...(biometria.disponivel
+        ? {
+            rodape: biometria.ligada
+              ? 'A sessão guardada neste aparelho só abre com o seu rosto ou a sua digital.'
+              : 'O app abre sem pedir o rosto ou a digital.',
+          }
+        : {})}
     >
       {biometria.disponivel ? (
-        <>
-          <Linha
-            titulo={titulo}
-            descricao={
-              biometria.ligada
-                ? 'Ligado: a sessão guardada neste aparelho só abre com o seu rosto ou a sua digital.'
-                : 'Desligado: o app abre sem pedir o rosto ou a digital.'
-            }
-            extra={
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}>
-                <Selo
-                  texto={biometria.ligada ? 'Ligado' : 'Desligado'}
-                  cor={biometria.ligada ? 'sucesso' : 'textoSuave'}
-                />
-                <Switch
-                  accessibilityLabel={titulo}
-                  accessibilityHint="Liga ou desliga o pedido de biometria ao abrir o app."
-                  value={biometria.ligada}
-                  disabled={mudar.isPending}
-                  onValueChange={(valor) => mudar.mutate(valor)}
-                  trackColor={{ true: cores.sucesso, false: cores.campoBorda }}
-                />
-              </View>
-            }
+        <CartaoDeVidro opaco>
+          <Interruptor
+            rotulo={`Entrar com ${biometria.nome}`}
+            ligado={biometria.ligada}
+            desabilitado={mudar.isPending}
+            aoMudar={(valor) => mudar.mutate(valor)}
           />
           {mudar.error ? (
-            <AvisoDeErro mensagem={mensagemDaBiometria(mudar.error, biometria.nome)} />
+            <Aviso tipo="erro" titulo="Não deu certo" anunciar>
+              {mensagemDaBiometria(mudar.error, biometria.nome)}
+            </Aviso>
           ) : null}
-        </>
+        </CartaoDeVidro>
       ) : (
-        <Texto variante="legenda" cor="textoSuave">
+        <Aviso tipo="info" titulo={`Sem ${nome} neste aparelho`}>
           Este aparelho não tem rosto ou digital cadastrados. Cadastre nos Ajustes do aparelho para
           usar a biometria no Uni Jovem.
-        </Texto>
+        </Aviso>
       )}
-    </Cartao>
+    </Secao>
   )
 }
 
@@ -198,16 +202,25 @@ function SecaoContasConectadas() {
 
   if (provedores.isPending) {
     return (
-      <Cartao titulo="Contas conectadas" icone="link">
-        <Carregando texto="Carregando as contas conectadas" />
-      </Cartao>
+      <Secao titulo="Contas conectadas">
+        <Esqueleto rotulo="Carregando as contas conectadas">
+          <LinhasDeEsqueleto linhas={2} />
+        </Esqueleto>
+      </Secao>
     )
   }
   if (provedores.error) {
     return (
-      <Cartao titulo="Contas conectadas" icone="link">
-        <AvisoDeErro erro={provedores.error} aoTentarDeNovo={() => void provedores.refetch()} />
-      </Cartao>
+      <Secao titulo="Contas conectadas">
+        <Aviso
+          tipo={provedores.error instanceof SemConexao ? 'alerta' : 'erro'}
+          titulo="Não deu para carregar as contas conectadas"
+          anunciar
+          acao={{ titulo: 'Tentar de novo', aoPressionar: () => void provedores.refetch() }}
+        >
+          {mensagemDoErro(provedores.error)}
+        </Aviso>
+      </Secao>
     )
   }
 
@@ -222,100 +235,115 @@ function SecaoContasConectadas() {
   )
 
   return (
-    <Cartao titulo="Contas conectadas" icone="link">
-      <Texto variante="legenda" cor="textoSuave">
-        Entre com a conta do Google ou da Apple em vez de digitar a senha.
-      </Texto>
-      {visiveis.length === 0 ? (
-        <Texto variante="legenda" cor="textoSuave">
-          Nenhuma entrada com Google ou Apple está disponível neste aparelho.
-        </Texto>
-      ) : null}
-      {desconectar.error ? <AvisoDeErro erro={desconectar.error} /> : null}
-      {visiveis.map((provedor) => {
-        const conectada = conectadas.get(provedor)
-        return (
-          <View key={provedor} style={{ gap: ESPACO.e8 }}>
-            <Linha
-              titulo={NOME[provedor]}
-              descricao={
-                conectada
-                  ? conectada.email
-                    ? `Conectada: ${conectada.email}`
-                    : 'Conectada'
-                  : 'Não conectada'
-              }
-              extra={
-                conectada ? (
-                  <Botao
-                    titulo="Desconectar"
-                    variante="destrutivo"
-                    larguraTotal={false}
-                    rotuloAcessivel={`Desconectar a conta ${NOME[provedor]}`}
-                    carregando={desconectar.isPending && desconectar.variables === provedor}
-                    aoPressionar={() => void pedirDesconexao(provedor)}
-                  />
-                ) : conectando !== provedor ? (
-                  <Botao
-                    titulo="Conectar"
-                    variante="secundario"
-                    larguraTotal={false}
-                    rotuloAcessivel={`Conectar a conta ${NOME[provedor]}`}
-                    aoPressionar={() => {
-                      conectar.reset()
-                      setFalhaDoProvedor(null)
-                      setConectando(provedor)
-                    }}
-                  />
-                ) : null
-              }
+    <Secao
+      titulo="Contas conectadas"
+      rodape="Entre com a conta do Google ou da Apple em vez de digitar a senha."
+    >
+      <CartaoDeVidro opaco>
+        {visiveis.length === 0 ? (
+          <Texto variante="corpo" cor="textoSuave">
+            Nenhuma entrada com Google ou Apple está disponível neste aparelho.
+          </Texto>
+        ) : null}
+        {desconectar.error ? <ErroDaAcao erro={desconectar.error} /> : null}
+        <Lista>
+          {visiveis.map((provedor) => {
+            const conectada = conectadas.get(provedor)
+            return (
+              <LinhaDeLista
+                key={provedor}
+                icone="link"
+                titulo={NOME[provedor]}
+                descricao={
+                  conectada
+                    ? conectada.email
+                      ? `Conectada: ${conectada.email}`
+                      : 'Conectada'
+                    : 'Não conectada'
+                }
+                extra={
+                  conectada ? (
+                    <Botao
+                      titulo="Desconectar"
+                      variante="destrutivo"
+                      rotuloAcessivel={`Desconectar a conta ${NOME[provedor]}`}
+                      carregando={desconectar.isPending && desconectar.variables === provedor}
+                      aoPressionar={() => void pedirDesconexao(provedor)}
+                    />
+                  ) : conectando !== provedor ? (
+                    <Botao
+                      titulo="Conectar"
+                      variante="secundario"
+                      rotuloAcessivel={`Conectar a conta ${NOME[provedor]}`}
+                      aoPressionar={() => {
+                        conectar.reset()
+                        setFalhaDoProvedor(null)
+                        setConectando(provedor)
+                      }}
+                    />
+                  ) : undefined
+                }
+              />
+            )
+          })}
+        </Lista>
+        {conectando && !conectadas.has(conectando) ? (
+          <View style={{ gap: ESPACO.e12 }}>
+            <Campo
+              rotulo="Senha atual"
+              ajuda={`Para conectar a conta ${NOME[conectando]}, confirme que é você.`}
+              senha
+              value={senhaAtual}
+              onChangeText={setSenhaAtual}
+              erro={erroDaSenha}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="current-password"
+              textContentType="password"
             />
-            {!conectada && conectando === provedor ? (
-              <View style={{ gap: ESPACO.e12 }}>
-                <Campo
-                  rotulo="Senha atual"
-                  ajuda={`Para conectar a conta ${NOME[provedor]}, confirme que é você.`}
-                  senha
-                  value={senhaAtual}
-                  onChangeText={setSenhaAtual}
-                  erro={erroDaSenha}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoComplete="current-password"
-                  textContentType="password"
-                />
-                {conectar.error ? <AvisoDeErro erro={conectar.error} /> : null}
-                {falhaDoProvedor ? <AvisoDeErro mensagem={falhaDoProvedor} /> : null}
-                {provedor === 'apple' ? (
-                  <BotaoApple
-                    tipo="continuar"
-                    carregando={conectar.isPending}
-                    aoPressionar={() => iniciar('apple', null)}
-                  />
-                ) : (
-                  <BotaoGoogle
-                    titulo="Conectar com Google"
-                    carregando={conectar.isPending}
-                    desabilitado={!senhaAtual}
-                    motivo="Informe a senha atual primeiro."
-                    aoObterToken={(idToken) => iniciar('google', { idToken })}
-                    aoFalhar={setFalhaDoProvedor}
-                  />
-                )}
-                <Botao
-                  titulo="Cancelar"
-                  variante="terciario"
-                  aoPressionar={() => {
-                    setConectando(null)
-                    setSenhaAtual('')
-                    setErroDaSenha(null)
-                  }}
-                />
-              </View>
+            {conectar.error ? <ErroDaAcao erro={conectar.error} /> : null}
+            {falhaDoProvedor ? (
+              <Aviso tipo="erro" titulo="Não deu para conectar" anunciar>
+                {falhaDoProvedor}
+              </Aviso>
             ) : null}
+            {conectando === 'apple' ? (
+              <BotaoApple
+                tipo="continuar"
+                carregando={conectar.isPending}
+                aoPressionar={() => iniciar('apple', null)}
+              />
+            ) : (
+              <BotaoGoogle
+                titulo="Conectar com Google"
+                carregando={conectar.isPending}
+                desabilitado={!senhaAtual}
+                motivo="Informe a senha atual primeiro."
+                aoObterToken={(idToken) => iniciar('google', { idToken })}
+                aoFalhar={setFalhaDoProvedor}
+              />
+            )}
+            <Botao
+              titulo="Cancelar"
+              variante="terciario"
+              alinhado
+              aoPressionar={() => {
+                setConectando(null)
+                setSenhaAtual('')
+                setErroDaSenha(null)
+              }}
+            />
           </View>
-        )
-      })}
-    </Cartao>
+        ) : null}
+      </CartaoDeVidro>
+    </Secao>
+  )
+}
+
+function ErroDaAcao({ erro }: { erro: unknown }) {
+  return (
+    <Aviso tipo="erro" titulo="Não deu certo" anunciar>
+      {mensagemDoErro(erro)}
+    </Aviso>
   )
 }

@@ -1,21 +1,31 @@
-import { ESPACO } from '@uj/tokens'
+import { ALTURA, BORDA, ESPACO, RAIO, RITMO } from '@uj/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
-import { View } from 'react-native'
+import { Pressable, ScrollView, View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
 import type { ResumoDoEvento } from '@/servicos/contratoDosEventos'
-import { hojeNoFuso, instanteDeDataEHora, somarDias } from '@/utilidades/datas'
-import { parametro } from '@/utilidades/parametros'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
-import { Botao } from '@/ui/Botao'
-import { Campo } from '@/ui/Campo'
-import { Carregando } from '@/ui/Carregando'
-import { Cartao } from '@/ui/Cartao'
+import { usePreferenciasDeAcessibilidade } from '@/ui/acessibilidade'
+import { BotaoIcone } from '@/ui/Botao'
+import { CampoDeBusca } from '@/ui/Campo'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
+import { Icone } from '@/ui/Icone'
 import { LayoutDividido, useLayoutLargo } from '@/ui/LayoutDividido'
-import { Segmentos } from '@/ui/Segmentos'
+import { Lista } from '@/ui/LinhaDeLista'
+import { Secao } from '@/ui/Secao'
+import { Texto } from '@/ui/Texto'
 import { TextoAnunciado } from '@/ui/TextoAnunciado'
+import { useTema } from '@/ui/tema'
+import {
+  dataDoInstante,
+  hojeNoFuso,
+  instanteDeDataEHora,
+  NOMES_DOS_MESES,
+  somarDias,
+} from '@/utilidades/datas'
+import { parametro } from '@/utilidades/parametros'
 
 import { useFusoDaComunidade } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
@@ -23,7 +33,9 @@ import { SemComunidade } from '../navegacao/SemComunidade'
 import { TelaDoApp } from '../navegacao/TelaDoApp'
 import { useEventosNoPeriodo } from './consultas'
 import { DetalheDoEvento } from './DetalheDoEvento'
-import { LinhaDoEvento } from './LinhaDoEvento'
+import { ErroDaTela } from './Falha'
+import { MenuDeAcoes } from './FolhaNaTela'
+import { linhaDoEventoNaLista } from './LinhaDoEvento'
 
 export type Periodo = 'proximos' | 'passados'
 export type FiltroDeStatus = 'todos' | 'rascunho' | 'publicado' | 'cancelados'
@@ -54,6 +66,31 @@ export function filtrarEventos(
   })
 }
 
+export interface GrupoDoMes {
+  chave: string
+  /** "novembro" ou "janeiro de 2027" (fora do ano corrente). */
+  rotulo: string
+  eventos: ResumoDoEvento[]
+}
+
+/** Agrupa por mês (no fuso de cada evento), mantendo a ordem recebida. */
+export function agruparPorMes(eventos: readonly ResumoDoEvento[], anoAtual: string): GrupoDoMes[] {
+  const grupos: GrupoDoMes[] = []
+  for (const e of eventos) {
+    const dia = dataDoInstante(e.inicio, e.fuso)
+    const chave = dia.slice(0, 7)
+    let grupo = grupos.find((g) => g.chave === chave)
+    if (!grupo) {
+      const mes = NOMES_DOS_MESES[Number(dia.slice(5, 7)) - 1] ?? ''
+      const ano = dia.slice(0, 4)
+      grupo = { chave, rotulo: ano === anoAtual ? mes : `${mes} de ${ano}`, eventos: [] }
+      grupos.push(grupo)
+    }
+    grupo.eventos.push(e)
+  }
+  return grupos
+}
+
 export function TelaProgramacoes() {
   const { comunidadeAtiva } = useSessao()
   if (!comunidadeAtiva) {
@@ -75,6 +112,7 @@ function Programacoes({ comunidadeId }: { comunidadeId: string }) {
   const [periodo, setPeriodo] = useState<Periodo>('proximos')
   const [status, setStatus] = useState<FiltroDeStatus>('todos')
   const [busca, setBusca] = useState('')
+  const [novaAberta, setNovaAberta] = useState(false)
 
   const hoje = hojeNoFuso(fuso)
   const inicioDeHoje = instanteDeDataEHora(hoje, '00:00', fuso)
@@ -88,133 +126,148 @@ function Programacoes({ comunidadeId }: { comunidadeId: string }) {
 
   const filtrados = eventos.data ? filtrarEventos(eventos.data, status, busca) : []
   if (periodo === 'passados') filtrados.reverse()
+  const grupos = agruparPorMes(filtrados, hoje.slice(0, 4))
+  const comFiltro = status !== 'todos' || busca.trim() !== ''
 
   function abrir(id: string) {
     if (largo) router.setParams({ evento: id })
     else router.push({ pathname: '/evento/[eventoId]', params: { eventoId: id } })
   }
 
+  const novoSabado = () =>
+    router.push({ pathname: '/evento/novo', params: { modelo: 'sabado_padrao' } })
+
   const lista = (
     <>
-      {podeCriar ? (
-        <View style={{ gap: ESPACO.e8 }}>
-          <Botao
-            titulo="Nova programação"
-            icone="adicionar"
-            aoPressionar={() => router.push('/evento/novo')}
-          />
-          <Botao
-            titulo="Novo Sábado padrão"
-            icone="modelo"
-            variante="secundario"
-            dica="Já vem com as etapas habituais de sábado, todas editáveis."
-            aoPressionar={() =>
-              router.push({ pathname: '/evento/novo', params: { modelo: 'sabado_padrao' } })
-            }
-          />
-        </View>
-      ) : null}
-      <View style={{ gap: ESPACO.e12 }}>
-        <Segmentos
-          rotulo="Período"
-          valor={periodo}
-          aoMudar={setPeriodo}
-          segmentos={[
-            { valor: 'proximos', rotulo: 'Próximos' },
-            { valor: 'passados', rotulo: 'Passados' },
-          ]}
-        />
-        <Segmentos
-          rotulo="Situação"
-          valor={status}
-          aoMudar={setStatus}
-          segmentos={[
-            { valor: 'todos', rotulo: 'Todos' },
-            ...(podeCriar ? [{ valor: 'rascunho' as const, rotulo: 'Rascunhos' }] : []),
-            { valor: 'publicado', rotulo: 'Publicados' },
-            { valor: 'cancelados', rotulo: 'Cancelados ou adiados' },
-          ]}
-        />
-        <Campo
-          rotulo="Buscar por título ou categoria"
-          value={busca}
-          onChangeText={setBusca}
-          exemplo="Sábado, luau, ação social"
-          autoCorrect={false}
-        />
-      </View>
+      <CampoDeBusca rotulo="Buscar por título ou categoria" valor={busca} aoMudar={setBusca} />
+      <Filtros
+        periodo={periodo}
+        status={status}
+        verRascunhos={podeCriar}
+        aoMudarPeriodo={setPeriodo}
+        aoMudarStatus={setStatus}
+      />
       {eventos.isPending ? (
-        <Carregando texto="Carregando as programações" />
+        <Esqueleto rotulo="Carregando as programações">
+          <CartaoDeEsqueleto titulo />
+          <CartaoDeEsqueleto />
+        </Esqueleto>
       ) : eventos.error ? (
-        <AvisoDeErro erro={eventos.error} aoTentarDeNovo={() => void eventos.refetch()} />
+        <ErroDaTela
+          erro={eventos.error}
+          titulo="As programações não abriram"
+          aoTentarDeNovo={() => void eventos.refetch()}
+        />
       ) : filtrados.length === 0 ? (
-        <Cartao>
+        eventos.data.length > 0 || comFiltro ? (
+          <EstadoVazio
+            icone="programacoes"
+            titulo="Nada com esses filtros"
+            descricao="Mude a situação ou a busca para ver outras programações."
+            acao={{
+              titulo: 'Limpar filtros',
+              variante: 'secundario',
+              aoPressionar: () => {
+                setStatus('todos')
+                setBusca('')
+              },
+            }}
+          />
+        ) : (
           <EstadoVazio
             icone="programacoes"
             titulo={
-              eventos.data.length === 0
-                ? periodo === 'proximos'
-                  ? 'Nenhuma programação marcada'
-                  : 'Nada nos últimos meses'
-                : 'Nada com esses filtros'
+              periodo === 'proximos' ? 'Nenhuma programação marcada' : 'Nada nos últimos meses'
             }
             descricao={
-              eventos.data.length > 0
-                ? 'Mude a situação ou a busca para ver outras programações.'
-                : podeCriar
-                  ? 'Comece pelo Sábado padrão ou monte uma programação do zero.'
-                  : 'Quando a organização publicar os próximos encontros, eles aparecem aqui.'
+              podeCriar
+                ? 'Comece pelo Sábado padrão: as etapas de sempre já vêm prontas e você ajusta depois.'
+                : 'Quando a organização publicar os próximos encontros, eles aparecem aqui.'
             }
-            {...(eventos.data.length > 0
-              ? {
-                  acao: {
-                    titulo: 'Limpar filtros',
-                    aoPressionar: () => {
-                      setStatus('todos')
-                      setBusca('')
-                    },
-                  },
-                }
-              : podeCriar
-                ? {
-                    acao: {
-                      titulo: 'Nova programação',
-                      icone: 'adicionar' as const,
-                      aoPressionar: () => router.push('/evento/novo'),
-                    },
-                  }
-                : {
-                    acao: {
-                      titulo: 'Ver a agenda',
-                      icone: 'agenda' as const,
-                      aoPressionar: () => router.push('/agenda'),
-                    },
-                  })}
+            acao={
+              podeCriar
+                ? { titulo: 'Novo Sábado padrão', icone: 'adicionar', aoPressionar: novoSabado }
+                : { titulo: 'Ver a agenda', aoPressionar: () => router.push('/agenda') }
+            }
           />
-        </Cartao>
+        )
       ) : (
-        <View style={{ gap: ESPACO.e8 }}>
+        <>
           <TextoAnunciado soMudancas variante="legenda" cor="textoSuave">
             {filtrados.length === 1 ? '1 programação' : `${filtrados.length} programações`}
           </TextoAnunciado>
-          {filtrados.map((e) => (
-            <LinhaDoEvento
-              key={e.id}
-              evento={e}
-              fuso={e.fuso}
-              selecionado={largo && e.id === selecionado}
-              aoPressionar={() => abrir(e.id)}
-            />
+          {grupos.map((g, i) => (
+            <View key={g.chave} style={i === 0 ? { marginTop: -ESPACO.e16 } : null}>
+              <Secao titulo={g.rotulo}>
+                <CartaoDeVidro lista>
+                  <Lista>
+                    {g.eventos.map((e) =>
+                      linhaDoEventoNaLista({
+                        evento: e,
+                        fuso: e.fuso,
+                        ...(largo ? { selecionado: e.id === selecionado } : {}),
+                        aoPressionar: () => abrir(e.id),
+                      }),
+                    )}
+                  </Lista>
+                </CartaoDeVidro>
+              </Secao>
+            </View>
           ))}
-        </View>
+        </>
       )}
+      <MenuDeAcoes
+        aberto={novaAberta}
+        titulo="Nova programação"
+        aoFechar={() => setNovaAberta(false)}
+        acoes={[
+          {
+            titulo: 'Sábado padrão',
+            icone: 'modelo',
+            descricao: 'As etapas de sempre, todas editáveis',
+            chip: 'Recomendado',
+            navega: true,
+            aoPressionar: novoSabado,
+          },
+          {
+            titulo: 'Em branco',
+            icone: 'adicionar',
+            descricao: 'Você monta as etapas depois',
+            navega: true,
+            aoPressionar: () => router.push('/evento/novo'),
+          },
+          pode('modelo', 'ler') && {
+            titulo: 'A partir de um modelo',
+            icone: 'duplicar',
+            descricao: 'Os modelos da comunidade e os do app',
+            navega: true,
+            aoPressionar: () =>
+              router.push({ pathname: '/evento/novo', params: { modelo: 'escolher' } }),
+          },
+        ]}
+      />
     </>
   )
 
-  if (!largo) return <TelaDoApp titulo="Programas">{lista}</TelaDoApp>
+  const mais = podeCriar ? (
+    <BotaoIcone
+      icone="adicionar"
+      rotulo="Nova programação"
+      circular
+      aoPressionar={() => setNovaAberta(true)}
+    />
+  ) : undefined
+
+  if (!largo) {
+    return (
+      <TelaDoApp titulo="Programas" {...(mais ? { acaoDoTitulo: mais } : {})}>
+        {lista}
+      </TelaDoApp>
+    )
+  }
 
   return (
-    <TelaDoApp titulo="Programas" rolar={false} larga>
+    <TelaDoApp titulo="Programas" rolar={false} larga {...(mais ? { acaoDoTitulo: mais } : {})}>
       <LayoutDividido
         rotuloDoDetalhe="Programação escolhida"
         lista={lista}
@@ -224,19 +277,159 @@ function Programacoes({ comunidadeId }: { comunidadeId: string }) {
               key={selecionado}
               comunidadeId={comunidadeId}
               eventoId={selecionado}
+              painel
               aoSair={() => router.setParams({ evento: '' })}
             />
           ) : (
-            <Cartao>
-              <EstadoVazio
-                icone="programacoes"
-                titulo="Escolha uma programação"
-                descricao="Ela abre aqui ao lado, com etapas, equipe, tarefas e inscrições."
-              />
-            </Cartao>
+            <EstadoVazio
+              icone="programacoes"
+              titulo="Escolha uma programação"
+              descricao="Ela abre aqui ao lado, com etapas, equipe, preparação e inscrições."
+              {...(podeCriar
+                ? {
+                    acao: {
+                      titulo: 'Novo Sábado padrão',
+                      icone: 'adicionar' as const,
+                      variante: 'secundario' as const,
+                      aoPressionar: novoSabado,
+                    },
+                  }
+                : {})}
+            />
           )
         }
       />
     </TelaDoApp>
+  )
+}
+
+interface PropsDosFiltros {
+  periodo: Periodo
+  status: FiltroDeStatus
+  verRascunhos: boolean
+  aoMudarPeriodo: (p: Periodo) => void
+  aoMudarStatus: (s: FiltroDeStatus) => void
+}
+
+/**
+ * Pílulas de filtro numa linha só (3.4.1): o período (escolha única) e a
+ * situação (tocar de novo desmarca), com um separador vertical entre os grupos.
+ */
+function Filtros({
+  periodo,
+  status,
+  verRascunhos,
+  aoMudarPeriodo,
+  aoMudarStatus,
+}: PropsDosFiltros) {
+  const { cores } = useTema()
+  const situacoes: { valor: Exclude<FiltroDeStatus, 'todos'>; rotulo: string }[] = [
+    ...(verRascunhos ? [{ valor: 'rascunho' as const, rotulo: 'Rascunhos' }] : []),
+    { valor: 'publicado', rotulo: 'Publicados' },
+    { valor: 'cancelados', rotulo: 'Cancelados' },
+  ]
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={{ marginHorizontal: -RITMO.margemDaTela, flexGrow: 0 }}
+      contentContainerStyle={{
+        paddingHorizontal: RITMO.margemDaTela,
+        paddingVertical: ESPACO.e4,
+        gap: ESPACO.e8,
+        alignItems: 'center',
+      }}
+    >
+      <View
+        accessibilityRole="radiogroup"
+        aria-label="Período"
+        style={{ flexDirection: 'row', gap: ESPACO.e8 }}
+      >
+        {(
+          [
+            { valor: 'proximos', rotulo: 'Próximos' },
+            { valor: 'passados', rotulo: 'Passados' },
+          ] as const
+        ).map((p) => (
+          <Pilula
+            key={p.valor}
+            rotulo={p.rotulo}
+            ativa={periodo === p.valor}
+            papel="radio"
+            aoPressionar={() => aoMudarPeriodo(p.valor)}
+          />
+        ))}
+      </View>
+      <View
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={{ width: BORDA.fina, height: ESPACO.e20, backgroundColor: cores.tonalBorda }}
+      />
+      <View role="group" aria-label="Situação" style={{ flexDirection: 'row', gap: ESPACO.e8 }}>
+        {situacoes.map((s) => (
+          <Pilula
+            key={s.valor}
+            rotulo={s.rotulo}
+            ativa={status === s.valor}
+            papel="checkbox"
+            aoPressionar={() => aoMudarStatus(status === s.valor ? 'todos' : s.valor)}
+          />
+        ))}
+      </View>
+    </ScrollView>
+  )
+}
+
+/**
+ * Pílula de filtro (2.12.5): 36 de altura visual com folga de toque de 4 (44
+ * efetivo), borda de 1; a ativa tem fundo quente, borda coral e o check de
+ * 14 (forma além da cor).
+ */
+function Pilula({
+  rotulo,
+  ativa,
+  papel,
+  aoPressionar,
+}: {
+  rotulo: string
+  ativa: boolean
+  papel: 'radio' | 'checkbox'
+  aoPressionar: () => void
+}) {
+  const { cores, solido } = useTema()
+  const { aumentarContraste } = usePreferenciasDeAcessibilidade()
+  return (
+    <Pressable
+      accessibilityRole={papel}
+      accessibilityLabel={rotulo}
+      aria-checked={ativa}
+      hitSlop={{ top: ESPACO.e4, bottom: ESPACO.e4 }}
+      onPress={aoPressionar}
+      style={({ pressed }) => ({
+        minHeight: ALTURA.filtro,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: ESPACO.e4,
+        paddingHorizontal: ESPACO.e12,
+        borderRadius: RAIO.pilula,
+        borderWidth: aumentarContraste ? 2 : 1,
+        borderColor: ativa ? cores.destaque : aumentarContraste ? cores.texto : cores.tonalBorda,
+        backgroundColor: ativa
+          ? solido(cores.quenteFundo)
+          : pressed
+            ? solido(cores.pressionado)
+            : 'transparent',
+      })}
+    >
+      {ativa ? <Icone nome="check" cor={cores.destaque} tamanho={14} peso="forte" /> : null}
+      <Texto
+        variante="lista"
+        peso={ativa ? 'forte' : 'medio'}
+        cor={ativa ? 'destaque' : 'textoSuave'}
+        numberOfLines={1}
+      >
+        {rotulo}
+      </Texto>
+    </Pressable>
   )
 }

@@ -10,6 +10,7 @@ import { sombra, useTema } from '@/ui/tema'
 import { Vidro } from '@/ui/Vidro'
 import { soNaWeb } from '@/ui/web'
 
+import { fotoDaConta } from '../perfil/imagens'
 import { ABAS } from './abas'
 
 /** Altura da barra: item de 48, padding de 8 em cima e embaixo e a borda de 1 (66). */
@@ -62,7 +63,9 @@ function ItemDaBarra({ rotulo, icone, isFocused, onPress, onLongPress }: PropsDo
       rotulo={rotulo}
       icone={icone === 'avatar' ? null : icone}
       avatar={
-        icone === 'avatar' && conta ? { nome: conta.nome, dados: conta.avatar ?? null } : null
+        icone === 'avatar' && conta
+          ? { nome: conta.nome, dados: { ...conta.avatar, foto: fotoDaConta(conta) } }
+          : null
       }
       ativo={!!isFocused}
       nomeAcessivel={icone === 'avatar' && conta ? `${rotulo} de ${conta.nome}` : rotulo}

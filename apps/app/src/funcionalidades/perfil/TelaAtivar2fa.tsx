@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { ESPACO } from '@uj/tokens'
 import { router } from 'expo-router'
 import { useState } from 'react'
 
@@ -8,15 +9,32 @@ import type {
   CodigosDeRecuperacao as RespostaDeCodigos,
   ConfiguracaoDoAutenticador,
 } from '@/servicos/contrato'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
+import { mensagemDoErro } from '@/servicos/erros'
+import { Aviso } from '@/ui/Aviso'
+import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
-import { Cartao } from '@/ui/Cartao'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Tela } from '@/ui/Tela'
 
 import { CodigosDeRecuperacao } from '../autenticacao/CodigosDeRecuperacao'
 import { ConfigurarAutenticador } from '../autenticacao/ConfigurarAutenticador'
 
+const TOTAL_DE_PASSOS = 3
+
+function ErroDaAcao({ erro }: { erro: unknown }) {
+  return (
+    <Aviso tipo="erro" titulo="Não deu certo" anunciar>
+      {mensagemDoErro(erro)}
+    </Aviso>
+  )
+}
+
+/**
+ * Ligar a verificação em duas etapas (3.6.5), no mesmo padrão em 3 passos do
+ * primeiro acesso: confirmar a senha, cadastrar o autenticador e digitar o
+ * código, e guardar os códigos de recuperação.
+ */
 export function TelaAtivar2fa() {
   const consultas = useQueryClient()
   const [senhaAtual, setSenhaAtual] = useState('')
@@ -35,7 +53,7 @@ export function TelaAtivar2fa() {
 
   if (confirmar.data) {
     return (
-      <Tela pilha titulo="Verificação ligada">
+      <Tela pilha passos={{ atual: 3, total: TOTAL_DE_PASSOS }} titulo="Verificação ligada">
         <CodigosDeRecuperacao
           codigos={confirmar.data.codigosDeRecuperacao}
           rotuloDeConcluir="Voltar ao perfil"
@@ -46,13 +64,28 @@ export function TelaAtivar2fa() {
   }
 
   if (!iniciar.data) {
+    const continuar = () => {
+      setErro(senhaAtual ? null : 'Informe sua senha atual.')
+      if (senhaAtual) iniciar.mutate()
+    }
     return (
       <Tela
         pilha
+        passos={{ atual: 1, total: TOTAL_DE_PASSOS }}
         titulo="Verificação em duas etapas"
         descricao="Além da senha, um código do app autenticador passa a ser pedido ao entrar. Primeiro, confirme sua senha."
+        barraDeAcao={
+          <BarraDeAcao>
+            <Botao
+              titulo="Continuar"
+              tamanho="grande"
+              carregando={iniciar.isPending}
+              aoPressionar={continuar}
+            />
+          </BarraDeAcao>
+        }
       >
-        <Cartao>
+        <CartaoDeVidro opaco>
           <Campo
             rotulo="Senha atual"
             senha
@@ -63,17 +96,10 @@ export function TelaAtivar2fa() {
             autoCorrect={false}
             autoComplete="current-password"
             textContentType="password"
+            onSubmitEditing={continuar}
           />
-          {iniciar.error ? <AvisoDeErro erro={iniciar.error} /> : null}
-          <Botao
-            titulo="Continuar"
-            carregando={iniciar.isPending}
-            aoPressionar={() => {
-              setErro(senhaAtual ? null : 'Informe sua senha atual.')
-              if (senhaAtual) iniciar.mutate()
-            }}
-          />
-        </Cartao>
+        </CartaoDeVidro>
+        {iniciar.error ? <ErroDaAcao erro={iniciar.error} /> : null}
       </Tela>
     )
   }
@@ -85,27 +111,37 @@ export function TelaAtivar2fa() {
   }
 
   return (
-    <Tela pilha titulo="Verificação em duas etapas">
+    <Tela
+      pilha
+      passos={{ atual: 2, total: TOTAL_DE_PASSOS }}
+      titulo="Autenticador"
+      barraDeAcao={
+        <BarraDeAcao>
+          <Botao
+            titulo="Ligar a verificação"
+            tamanho="grande"
+            aoPressionar={enviar}
+            carregando={confirmar.isPending}
+          />
+        </BarraDeAcao>
+      }
+    >
       <ConfigurarAutenticador uri={iniciar.data.uri} segredo={iniciar.data.segredo} />
-      <Cartao titulo="Confirme o código" icone="confirmado">
+      <CartaoDeVidro sobrancelha="Confirme o código" opaco intervalo={ESPACO.e16}>
         <Campo
           rotulo="Código do app autenticador"
           value={codigo}
           onChangeText={setCodigo}
           erro={erro}
+          codigo
           keyboardType="number-pad"
           textContentType="oneTimeCode"
           autoComplete="one-time-code"
           maxLength={6}
           onSubmitEditing={enviar}
         />
-        {confirmar.error ? <AvisoDeErro erro={confirmar.error} /> : null}
-        <Botao
-          titulo="Ligar a verificação"
-          aoPressionar={enviar}
-          carregando={confirmar.isPending}
-        />
-      </Cartao>
+      </CartaoDeVidro>
+      {confirmar.error ? <ErroDaAcao erro={confirmar.error} /> : null}
     </Tela>
   )
 }

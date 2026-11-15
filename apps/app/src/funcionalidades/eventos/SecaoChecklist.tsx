@@ -4,23 +4,24 @@ import { View } from 'react-native'
 
 import { api } from '@/servicos/api'
 import type { DetalheDoEvento, TipoDeChecklist } from '@/servicos/contratoDosEventos'
-import { abrirLink } from '@/utilidades/compartilhar'
-import { formatarQuando } from '@/utilidades/datas'
-import { AvisoDeErro } from '@/ui/AvisoDeErro'
-import { Botao } from '@/ui/Botao'
+import { Botao, BotaoIcone } from '@/ui/Botao'
 import { CaixaDeMarcar } from '@/ui/CaixaDeMarcar'
 import { Campo } from '@/ui/Campo'
-import { Cartao } from '@/ui/Cartao'
-import { Expansivel } from '@/ui/Expansivel'
-import { Linha } from '@/ui/Linha'
+import { LinhaDeLista } from '@/ui/LinhaDeLista'
 import { Segmentos } from '@/ui/Segmentos'
 import { Texto } from '@/ui/Texto'
+import { mostrarToast } from '@/ui/Toast'
+import { abrirLink } from '@/utilidades/compartilhar'
+import { formatarQuando } from '@/utilidades/datas'
 
 import { useMeuVinculo } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
 import { useMarcarNoEvento } from '../offline/acoes'
 import { MENSAGEM_EXIGE_CONEXAO } from '../offline/mensagens'
 import type { ModoLocal } from '../offline/vistaLocal'
+import { CartaoDePreparacao, ComRemover, type ItemDaPreparacao } from './CartaoDePreparacao'
+import { AvisoDeFalha } from './Falha'
+import { FolhaNaTela } from './FolhaNaTela'
 import { useMudancaNoEvento, useRemocaoNoEvento } from './mutacoes'
 import { NOME_DO_CHECKLIST } from './nomes'
 
@@ -31,7 +32,7 @@ interface Props {
 
 const TIPOS: readonly TipoDeChecklist[] = ['preparacao', 'encerramento']
 
-/** Checklists de preparação e de encerramento, com quem marcou. */
+/** Checklists de preparação e de encerramento, num cartão só, com quem marcou. */
 export function SecaoChecklist({
   evento,
   comunidadeId,
@@ -44,6 +45,7 @@ export function SecaoChecklist({
   const euOnline = useMeuVinculo()
   const eu = local ? local.eu : euOnline
   const gerenciar = pode('checklist', 'gerenciar')
+  const [novo, setNovo] = useState(false)
   const marcar = useMarcarNoEvento(comunidadeId, evento.id, 'checklist', {
     local: local !== undefined,
     eu,
@@ -51,198 +53,246 @@ export function SecaoChecklist({
   const remover = useRemocaoNoEvento(comunidadeId, evento.id)
   if (!gerenciar && evento.checklist.length === 0) return null
 
-  return (
-    <Cartao titulo="Checklists" icone="confirmado">
-      {TIPOS.map((tipo) => {
-        const itens = evento.checklist.filter((i) => i.tipo === tipo)
-        const feitos = itens.filter((i) => i.marcadoEm).length
-        return (
-          <View key={tipo} style={{ gap: ESPACO.e8 }}>
-            <Texto variante="tituloItem" accessibilityRole="header">
-              {NOME_DO_CHECKLIST[tipo]} ({feitos} de {itens.length})
-            </Texto>
-            {itens.length === 0 ? (
-              <Texto variante="legenda" cor="textoSuave">
-                Nenhum item de {NOME_DO_CHECKLIST[tipo].toLowerCase()}.
+  // Os dois tipos só ganham um rótulo de grupo quando aparecem juntos.
+  const tiposComItens = TIPOS.filter((t) => evento.checklist.some((i) => i.tipo === t))
+  const itens: ItemDaPreparacao[] = TIPOS.flatMap((tipo) => {
+    const doTipo = evento.checklist.filter((i) => i.tipo === tipo)
+    const feitos = doTipo.filter((i) => i.marcadoEm).length
+    return doTipo.map((item, n) => {
+      const podeMarcar = pode('checklist', 'marcar', {
+        proprio: eu !== null && item.responsavelVinculoId === eu,
+      })
+      const descricao = [
+        item.responsavelNome,
+        podeMarcar ? null : 'Só a pessoa responsável ou a organização marca',
+        local?.pendentes.has(item.id)
+          ? 'Pendente de envio: feito neste aparelho, vai quando a internet voltar'
+          : null,
+      ]
+        .filter(Boolean)
+        .join('. ')
+      return {
+        chave: item.id,
+        no: (editando: boolean) => (
+          <View>
+            {n === 0 && tiposComItens.length > 1 ? (
+              <Texto
+                variante="rotulo"
+                cor="textoSuave"
+                accessibilityRole="header"
+                style={{ paddingTop: ESPACO.e8 }}
+              >
+                {`${NOME_DO_CHECKLIST[tipo]} · ${feitos} de ${doTipo.length}`}
               </Texto>
-            ) : (
-              itens.map((item) => {
-                const podeMarcar = pode('checklist', 'marcar', {
-                  proprio: eu !== null && item.responsavelVinculoId === eu,
-                })
-                const descricao = [
-                  item.responsavelNome ? `Responsável: ${item.responsavelNome}` : null,
-                  podeMarcar ? null : 'Só quem é responsável ou a organização marca este item',
-                  local?.pendentes.has(item.id)
-                    ? 'Pendente de envio: feito neste aparelho, vai quando a internet voltar'
-                    : null,
-                ]
-                  .filter(Boolean)
-                  .join('. ')
-                return (
-                  <View key={item.id} style={{ gap: ESPACO.e4 }}>
-                    <CaixaDeMarcar
-                      rotulo={item.texto}
-                      {...(descricao ? { descricao } : {})}
-                      marcada={item.marcadoEm !== null}
-                      desabilitada={!podeMarcar || marcar.isPending}
-                      aoMudar={(marcado) =>
-                        marcar.mutate({ id: item.id, valor: marcado, rotulo: item.texto })
-                      }
-                    />
-                    {gerenciar && !local ? (
-                      <Botao
-                        titulo="Remover"
-                        variante="terciario"
-                        icone="excluir"
-                        larguraTotal={false}
-                        rotuloAcessivel={`Remover o item ${item.texto}`}
-                        aoPressionar={() =>
-                          void remover.pedir(`checklist/${item.id}`, 'este item do checklist')
-                        }
-                      />
-                    ) : null}
-                  </View>
-                )
-              })
-            )}
+            ) : null}
+            <ComRemover
+              editando={editando}
+              rotulo={`Remover o item ${item.texto}`}
+              aoRemover={() => void remover.pedir(`checklist/${item.id}`, 'este item do checklist')}
+            >
+              <CaixaDeMarcar
+                rotulo={item.texto}
+                {...(descricao ? { descricao } : {})}
+                marcada={item.marcadoEm !== null}
+                desabilitada={!podeMarcar || marcar.isPending}
+                aoMudar={(marcado) =>
+                  marcar.mutate({ id: item.id, valor: marcado, rotulo: item.texto })
+                }
+              />
+            </ComRemover>
           </View>
-        )
-      })}
-      {(marcar.error ?? remover.error) ? (
-        <AvisoDeErro erro={marcar.error ?? remover.error} />
-      ) : null}
-      {gerenciar && !local ? <NovoItem evento={evento} comunidadeId={comunidadeId} /> : null}
-      {gerenciar && local ? (
-        <Botao
-          titulo="Adicionar item ao checklist"
-          icone="adicionar"
-          variante="secundario"
-          desabilitado
-          motivo={`${MENSAGEM_EXIGE_CONEXAO} Sem internet, dá para marcar e desmarcar.`}
-          aoPressionar={() => undefined}
+        ),
+      }
+    })
+  })
+
+  return (
+    <>
+      <CartaoDePreparacao
+        sobrancelha="Checklist"
+        vazio="Nenhum item ainda. Liste o que precisa estar pronto e o que fazer no fim."
+        erro={marcar.error ?? remover.error}
+        editavel={gerenciar && !local}
+        adicionar={
+          gerenciar
+            ? local
+              ? {
+                  titulo: 'Adicionar item',
+                  aoPressionar: () => undefined,
+                  motivo: `${MENSAGEM_EXIGE_CONEXAO} Sem internet, dá para marcar e desmarcar.`,
+                }
+              : { titulo: 'Adicionar item', aoPressionar: () => setNovo(true) }
+            : null
+        }
+        itens={itens}
+      />
+      {gerenciar && !local ? (
+        <NovoItem
+          evento={evento}
+          comunidadeId={comunidadeId}
+          aberta={novo}
+          aoFechar={() => setNovo(false)}
         />
       ) : null}
-    </Cartao>
+    </>
   )
 }
 
-function NovoItem({ evento, comunidadeId }: Props) {
+function NovoItem({
+  evento,
+  comunidadeId,
+  aberta,
+  aoFechar,
+}: Props & { aberta: boolean; aoFechar: () => void }) {
   const [tipo, setTipo] = useState<TipoDeChecklist>('preparacao')
   const [texto, setTexto] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const criar = useMudancaNoEvento(comunidadeId, evento.id, (base, corpo: object) =>
     api.post(`${base}/checklist`, corpo),
   )
+
+  function salvar() {
+    if (!texto.trim()) {
+      setErro('Escreva o item.')
+      return
+    }
+    setErro(null)
+    criar.mutate(
+      { tipo, texto: texto.trim() },
+      {
+        onSuccess: () => {
+          mostrarToast({ texto: 'Item adicionado ao checklist.' })
+          setTexto('')
+          aoFechar()
+        },
+      },
+    )
+  }
+
   return (
-    <Expansivel titulo="Adicionar item ao checklist">
-      {(fechar) => (
-        <>
-          <Segmentos
-            rotulo="Checklist"
-            valor={tipo}
-            aoMudar={setTipo}
-            segmentos={TIPOS.map((t) => ({ valor: t, rotulo: NOME_DO_CHECKLIST[t] }))}
-          />
-          <Campo
-            rotulo="Item"
-            value={texto}
-            onChangeText={setTexto}
-            erro={erro}
-            exemplo="Testar os microfones"
-            maxLength={300}
-          />
-          {criar.error ? <AvisoDeErro erro={criar.error} /> : null}
-          <Botao
-            titulo="Salvar item"
-            carregando={criar.isPending}
-            aoPressionar={() => {
-              if (!texto.trim()) {
-                setErro('Escreva o item.')
-                return
-              }
-              setErro(null)
-              criar.mutate(
-                { tipo, texto: texto.trim() },
-                {
-                  onSuccess: () => {
-                    setTexto('')
-                    fechar()
-                  },
-                },
-              )
-            }}
-          />
-        </>
-      )}
-    </Expansivel>
+    <FolhaNaTela aberta={aberta} titulo="Adicionar item" aoFechar={aoFechar}>
+      <Segmentos
+        rotulo="Checklist"
+        valor={tipo}
+        aoMudar={setTipo}
+        segmentos={TIPOS.map((t) => ({ valor: t, rotulo: NOME_DO_CHECKLIST[t] }))}
+      />
+      <Campo
+        rotulo="Item"
+        value={texto}
+        onChangeText={setTexto}
+        erro={erro}
+        exemplo="Testar os microfones"
+        maxLength={300}
+      />
+      {criar.error ? <AvisoDeFalha erro={criar.error} titulo="O item não foi salvo" /> : null}
+      <Botao
+        titulo="Salvar item"
+        tamanho="grande"
+        larguraTotal
+        carregando={criar.isPending}
+        aoPressionar={salvar}
+      />
+    </FolhaNaTela>
   )
 }
 
 /** Notas internas: só a organização lê e escreve. */
 export function SecaoNotas({ evento, comunidadeId }: Props) {
   const pode = usePode()
-  const [texto, setTexto] = useState('')
-  const criar = useMudancaNoEvento(comunidadeId, evento.id, (base, corpo: object) =>
-    api.post(`${base}/notas`, corpo),
-  )
+  const [nova, setNova] = useState(false)
   const remover = useRemocaoNoEvento(comunidadeId, evento.id)
   if (!pode('nota_interna', 'ler')) return null
   const gerenciar = pode('nota_interna', 'gerenciar')
 
   return (
-    <Cartao titulo="Notas internas" icone="nota">
-      <Texto variante="legenda" cor="textoSuave">
-        Só a organização vê estas notas. Membros não têm acesso.
-      </Texto>
-      {evento.notas.length === 0 ? (
-        <Texto variante="legenda" cor="textoSuave">
-          Nenhuma nota ainda.
-        </Texto>
-      ) : (
-        evento.notas.map((n) => (
-          <View key={n.id} style={{ gap: ESPACO.e4 }}>
-            <Texto>{n.texto}</Texto>
-            <Texto variante="legenda" cor="textoSuave">
-              Em {formatarQuando(n.criadoEm, evento.fuso)}
-            </Texto>
-            {gerenciar ? (
-              <Botao
-                titulo="Remover"
-                variante="terciario"
-                icone="excluir"
-                larguraTotal={false}
-                rotuloAcessivel="Remover esta nota"
-                aoPressionar={() => void remover.pedir(`notas/${n.id}`, 'esta nota')}
-              />
-            ) : null}
-          </View>
-        ))
-      )}
-      {remover.error ? <AvisoDeErro erro={remover.error} /> : null}
+    <>
+      <CartaoDePreparacao
+        sobrancelha="Notas internas"
+        apoio="Só a organização vê estas notas."
+        vazio="Nenhuma nota ainda."
+        erro={remover.error}
+        editavel={gerenciar}
+        adicionar={
+          gerenciar ? { titulo: 'Adicionar nota', aoPressionar: () => setNova(true) } : null
+        }
+        itens={evento.notas.map((n) => ({
+          chave: n.id,
+          no: (editando: boolean) => (
+            <ComRemover
+              editando={editando}
+              rotulo="Remover esta nota"
+              aoRemover={() => void remover.pedir(`notas/${n.id}`, 'esta nota')}
+            >
+              <View style={{ paddingVertical: ESPACO.e12 }}>
+                <Texto variante="corpo">{n.texto}</Texto>
+                <Texto variante="legenda" cor="textoSuave">
+                  {`Em ${formatarQuando(n.criadoEm, evento.fuso)}`}
+                </Texto>
+              </View>
+            </ComRemover>
+          ),
+        }))}
+      />
       {gerenciar ? (
-        <>
-          <Campo
-            rotulo="Nova nota"
-            value={texto}
-            onChangeText={setTexto}
-            multiline
-            maxLength={5000}
-          />
-          {criar.error ? <AvisoDeErro erro={criar.error} /> : null}
-          <Botao
-            titulo="Salvar nota"
-            variante="secundario"
-            carregando={criar.isPending}
-            desabilitado={!texto.trim()}
-            motivo="Escreva a nota primeiro."
-            aoPressionar={() =>
-              criar.mutate({ texto: texto.trim() }, { onSuccess: () => setTexto('') })
-            }
-          />
-        </>
+        <NovaNota
+          evento={evento}
+          comunidadeId={comunidadeId}
+          aberta={nova}
+          aoFechar={() => setNova(false)}
+        />
       ) : null}
-    </Cartao>
+    </>
+  )
+}
+
+function NovaNota({
+  evento,
+  comunidadeId,
+  aberta,
+  aoFechar,
+}: Props & { aberta: boolean; aoFechar: () => void }) {
+  const [texto, setTexto] = useState('')
+  const [erro, setErro] = useState<string | null>(null)
+  const criar = useMudancaNoEvento(comunidadeId, evento.id, (base, corpo: object) =>
+    api.post(`${base}/notas`, corpo),
+  )
+  return (
+    <FolhaNaTela aberta={aberta} titulo="Adicionar nota" aoFechar={aoFechar}>
+      <Campo
+        rotulo="Nota"
+        ajuda="Só a organização vê."
+        value={texto}
+        onChangeText={setTexto}
+        erro={erro}
+        multiline
+        maxLength={5000}
+      />
+      {criar.error ? <AvisoDeFalha erro={criar.error} titulo="A nota não foi salva" /> : null}
+      <Botao
+        titulo="Salvar nota"
+        tamanho="grande"
+        larguraTotal
+        carregando={criar.isPending}
+        aoPressionar={() => {
+          if (!texto.trim()) {
+            setErro('Escreva a nota primeiro.')
+            return
+          }
+          setErro(null)
+          criar.mutate(
+            { texto: texto.trim() },
+            {
+              onSuccess: () => {
+                mostrarToast({ texto: 'Nota salva.' })
+                setTexto('')
+                aoFechar()
+              },
+            },
+          )
+        }}
+      />
+    </FolhaNaTela>
   )
 }
 
@@ -250,98 +300,126 @@ export function SecaoNotas({ evento, comunidadeId }: Props) {
 export function SecaoAnexos({ evento, comunidadeId }: Props) {
   const pode = usePode()
   const gerenciar = pode('anexo', 'gerenciar')
+  const [novo, setNovo] = useState(false)
+  const remover = useRemocaoNoEvento(comunidadeId, evento.id)
+  if (!gerenciar && evento.anexos.length === 0) return null
+
+  return (
+    <>
+      <CartaoDePreparacao
+        sobrancelha="Anexos"
+        tipo="lista"
+        vazio="Nenhum link ainda. Coloque aqui a letra das músicas, a lição ou o roteiro."
+        erro={remover.error}
+        editavel={gerenciar}
+        adicionar={
+          gerenciar ? { titulo: 'Adicionar link', aoPressionar: () => setNovo(true) } : null
+        }
+        itens={evento.anexos.map((a) => ({
+          chave: a.id,
+          no: (editando: boolean) => (
+            <LinhaDeLista
+              key={a.id}
+              icone="link"
+              titulo={a.titulo}
+              descricao={a.url}
+              linhasDaDescricao={1}
+              {...(editando
+                ? {
+                    extra: (
+                      <BotaoIcone
+                        icone="excluir"
+                        rotulo={`Remover o link ${a.titulo}`}
+                        aoPressionar={() => void remover.pedir(`anexos/${a.id}`, 'este link')}
+                      />
+                    ),
+                  }
+                : {
+                    externo: true,
+                    rotuloAcessivel: `Abrir o link ${a.titulo}`,
+                    aoPressionar: () => void abrirLink(a.url),
+                  })}
+            />
+          ),
+        }))}
+      />
+      {gerenciar ? (
+        <NovoAnexo
+          evento={evento}
+          comunidadeId={comunidadeId}
+          aberta={novo}
+          aoFechar={() => setNovo(false)}
+        />
+      ) : null}
+    </>
+  )
+}
+
+function NovoAnexo({
+  evento,
+  comunidadeId,
+  aberta,
+  aoFechar,
+}: Props & { aberta: boolean; aoFechar: () => void }) {
   const [titulo, setTitulo] = useState('')
   const [url, setUrl] = useState('')
   const [erros, setErros] = useState<{ titulo?: string; url?: string }>({})
   const criar = useMudancaNoEvento(comunidadeId, evento.id, (base, corpo: object) =>
     api.post(`${base}/anexos`, corpo),
   )
-  const remover = useRemocaoNoEvento(comunidadeId, evento.id)
-  if (!gerenciar && evento.anexos.length === 0) return null
+
+  function salvar() {
+    const novos = {
+      ...(titulo.trim() ? {} : { titulo: 'Dê um título ao link.' }),
+      ...(/^https:\/\/\S+\.\S+/.test(url.trim())
+        ? {}
+        : { url: 'Use um link completo que comece com https://.' }),
+    }
+    setErros(novos)
+    if (Object.keys(novos).length) return
+    criar.mutate(
+      { titulo: titulo.trim(), url: url.trim() },
+      {
+        onSuccess: () => {
+          mostrarToast({ texto: 'Link adicionado.' })
+          setTitulo('')
+          setUrl('')
+          aoFechar()
+        },
+      },
+    )
+  }
 
   return (
-    <Cartao titulo="Anexos e links" icone="link">
-      {evento.anexos.length === 0 ? (
-        <Texto variante="legenda" cor="textoSuave">
-          Nenhum link ainda. Coloque aqui a letra das músicas, a lição ou o roteiro.
-        </Texto>
-      ) : (
-        evento.anexos.map((a) => (
-          <View key={a.id} style={{ gap: ESPACO.e4 }}>
-            <Linha
-              icone="link"
-              titulo={a.titulo}
-              descricao={a.url}
-              rotuloAcessivel={`Abrir o link ${a.titulo}`}
-              aoPressionar={() => void abrirLink(a.url)}
-            />
-            {gerenciar ? (
-              <Botao
-                titulo="Remover"
-                variante="terciario"
-                icone="excluir"
-                larguraTotal={false}
-                rotuloAcessivel={`Remover o link ${a.titulo}`}
-                aoPressionar={() => void remover.pedir(`anexos/${a.id}`, 'este link')}
-              />
-            ) : null}
-          </View>
-        ))
-      )}
-      {remover.error ? <AvisoDeErro erro={remover.error} /> : null}
-      {gerenciar ? (
-        <Expansivel titulo="Adicionar link">
-          {(fechar) => (
-            <>
-              <Campo
-                rotulo="Título"
-                value={titulo}
-                onChangeText={setTitulo}
-                erro={erros.titulo ?? null}
-                exemplo="Letras do louvor"
-                maxLength={120}
-              />
-              <Campo
-                rotulo="Link"
-                value={url}
-                onChangeText={setUrl}
-                erro={erros.url ?? null}
-                ajuda="Precisa começar com https://."
-                exemplo="https://"
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="url"
-                maxLength={2000}
-              />
-              {criar.error ? <AvisoDeErro erro={criar.error} /> : null}
-              <Botao
-                titulo="Salvar link"
-                carregando={criar.isPending}
-                aoPressionar={() => {
-                  const novos = {
-                    ...(titulo.trim() ? {} : { titulo: 'Dê um título ao link.' }),
-                    ...(/^https:\/\/\S+\.\S+/.test(url.trim())
-                      ? {}
-                      : { url: 'Use um link completo que comece com https://.' }),
-                  }
-                  setErros(novos)
-                  if (Object.keys(novos).length) return
-                  criar.mutate(
-                    { titulo: titulo.trim(), url: url.trim() },
-                    {
-                      onSuccess: () => {
-                        setTitulo('')
-                        setUrl('')
-                        fechar()
-                      },
-                    },
-                  )
-                }}
-              />
-            </>
-          )}
-        </Expansivel>
-      ) : null}
-    </Cartao>
+    <FolhaNaTela aberta={aberta} titulo="Adicionar link" aoFechar={aoFechar}>
+      <Campo
+        rotulo="Título"
+        value={titulo}
+        onChangeText={setTitulo}
+        erro={erros.titulo ?? null}
+        exemplo="Letras do louvor"
+        maxLength={120}
+      />
+      <Campo
+        rotulo="Link"
+        value={url}
+        onChangeText={setUrl}
+        erro={erros.url ?? null}
+        ajuda="Precisa começar com https://."
+        exemplo="https://"
+        autoCapitalize="none"
+        autoCorrect={false}
+        keyboardType="url"
+        maxLength={2000}
+      />
+      {criar.error ? <AvisoDeFalha erro={criar.error} titulo="O link não foi salvo" /> : null}
+      <Botao
+        titulo="Salvar link"
+        tamanho="grande"
+        larguraTotal
+        carregando={criar.isPending}
+        aoPressionar={salvar}
+      />
+    </FolhaNaTela>
   )
 }

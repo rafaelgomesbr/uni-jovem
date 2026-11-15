@@ -40,7 +40,8 @@ describe('Perfil, Segurança', () => {
     const chave = await screen.findByRole('switch', { name: 'Entrar com Face ID' })
     expect(screen.getByText('Desligado')).toBeOnTheScreen()
     await act(async () => {
-      await fireEvent(chave, 'valueChange', true)
+      // Interruptor (2.12.8): a linha inteira é o controle; tocar liga.
+      await fireEvent.press(chave)
     })
 
     await waitFor(() => expect(screen.getByText('Ligado')).toBeOnTheScreen())
@@ -59,7 +60,8 @@ describe('Perfil, Segurança', () => {
     })
     const chave = await screen.findByRole('switch', { name: 'Entrar com Face ID' })
     await act(async () => {
-      await fireEvent(chave, 'valueChange', true)
+      // Interruptor (2.12.8): a linha inteira é o controle; tocar liga.
+      await fireEvent.press(chave)
     })
     expect(
       await screen.findByText(

@@ -26,6 +26,7 @@ import { useGruposDoMais } from '../navegacao/mais'
 import { TelaDoApp } from '../navegacao/TelaDoApp'
 import { mensagemDePendencias } from '../offline/avisoAntesDeApagar'
 import { useOffline } from '../offline/ProvedorOffline'
+import { fotoDaConta, logoDaComunidade } from './imagens'
 
 /**
  * Segurança da conta (Face ID, contas conectadas, verificação em duas etapas,
@@ -198,7 +199,11 @@ export function TelaPerfil({ naPilha = false }: { naPilha?: boolean }) {
             return (
               <LinhaDeLista
                 key={c.id}
-                avatar={ativa ? { nome: c.nome } : { nome: c.nome, cor: c.cor }}
+                avatar={{
+                  nome: c.nome,
+                  dados: { foto: logoDaComunidade(c) },
+                  ...(ativa ? {} : { cor: c.cor }),
+                }}
                 titulo={c.nome}
                 descricao={descricao}
                 rotuloAcessivel={
@@ -236,6 +241,12 @@ export function TelaPerfil({ naPilha = false }: { naPilha?: boolean }) {
           titulo="Privacidade e dados"
           descricao="Exportar dados ou excluir a conta"
           aoPressionar={() => router.push('/privacidade')}
+        />
+        <LinhaDeLista
+          icone="anonimo"
+          titulo="Pessoas bloqueadas"
+          descricao="Quem você bloqueou e o que deixa de ver"
+          aoPressionar={() => router.push('/bloqueados')}
         />
         <LinhaDeLista
           icone="ajuda"
@@ -282,7 +293,10 @@ function Grupo({ titulo, children }: { titulo: string; children: ReactNode }) {
   )
 }
 
-/** Identidade (quadro 04): avatar de 72 com anel (toque troca o avatar), nome, e-mail e "Editar dados". */
+/**
+ * Identidade (quadro 04): avatar de 72 com anel (a foto, quando há; o toque
+ * troca o avatar), nome, e-mail e "Editar dados".
+ */
 function Identidade({ conta }: { conta: Conta }) {
   return (
     <CartaoDeVidro>
@@ -295,6 +309,7 @@ function Identidade({ conta }: { conta: Conta }) {
           <Avatar
             nome={conta.nome}
             avatar={conta.avatar ?? null}
+            foto={fotoDaConta(conta)}
             proprio
             tamanho="perfil"
             anel="perfil"

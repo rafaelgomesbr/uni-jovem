@@ -1,21 +1,22 @@
-import { ESPACO, RAIO } from '@uj/tokens'
+import { ESPACO } from '@uj/tokens'
 import type { ReactNode, Ref } from 'react'
 import { View } from 'react-native'
 
-import { usePreferenciasDeAcessibilidade } from '@/ui/acessibilidade'
-import { Cartao } from '@/ui/Cartao'
+import { CartaoDeDestaque as Destaque } from '@/ui/CartaoDeDestaque'
+import { Chip as ChipDeEstado, type TomDoChip } from '@/ui/Chip'
 import type { NoDeTexto } from '@/ui/foco'
-import { Icone, type NomeDoIcone } from '@/ui/Icone'
+import type { NomeDoIcone } from '@/ui/Icone'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
-import { useTema } from '@/ui/tema'
 import { soNaWeb } from '@/ui/web'
 
+export type { TomDoChip }
+
 /*
- * Composições da linguagem Aurora usadas pelas telas de Equipe e Plataforma,
- * montadas sobre `ui/` (Tela com fundo Aurora, Cartao de vidro e de destaque,
- * Texto "sobrancelha"). O que é só desta área (chip com tom, cabeçalho com
- * sobrancelha) fica aqui.
+ * Composições antigas das telas de Equipe e Plataforma. As telas desta área
+ * já usam os componentes de `ui/` direto (Tela com título, CartaoDeDestaque,
+ * Chip); o que fica aqui serve a quem ainda não migrou (Trocar de comunidade)
+ * e desenha com os mesmos componentes novos.
  */
 
 /** Rótulo curto em maiúsculas, coral, acima de um título ("sobrancelha"). */
@@ -32,7 +33,7 @@ interface PropsDoCabecalhoDeTela {
   acao?: ReactNode
 }
 
-/** Sobrancelha + título em Bricolage 800 + descrição: o topo das telas desta área. */
+/** Sobrancelha + título + descrição (legado: as telas novas passam o título para a `Tela`). */
 export function CabecalhoDeTela({
   sobrancelha,
   titulo,
@@ -45,10 +46,10 @@ export function CabecalhoDeTela({
       {sobrancelha ? <Sobrancelha>{sobrancelha}</Sobrancelha> : null}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e12 }}>
         <Texto
-          variante="display"
+          variante="tituloTela"
           ref={refDoTitulo}
           nivel={1}
-          style={{ flex: 1, letterSpacing: -0.5 }}
+          style={{ flex: 1 }}
           {...soNaWeb({ tabIndex: -1 })}
         >
           {titulo}
@@ -71,36 +72,19 @@ interface PropsDoDestaque {
   children?: ReactNode
 }
 
-/**
- * Cartão claro de destaque com título grande: a ação principal da tela (ex.:
- * Convidar pessoas). Dentro dele, texto, chips e botões usam a paleta do
- * destaque (contexto do `Cartao`), com os pares conferidos nos tokens.
- */
+/** O cartão de destaque de `ui/` com a ação principal como filho. */
 export function CartaoDeDestaque({ sobrancelha, titulo, descricao, children }: PropsDoDestaque) {
   return (
-    <Cartao variante="destaque" {...(sobrancelha ? { titulo: sobrancelha } : {})}>
-      <View style={{ gap: ESPACO.e4 }}>
-        <Texto variante="tituloTela" nivel={2} style={{ fontSize: 24, lineHeight: 30 }}>
-          {titulo}
-        </Texto>
-        {descricao ? (
-          <Texto variante="legenda" cor="textoSuave">
-            {descricao}
-          </Texto>
-        ) : null}
-      </View>
-      {children}
-    </Cartao>
+    <Destaque
+      {...(sobrancelha ? { sobrancelha } : {})}
+      titulo={titulo}
+      {...(descricao ? { descricao } : {})}
+      {...(children ? { acoes: <View style={{ gap: ESPACO.e8 }}>{children}</View> } : {})}
+    />
   )
 }
 
-export type TomDoChip = 'neutro' | 'destaque' | 'sucesso' | 'alerta' | 'erro'
-
-/**
- * Chip em pílula (papel, estado). O texto carrega o sentido; ícone e contorno
- * na cor do tom só reforçam (cor nunca é o único sinal). O texto fica sempre
- * na cor de texto, que passa AA sobre o fundo de realce nos dois temas.
- */
+/** Chip de estado (2.12.12), preenchido; o ícone opcional reforça o texto. */
 export function Chip({
   texto,
   icone,
@@ -110,32 +94,7 @@ export function Chip({
   icone?: NomeDoIcone
   tom?: TomDoChip
 }) {
-  const { cores } = useTema()
-  const { aumentarContraste } = usePreferenciasDeAcessibilidade()
-  const corDoTom = tom === 'neutro' ? cores.textoSuave : cores[tom]
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        alignSelf: 'flex-start',
-        gap: ESPACO.e4,
-        paddingHorizontal: 10,
-        paddingVertical: 3,
-        borderRadius: RAIO.pilula,
-        backgroundColor: cores.pressionado,
-        borderWidth: 1,
-        borderColor: aumentarContraste
-          ? cores.texto
-          : tom === 'neutro'
-            ? cores.separador
-            : corDoTom,
-      }}
-    >
-      {icone ? <Icone nome={icone} cor={corDoTom} tamanho={14} /> : null}
-      <Texto variante="rotulo">{texto}</Texto>
-    </View>
-  )
+  return <ChipDeEstado texto={texto} tom={tom} {...(icone ? { icone } : {})} />
 }
 
 /** Fila de chips que quebra linha. */
@@ -143,10 +102,7 @@ export function Chips({ children }: { children: ReactNode }) {
   return <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>{children}</View>
 }
 
-/**
- * Tela de pilha desta área: fundo Aurora e o botão Voltar em pílula de vidro
- * da `Tela` (a pilha não desenha cabeçalho nativo: `headerShown: false`).
- */
+/** Tela de pilha desta área, sem título próprio (legado). */
 export function TelaPropria({ children, larga }: { children: ReactNode; larga?: boolean }) {
   return (
     <Tela pilha {...(larga ? { larga } : {})}>

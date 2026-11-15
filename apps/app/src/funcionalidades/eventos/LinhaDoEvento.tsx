@@ -3,14 +3,23 @@ import { ESPACO, RAIO } from '@uj/tokens'
 import { Pressable, View } from 'react-native'
 
 import { usePreferenciasDeAcessibilidade } from '@/ui/acessibilidade'
+import { Chip } from '@/ui/Chip'
 import { Icone } from '@/ui/Icone'
+import { LinhaDeLista } from '@/ui/LinhaDeLista'
 import { ALVO } from '@/ui/medidas'
-import { Selo } from '@/ui/Selo'
 import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
-import { falarQuando, formatarDuracao, formatarHora, formatarQuando } from '@/utilidades/datas'
+import {
+  dataDoInstante,
+  DIAS_CURTOS,
+  diaDaSemana,
+  falarQuando,
+  formatarDuracao,
+  formatarHora,
+  formatarQuando,
+} from '@/utilidades/datas'
 
-import { COR_DO_STATUS, NOME_DO_STATUS } from './nomes'
+import { NOME_DO_STATUS, TOM_DO_STATUS } from './nomes'
 
 export interface EventoDaLinha {
   id: string
@@ -47,7 +56,67 @@ export function rotuloFaladoDoEvento(evento: EventoDaLinha, fuso: string): strin
     .join(', ')
 }
 
-/** Evento numa lista: título, quando, onde e situação, num só alvo de toque. */
+/** Situação em chip, só quando não está publicado (2.12.12). */
+export function ChipDoStatus({ status }: { status: StatusDoEvento }) {
+  const tom = TOM_DO_STATUS[status]
+  return tom ? <Chip texto={NOME_DO_STATUS[status]} tom={tom} /> : null
+}
+
+/** À direita da linha: o chip da situação e o ícone de repetir (série). */
+function ExtraDoEvento({ status, serie }: { status: StatusDoEvento; serie: boolean }) {
+  const { cores } = useTema()
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}>
+      <ChipDoStatus status={status} />
+      {serie ? <Icone nome="repetir" cor={cores.textoSuave} tamanho={14} /> : null}
+    </View>
+  )
+}
+
+/**
+ * Evento numa linha de cartão lista (3.4.1 e quadro 01c): bloco de data (dia
+ * e dia da semana), título, "16:00 · 60 min · Salão", chip quando não está
+ * publicado, ícone de repetir quando é de série e o chevron. Devolve a
+ * própria `LinhaDeLista` (com a chave), para a `Lista` recuar o separador.
+ */
+export function linhaDoEventoNaLista({
+  evento,
+  fuso,
+  aoPressionar,
+  selecionado,
+}: Omit<PropsDaLinha, 'soHora'>) {
+  const dia = dataDoInstante(evento.inicio, fuso)
+  const descricao = [
+    formatarHora(evento.inicio, fuso),
+    formatarDuracao(evento.duracaoMin),
+    evento.localNome ?? null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+  const falado = [rotuloFaladoDoEvento(evento, fuso), selecionado ? 'aberto ao lado' : null]
+    .filter(Boolean)
+    .join(', ')
+  const temChip = TOM_DO_STATUS[evento.status] !== null
+  return (
+    <LinhaDeLista
+      key={evento.id}
+      data={{ dia: String(Number(dia.slice(8, 10))), mes: DIAS_CURTOS[diaDaSemana(dia)] ?? '' }}
+      titulo={evento.titulo}
+      descricao={descricao}
+      rotuloAcessivel={falado}
+      {...(selecionado !== undefined ? { selecionado } : {})}
+      {...(temChip || evento.serieId
+        ? { extra: <ExtraDoEvento status={evento.status} serie={!!evento.serieId} /> }
+        : {})}
+      aoPressionar={aoPressionar}
+    />
+  )
+}
+
+/**
+ * Evento solto, fora de cartão lista (Agenda). As listas novas usam
+ * `LinhaDoEventoNaLista` dentro de um `CartaoDeVidro lista`.
+ */
 export function LinhaDoEvento({ evento, fuso, aoPressionar, selecionado, soHora }: PropsDaLinha) {
   const { cores } = useTema()
   const { aumentarContraste } = usePreferenciasDeAcessibilidade()
@@ -74,8 +143,8 @@ export function LinhaDoEvento({ evento, fuso, aoPressionar, selecionado, soHora 
         alignItems: 'center',
         gap: ESPACO.e12,
         padding: ESPACO.e16,
-        borderRadius: RAIO.cartao - 4,
-        borderWidth: selecionado ? 2 : aumentarContraste ? 2 : 1,
+        borderRadius: RAIO.cartao,
+        borderWidth: selecionado || aumentarContraste ? 2 : 1,
         borderColor: selecionado
           ? cores.destaque
           : aumentarContraste
@@ -89,12 +158,10 @@ export function LinhaDoEvento({ evento, fuso, aoPressionar, selecionado, soHora 
         <Texto variante="legenda" cor="textoSuave">
           {detalhes.join(' · ')}
         </Texto>
-        {evento.status !== 'publicado' ? (
-          <Selo texto={NOME_DO_STATUS[evento.status]} cor={COR_DO_STATUS[evento.status]} />
-        ) : null}
+        <ChipDoStatus status={evento.status} />
       </View>
       {evento.serieId ? <Icone nome="repetir" cor={cores.textoSuave} tamanho={18} /> : null}
-      <Icone nome="avancar" cor={cores.textoSuave} tamanho={18} />
+      <Icone nome="avancar" cor={cores.textoSuave} tamanho={14} peso="semibold" />
     </Pressable>
   )
 }

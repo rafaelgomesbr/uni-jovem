@@ -1,44 +1,58 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { NOME_DO_PAPEL } from '@uj/dominio'
-import { ESPACO, RAIO } from '@uj/tokens'
+import { ALTURA, BORDA, ESPACO, RAIO, TAMANHO_DO_AVATAR } from '@uj/tokens'
 import { router } from 'expo-router'
+import { Fragment } from 'react'
 import { Pressable, View } from 'react-native'
 
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { useSessao } from '@/estado/sessao'
 import type { ComunidadeDoVinculo } from '@/servicos/contrato'
-import { usePreferenciasDeAcessibilidade } from '@/ui/acessibilidade'
-import { Botao } from '@/ui/Botao'
-import { Cartao } from '@/ui/Cartao'
+import { Avatar } from '@/ui/Avatar'
+import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { Chip } from '@/ui/Chip'
 import { EstadoVazio } from '@/ui/EstadoVazio'
-import { Icone } from '@/ui/Icone'
+import { Folha } from '@/ui/Folha'
+import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
+import { Radio } from '@/ui/ListaDeOpcoes'
 import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
+import { mostrarToast } from '@/ui/Toast'
 
-import { MarcaDaComunidade } from './Identidade'
-import { CHIP_DO_ESTADO_DA_COMUNIDADE, CHIP_DO_PAPEL, NOME_DO_ESTADO_DA_COMUNIDADE } from './nomes'
-import { CabecalhoDeTela, Chip, Chips, TelaPropria } from './visual'
+import { logoDaComunidade } from '../perfil/imagens'
+import { CHIP_DO_ESTADO_DA_COMUNIDADE, NOME_DO_ESTADO_DA_COMUNIDADE } from './nomes'
 
-/** Seletor explícito da comunidade ativa, com a identidade e o papel em cada uma. */
+/** Fecha a folha: volta para quem abriu ou, aberta por link, para o Início. */
+function fechar() {
+  if (router.canGoBack()) router.back()
+  else router.replace('/')
+}
+
+/**
+ * Folha "Trocar de comunidade" (3.7.9): lista de opções com o avatar de 40
+ * (logotipo ou iniciais na cor) no lugar do rádio, que fica à direita; o anel
+ * do avatar e o rádio marcado mostram a atual. O toque troca, fecha a folha e
+ * confirma com o toast "Agora em ...".
+ */
 export function TelaTrocarComunidade() {
   const { comunidades, comunidadeAtiva, trocarComunidade, conta } = useSessao()
   const consultas = useQueryClient()
+  const { cores } = useTema()
 
-  async function escolher(id: string) {
-    await trocarComunidade(id)
-    if (router.canGoBack()) router.back()
-    else router.replace('/')
+  async function escolher(c: ComunidadeDoVinculo) {
+    const jaEra = c.id === comunidadeAtiva?.id
+    await trocarComunidade(c.id)
+    fechar()
+    if (!jaEra) mostrarToast({ texto: `Agora em ${c.nome}` })
   }
 
   return (
-    <TelaPropria>
-      <CabecalhoDeTela
-        sobrancelha="Suas comunidades"
-        titulo="Trocar de comunidade"
-        descricao="O que você vê e faz no app vale para a comunidade escolhida."
-      />
-      {comunidades.length === 0 ? (
-        <Cartao>
+    <View style={{ flex: 1, backgroundColor: cores.superficieElevada }}>
+      <Folha titulo="Trocar de comunidade" aoFechar={fechar}>
+        <Texto variante="corpo" cor="textoSuave">
+          O que você vê e faz no app vale para a comunidade escolhida.
+        </Texto>
+        {comunidades.length === 0 ? (
           <EstadoVazio
             icone="comunidade"
             titulo="Nenhuma comunidade ainda"
@@ -49,38 +63,57 @@ export function TelaTrocarComunidade() {
               aoPressionar: () => void consultas.invalidateQueries({ queryKey: CHAVES.eu }),
             }}
           />
-        </Cartao>
-      ) : (
-        <View
-          accessibilityRole="radiogroup"
-          aria-label="Suas comunidades"
-          style={{ gap: ESPACO.e12 }}
-        >
-          {comunidades.map((c) => (
-            <OpcaoDeComunidade
-              key={c.id}
-              comunidade={c}
-              ativa={c.id === comunidadeAtiva?.id}
-              aoEscolher={() => void escolher(c.id)}
+        ) : (
+          // Cartão com o padding de 18 dele: o texto das linhas fica na coluna do cartão (x=38).
+          <CartaoDeVidro opaco intervalo={0} style={{ paddingVertical: ESPACO.e4 }}>
+            <View accessibilityRole="radiogroup" aria-label="Suas comunidades">
+              {comunidades.map((c, i) => (
+                <Fragment key={c.id}>
+                  {i > 0 ? <Separador /> : null}
+                  <OpcaoDeComunidade
+                    comunidade={c}
+                    ativa={c.id === comunidadeAtiva?.id}
+                    aoEscolher={() => void escolher(c)}
+                  />
+                </Fragment>
+              ))}
+            </View>
+          </CartaoDeVidro>
+        )}
+        <CartaoDeVidro lista opaco>
+          <Lista>
+            <LinhaDeLista
+              icone="link"
+              titulo="Entrar com um convite"
+              descricao="Cole o link que você recebeu."
+              aoPressionar={() => router.push('/entrar-com-convite')}
             />
-          ))}
-        </View>
-      )}
-      <Botao
-        titulo="Entrar com um convite"
-        icone="link"
-        variante="secundario"
-        aoPressionar={() => router.push('/entrar-com-convite')}
-      />
-      {conta?.criador ? (
-        <Botao
-          titulo="Criar comunidade"
-          icone="adicionar"
-          variante="terciario"
-          aoPressionar={() => router.push('/plataforma/nova')}
-        />
-      ) : null}
-    </TelaPropria>
+            {conta?.criador ? (
+              <LinhaDeLista
+                icone="adicionar"
+                titulo="Criar comunidade"
+                descricao="Só o Criador da plataforma cria comunidades."
+                aoPressionar={() => router.push('/plataforma/nova')}
+              />
+            ) : null}
+          </Lista>
+        </CartaoDeVidro>
+      </Folha>
+    </View>
+  )
+}
+
+/** Separador de 1 recuado até o texto (avatar de 40 + 12), como nas linhas de pessoa. */
+function Separador() {
+  const { cores } = useTema()
+  return (
+    <View
+      style={{
+        height: BORDA.fina,
+        marginLeft: TAMANHO_DO_AVATAR.linha + ESPACO.e12,
+        backgroundColor: cores.separador,
+      }}
+    />
   )
 }
 
@@ -93,56 +126,52 @@ function OpcaoDeComunidade({
   ativa: boolean
   aoEscolher: () => void
 }) {
-  const { cores, elevacao } = useTema()
-  const { aumentarContraste } = usePreferenciasDeAcessibilidade()
+  const { cores } = useTema()
   const papel = NOME_DO_PAPEL[comunidade.papel]
   const estado = NOME_DO_ESTADO_DA_COMUNIDADE[comunidade.estado]
   return (
     <Pressable
       accessibilityRole="radio"
-      accessibilityState={{ checked: ativa }}
       aria-checked={ativa}
       accessibilityLabel={`${comunidade.nome}. Seu papel: ${papel}.${
         comunidade.estado !== 'ativa' ? ` ${estado}.` : ''
       }${ativa ? ' Comunidade ativa agora.' : ''}`}
       onPress={aoEscolher}
       style={({ pressed }) => ({
+        minHeight: ALTURA.linha,
         flexDirection: 'row',
         alignItems: 'center',
         gap: ESPACO.e12,
-        padding: ESPACO.e16,
-        borderRadius: RAIO.cartao,
-        backgroundColor: pressed || ativa ? cores.pressionado : cores.superficie,
-        // Escolhida: contorno grosso na cor de destaque, marca e texto (nunca só cor).
-        borderWidth: ativa || aumentarContraste ? 2 : 1,
-        borderColor: ativa ? cores.destaque : aumentarContraste ? cores.texto : cores.separador,
-        boxShadow: aumentarContraste ? elevacao.nenhuma : elevacao.cartao,
+        paddingVertical: ESPACO.e8,
+        // O pressionado sangra 12 para fora da coluna, como a linha de pessoa.
+        marginHorizontal: -ESPACO.e12,
+        paddingHorizontal: ESPACO.e12,
+        borderRadius: RAIO.controle,
+        backgroundColor: pressed ? cores.pressionado : 'transparent',
       })}
     >
-      <MarcaDaComunidade cor={comunidade.cor} tamanho={48} />
+      <Avatar
+        nome={comunidade.nome}
+        cor={comunidade.cor}
+        foto={logoDaComunidade(comunidade)}
+        tamanho="linha"
+        {...(ativa ? { anel: 'ativo' as const } : {})}
+        decorativo
+      />
       <View style={{ flex: 1, gap: ESPACO.e4 }}>
         <Texto variante="tituloItem">{comunidade.nome}</Texto>
-        <Chips>
+        <Texto variante="legenda" cor="textoSuave">
+          {ativa ? `${papel} · em uso agora` : papel}
+        </Texto>
+        {comunidade.estado !== 'ativa' ? (
           <Chip
-            texto={papel}
-            icone={CHIP_DO_PAPEL[comunidade.papel].icone}
-            tom={CHIP_DO_PAPEL[comunidade.papel].tom}
+            texto={estado}
+            icone={CHIP_DO_ESTADO_DA_COMUNIDADE[comunidade.estado].icone}
+            tom={CHIP_DO_ESTADO_DA_COMUNIDADE[comunidade.estado].tom}
           />
-          {comunidade.estado !== 'ativa' ? (
-            <Chip
-              texto={estado}
-              icone={CHIP_DO_ESTADO_DA_COMUNIDADE[comunidade.estado].icone}
-              tom={CHIP_DO_ESTADO_DA_COMUNIDADE[comunidade.estado].tom}
-            />
-          ) : null}
-          {ativa ? <Chip texto="Ativa agora" icone="confirmado" tom="destaque" /> : null}
-        </Chips>
+        ) : null}
       </View>
-      <Icone
-        nome={ativa ? 'confirmado' : 'pendente'}
-        cor={ativa ? cores.destaque : cores.textoSuave}
-        tamanho={24}
-      />
+      <Radio marcado={ativa} />
     </Pressable>
   )
 }

@@ -78,9 +78,8 @@ describe('tela do versículo', () => {
     await renderizarTela(<TelaVersiculo />, {
       rotas: { 'GET /api/v1/eu/notificacoes': () => ({ status: 200, corpo: PREFERENCIAS }) },
     })
-    expect(
-      await screen.findByRole('checkbox', { name: 'Receber o versículo do dia' }),
-    ).toBeChecked()
+    // Liga e desliga é interruptor (2.12.8), não caixa de marcar.
+    expect(await screen.findByRole('switch', { name: 'Receber todo dia' })).toBeChecked()
     expect(await screen.findByText('Ligado no app, bloqueado no sistema')).toBeOnTheScreen()
     expect(screen.getByRole('button', { name: 'Abrir os Ajustes do aparelho' })).toBeOnTheScreen()
   })
@@ -108,13 +107,42 @@ describe('tela do versículo', () => {
         }),
       },
     })
-    await fireEvent.changeText(await screen.findByLabelText('Horário'), '21h30')
-    await fireEvent.press(screen.getByRole('button', { name: 'Salvar horário' }))
+    // Nada digitado: o horário vem do seletor nativo e salva ao escolher, sem botão.
+    await fireEvent.press(await screen.findByRole('button', { name: 'Horário: 07:00' }))
+    expect(screen.queryByRole('button', { name: 'Salvar horário' })).toBeNull()
+    await fireEvent(
+      screen.getByTestId('seletor-de-data'),
+      'valueChange',
+      {},
+      new Date(2026, 10, 15, 21, 30),
+    )
     await waitFor(() =>
       expect(pedidosPara(servidor, 'PUT', '/api/v1/eu/notificacoes')[0]?.corpo).toEqual({
         versiculoHora: '21:30',
       }),
     )
+    // Só o horário final vai para a conta.
+    expect(pedidosPara(servidor, 'PUT', '/api/v1/eu/notificacoes')).toHaveLength(1)
+  })
+
+  test('desligar o versículo salva na conta', async () => {
+    permissaoDoSistema(2)
+    const { servidor } = await renderizarTela(<TelaVersiculo />, {
+      rotas: {
+        'GET /api/v1/eu/notificacoes': () => ({ status: 200, corpo: PREFERENCIAS }),
+        'PUT /api/v1/eu/notificacoes': () => ({
+          status: 200,
+          corpo: { versiculo: { ativo: false, hora: '07:00' } },
+        }),
+      },
+    })
+    await fireEvent.press(await screen.findByRole('switch', { name: 'Receber todo dia' }))
+    await waitFor(() =>
+      expect(pedidosPara(servidor, 'PUT', '/api/v1/eu/notificacoes')[0]?.corpo).toEqual({
+        versiculoAtivo: false,
+      }),
+    )
+    expect(await screen.findByRole('switch', { name: 'Receber todo dia' })).not.toBeChecked()
   })
 
   test('"Sobre a tradução" traz o crédito completo da licença', async () => {

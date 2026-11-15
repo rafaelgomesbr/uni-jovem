@@ -43,8 +43,9 @@ describe('mapa da missão', () => {
       })
       const etapas = ETAPAS_POR_PAPEL[papel]
       for (let i = 0; i < etapas.length; i++) {
+        // "PASSO 2 DE 5" acima do título (3.7.7), maiúsculas só no estilo.
         expect(
-          await screen.findByText(`Etapa ${i + 1} de ${etapas.length}`, { exact: false }),
+          await screen.findByText(`Passo ${i + 1} de ${etapas.length}`, { exact: false }),
         ).toBeOnTheScreen()
         await usarAsDemonstracoes()
         await fireEvent.press(

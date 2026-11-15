@@ -2,13 +2,20 @@ import type { Papel } from '@uj/dominio'
 import type { Paleta } from '@uj/tokens'
 
 import type { ConviteDaComunidade, EstadoDaComunidade, EstadoDoVinculo } from '@/servicos/contrato'
+import type { TomDoChip } from '@/ui/Chip'
 import type { NomeDoIcone } from '@/ui/Icone'
-
-import type { TomDoChip } from './visual'
 
 export const NOME_DO_ESTADO_DA_COMUNIDADE: Readonly<Record<EstadoDaComunidade, string>> = {
   ativa: 'Ativa',
   suspensa: 'Suspensa (somente leitura)',
+  arquivada: 'Arquivada',
+  exclusao_agendada: 'Exclusão agendada',
+}
+
+/** Em chip: uma ou duas palavras (2.12.12). */
+export const NOME_CURTO_DO_ESTADO_DA_COMUNIDADE: Readonly<Record<EstadoDaComunidade, string>> = {
+  ativa: 'Ativa',
+  suspensa: 'Suspensa',
   arquivada: 'Arquivada',
   exclusao_agendada: 'Exclusão agendada',
 }
@@ -49,27 +56,28 @@ export const DESCRICAO_DO_PAPEL: Readonly<Record<Papel, string>> = {
   membro: 'Participa, vê a agenda, confirma escalas e faz inscrições.',
 }
 
+/** Papel em chip (quadro 08): Administrador quente, Organizador info, Membro neutro. */
 export const CHIP_DO_PAPEL: Readonly<Record<Papel, { tom: TomDoChip; icone: NomeDoIcone }>> = {
-  admin: { tom: 'destaque', icone: 'chave' },
-  organizador: { tom: 'neutro', icone: 'tarefas' },
+  admin: { tom: 'quente', icone: 'chave' },
+  organizador: { tom: 'info', icone: 'tarefas' },
   membro: { tom: 'neutro', icone: 'pessoa' },
 }
 
 type SituacaoDoConviteDaLista = ConviteDaComunidade['situacao']
 
-/** Nome da situação do convite na tela. "Válido" aparece como "Pendente": ninguém usou ainda. */
+/** Nome da situação do convite na tela (quadro 08b). Revogado aparece como "Cancelado". */
 export const NOME_DA_SITUACAO_DO_CONVITE: Readonly<Record<SituacaoDoConviteDaLista, string>> = {
-  valido: 'Pendente',
+  valido: 'Válido',
   expirado: 'Vencido',
-  revogado: 'Revogado',
+  revogado: 'Cancelado',
   usado: 'Usado',
 }
 
 export const CHIP_DA_SITUACAO_DO_CONVITE: Readonly<
   Record<SituacaoDoConviteDaLista, { tom: TomDoChip; icone: NomeDoIcone }>
 > = {
-  valido: { tom: 'destaque', icone: 'relogio' },
-  usado: { tom: 'sucesso', icone: 'confirmado' },
+  valido: { tom: 'sucesso', icone: 'relogio' },
+  usado: { tom: 'neutro', icone: 'confirmado' },
   revogado: { tom: 'erro', icone: 'cancelar' },
   expirado: { tom: 'neutro', icone: 'pendente' },
 }

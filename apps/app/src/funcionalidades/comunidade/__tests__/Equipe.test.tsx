@@ -1,7 +1,8 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react-native'
+import { fireEvent, screen, userEvent, waitFor } from '@testing-library/react-native'
 import { useLocalSearchParams } from 'expo-router'
 
 import { BASE, PESSOAS, pedidosPara, renderizarTela, respostaEu } from '@/testes/telas'
+import { mostrarToast } from '@/ui/Toast'
 import { confirmar } from '@/utilidades/confirmar'
 
 import { TelaComunidade } from '../TelaComunidade'
@@ -21,6 +22,12 @@ jest.mock('expo-router', () => ({
 
 jest.mock('@/utilidades/confirmar', () => ({ confirmar: jest.fn(async () => true) }))
 
+// As confirmações vão em toast: o teste confere o que foi pedido.
+jest.mock('@/ui/Toast', () => ({
+  ...jest.requireActual('@/ui/Toast'),
+  mostrarToast: jest.fn(),
+}))
+
 const TOKEN = 'a'.repeat(43)
 const LINK = `https://app.exemplo/convite#t=${TOKEN}`
 
@@ -36,6 +43,7 @@ function euComoCriador(comComunidade: boolean) {
 }
 
 beforeEach(() => {
+  jest.mocked(mostrarToast).mockClear()
   jest.mocked(confirmar).mockReset()
   jest.mocked(useLocalSearchParams).mockReturnValue({})
 })
@@ -51,10 +59,12 @@ describe('aba Equipe', () => {
 
   test('o membro não vê "Criar comunidade" nem convites', async () => {
     await renderizarTela(<TelaComunidade />, { papel: 'membro' })
-    expect(await screen.findByText('Membros (3)')).toBeOnTheScreen()
+    expect(await screen.findByText('Você é Membro · 3 pessoas')).toBeOnTheScreen()
+    expect(screen.getByText('Bruno Lima')).toBeOnTheScreen()
     expect(screen.queryByRole('button', { name: 'Criar comunidade' })).toBeNull()
     // Membro não convida nem vê a lista de convites.
-    expect(screen.queryByRole('button', { name: /^Convidar pessoas/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Criar convite/ })).toBeNull()
+    expect(screen.queryByRole('radio', { name: /^Convites/ })).toBeNull()
   })
 
   test('o Criador sem comunidade vê como criar a primeira e entrar com convite', async () => {
@@ -74,11 +84,14 @@ describe('aba Equipe', () => {
       rotas: { [`GET ${BASE}/convites`]: () => ({ status: 200, corpo: { convites: [] } }) },
     })
     expect(
-      await screen.findByRole('button', { name: 'Convidar pessoas para Jovens Centro' }),
+      await screen.findByRole('button', { name: 'Criar convite para Jovens Centro' }),
     ).toBeOnTheScreen()
+    // Papel em chip: Administrador, Organizador e Membro, em texto.
+    expect(await screen.findByText('Bruno Lima')).toBeOnTheScreen()
+    expect(screen.getAllByText('Membro').length).toBeGreaterThan(0)
+    await userEvent.setup().press(screen.getByRole('radio', { name: /^Convites/ }))
     expect(await screen.findByText('Ainda não há convites')).toBeOnTheScreen()
     expect(screen.getByRole('button', { name: 'Convidar a primeira pessoa' })).toBeOnTheScreen()
-    expect(screen.getByText('Bruno Lima')).toBeOnTheScreen()
   })
 })
 
@@ -123,15 +136,17 @@ describe('convites', () => {
     expect(await screen.findByRole('button', { name: 'Copiar link' })).toBeOnTheScreen()
     expect(screen.getByRole('button', { name: 'Compartilhar' })).toBeOnTheScreen()
     expect(screen.getByText(LINK)).toBeOnTheScreen()
-    expect(screen.getByLabelText('QR com o link do convite')).toBeOnTheScreen()
     expect(screen.getByText(/Vale até/)).toBeOnTheScreen()
+    // O QR aparece sob pedido, para quem está ao lado.
+    await fireEvent.press(screen.getByRole('button', { name: 'Mostrar o QR' }))
+    expect(screen.getByLabelText('QR com o link do convite')).toBeOnTheScreen()
     expect(pedidosPara(servidor, 'POST', `${BASE}/convites`)[0]?.corpo).toEqual({
       papel: 'membro',
       validadeDias: 7,
     })
   })
 
-  test('revogar pede confirmação antes de chamar a API', async () => {
+  test('cancelar o convite pede confirmação antes de chamar a API', async () => {
     const { servidor } = await renderizarTela(<TelaComunidade />, {
       papel: 'admin',
       rotas: {
@@ -153,27 +168,34 @@ describe('convites', () => {
         [`POST ${BASE}/convites/c1/revogar`]: () => ({ status: 200, corpo: { ok: true } }),
       },
     })
-    const revogar = await screen.findByRole('button', {
-      name: 'Revogar convite de Organizador. Para lia@exemplo.com',
+    const usuario = userEvent.setup()
+    await usuario.press(await screen.findByRole('radio', { name: 'Convites (1)' }))
+    const convite = await screen.findByRole('button', {
+      name: /^Convite de Organizador\. Válido\. Para lia@exemplo\.com/,
     })
-    expect(screen.getByText('Pendente')).toBeOnTheScreen()
+    expect(screen.getByText('Válido')).toBeOnTheScreen()
 
+    // Tocar no convite abre a folha; "Cancelar convite" pede a confirmação nativa.
     jest.mocked(confirmar).mockResolvedValueOnce(false)
-    await fireEvent.press(revogar)
+    await usuario.press(convite)
+    await usuario.press(await screen.findByRole('button', { name: /^Cancelar convite/ }))
     await waitFor(() => expect(confirmar).toHaveBeenCalledTimes(1))
     expect(jest.mocked(confirmar).mock.calls[0]?.[0]).toMatchObject({
-      titulo: 'Revogar este convite?',
+      titulo: 'Cancelar este convite?',
       destrutivo: true,
     })
     expect(pedidosPara(servidor, 'POST', `${BASE}/convites/c1/revogar`)).toHaveLength(0)
 
     jest.mocked(confirmar).mockResolvedValueOnce(true)
-    await fireEvent.press(revogar)
+    await usuario.press(convite)
+    await usuario.press(await screen.findByRole('button', { name: /^Cancelar convite/ }))
     await waitFor(() =>
       expect(pedidosPara(servidor, 'POST', `${BASE}/convites/c1/revogar`)).toHaveLength(1),
     )
-    expect(
-      await screen.findByText('Convite revogado. O link deixou de funcionar.'),
-    ).toBeOnTheScreen()
+    await waitFor(() =>
+      expect(mostrarToast).toHaveBeenCalledWith({
+        texto: 'Convite cancelado. O link deixou de funcionar.',
+      }),
+    )
   })
 })
