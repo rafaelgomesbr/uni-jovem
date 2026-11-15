@@ -177,12 +177,87 @@ export function registrarRotasDeInscricoes(app: FastifyInstance, api: pg.Pool): 
     })
   })
 
+  /** Inscrição da própria pessoa. Idempotente: repetir devolve a inscrição existente. */
   app.post(`${ev}/inscricoes/eu`, naCom, async (pedido) => {
     exigir(pedido, 'inscricao', 'inscrever_se', { proprio: true })
     const eventoId = idDoCaminho(pedido, 'eventoId')
     return tx(pedido, async (c) => {
-      const { rows } = await c.query('select * from uj.inscrever_membro($1)', [eventoId])
+      const { rows } = await c.query<{
+        inscricaoId: string
+        estado: string
+        codigoCheckin: string
+      }>(
+        `select inscricao_id as "inscricaoId", estado, codigo_checkin as "codigoCheckin"
+           from uj.inscrever_membro($1)`,
+        [eventoId],
+      )
       return rows[0]
+    })
+  })
+
+  /**
+   * As minhas inscrições nesta comunidade (cartão do Início). Por padrão, só
+   * as ativas (confirmada ou espera) de eventos que ainda não terminaram;
+   * `periodo=todas` traz também as canceladas e as de eventos passados.
+   * A RLS já limita ao próprio vínculo e aos eventos que a pessoa vê.
+   */
+  app.get('/api/v1/c/:comunidadeId/inscricoes/eu', naCom, async (pedido) => {
+    exigir(pedido, 'inscricao', 'ler_proprias', { proprio: true })
+    const q = validar(
+      z.object({ periodo: z.enum(['proximas', 'todas']).default('proximas') }),
+      pedido.query,
+    )
+    return tx(pedido, async (c) => {
+      const { rows } = await c.query<{
+        inscricaoId: string
+        estado: string
+        codigoCheckin: string
+        criadaEm: Date
+        presente: boolean
+        eventoId: string
+        eventoTitulo: string
+        eventoInicio: Date
+        eventoDuracaoMin: number
+        eventoFuso: string
+        eventoStatus: string
+        localNome: string | null
+      }>(
+        `select i.id as "inscricaoId", i.estado, i.codigo_checkin as "codigoCheckin",
+                i.criado_em as "criadaEm",
+                exists (select 1 from uj.presencas p where p.inscricao_id = i.id) as presente,
+                e.id as "eventoId", e.titulo as "eventoTitulo", e.inicio as "eventoInicio",
+                e.duracao_min as "eventoDuracaoMin", e.fuso as "eventoFuso",
+                e.status as "eventoStatus", l.nome as "localNome"
+           from uj.inscricoes i
+           join uj.eventos e on e.id = i.evento_id
+           left join uj.locais l on l.id = e.local_id
+          where i.comunidade_id = $1
+            and i.vinculo_id = (select uj.vinculo_da_conta_no_contexto())
+            and ($2::boolean or (i.estado in ('confirmada', 'espera')
+                 and e.inicio + make_interval(mins => e.duracao_min) > now()))
+          order by case when $2::boolean then null else e.inicio end,
+                   e.inicio desc
+          limit 100`,
+        [pedido.comunidade!.id, q.periodo === 'todas'],
+      )
+      return {
+        inscricoes: rows.map((r) => ({
+          inscricaoId: r.inscricaoId,
+          estado: r.estado,
+          codigoCheckin: r.codigoCheckin,
+          criadaEm: r.criadaEm,
+          presente: r.presente,
+          evento: {
+            id: r.eventoId,
+            titulo: r.eventoTitulo,
+            inicio: r.eventoInicio,
+            duracaoMin: r.eventoDuracaoMin,
+            fuso: r.eventoFuso,
+            status: r.eventoStatus,
+            localNome: r.localNome,
+          },
+        })),
+      }
     })
   })
 

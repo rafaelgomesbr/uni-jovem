@@ -1,3 +1,4 @@
+import { NOME_DO_APP } from '@uj/dominio'
 import type { FastifyInstance, FastifyReply } from 'fastify'
 import type pg from 'pg'
 import { z } from 'zod'
@@ -24,8 +25,10 @@ import { exigir, idDoCaminho, naComunidade } from './contexto.ts'
  */
 
 const LEIA_ME = [
-  'Cópia dos seus dados no Uni Jovem, gerada a seu pedido.',
-  'conta: seus dados de cadastro (sem senha nem segredo do autenticador).',
+  `Cópia dos seus dados no ${NOME_DO_APP}, gerada a seu pedido.`,
+  'conta: seus dados de cadastro e o avatar (sem senha nem segredo do autenticador).',
+  'conta.foto: sua foto de perfil, se houver; a imagem (WebP) está em conteudoBase64.',
+  'contasConectadas: contas do Google ou da Apple ligadas à sua, com o e-mail que elas informaram.',
   'consentimentos: o que você aceitou, com a versão do texto e a data.',
   'comunidades: seus vínculos, inclusive os encerrados que ainda estão ligados a você.',
   'escalas, substituicoes, disponibilidades, inscricoes, presencas: sua participação.',
@@ -61,13 +64,45 @@ export function registrarRotasDePrivacidade(
     if (!limExportar.tentar(contaId)) muitas(resposta, limExportar, contaId)
     const dados = await emTransacao(d.api, { contaId, comunidadeId: null }, async (c) => {
       try {
-        return (
+        const tudo = (
           await c.query<{ d: Record<string, unknown> }>('select uj.exportar_meus_dados() as d')
         ).rows[0]!.d
+        const avatar = (
+          await c.query<{ icone: string | null; cor: string | null }>(
+            'select avatar_icone as icone, avatar_cor as cor from uj.contas where id = $1',
+            [contaId],
+          )
+        ).rows[0]
+        if (tudo['conta'] && typeof tudo['conta'] === 'object') {
+          const conta = tudo['conta'] as Record<string, unknown>
+          conta['avatar'] = avatar?.icone ? avatar : null
+          // A foto vai inteira, em base64: o arquivo exportado não depende de
+          // link nem de sessão para ser aberto depois (D33).
+          const foto = (
+            await c.query<{ conteudo: Buffer }>(
+              'select conteudo from uj.fotos_contas where conta_id = $1',
+              [contaId],
+            )
+          ).rows[0]
+          if (foto && conta['foto'] && typeof conta['foto'] === 'object') {
+            ;(conta['foto'] as Record<string, unknown>)['conteudoBase64'] =
+              foto.conteudo.toString('base64')
+          }
+        }
+        return tudo
       } catch (e) {
         traduzirErroDoBanco(e)
       }
     })
+    // Vínculos de provedor só o papel de identidade lê (uj_auth): sub e token ficam fora.
+    dados['contasConectadas'] = (
+      await d.auth.query(
+        `select provedor, email_informado as email, criado_em as "conectadaEm",
+                ultimo_uso_em as "ultimoUso", desconectado_em as "desconectadaEm"
+           from uj.contas_provedores where conta_id = $1 order by provedor`,
+        [contaId],
+      )
+    ).rows
     const pedidos = (dados['pedidosDeOracao'] as Record<string, unknown>[] | undefined) ?? []
     dados['pedidosDeOracao'] = pedidos.map(({ textoCifrado, ...resto }) => {
       let texto: string | null

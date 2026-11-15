@@ -3,6 +3,18 @@ import { z } from 'zod'
 import { verificarAcesso, type ConteudoDoAcesso } from '../autenticacao/jwt.ts'
 import { Limitador, truncarIp } from '../autenticacao/limitador.ts'
 import {
+  PROVEDORES,
+  TokensJaUsados,
+  type Provedor,
+  type VerificadorDeProvedores,
+} from '../autenticacao/provedores.ts'
+import {
+  conectarProvedor,
+  desconectarProvedor,
+  entrarComProvedor,
+  listarProvedores,
+} from '../autenticacao/servicoDeProvedores.ts'
+import {
   aceitarConviteComConta,
   concluirCadastroPorConvite,
   concluirPrimeiroAcesso,
@@ -26,7 +38,7 @@ import {
   type DependenciasAuth,
   type SessaoAberta,
 } from '../autenticacao/servico.ts'
-import { ErroHttp, validar } from '../http.ts'
+import { ErroHttp, NAO_ENCONTRADO, validar } from '../http.ts'
 import {
   MENSAGEM_SEM_CONSENTIMENTO_DE_FE,
   MENSAGEM_SEM_RESPONSAVEL,
@@ -94,6 +106,8 @@ function criarLimitadores(fatorIp = 1) {
     primeiroAcessoIp: new Limitador(10 * fatorIp, 60 * min),
     totpIp: new Limitador(20 * fatorIp, 15 * min),
     renovarIp: new Limitador(120 * fatorIp, 15 * min),
+    provedorIp: new Limitador(30 * fatorIp, 15 * min),
+    conectarIp: new Limitador(20 * fatorIp, 15 * min),
   }
 }
 
@@ -110,10 +124,45 @@ function limitar(limitador: Limitador, chave: string, resposta: FastifyReply): v
   if (!limitador.tentar(chave)) muitasTentativas(limitador, chave, resposta)
 }
 
+/** ID token de provedor: um JWT, sem espaços, de tamanho limitado. */
+const tokenDeProvedor = z
+  .string()
+  .trim()
+  .min(20)
+  .max(8000)
+  .regex(/^[\w-]+\.[\w-]+\.[\w-]+$/, 'Token inválido.')
+const nonce = z.string().trim().min(16).max(128)
+
+/** Corpo com o token de cada provedor (a Apple exige também o nonce cru). */
+const corpoDoProvedor = {
+  google: z.object({ idToken: tokenDeProvedor }),
+  apple: z.object({ identityToken: tokenDeProvedor, nonce }),
+} as const
+
+function tokenDoCorpo(
+  provedor: Provedor,
+  corpo: unknown,
+): { token: string; nonce: string | undefined } {
+  if (provedor === 'google') {
+    const r = validar(corpoDoProvedor.google, corpo)
+    return { token: r.idToken, nonce: undefined }
+  }
+  const r = validar(corpoDoProvedor.apple, corpo)
+  return { token: r.identityToken, nonce: r.nonce }
+}
+
+function provedorDoCaminho(pedido: FastifyRequest): Provedor {
+  const p = (pedido.params as { provedor?: string }).provedor
+  if (!PROVEDORES.includes(p as Provedor)) {
+    throw NAO_ENCONTRADO()
+  }
+  return p as Provedor
+}
+
 export function registrarRotasDeAutenticacao(
   app: FastifyInstance,
   d: DependenciasAuth,
-  opcoes: { fatorDeLimitePorIp?: number } = {},
+  opcoes: { fatorDeLimitePorIp?: number; verificador?: VerificadorDeProvedores } = {},
 ): void {
   const lim = criarLimitadores(opcoes.fatorDeLimitePorIp)
   const seguro = d.config.UJ_AMBIENTE !== 'desenvolvimento'
@@ -377,6 +426,60 @@ export function registrarRotasDeAutenticacao(
       codigo: corpo.codigo,
     })
   })
+
+  // ---------------------------------------------------------------- Google e Apple
+
+  if (opcoes.verificador) {
+    const dp = { ...d, verificador: opcoes.verificador, usados: new TokensJaUsados() }
+
+    // Nunca cria conta: sem conta existente, a resposta pede um convite.
+    app.post('/api/auth/provedor/:provedor', async (pedido, resposta) => {
+      const provedor = provedorDoCaminho(pedido)
+      const base = validar(z.object({ aparelho, plataforma }), pedido.body)
+      const { token: bruto, nonce: n } = tokenDoCorpo(provedor, pedido.body)
+      limitar(lim.provedorIp, ip(pedido), resposta)
+      const r = await entrarComProvedor(dp, {
+        provedor,
+        token: bruto,
+        nonce: n,
+        aparelho: base.aparelho ?? null,
+        plataforma: base.plataforma,
+      })
+      if (r.segundoFator) return { segundoFator: true, desafio: r.desafio }
+      return responderSessao(r, base.plataforma, resposta)
+    })
+
+    app.get('/api/v1/eu/provedores', { preHandler: exigirSessao }, async (pedido) => ({
+      provedores: await listarProvedores(d, pedido.sessao!.contaId),
+      disponiveis: PROVEDORES.filter((p) => dp.verificador.ligado(p)),
+    }))
+
+    app.post(
+      '/api/v1/eu/provedores/:provedor',
+      { preHandler: exigirSessao },
+      async (pedido, resposta) => {
+        const provedor = provedorDoCaminho(pedido)
+        const { senhaAtual } = validar(z.object({ senhaAtual: senha }), pedido.body)
+        const { token: bruto, nonce: n } = tokenDoCorpo(provedor, pedido.body)
+        limitar(lim.conectarIp, ip(pedido), resposta)
+        return conectarProvedor(dp, {
+          contaId: pedido.sessao!.contaId,
+          provedor,
+          token: bruto,
+          nonce: n,
+          senhaAtual,
+        })
+      },
+    )
+
+    app.delete('/api/v1/eu/provedores/:provedor', { preHandler: exigirSessao }, async (pedido) => {
+      await desconectarProvedor(d, {
+        contaId: pedido.sessao!.contaId,
+        provedor: provedorDoCaminho(pedido),
+      })
+      return { ok: true }
+    })
+  }
 
   // ---------------------------------------------------------------- primeiro acesso do Criador
 

@@ -115,9 +115,10 @@ describe('tarefas diárias', () => {
     )
     expect(autoria.rows).toEqual([{ criado_por: dona }])
     // A poda só corta abaixo da marca d'água, que transações de outros testes em
-    // paralelo podem segurar (D13): tenta por até 10 s.
+    // paralelo podem segurar (D13): tenta por até 30 s (com a suíte inteira e
+    // a máquina carregada, 10 s já não bastaram).
     let marco = 0
-    for (let i = 0; i < 100 && marco === 0; i++) {
+    for (let i = 0; i < 300 && marco === 0; i++) {
       await b.dono.query('select uj.podar_mudancas(90)')
       marco = (await b.su.query('select 1 from uj.marco_de_sincronizacao')).rows.length
       if (marco === 0) await new Promise((r) => setTimeout(r, 100))
@@ -128,7 +129,7 @@ describe('tarefas diárias', () => {
     const segunda = await executarTarefasDiarias(b.dono)
     expect((segunda['retencao'] as Record<string, number>)['inscricoes_anonimizadas']).toBe(0)
     expect(segunda['ocorrencias_materializadas']).toBe(0)
-  })
+  }, 60_000)
 
   it('a poda nunca aceita prazo menor que a validade offline máxima', async () => {
     await expect(b.dono.query('select uj.podar_mudancas(10)')).rejects.toThrow()

@@ -1,7 +1,8 @@
 import type { FastifyInstance } from 'fastify'
 import type pg from 'pg'
 import { z } from 'zod'
-import { podeConcederPapel, PAPEIS } from '@uj/dominio'
+import { podeConcederPapel, PAPEIS, NOME_DO_APP } from '@uj/dominio'
+import { ehCorDoAvatar, ehIconeDoAvatar } from '@uj/tokens'
 import { gerarToken, hmacDeToken } from '../autenticacao/cripto.ts'
 import type { Config } from '../config.ts'
 import type { Correio } from '../correio/correio.ts'
@@ -13,6 +14,7 @@ import {
 } from './autenticacao.ts'
 import { auditar, exigir, idDoCaminho, naComunidade } from './contexto.ts'
 import { emTransacao } from '../banco/contexto.ts'
+import { versaoDoHash } from '../imagens/processar.ts'
 
 export interface DependenciasComunidades {
   config: Config
@@ -23,7 +25,7 @@ export interface DependenciasComunidades {
 
 export const VALIDADE_MAXIMA_CONVITE_DIAS = 7
 
-const fusoValido = z
+export const fusoValido = z
   .string()
   .max(64)
   .refine((f) => {
@@ -69,6 +71,16 @@ export async function criarConvite(
   return { id: rows[0]!.id, token, expiraEm: rows[0]!.expira_em }
 }
 
+/** `{ icone, cor }` ou `null` (sem avatar escolhido: o app mostra as iniciais). */
+export function avatarDaLinha(linha: {
+  avatar_icone: string | null
+  avatar_cor: string | null
+}): { icone: string; cor: string } | null {
+  return linha.avatar_icone && linha.avatar_cor
+    ? { icone: linha.avatar_icone, cor: linha.avatar_cor }
+    : null
+}
+
 export function registrarRotasDeComunidade(app: FastifyInstance, d: DependenciasComunidades): void {
   const { api } = d
 
@@ -88,17 +100,25 @@ export function registrarRotasDeComunidade(app: FastifyInstance, d: Dependencias
             whatsapp: string | null
             criador: boolean
             dois_fatores: boolean
+            avatar_icone: string | null
+            avatar_cor: string | null
+            foto_hash: string | null
           }>(
-            `select id, nome, email, whatsapp, plataforma_proprietario as criador,
-                  totp_ativado_em is not null as dois_fatores
-             from uj.contas where id = $1`,
+            `select a.id, a.nome, a.email, a.whatsapp, a.plataforma_proprietario as criador,
+                  a.totp_ativado_em is not null as dois_fatores, a.avatar_icone, a.avatar_cor,
+                  encode(f.hash, 'hex') as foto_hash
+             from uj.contas a left join uj.fotos_contas f on f.conta_id = a.id
+            where a.id = $1`,
             [s.contaId],
           )
         ).rows[0]
         const comunidades = (
           await c.query(
-            `select c.id, c.nome, c.cor, c.estado, v.papel, v.designacoes
+            `select c.id, c.nome, c.cor, c.estado, v.papel, v.designacoes,
+                    l.hash is not null as "temLogo",
+                    left(encode(l.hash, 'hex'), 16) as "logoVersao"
              from uj.vinculos v join uj.comunidades c on c.id = v.comunidade_id
+             left join uj.logos_comunidades l on l.comunidade_id = c.id
             where v.conta_id = $1 and v.estado = 'ativo'
             order by c.nome`,
             [s.contaId],
@@ -113,6 +133,10 @@ export function registrarRotasDeComunidade(app: FastifyInstance, d: Dependencias
             whatsapp: conta.whatsapp,
             criador: conta.criador,
             doisFatores: conta.dois_fatores,
+            avatar: avatarDaLinha(conta),
+            // A foto, quando há, tem precedência sobre o avatar (D33).
+            temFoto: conta.foto_hash !== null,
+            fotoVersao: versaoDoHash(conta.foto_hash),
           },
           comunidades,
         }
@@ -137,6 +161,36 @@ export function registrarRotasDeComunidade(app: FastifyInstance, d: Dependencias
       )
     })
     return { ok: true }
+  })
+
+  /**
+   * Avatar: ícone e cor de listas fechadas (packages/tokens/src/avatar.ts; o
+   * banco confere de novo). `null` nos dois volta ao avatar com as iniciais.
+   */
+  app.put('/api/v1/eu/avatar', { preHandler: app.exigirSessao }, async (pedido) => {
+    const corpo = validar(
+      z.union([
+        z.object({
+          icone: z.string().refine(ehIconeDoAvatar, 'Escolha um dos ícones da lista.'),
+          cor: z.string().refine(ehCorDoAvatar, 'Escolha uma das cores da lista.'),
+        }),
+        z.object({ icone: z.null(), cor: z.null() }),
+      ]),
+      pedido.body,
+    )
+    const s = pedido.sessao!
+    await emTransacao(api, { contaId: s.contaId, comunidadeId: null }, async (c) => {
+      try {
+        await c.query('update uj.contas set avatar_icone = $2, avatar_cor = $3 where id = $1', [
+          s.contaId,
+          corpo.icone,
+          corpo.cor,
+        ])
+      } catch (e) {
+        traduzirErroDoBanco(e)
+      }
+    })
+    return { avatar: avatarDaLinha({ avatar_icone: corpo.icone, avatar_cor: corpo.cor }) }
   })
 
   app.get('/api/v1/eu/aparelhos', { preHandler: app.exigirSessao }, async (pedido) => {
@@ -180,9 +234,12 @@ export function registrarRotasDeComunidade(app: FastifyInstance, d: Dependencias
     exigir(pedido, 'comunidade', 'ler')
     return naComunidade(api, pedido, async (c) => {
       const { rows } = await c.query(
-        `select id, nome, cor, fuso, estado, validade_offline_dias as "validadeOfflineDias",
-                retencao_inscricoes_dias as "retencaoInscricoesDias", versao
-           from uj.comunidades where id = $1`,
+        `select c.id, c.nome, c.cor, c.fuso, c.estado,
+                c.validade_offline_dias as "validadeOfflineDias",
+                c.retencao_inscricoes_dias as "retencaoInscricoesDias", c.versao,
+                l.hash is not null as "temLogo", left(encode(l.hash, 'hex'), 16) as "logoVersao"
+           from uj.comunidades c left join uj.logos_comunidades l on l.comunidade_id = c.id
+          where c.id = $1`,
         [pedido.comunidade!.id],
       )
       if (!rows[0]) throw NAO_ENCONTRADO()
@@ -244,10 +301,19 @@ export function registrarRotasDeComunidade(app: FastifyInstance, d: Dependencias
     return naComunidade(api, pedido, async (c) => {
       const { rows } = await c.query(
         `select vinculo_id as "vinculoId", conta_id as "contaId", nome, papel, estado, designacoes,
-                email, whatsapp, eh_proprietario as "criador", desde
+                email, whatsapp, eh_proprietario as "criador", desde, avatar_icone, avatar_cor,
+                foto_versao
            from uj.pessoas_da_comunidade() order by nome`,
       )
-      return { membros: rows }
+      return {
+        membros: rows.map(({ avatar_icone, avatar_cor, foto_versao, ...membro }) => ({
+          ...membro,
+          avatar: avatarDaLinha({ avatar_icone, avatar_cor }),
+          // Foto em GET /c/:comunidadeId/pessoas/:vinculoId/foto (só de vínculo ativo).
+          temFoto: foto_versao !== null,
+          fotoVersao: foto_versao,
+        })),
+      }
     })
   })
 
@@ -416,11 +482,11 @@ export function registrarRotasDeComunidade(app: FastifyInstance, d: Dependencias
       d.emSegundoPlano(
         d.correio.enviar({
           para: emailDestino,
-          assunto: 'Você foi convidado para o Uni Jovem',
+          assunto: `Você foi convidado para o ${NOME_DO_APP}`,
           corpo: [
             'Olá!',
             '',
-            'Você recebeu um convite para participar de uma comunidade no Uni Jovem.',
+            `Você recebeu um convite para participar de uma comunidade no ${NOME_DO_APP}.`,
             `Abra o link para aceitar (vale até ${convite.expiraEm.toLocaleDateString('pt-BR')}):`,
             link,
             '',

@@ -16,8 +16,10 @@ da plataforma, um atributo global e não um papel de comunidade. Tudo que não e
 | plataforma | intervir_em_vinculo | Criador (2FA) |
 | plataforma | transferir_propriedade | Criador (2FA) |
 | plataforma | ler_auditoria_da_plataforma | Criador (2FA) |
+| plataforma | ler_saude_da_plataforma | Criador (2FA) |
 | comunidade | ler | Membro ou acima |
 | comunidade | configurar | Administrador ou acima |
+| comunidade | trocar_logo | Administrador ou acima |
 | vinculo | listar | Membro ou acima |
 | vinculo | ver_contato | Organizador ou acima |
 | vinculo | alterar_papel | Administrador ou acima |
@@ -60,6 +62,7 @@ da plataforma, um atributo global e não um papel de comunidade. Tudo que não e
 | anexo | gerenciar | Organizador ou acima |
 | inscricao | ler_lista | Organizador ou acima |
 | inscricao | inscrever_se | Membro ou acima, só o próprio |
+| inscricao | ler_proprias | Membro ou acima, só o próprio |
 | inscricao | cancelar | Organizador ou acima; Membro ou acima, só o próprio |
 | inscricao | gerenciar | Organizador ou acima |
 | presenca | ler | Organizador ou acima |

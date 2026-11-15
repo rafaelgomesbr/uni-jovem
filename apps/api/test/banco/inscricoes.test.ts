@@ -243,15 +243,66 @@ describe('capacidade, lista de espera e cancelamento', () => {
   it('membro se inscreve pelo app e cancela a própria', async () => {
     const { id } = await eventoPublico({ capacidade: 5 })
     const r = await req('POST', `/eventos/${id}/inscricoes/eu`, membro)
-    expect(r.json()).toMatchObject({ estado: 'confirmada' })
+    // Contrato em camelCase (N3): inscricaoId, estado, codigoCheckin.
+    expect(r.json()).toEqual({
+      inscricaoId: expect.any(String),
+      estado: 'confirmada',
+      codigoCheckin: expect.stringMatching(/^[0-9A-F]{10}$/),
+    })
     // Repetir não duplica.
-    expect((await req('POST', `/eventos/${id}/inscricoes/eu`, membro)).json().inscricao_id).toBe(
-      r.json().inscricao_id,
-    )
+    expect((await req('POST', `/eventos/${id}/inscricoes/eu`, membro)).json()).toEqual(r.json())
     expect((await req('GET', `/eventos/${id}/inscricoes`, membro)).statusCode).toBe(403)
     expect(
-      (await req('POST', `/inscricoes/${r.json().inscricao_id}/cancelar`, membro)).statusCode,
+      (await req('POST', `/inscricoes/${r.json().inscricaoId}/cancelar`, membro)).statusCode,
     ).toBe(200)
+  })
+
+  it('"minhas inscrições": só as da pessoa, com evento, estado e código', async () => {
+    const outra = await pessoaComSessao(b, app, config, 'Outra Pessoa')
+    await vincular(b, outra.id, com, 'membro')
+    const pessoa = await pessoaComSessao(b, app, config, 'Pessoa do Início')
+    await vincular(b, pessoa.id, com, 'membro')
+    const vazio = await req('GET', '/inscricoes/eu', pessoa)
+    expect(vazio.statusCode).toBe(200)
+    expect(vazio.json()).toEqual({ inscricoes: [] })
+
+    const lotado = await eventoPublico({ capacidade: 1, espera: true })
+    const livre = await eventoPublico()
+    const cancelado = await eventoPublico()
+    await req('POST', `/eventos/${lotado.id}/inscricoes/eu`, outra)
+    const naEspera = (await req('POST', `/eventos/${lotado.id}/inscricoes/eu`, pessoa)).json()
+    const confirmada = (await req('POST', `/eventos/${livre.id}/inscricoes/eu`, pessoa)).json()
+    const desistiu = (await req('POST', `/eventos/${cancelado.id}/inscricoes/eu`, pessoa)).json()
+    await req('POST', `/inscricoes/${desistiu.inscricaoId}/cancelar`, pessoa)
+
+    const r = await req('GET', '/inscricoes/eu', pessoa)
+    expect(r.statusCode).toBe(200)
+    const lista = r.json().inscricoes as {
+      inscricaoId: string
+      estado: string
+      codigoCheckin: string
+      presente: boolean
+      evento: { id: string; titulo: string; status: string; duracaoMin: number }
+    }[]
+    // Por padrão, só as ativas (a cancelada fica de fora), e nunca as de outra pessoa.
+    expect(lista.map((i) => i.inscricaoId).sort()).toEqual(
+      [naEspera.inscricaoId, confirmada.inscricaoId].sort(),
+    )
+    expect(lista.find((i) => i.inscricaoId === naEspera.inscricaoId)).toMatchObject({
+      estado: 'espera',
+      codigoCheckin: naEspera.codigoCheckin,
+      presente: false,
+      evento: { id: lotado.id, titulo: 'Luau musical', status: 'publicado', duracaoMin: 120 },
+    })
+    const todas = (await req('GET', '/inscricoes/eu?periodo=todas', pessoa)).json().inscricoes as {
+      inscricaoId: string
+      estado: string
+    }[]
+    expect(todas.find((i) => i.inscricaoId === desistiu.inscricaoId)?.estado).toBe('cancelada')
+    expect(todas).toHaveLength(3)
+    expect((await req('GET', '/inscricoes/eu?periodo=ontem', pessoa)).statusCode).toBe(400)
+    // A da outra pessoa não aparece nem para a organizadora, que não está inscrita.
+    expect((await req('GET', '/inscricoes/eu', org)).json()).toEqual({ inscricoes: [] })
   })
 })
 

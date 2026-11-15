@@ -20,6 +20,13 @@ export const NAO_ENCONTRADO = () =>
 export const SEM_PERMISSAO = () =>
   new ErroHttp('sem_permissao', 403, 'Seu papel nesta comunidade não permite esta ação.')
 
+export const SERIE_ENCERRADA = () =>
+  new ErroHttp(
+    'serie_encerrada',
+    409,
+    'Esta série foi encerrada e não recebe mais alterações. Crie uma série nova se precisar.',
+  )
+
 export function validar<T>(esquema: z.ZodType<T>, corpo: unknown): T {
   const r = esquema.safeParse(corpo)
   if (!r.success) {
@@ -64,6 +71,9 @@ export function traduzirErroDoBanco(e: unknown): never {
       429,
       'Muitos avisos publicados na última hora. Espere um pouco antes de publicar outro.',
     )
+  }
+  if (erro.code === 'UJ070') {
+    throw SERIE_ENCERRADA()
   }
   if (erro.code === '23503') {
     // Referência a algo de outra comunidade ou inexistente: mesmo tratamento.

@@ -222,6 +222,63 @@ describe('consentimentos versionados e idade (TC-01 a TC-03)', () => {
     )
     expect(textos.rows.map((r) => r.texto_id)).toEqual(['TC-01', 'TC-03'])
   })
+
+  it('convite que não vale responde o motivo antes de pedir a idade (N2)', async () => {
+    const semFaixa = await pessoaComSessao(b, app, config, 'Sem Faixa Declarada')
+    const outra = await criarComunidade(b, 'Comunidade do Convite Revogado')
+    const aceitar = (token: string) =>
+      req('POST', '/api/auth/convite/aceitar', semFaixa, { token, consentimentoFe: true })
+
+    const revogado = await convite(outra)
+    await b.su.query('update uj.convites set revogado_em = now() where token_hmac = $1', [
+      hmacDeToken(revogado, config.CONVITE_SEGREDO),
+    ])
+    const r = await aceitar(revogado)
+    expect(r.statusCode).toBe(409)
+    expect(r.json()).toEqual({
+      erro: 'convite_indisponivel',
+      situacao: 'revogado',
+      mensagem: 'Este convite foi cancelado por quem convidou. Peça um novo.',
+    })
+
+    const vencido = await convite(outra)
+    await b.su.query(
+      `update uj.convites set criado_em = now() - interval '2 days', expira_em = now() - interval '1 day'
+        where token_hmac = $1`,
+      [hmacDeToken(vencido, config.CONVITE_SEGREDO)],
+    )
+    expect((await aceitar(vencido)).json()).toMatchObject({
+      erro: 'convite_indisponivel',
+      situacao: 'expirado',
+    })
+    expect((await aceitar(gerarToken())).json()).toMatchObject({
+      erro: 'convite_indisponivel',
+      situacao: 'inexistente',
+    })
+
+    const dirigido = gerarToken()
+    await b.su.query(
+      `insert into uj.convites (comunidade_id, papel, email_destino, token_hmac, expira_em, criado_por)
+       values ($1, 'membro', 'outra.pessoa@exemplo.test', $2, now() + interval '7 days', $3)`,
+      [outra, hmacDeToken(dirigido, config.CONVITE_SEGREDO), admin.id],
+    )
+    const outroEmail = await aceitar(dirigido)
+    expect(outroEmail.statusCode).toBe(409)
+    expect(outroEmail.json().erro).toBe('convite_de_outro_email')
+
+    // Nada foi gravado: nem idade, nem vínculo, nem consentimento.
+    const conta = await b.su.query(
+      `select a.faixa_etaria,
+              (select count(*)::int from uj.vinculos v where v.conta_id = a.id) as vinculos,
+              (select count(*)::int from uj.consentimentos c where c.conta_id = a.id) as consentimentos
+         from uj.contas a where a.id = $1`,
+      [semFaixa.id],
+    )
+    expect(conta.rows).toEqual([{ faixa_etaria: null, vinculos: 0, consentimentos: 0 }])
+    // Convite válido: agora sim, a idade é pedida.
+    const valido = await aceitar(await convite(outra))
+    expect(valido.json().erro).toBe('faixa_etaria_necessaria')
+  })
 })
 
 // ================================================================ exclusão de conta

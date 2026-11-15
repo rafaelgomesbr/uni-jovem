@@ -3,6 +3,7 @@ import { carregarConfig, ConfigInvalida } from '../src/config.ts'
 import { envDeTeste } from './apoio/config.ts'
 
 const base = envDeTeste()
+const IMPRESSAO = Array.from({ length: 32 }, () => 'AB').join(':')
 
 function problemas(env: Record<string, string | undefined>): string[] {
   try {
@@ -80,6 +81,8 @@ describe('carregarConfig', () => {
         RESEND_CHAVE: 'rk',
         EMAIL_REMETENTE: 'Uni Jovem <nao-responda@unijovem.solerte.com.br>',
         TURNSTILE_SEGREDO: 'ts',
+        SUPORTE_EMAIL: 'suporte@exemplo.test',
+        ANDROID_SHA256_IMPRESSOES: IMPRESSAO,
       }),
     ).toEqual([])
   })
@@ -116,5 +119,41 @@ describe('carregarConfig', () => {
     expect(problemas({ ...base, ANDROID_SHA256_IMPRESSOES: 'AB:CD' }).join()).toMatch(
       /ANDROID_SHA256_IMPRESSOES/,
     )
+  })
+
+  it('impressões Android: homologação sobe com a lista vazia; produção recusa (M4)', () => {
+    const hml = {
+      ...base,
+      UJ_AMBIENTE: 'homologacao',
+      URL_PUBLICA: 'https://unijovem-hml.solerte.com.br',
+      TURNSTILE_SEGREDO: 'x',
+    }
+    expect(problemas({ ...hml, ANDROID_SHA256_IMPRESSOES: '' })).toEqual([])
+    expect(carregarConfig(hml).ANDROID_SHA256_IMPRESSOES).toEqual([])
+    const prod = {
+      ...base,
+      UJ_AMBIENTE: 'producao',
+      URL_PUBLICA: 'https://unijovem.solerte.com.br',
+      TURNSTILE_SEGREDO: 'ts',
+      SUPORTE_EMAIL: 'suporte@exemplo.test',
+    }
+    expect(problemas({ ...prod, ANDROID_SHA256_IMPRESSOES: '' })).toEqual([
+      'ANDROID_SHA256_IMPRESSOES é obrigatório em producao (assetlinks.json)',
+    ])
+    expect(problemas({ ...prod, ANDROID_SHA256_IMPRESSOES: ' , ' })).toEqual([
+      'ANDROID_SHA256_IMPRESSOES é obrigatório em producao (assetlinks.json)',
+    ])
+    expect(problemas({ ...prod, ANDROID_SHA256_IMPRESSOES: IMPRESSAO })).toEqual([])
+  })
+
+  it('produção exige o e-mail de suporte (a página /suporte não pode sair com [PREENCHER])', () => {
+    const p = problemas({
+      ...base,
+      UJ_AMBIENTE: 'producao',
+      URL_PUBLICA: 'https://unijovem.solerte.com.br',
+      TURNSTILE_SEGREDO: 'ts',
+      ANDROID_SHA256_IMPRESSOES: IMPRESSAO,
+    })
+    expect(p).toEqual(['SUPORTE_EMAIL é obrigatório em producao (página /suporte)'])
   })
 })

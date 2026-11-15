@@ -178,24 +178,29 @@ export const ESCRITAS_POR_HORA = {
   oracao: 60,
   avisos: 60,
   sincronizacao: 120,
+  // Foto de perfil e logotipo: cada envio decodifica e regrava uma imagem.
+  imagens: 20,
 } as const
+
+/**
+ * Gancho do limite de escrita por conta (depois da sessão). Cada chamada tem a
+ * sua própria contagem: um módulo não gasta a cota de outro.
+ */
+export function limiteDeEscrita(maximoPorHora: number) {
+  const limitador = new Limitador(maximoPorHora, 60 * 60_000)
+  return async (pedido: FastifyRequest, resposta: FastifyReply) => {
+    const chave = pedido.sessao!.contaId
+    if (limitador.tentar(chave)) return
+    resposta.header('Retry-After', String(limitador.segundosParaLiberar(chave)))
+    throw new ErroHttp(
+      'muitas_escritas',
+      429,
+      'Muitas alterações seguidas. Espere alguns minutos e tente de novo.',
+    )
+  }
+}
 
 /** Opções de rota: contexto de comunidade e, depois dele, o limite de escrita. */
 export function comLimiteDeEscrita(app: FastifyInstance, maximoPorHora: number) {
-  const limitador = new Limitador(maximoPorHora, 60 * 60_000)
-  return {
-    preHandler: [
-      app.comComunidade,
-      async (pedido: FastifyRequest, resposta: FastifyReply) => {
-        const chave = pedido.sessao!.contaId
-        if (limitador.tentar(chave)) return
-        resposta.header('Retry-After', String(limitador.segundosParaLiberar(chave)))
-        throw new ErroHttp(
-          'muitas_escritas',
-          429,
-          'Muitas alterações seguidas. Espere alguns minutos e tente de novo.',
-        )
-      },
-    ],
-  }
+  return { preHandler: [app.comComunidade, limiteDeEscrita(maximoPorHora)] }
 }

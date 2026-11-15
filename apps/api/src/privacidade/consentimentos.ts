@@ -1,3 +1,5 @@
+import { NOME_DO_APP } from '@uj/dominio'
+
 /**
  * Versões vigentes dos textos de consentimento (docs/privacidade/
  * textos-de-consentimento.md). Mudou o texto, sobe a versão aqui: quem aceitou
@@ -14,8 +16,7 @@ export const FAIXAS_ETARIAS = ['16_17', '18_mais'] as const
 export type FaixaEtaria = (typeof FAIXAS_ETARIAS)[number]
 
 /** Mensagem do TC-01 para quem declara menos de 16 anos (nada é gravado). */
-export const MENSAGEM_MENOR_DE_16 =
-  'Que bom que você quer participar! Para ter uma conta no Uni Jovem é preciso ter 16 anos ou mais. Fale com a liderança da sua comunidade: ela pode inscrever você nos eventos com a ajuda do seu responsável.'
+export const MENSAGEM_MENOR_DE_16 = `Que bom que você quer participar! Para ter uma conta no ${NOME_DO_APP} é preciso ter 16 anos ou mais. Fale com a liderança da sua comunidade: ela pode inscrever você nos eventos com a ajuda do seu responsável.`
 
 export const MENSAGEM_SEM_TERMOS = 'Para criar a conta, é preciso concordar com os Termos de Uso.'
 

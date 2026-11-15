@@ -14,7 +14,7 @@ let com: string
 let org: Pessoa
 let vinculoDoOrg: string
 
-type Metodo = 'GET' | 'POST' | 'PATCH'
+type Metodo = 'GET' | 'POST' | 'PATCH' | 'DELETE'
 const req = (metodo: Metodo, caminho: string, corpo?: object) =>
   app.inject({
     method: metodo,
@@ -22,6 +22,19 @@ const req = (metodo: Metodo, caminho: string, corpo?: object) =>
     headers: org.auth,
     ...(corpo ? { payload: corpo } : {}),
   })
+
+function somarDias(data: string, dias: number): string {
+  const [a, m, d] = data.split('-').map(Number) as [number, number, number]
+  return new Date(Date.UTC(a, m - 1, d + dias)).toISOString().slice(0, 10)
+}
+
+async function porStatus(serieId: string): Promise<Record<string, number>> {
+  const { rows } = await b.su.query<{ status: string; n: number }>(
+    'select status, count(*)::int as n from uj.eventos where serie_id = $1 group by status',
+    [serieId],
+  )
+  return Object.fromEntries(rows.map((r) => [r.status, r.n]))
+}
 
 /** Próximo sábado (data local de São Paulo) a partir de hoje, com folga de uma semana. */
 function sabadoFuturo(semanas = 1): string {
@@ -50,7 +63,9 @@ afterAll(async () => {
   await b.encerrar()
 })
 
-async function criarSerie(): Promise<{ id: string; ocorrencias: number }> {
+async function criarSerie(
+  o: { publicar?: boolean; fimEm?: string } = {},
+): Promise<{ id: string; ocorrencias: number }> {
   const r = await req('POST', '/series', {
     regra: { frequencia: 'semanal', intervaloSemanas: 1, diasDaSemana: [6] },
     horaLocal: '16:00',
@@ -58,7 +73,8 @@ async function criarSerie(): Promise<{ id: string; ocorrencias: number }> {
     titulo: 'Programação de sábado',
     categoria: 'Programação de sábado',
     modelo: 'sabado_padrao',
-    publicar: true,
+    publicar: o.publicar ?? true,
+    ...(o.fimEm ? { fimEm: o.fimEm } : {}),
   })
   expect(r.statusCode).toBe(200)
   return r.json()
@@ -211,5 +227,124 @@ describe('séries recorrentes', () => {
       [s.id],
     )
     expect(ativos.rows[0].n).toBeLessThanOrEqual(5)
+  })
+
+  it('encerrar a partir do primeiro dia: a série fica encerrada e não ganha ocorrência nova (A2)', async () => {
+    const s = await criarSerie()
+    const r = await req('POST', `/series/${s.id}/encerrar`, {
+      aPartirDe: sabadoFuturo(),
+      motivo: 'Fim do projeto',
+    })
+    // Antes: 400, porque fim_em = véspera do início violava o CHECK da série.
+    expect(r.statusCode).toBe(200)
+    expect(r.json()).toEqual({ apagados: 0, cancelados: s.ocorrencias, estado: 'encerrada' })
+    expect(await porStatus(s.id)).toEqual({ cancelado: s.ocorrencias })
+    const motivos = await b.su.query(
+      'select distinct motivo_status from uj.eventos where serie_id = $1',
+      [s.id],
+    )
+    expect(motivos.rows).toEqual([{ motivo_status: 'Fim do projeto' }])
+    const lida = (await req('GET', `/series/${s.id}`)).json()
+    expect(lida.estado).toBe('encerrada')
+    expect(lida.encerrada_em).toBeTruthy()
+
+    // O job não recria nada; editar e encerrar de novo recebem explicação.
+    await materializarTodas(b.dono)
+    expect(await porStatus(s.id)).toEqual({ cancelado: s.ocorrencias })
+    const editar = await req('PATCH', `/series/${s.id}`, {
+      versao: lida.versao,
+      escopo: 'serie',
+      mudancas: { titulo: 'Volta' },
+    })
+    expect(editar.statusCode).toBe(409)
+    expect(editar.json().erro).toBe('serie_encerrada')
+    const deNovo = await req('POST', `/series/${s.id}/encerrar`, {
+      aPartirDe: sabadoFuturo(),
+      motivo: 'De novo',
+    })
+    expect(deNovo.json().erro).toBe('serie_encerrada')
+    // O banco também segura: nem o dono pendura ocorrência numa série encerrada,
+    // e a série não volta a ficar ativa.
+    await expect(
+      b.dono.query(
+        `insert into uj.eventos (comunidade_id, serie_id, titulo, categoria, inicio, duracao_min, fuso, criado_por)
+         values ($1, $2, 'Fura', 'Outra', now() + interval '30 days', 60, 'America/Sao_Paulo', $3)`,
+        [com, s.id, org.id],
+      ),
+    ).rejects.toMatchObject({ code: 'UJ070' })
+    await expect(
+      b.dono.query("update uj.series set estado = 'ativa', encerrada_em = null where id = $1", [
+        s.id,
+      ]),
+    ).rejects.toMatchObject({ code: 'UJ070' })
+  })
+
+  it('encerrar ANTES do primeiro dia também encerra a série inteira, e rascunhos somem', async () => {
+    const s = await criarSerie({ publicar: false })
+    const r = await req('POST', `/series/${s.id}/encerrar`, {
+      aPartirDe: somarDias(sabadoFuturo(), -10),
+      motivo: 'Mudou o plano',
+    })
+    expect(r.statusCode).toBe(200)
+    expect(r.json()).toEqual({ apagados: s.ocorrencias, cancelados: 0, estado: 'encerrada' })
+    expect(await porStatus(s.id)).toEqual({})
+  })
+
+  it('encerrar no meio só encurta, e nunca estende o fim já marcado', async () => {
+    // Do sábado da semana 1 ao da semana 3: três ocorrências.
+    const curta = await criarSerie({ fimEm: sabadoFuturo(3) })
+    expect(curta.ocorrencias).toBe(3)
+    const depois = await req('POST', `/series/${curta.id}/encerrar`, {
+      aPartirDe: sabadoFuturo(10),
+      motivo: 'Depois do fim',
+    })
+    expect(depois.statusCode).toBe(200)
+    expect(depois.json()).toEqual({ apagados: 0, cancelados: 0, estado: 'ativa' })
+    const fim = async () =>
+      (
+        await b.su.query<{ f: string }>(
+          "select to_char(fim_em, 'YYYY-MM-DD') as f from uj.series where id = $1",
+          [curta.id],
+        )
+      ).rows[0]!.f
+    expect(await fim()).toBe(sabadoFuturo(3))
+    const meio = await req('POST', `/series/${curta.id}/encerrar`, {
+      aPartirDe: sabadoFuturo(2),
+      motivo: 'Encurtar',
+    })
+    expect(meio.json()).toEqual({ apagados: 0, cancelados: 2, estado: 'ativa' })
+    expect(await fim()).toBe(somarDias(sabadoFuturo(2), -1))
+    expect(await porStatus(curta.id)).toEqual({ publicado: 1, cancelado: 2 })
+  })
+
+  it('excluir série: só sem ocorrência publicada; com publicada, 409 e nada some (A2)', async () => {
+    const rascunho = await criarSerie({ publicar: false })
+    const ok = await req('DELETE', `/series/${rascunho.id}`)
+    expect(ok.statusCode).toBe(200)
+    expect(ok.json()).toEqual({ ok: true, apagados: rascunho.ocorrencias })
+    expect((await b.su.query('select 1 from uj.series where id = $1', [rascunho.id])).rows).toEqual(
+      [],
+    )
+    expect(await porStatus(rascunho.id)).toEqual({})
+    expect((await req('DELETE', `/series/${rascunho.id}`)).statusCode).toBe(404)
+    const auditoria = await b.su.query(
+      "select detalhes from uj.auditoria where acao = 'serie.excluida' and recurso_id = $1",
+      [rascunho.id],
+    )
+    expect(auditoria.rows).toEqual([{ detalhes: { ocorrencias: rascunho.ocorrencias } }])
+
+    // Uma ocorrência publicada basta para recusar; os rascunhos ficam onde estavam.
+    const mista = await criarSerie({ publicar: false })
+    const alvo = (await ocorrencias(mista.id))[0]!
+    expect(
+      (await req('POST', `/eventos/${alvo.id}/status`, { status: 'publicado' })).statusCode,
+    ).toBe(200)
+    const recusa = await req('DELETE', `/series/${mista.id}`)
+    expect(recusa.statusCode).toBe(409)
+    expect(recusa.json().erro).toBe('serie_com_publicadas')
+    expect(await porStatus(mista.id)).toEqual({
+      publicado: 1,
+      rascunho: mista.ocorrencias - 1,
+    })
   })
 })

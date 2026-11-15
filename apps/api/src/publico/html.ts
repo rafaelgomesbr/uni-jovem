@@ -1,3 +1,5 @@
+import { NOME_DO_APP } from '@uj/dominio'
+
 /**
  * HTML das páginas públicas. Todo valor entra por `esc` (ou pelo marcador
  * `html` com escape automático): nenhum dado de evento vira HTML cru.
@@ -65,7 +67,7 @@ export function pagina(corpo: Seguro, o: OpcoesDaPagina): string {
         <main class="folha">${corpo}</main>
         <footer class="rodape">
           <a href="/privacidade">Privacidade</a> · <a href="/termos">Termos</a> ·
-          <a href="/suporte">Suporte</a> · Uni Jovem
+          <a href="/suporte">Suporte</a> · ${NOME_DO_APP}
         </footer>
       </body>
     </html>`.texto

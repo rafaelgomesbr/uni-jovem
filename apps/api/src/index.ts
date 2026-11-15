@@ -7,6 +7,7 @@ import {
   type Correio,
 } from './correio/correio.ts'
 import { criarServidor } from './servidor.ts'
+import { conferirPaginasPublicas } from './publico/documentos.ts'
 import { criarTransporteDePush } from './notificacoes/configurar.ts'
 import { aoNotificar } from './notificacoes/ganchos.ts'
 import { TrabalhadorDePush } from './notificacoes/trabalhador.ts'
@@ -63,6 +64,17 @@ const encerrar = async () => {
 }
 process.once('SIGTERM', () => void encerrar())
 process.once('SIGINT', () => void encerrar())
+
+// Páginas legais e de suporte com [PREENCHER]: em produção a API não sobe;
+// nos outros ambientes, fica o aviso no log da partida.
+try {
+  const aviso = await conferirPaginasPublicas(app, config.UJ_AMBIENTE)
+  if (aviso) app.log.warn(aviso)
+} catch (erro) {
+  console.error((erro as Error).message)
+  await Promise.all([api.end(), auth.end()])
+  process.exit(1)
+}
 
 await app.listen({ port: config.PORTA, host: config.HOST })
 trabalhador?.iniciar()

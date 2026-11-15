@@ -2,10 +2,16 @@ import cookie from '@fastify/cookie'
 import formbody from '@fastify/formbody'
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify'
 import type pg from 'pg'
+import { NOME_DO_APP } from '@uj/dominio'
 import { ErroHttp } from './http.ts'
+import { CSP_PUBLICA, html, pagina } from './publico/html.ts'
 import { opcoesDoLog } from './log.ts'
 import type { Config } from './config.ts'
 import type { Correio } from './correio/correio.ts'
+import {
+  criarVerificadorDeProvedores,
+  type ChavesDosProvedores,
+} from './autenticacao/provedores.ts'
 import { registrarRotasDeAutenticacao } from './rotas/autenticacao.ts'
 import { registrarRotasDeComunidade } from './rotas/comunidades.ts'
 import { registrarRotasDeEventos } from './rotas/eventos.ts'
@@ -25,6 +31,7 @@ import { registrarRotasDeRelatorios } from './rotas/relatorios.ts'
 import { registrarRotasDeNotificacoes } from './rotas/notificacoes.ts'
 import { registrarRotasDePrivacidade } from './rotas/privacidade.ts'
 import { registrarRotasDeSincronizacao } from './rotas/sincronizacao.ts'
+import { registrarRotasDeImagens } from './rotas/imagens.ts'
 import { registrarDocumentosPublicos } from './publico/documentos.ts'
 
 export interface Recursos {
@@ -33,6 +40,8 @@ export interface Recursos {
   correio: Correio
   /** Só testes: todos os pedidos saem do mesmo IP. Nunca usado em produção. */
   fatorDeLimitePorIp?: number
+  /** Só testes: chaves locais no lugar do JWKS de Google e Apple. */
+  chavesDosProvedores?: ChavesDosProvedores
 }
 
 /**
@@ -65,9 +74,11 @@ export function criarServidor(
   })
 
   // Cabeçalhos de segurança em toda resposta da API. Respostas com tokens e
-  // dados pessoais nunca ficam em cache (navegador, proxy ou CDN).
+  // dados pessoais nunca ficam em cache (navegador, proxy ou CDN). Exceção: a
+  // rota que define o próprio Cache-Control: as imagens de rotas/imagens.ts
+  // (private, no-cache: revalida a cada uso) e o CSS público (cache curto).
   app.addHook('onSend', async (_pedido, resposta) => {
-    resposta.header('Cache-Control', 'no-store')
+    if (!resposta.hasHeader('Cache-Control')) resposta.header('Cache-Control', 'no-store')
     resposta.header('X-Content-Type-Options', 'nosniff')
     resposta.header('Referrer-Policy', 'no-referrer')
     resposta.header('X-Frame-Options', 'DENY')
@@ -102,6 +113,13 @@ export function criarServidor(
         ...(atual === undefined ? {} : { atual }),
       })
     }
+    if ((erro as FastifyError).statusCode === 413) {
+      // Corpo acima do limite da rota (ex.: imagem acima de 2 MB em base64).
+      return resposta.code(413).send({
+        erro: 'grande_demais',
+        mensagem: 'O envio passou do tamanho permitido. Use um arquivo menor e tente de novo.',
+      })
+    }
     if ((erro as FastifyError).statusCode && (erro as FastifyError).statusCode! < 500) {
       return resposta
         .code((erro as FastifyError).statusCode!)
@@ -114,18 +132,65 @@ export function criarServidor(
     })
   })
 
+  // Endereço que não existe: mensagem em português, JSON para a API e página
+  // para quem chegou pelo navegador (com a mesma CSP das páginas públicas).
+  app.setNotFoundHandler((pedido, resposta) => {
+    const caminho = pedido.url.split('?')[0] ?? ''
+    if (caminho === '/api' || caminho.startsWith('/api/')) {
+      return resposta.code(404).send({
+        erro: 'nao_encontrado',
+        mensagem: 'Não encontramos este endereço. Confira o link ou atualize o app.',
+      })
+    }
+    return resposta
+      .code(404)
+      .header('Content-Type', 'text/html; charset=utf-8')
+      .header('Content-Security-Policy', CSP_PUBLICA)
+      .send(
+        pagina(
+          html`<h1>Página não encontrada</h1>
+            <p>
+              O endereço pode ter sido digitado errado ou a página não existe mais. Confira o link
+              com quem compartilhou.
+            </p>
+            <p><a href="/">Ir para o início do ${NOME_DO_APP}</a></p>`,
+          { titulo: 'Página não encontrada', indexavel: false },
+        ),
+      )
+  })
+
+  // Vivo: o processo responde (o healthcheck do contêiner usa esta).
   app.get('/api/saude', async () => ({ ok: true, ambiente: config.UJ_AMBIENTE }))
 
   if (recursos) {
+    // Pronto: além de vivo, alcança o banco com os dois papéis. Sem detalhe
+    // técnico na resposta (o motivo vai para o log).
+    app.get('/api/pronto', async (_pedido, resposta) => {
+      try {
+        await Promise.all([recursos.api.query('select 1'), recursos.auth.query('select 1')])
+        return { ok: true }
+      } catch (e) {
+        app.log.error({ erro: (e as Error).message }, 'banco indisponível')
+        return resposta.code(503).send({
+          ok: false,
+          erro: 'indisponivel',
+          mensagem: 'O serviço está iniciando ou em manutenção. Tente de novo em instantes.',
+        })
+      }
+    })
+
     void app.register(cookie)
     void app.register(formbody, { bodyLimit: 16 * 1024 })
     app.after(() => {
       registrarRotasDeAutenticacao(
         app,
         { config, auth: recursos.auth, correio: recursos.correio, emSegundoPlano },
-        recursos.fatorDeLimitePorIp === undefined
-          ? {}
-          : { fatorDeLimitePorIp: recursos.fatorDeLimitePorIp },
+        {
+          verificador: criarVerificadorDeProvedores(config, recursos.chavesDosProvedores),
+          ...(recursos.fatorDeLimitePorIp === undefined
+            ? {}
+            : { fatorDeLimitePorIp: recursos.fatorDeLimitePorIp }),
+        },
       )
       registrarContextoDeComunidade(app, recursos.api)
       const deps = { config, api: recursos.api, correio: recursos.correio, emSegundoPlano }
@@ -151,6 +216,7 @@ export function criarServidor(
         emSegundoPlano,
       })
       registrarRotasDeSincronizacao(app, recursos.api)
+      registrarRotasDeImagens(app, recursos.api)
       registrarDocumentosPublicos(app, { config })
       registrarPaginasPublicas(app, {
         config,

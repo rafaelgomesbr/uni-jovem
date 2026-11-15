@@ -514,7 +514,7 @@ describe('verificação em duas etapas', () => {
 })
 
 describe('primeiro acesso do Criador', () => {
-  it('define senha e 2FA juntos; o token do Criador traz a prova que o banco exige', async () => {
+  it('define senha e 2FA juntos; entra sem código e a plataforma pede a prova recente', async () => {
     const { rows } = await b.su.query<{ id: string }>(
       `insert into uj.contas (nome, email, email_verificado_em, plataforma_proprietario)
        values ('Criador', 'criador@exemplo.test', now(), true) returning id`,
@@ -537,20 +537,55 @@ describe('primeiro acesso do Criador', () => {
     expect(fim.json().codigosDeRecuperacao).toHaveLength(10)
     expect((await post('/api/auth/primeiro-acesso/iniciar', { token: link })).statusCode).toBe(401)
 
+    // Pedido do dono: o Criador entra sem o código; a sessão normal não traz prova.
     const login = await post('/api/auth/entrar', {
       email: 'criador@exemplo.test',
       senha: 'a missão começa no sábado',
       plataforma: 'web',
     })
-    expect(login.json().segundoFator).toBe(true)
-    const sf = await post('/api/auth/segundo-fator', {
-      desafio: login.json().desafio,
-      codigo: codigoTotp(segredo, contadorAtual() + 1),
+    expect(login.statusCode).toBe(200)
+    expect(login.json().segundoFator).toBe(false)
+    const semProva = await verificarAcesso(config.JWT_SEGREDO, login.json().acesso)
+    if (!semProva.ok) throw new Error('token inválido')
+    expect(semProva.conteudo.prova).toBeNull()
+    const auth = { authorization: `Bearer ${login.json().acesso}` }
+
+    // Ação de plataforma sem prova: a recusa certa, que o app usa para pedir o código.
+    const recusada = await post('/api/v1/plataforma/comunidades', { nome: 'Sem prova' }, auth)
+    expect(recusada.statusCode).toBe(403)
+    expect(recusada.json().erro).toBe('segundo_fator_necessario')
+    const listar = await app.inject({
+      method: 'GET',
+      url: '/api/v1/plataforma/comunidades',
+      headers: auth,
     })
+    expect(listar.statusCode).toBe(403)
+    // E o banco também não reconhece o Criador sem a prova.
+    const direto = await b
+      .comoApi(
+        { contaId: criador, prova: null },
+        "insert into uj.comunidades (nome, criado_por) values ('Não pode', $1)",
+        [criador],
+      )
+      .catch((e: Error) => e.message)
+    expect(direto).toMatch(/row-level security/)
+
+    // Step-up: o código do autenticador troca o acesso por um com prova recente.
+    const sf = await post(
+      '/api/auth/2fa/provar',
+      { codigo: codigoTotp(segredo, contadorAtual() + 1) },
+      auth,
+    )
     expect(sf.statusCode).toBe(200)
     const acesso = await verificarAcesso(config.JWT_SEGREDO, sf.json().acesso)
     if (!acesso.ok) throw new Error('token inválido')
     expect(acesso.conteudo.prova).not.toBeNull()
+    const criadaPelaApi = await post(
+      '/api/v1/plataforma/comunidades',
+      { nome: 'Com prova' },
+      { authorization: `Bearer ${sf.json().acesso}` },
+    )
+    expect(criadaPelaApi.statusCode).toBe(200)
 
     // Com a prova do token, o banco reconhece o Criador.
     const criada = await b.comoApi<{ nome: string }>(

@@ -6,6 +6,7 @@ import { correioDesligado } from '../../src/correio/correio.ts'
 import { criarServidor } from '../../src/servidor.ts'
 import { criarComunidade, novoBanco, vincular, type BancoDeTeste } from '../apoio/banco.ts'
 import { envDeTeste } from '../apoio/config.ts'
+import { emBase64, imagem } from '../apoio/imagens.ts'
 import { pessoaComSessao, type Pessoa } from '../apoio/pessoas.ts'
 
 /**
@@ -23,6 +24,10 @@ const config = carregarConfig(envDeTeste())
 
 /** Token verdadeiro da exportação de B: nem com ele A baixa o arquivo. */
 const TOKEN_DE_B = 'token-da-exportacao-de-b-com-entropia-suficiente'
+
+/** Imagem válida (PNG 8 × 8) para as rotas de envio de imagem. */
+const PNG_PEQUENO =
+  'iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEUlEQVQImWOI9r6NFTEMLQkAe/NgQcEglMgAAAAASUVORK5CYII='
 
 /** Corpo válido por rota, para que a validação não responda antes da checagem de acesso. */
 const CASOS: Record<string, Record<string, unknown> | undefined> = {
@@ -100,6 +105,7 @@ const CASOS: Record<string, Record<string, unknown> | undefined> = {
     aPartirDe: '2026-12-05',
     motivo: 'Invasão',
   },
+  'DELETE /api/v1/c/:comunidadeId/series/:serieId': undefined,
   // F9: escalas e disponibilidade
   'GET /api/v1/c/:comunidadeId/minhas-escalas': undefined,
   'POST /api/v1/c/:comunidadeId/atribuicoes/:atribuicaoId/confirmar': undefined,
@@ -118,6 +124,7 @@ const CASOS: Record<string, Record<string, unknown> | undefined> = {
   // F12
   'GET /api/v1/c/:comunidadeId/eventos/:eventoId/inscricoes': undefined,
   'POST /api/v1/c/:comunidadeId/eventos/:eventoId/inscricoes/eu': undefined,
+  'GET /api/v1/c/:comunidadeId/inscricoes/eu': undefined,
   'POST /api/v1/c/:comunidadeId/inscricoes/:inscricaoId/cancelar': undefined,
   'GET /api/v1/c/:comunidadeId/eventos/:eventoId/checkin': undefined,
   'GET /api/v1/c/:comunidadeId/eventos/:eventoId/presencas': undefined,
@@ -217,6 +224,11 @@ const CASOS: Record<string, Record<string, unknown> | undefined> = {
   },
   'GET /api/v1/c/:comunidadeId/sync/mudancas': undefined,
   'GET /api/v1/c/:comunidadeId/eventos/:eventoId/pacote-offline': undefined,
+  // D33: foto de perfil e logotipo
+  'GET /api/v1/c/:comunidadeId/pessoas/:vinculoId/foto': undefined,
+  'PUT /api/v1/c/:comunidadeId/logo': { imagem: PNG_PEQUENO },
+  'DELETE /api/v1/c/:comunidadeId/logo': undefined,
+  'GET /api/v1/c/:comunidadeId/logo': undefined,
 }
 
 interface Rota {
@@ -362,6 +374,21 @@ beforeAll(async () => {
      values ($1, $2, 'avisos', true)`,
     [comB, adminB.id],
   )
+  // D33: B tem logotipo e a admin de B tem foto (pela API, como o app faria).
+  const logoB = await app.inject({
+    method: 'PUT',
+    url: `/api/v1/c/${comB}/logo`,
+    headers: adminB.auth,
+    payload: { imagem: emBase64(await imagem('png', 32, 32)) },
+  })
+  expect(logoB.statusCode).toBe(200)
+  const fotoB = await app.inject({
+    method: 'PUT',
+    url: '/api/v1/eu/foto',
+    headers: adminB.auth,
+    payload: { imagem: emBase64(await imagem('jpeg', 32, 32)) },
+  })
+  expect(fotoB.statusCode).toBe(200)
   idsDeB['anexoId'] = await um(
     "insert into uj.anexos (comunidade_id, evento_id, titulo, url, criado_por) values ($1, $2, 'Link de B', 'https://exemplo.test/b', $3) returning id",
     [comB, eventoId, adminB.id],
@@ -410,7 +437,7 @@ async function estadoDeB() {
             (select json_agg(row(texto, marcado_em) order by id) from uj.checklist_itens where comunidade_id = $1) as ck,
             (select count(*) from uj.notas_internas where comunidade_id = $1) as n,
             (select count(*) from uj.anexos where comunidade_id = $1) as an,
-            (select json_agg(row(titulo, fim_em, versao) order by id) from uj.series where comunidade_id = $1) as s,
+            (select json_agg(row(titulo, fim_em, versao, estado) order by id) from uj.series where comunidade_id = $1) as s,
             (select json_agg(row(estado, assumida_por) order by id) from uj.substituicoes where comunidade_id = $1) as sb,
             (select json_agg(row(estado, vinculo_id) order by id) from uj.atribuicoes where comunidade_id = $1) as at,
             (select count(*) from uj.disponibilidades where comunidade_id = $1) as d,
@@ -429,7 +456,10 @@ async function estadoDeB() {
             (select json_agg(row(estado, conteudo_retirado) order by id) from uj.denuncias where comunidade_id = $1) as dn,
             (select json_agg(row(tipo, ativo) order by id) from uj.preferencias_notificacao where comunidade_id = $1) as pn,
             (select count(*) from uj.sync_operacoes where comunidade_id = $1) as so,
-            (select count(*) from uj.andamento_comandos where comunidade_id = $1) as ac`,
+            (select count(*) from uj.andamento_comandos where comunidade_id = $1) as ac,
+            (select encode(hash, 'hex') from uj.logos_comunidades where comunidade_id = $1) as lg,
+            (select json_agg(encode(f.hash, 'hex') order by f.conta_id) from uj.fotos_contas f
+               join uj.vinculos v on v.conta_id = f.conta_id where v.comunidade_id = $1) as fo`,
     [comB],
   )
   return rows[0]
@@ -614,6 +644,45 @@ describe('isolamento no corpo e nos filtros (F13, F14, F18)', () => {
     })
     expect(r.statusCode).toBe(404)
     expect(await estadoDeB()).toEqual(antes)
+  })
+
+  it('"minhas inscrições" em A nunca traz a inscrição da mesma pessoa em B', async () => {
+    // Uma conta presente nas duas comunidades, inscrita num evento de B.
+    const nasDuas = await pessoaComSessao(b, app, config, 'Pessoa Nas Duas')
+    await vincular(b, nasDuas.id, comA, 'membro')
+    const vinculoEmB = await vincular(b, nasDuas.id, comB, 'membro')
+    const inscricaoEmB = (
+      await b.dono.query<{ id: string }>(
+        `insert into uj.inscricoes (comunidade_id, evento_id, origem, vinculo_id, nome, estado)
+         values ($1, $2, 'membro', $3, 'Pessoa Nas Duas', 'confirmada') returning id`,
+        [comB, idsDeB['eventoId'], vinculoEmB],
+      )
+    ).rows[0]!.id
+    for (const periodo of ['proximas', 'todas']) {
+      const r = await app.inject({
+        method: 'GET',
+        url: `/api/v1/c/${comA}/inscricoes/eu?periodo=${periodo}`,
+        headers: nasDuas.auth,
+      })
+      expect(r.statusCode).toBe(200)
+      expect(r.json()).toEqual({ inscricoes: [] })
+    }
+    // Em B, a mesma pessoa vê a sua (o evento de B começou agora e dura 60 min).
+    const emB = await app.inject({
+      method: 'GET',
+      url: `/api/v1/c/${comB}/inscricoes/eu`,
+      headers: nasDuas.auth,
+    })
+    expect(emB.json().inscricoes.map((i: { inscricaoId: string }) => i.inscricaoId)).toEqual([
+      inscricaoEmB,
+    ])
+    // E a admin de A, que não está em B, recebe 404 em B, como em toda rota.
+    const deFora = await app.inject({
+      method: 'GET',
+      url: `/api/v1/c/${comB}/inscricoes/eu`,
+      headers: adminA.auth,
+    })
+    expect(deFora.statusCode).toBe(404)
   })
 
   it('o log de mudanças de A nunca traz registro de B', async () => {

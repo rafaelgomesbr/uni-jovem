@@ -384,7 +384,7 @@ describe('eventos, escalas, substituições e inscrições', () => {
     const primeira = await req('POST', `/api/v1/c/${comA}/eventos/${eventoId}/inscricoes/eu`, ana)
     const segunda = await req('POST', `/api/v1/c/${comA}/eventos/${eventoId}/inscricoes/eu`, ambos)
     expect(segunda.json().estado).toBe('espera')
-    await req('POST', `/api/v1/c/${comA}/inscricoes/${primeira.json().inscricao_id}/cancelar`, ana)
+    await req('POST', `/api/v1/c/${comA}/inscricoes/${primeira.json().inscricaoId}/cancelar`, ana)
     const { rows } = await b.su.query<{ titulo: string }>(
       "select titulo from uj.notificacoes where conta_id = $1 and tipo = 'inscricoes'",
       [ambos.id],

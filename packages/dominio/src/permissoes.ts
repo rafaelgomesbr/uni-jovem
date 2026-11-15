@@ -38,10 +38,14 @@ export const MATRIZ = {
     intervir_em_vinculo: [proprietario],
     transferir_propriedade: [proprietario],
     ler_auditoria_da_plataforma: [proprietario],
+    // Painel de saúde: só números agregados, sem conteúdo nem pessoa.
+    ler_saude_da_plataforma: [proprietario],
   },
   comunidade: {
     ler: [papel('membro')],
     configurar: [papel('admin')],
+    // Enviar ou remover o logotipo (D33). Ver o logotipo é `ler`.
+    trocar_logo: [papel('admin')],
   },
   vinculo: {
     listar: [papel('membro')],
@@ -111,6 +115,8 @@ export const MATRIZ = {
   inscricao: {
     ler_lista: [papel('organizador')],
     inscrever_se: [proprio('membro')],
+    // As próprias inscrições na comunidade (evento, estado e código de entrada).
+    ler_proprias: [proprio('membro')],
     cancelar: [papel('organizador'), proprio('membro')],
     gerenciar: [papel('organizador')],
   },

@@ -1,3 +1,4 @@
+import { NOME_DO_APP } from '@uj/dominio'
 import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto'
 import type pg from 'pg'
 import type { Config } from '../config.ts'
@@ -87,7 +88,7 @@ export function mascararEmail(email: string): string {
 }
 
 /** Marca curta da senha vigente (não reversível); muda quando a senha muda. */
-function versaoDaSenha(senhaHash: string): string {
+export function versaoDaSenha(senhaHash: string): string {
   return createHash('sha256').update(senhaHash).digest('base64url').slice(0, 16)
 }
 
@@ -102,7 +103,10 @@ function exigirSenhaBoa(senha: string, dados: { nome?: string; email?: string })
   }
 }
 
-async function emTx<T>(pool: pg.Pool, trabalho: (c: pg.PoolClient) => Promise<T>): Promise<T> {
+export async function emTx<T>(
+  pool: pg.Pool,
+  trabalho: (c: pg.PoolClient) => Promise<T>,
+): Promise<T> {
   const c = await pool.connect()
   try {
     await c.query('begin')
@@ -117,7 +121,7 @@ async function emTx<T>(pool: pg.Pool, trabalho: (c: pg.PoolClient) => Promise<T>
   }
 }
 
-async function auditar(
+export async function auditar(
   c: pg.PoolClient | pg.Pool,
   contaId: string | null,
   acao: string,
@@ -154,7 +158,7 @@ export interface SessaoAberta {
   segundoFator: false
 }
 
-async function abrirSessao(
+export async function abrirSessao(
   d: DependenciasAuth,
   c: pg.PoolClient | pg.Pool,
   contaId: string,
@@ -212,26 +216,29 @@ export async function sessaoValida(
 
 export type ResultadoDeEntrada = SessaoAberta | { segundoFator: true; desafio: string }
 
-export async function entrar(
-  d: DependenciasAuth,
-  pedido: { email: string; senha: string; aparelho: string | null; plataforma: Plataforma },
-): Promise<ResultadoDeEntrada> {
-  const { rows } = await d.auth.query<{
-    id: string
-    senha_hash: string | null
-    estado: string
-    totp_ativado_em: Date | null
-  }>('select id, senha_hash, estado, totp_ativado_em from uj.contas where email = $1', [
-    normalizarEmail(pedido.email),
-  ])
-  const conta = rows[0]
-  if (!conta || !conta.senha_hash || conta.estado !== 'ativa') {
-    await gastarTempoDeVerificacao(pedido.senha)
-    throw CREDENCIAIS()
-  }
-  if (!(await senhaConfere(conta.senha_hash, pedido.senha))) throw CREDENCIAIS()
+export interface ContaQueEntra {
+  id: string
+  senha_hash: string
+  totp_ativado_em: Date | null
+  plataforma_proprietario: boolean
+}
 
-  if (conta.totp_ativado_em) {
+/**
+ * Depois da credencial certa (senha ou provedor): desafio de segundo fator
+ * para quem LIGOU o 2FA por vontade própria, sessão direta para os demais.
+ *
+ * O Criador entra como qualquer conta, sem o código no login (pedido do
+ * dono). O TOTP dele continua obrigatório e configurado (CHECK de 0001), mas
+ * é cobrado onde importa: cada ação de plataforma exige a prova de 2FA
+ * recente (D12), pedida na hora por `/api/auth/2fa/provar`. A sessão aberta
+ * aqui não traz prova, então o banco não reconhece poder de plataforma nela.
+ */
+export async function concluirEntrada(
+  d: DependenciasAuth,
+  conta: ContaQueEntra,
+  pedido: { aparelho: string | null; plataforma: Plataforma },
+): Promise<ResultadoDeEntrada> {
+  if (conta.totp_ativado_em && !conta.plataforma_proprietario) {
     const desafio = await emitirDesafio(d.config.JWT_SEGREDO, {
       contaId: conta.id,
       aparelho: pedido.aparelho,
@@ -241,6 +248,30 @@ export async function entrar(
     return { segundoFator: true, desafio }
   }
   return abrirSessao(d, d.auth, conta.id, pedido)
+}
+
+export async function entrar(
+  d: DependenciasAuth,
+  pedido: { email: string; senha: string; aparelho: string | null; plataforma: Plataforma },
+): Promise<ResultadoDeEntrada> {
+  const { rows } = await d.auth.query<{
+    id: string
+    senha_hash: string | null
+    estado: string
+    totp_ativado_em: Date | null
+    plataforma_proprietario: boolean
+  }>(
+    `select id, senha_hash, estado, totp_ativado_em, plataforma_proprietario
+       from uj.contas where email = $1`,
+    [normalizarEmail(pedido.email)],
+  )
+  const conta = rows[0]
+  if (!conta || !conta.senha_hash || conta.estado !== 'ativa') {
+    await gastarTempoDeVerificacao(pedido.senha)
+    throw CREDENCIAIS()
+  }
+  if (!(await senhaConfere(conta.senha_hash, pedido.senha))) throw CREDENCIAIS()
+  return concluirEntrada(d, { ...conta, senha_hash: conta.senha_hash }, pedido)
 }
 
 // ------------------------------------------------------------ segundo fator
@@ -329,7 +360,7 @@ async function conferirSegundoFator(
     d.emSegundoPlano(
       d.correio.enviar({
         para: conta.email,
-        assunto: 'Alerta de segurança do Uni Jovem',
+        assunto: `Alerta de segurança do ${NOME_DO_APP}`,
         corpo: [
           'Houve várias tentativas de código de verificação erradas na sua conta.',
           `Por segurança, a verificação em duas etapas ficou bloqueada por ${BLOQUEIO_2FA_MIN} minutos.`,
@@ -533,9 +564,9 @@ export function pedirRecuperacao(d: DependenciasAuth, email: string): void {
       const link = new URL(`/redefinir-senha#t=${token}`, d.config.URL_PUBLICA).toString()
       await d.correio.enviar({
         para: conta.email,
-        assunto: 'Redefinição de senha do Uni Jovem',
+        assunto: `Redefinição de senha do ${NOME_DO_APP}`,
         corpo: [
-          'Recebemos um pedido para redefinir a senha da sua conta no Uni Jovem.',
+          `Recebemos um pedido para redefinir a senha da sua conta no ${NOME_DO_APP}.`,
           '',
           `Para criar uma senha nova, abra este link em até ${VALIDADE_RECUPERACAO_MIN} minutos:`,
           link,
@@ -641,6 +672,29 @@ function traduzirErroDeConvite(e: unknown): never {
   throw e
 }
 
+/** Por que o convite não vale, em linguagem de gente (mesmas situações de consultar_convite). */
+const MENSAGEM_DA_SITUACAO: Record<string, string> = {
+  revogado: 'Este convite foi cancelado por quem convidou. Peça um novo.',
+  expirado: 'Este convite venceu. Peça um novo a quem convidou você.',
+  usado: 'Este convite já foi usado. Peça um novo a quem convidou você.',
+  indisponivel: 'Esta comunidade não está recebendo novas pessoas agora.',
+  inexistente: MENSAGEM_DO_CONVITE['UJ001']!,
+}
+
+/**
+ * Convite que não vale: o código continua `convite_indisponivel` (o mesmo do
+ * aceite atômico) e a `situacao` diz o motivo, para a tela explicar.
+ */
+function conviteIndisponivel(situacao: string): ErroDeAuth {
+  const erro = new ErroDeAuth(
+    'convite_indisponivel',
+    409,
+    MENSAGEM_DA_SITUACAO[situacao] ?? MENSAGEM_DO_CONVITE['UJ001']!,
+  ) as ErroDeAuth & { extra?: Record<string, unknown> }
+  erro.extra = { situacao: situacao in MENSAGEM_DA_SITUACAO ? situacao : 'inexistente' }
+  return erro
+}
+
 export const MENOR_DE_16 = () => new ErroDeAuth('menor_de_16', 422, MENSAGEM_MENOR_DE_16)
 
 const COTA_ESGOTADA = () =>
@@ -694,11 +748,11 @@ export async function iniciarCadastroPorConvite(
   if (existe.rows.length > 0) {
     await d.correio.enviar({
       para: email,
-      assunto: 'Seu convite para o Uni Jovem',
+      assunto: `Seu convite para o ${NOME_DO_APP}`,
       corpo: [
         `Olá, ${primeiroNome}!`,
         '',
-        'Você recebeu um convite, mas este e-mail já tem conta no Uni Jovem.',
+        `Você recebeu um convite, mas este e-mail já tem conta no ${NOME_DO_APP}.`,
         'Entre com a sua conta e abra o link do convite de novo para aceitar.',
         '',
         'Se você não pediu isto, ignore esta mensagem.',
@@ -723,7 +777,7 @@ export async function iniciarCadastroPorConvite(
   await d.correio.enviar({
     para: email,
     // O código não vai no assunto: ele apareceria na notificação da tela bloqueada.
-    assunto: 'Seu código de verificação do Uni Jovem',
+    assunto: `Seu código de verificação do ${NOME_DO_APP}`,
     corpo: [
       `Olá, ${primeiroNome}!`,
       '',
@@ -877,12 +931,33 @@ export async function aceitarConviteComConta(
   const declarada: FaixaEtaria | undefined = pedido.faixaEtaria
   return emTx(d.auth, async (c) => {
     const conta = (
-      await c.query<{ faixa_etaria: FaixaEtaria | null; plataforma: Plataforma | null }>(
-        `select a.faixa_etaria, (select plataforma from uj.sessoes where id = $2) as plataforma
+      await c.query<{
+        email: string
+        faixa_etaria: FaixaEtaria | null
+        plataforma: Plataforma | null
+      }>(
+        `select a.email, a.faixa_etaria,
+                (select plataforma from uj.sessoes where id = $2) as plataforma
            from uj.contas a where a.id = $1`,
         [pedido.contaId, pedido.sessaoId],
       )
     ).rows[0]
+    // Primeiro o convite (existe, não revogado, no prazo, com uso, comunidade
+    // ativa, e-mail certo); só depois a idade. Pedir a faixa de idade para um
+    // convite que não vale faria a pessoa responder à toa. O aceite atômico
+    // (uj.aceitar_convite) confere tudo de novo, com o convite travado.
+    const convite = (
+      await c.query<{ email_destino: string | null; situacao: string }>(
+        'select email_destino, situacao from uj.consultar_convite($1)',
+        [hmacDoConvite(d, pedido.token)],
+      )
+    ).rows[0]
+    if (!convite || convite.situacao !== 'valido') {
+      throw conviteIndisponivel(convite?.situacao ?? 'inexistente')
+    }
+    if (convite.email_destino !== null && convite.email_destino !== conta?.email) {
+      traduzirErroDeConvite({ code: 'UJ002' })
+    }
     const forma = conta?.plataforma ?? 'web'
     let faixa = conta?.faixa_etaria ?? null
     if (!faixa) {
@@ -1041,7 +1116,7 @@ export async function excluirConta(
       throw new ErroDeAuth(
         'conta_do_criador',
         409,
-        'Você é o Criador do Uni Jovem. Transfira a propriedade antes de excluir sua conta.',
+        `Você é o Criador do ${NOME_DO_APP}. Transfira a propriedade antes de excluir sua conta.`,
       )
     }
     if (codigo === 'UJ041')
@@ -1052,11 +1127,11 @@ export async function excluirConta(
   d.emSegundoPlano(
     d.correio.enviar({
       para: emailAntigo,
-      assunto: 'Sua conta no Uni Jovem foi excluída',
+      assunto: `Sua conta no ${NOME_DO_APP} foi excluída`,
       corpo: [
         'Olá!',
         '',
-        'Sua conta no Uni Jovem foi excluída, como você pediu. Seus dados pessoais foram apagados',
+        `Sua conta no ${NOME_DO_APP} foi excluída, como você pediu. Seus dados pessoais foram apagados`,
         'e, onde você aparecia, agora aparece "Pessoa removida".',
         '',
         'Se não foi você, responda a este e-mail o quanto antes.',
@@ -1122,7 +1197,7 @@ export async function iniciarTotp(
     contaId,
     cifrar(chaveTotp(d), segredo, `totp:${contaId}`),
   ])
-  return { uri: uriDeConfiguracao(segredo, conta.email, 'Uni Jovem'), segredo }
+  return { uri: uriDeConfiguracao(segredo, conta.email, NOME_DO_APP), segredo }
 }
 
 function gerarCodigosDeRecuperacao(): string[] {
@@ -1202,7 +1277,7 @@ export async function iniciarPrimeiroAcesso(
       conta.id,
       cifrar(chaveTotp(d), segredo, `totp:${conta.id}`),
     ])
-    return { uri: uriDeConfiguracao(segredo, conta.email, 'Uni Jovem'), segredo }
+    return { uri: uriDeConfiguracao(segredo, conta.email, NOME_DO_APP), segredo }
   })
 }
 

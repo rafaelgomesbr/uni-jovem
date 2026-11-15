@@ -6,18 +6,84 @@ import { ErroHttp, NAO_ENCONTRADO, traduzirErroDoBanco, validar } from '../http.
 import { email as campoEmail } from './autenticacao.ts'
 import {
   criarConvite,
+  fusoValido,
   linkDoConvite,
   VALIDADE_MAXIMA_CONVITE_DIAS,
   type DependenciasComunidades,
 } from './comunidades.ts'
-import { auditar, exigirCriador, idDoCaminho } from './contexto.ts'
+import { auditar, exigir, exigirCriador, idDoCaminho } from './contexto.ts'
 
 const DIAS_DE_CARENCIA_DA_EXCLUSAO = 30
+/** P1: fuso padrão de comunidade nova. */
+const FUSO_PADRAO = 'America/Sao_Paulo'
 const motivo = z
   .string()
   .trim()
   .min(10, 'Explique o motivo da intervenção (pelo menos 10 caracteres).')
   .max(500)
+
+/** Uma cota do dia, como `uj.saude_da_plataforma()` devolve. */
+interface CotaDoBanco {
+  cota: string
+  global: boolean
+  limite: number
+  maiorUso: number
+  chaves: number
+  chavesAcimaDe80: number
+}
+
+interface SaudeDoBanco {
+  geradoEm: string
+  comunidadesPorEstado: Record<string, number>
+  contasAtivas: number
+  eventosDoMes: { total: number; porStatus: Record<string, number> }
+  cotas: CotaDoBanco[]
+  filaDePush: {
+    pendentes: number
+    pendenteMaisAntigoEm: string | null
+    enviados24h: number
+    falhas24h: number
+    descartados24h: number
+  }
+}
+
+/** Nome de cada cota no painel, em linguagem de gente. */
+const DESCRICAO_DA_COTA: Record<string, string> = {
+  'email:convite': 'E-mails de convite no dia (todas as comunidades)',
+  'email:recuperacao': 'E-mails de recuperação de senha no dia',
+  'email:convite_por_convite': 'Reenvios de um mesmo convite no dia',
+  push_por_pessoa: 'Notificações por pessoa e comunidade no dia',
+  push_critico_por_pessoa: 'Notificações importantes (cancelamento, substituição) por pessoa',
+  avisos_por_hora: 'Avisos publicados por comunidade na hora',
+  exportacoes_por_conta: 'Exportações por pessoa no dia',
+  exportacao_bytes_por_comunidade: 'Tamanho das exportações por comunidade no dia (bytes)',
+}
+
+/**
+ * Acrescenta a cada cota o percentual, o aviso e a descrição, e junta os
+ * alertas. O aviso acende quando alguma chave chegou a 80% do limite (a conta
+ * é feita no banco, em `chavesAcimaDe80`).
+ */
+export function montarSaude(s: SaudeDoBanco) {
+  const cotas = s.cotas.map((c) => {
+    const percentual = c.limite > 0 ? Math.round((c.maiorUso / c.limite) * 100) : 0
+    return {
+      ...c,
+      descricao: DESCRICAO_DA_COTA[c.cota] ?? c.cota,
+      percentual,
+      aviso: c.chavesAcimaDe80 > 0,
+    }
+  })
+  const alertas = cotas
+    .filter((c) => c.aviso)
+    .map((c) => ({
+      cota: c.cota,
+      mensagem: c.global
+        ? `${c.descricao}: ${c.maiorUso} de ${c.limite} (${c.percentual}%).`
+        : `${c.descricao}: ${c.chavesAcimaDe80} com 80% ou mais do limite de ${c.limite} (maior uso: ${c.maiorUso}).`,
+    }))
+  return { ...s, cotas, alertas }
+}
 
 /** Transação com a prova do Criador e, se houver, a comunidade alvo no contexto. */
 function comoCriador<T>(
@@ -72,6 +138,52 @@ export function registrarRotasDePlataforma(app: FastifyInstance, d: Dependencias
     }),
   )
 
+  /**
+   * Painel de saúde: só números agregados (sem nome, texto ou identificador de
+   * pessoa). Leitura de plataforma também pede a prova de 2FA recente, como as
+   * demais rotas do Criador (D12, D31): a sessão sozinha não basta.
+   */
+  app.get('/api/v1/plataforma/saude', criador, async (pedido) => {
+    exigir(pedido, 'plataforma', 'ler_saude_da_plataforma')
+    const saude = await comoCriador(api, pedido, null, async (c) => {
+      const { rows } = await c.query<{ s: SaudeDoBanco | null }>(
+        'select uj.saude_da_plataforma() as s',
+      )
+      return rows[0]?.s ?? null
+    })
+    // O banco confere a prova de novo (ela pode ter vencido no meio do caminho).
+    if (!saude) {
+      throw new ErroHttp(
+        'segundo_fator_necessario',
+        403,
+        'Confirme o código do seu autenticador para continuar.',
+      )
+    }
+    return montarSaude(saude)
+  })
+
+  /** Auditoria da plataforma: só ações de plataforma, mais recentes primeiro, em páginas. */
+  app.get('/api/v1/plataforma/auditoria', criador, async (pedido) => {
+    exigir(pedido, 'plataforma', 'ler_auditoria_da_plataforma')
+    const q = validar(
+      z.object({
+        antes: z.coerce.number().int().positive().optional(),
+        limite: z.coerce.number().int().min(1).max(100).default(50),
+      }),
+      pedido.query,
+    )
+    return comoCriador(api, pedido, null, async (c) => {
+      const { rows } = await c.query(
+        `select id, momento, conta_id as "contaId", comunidade_id as "comunidadeId",
+                comunidade_nome as "comunidadeNome", acao, recurso_tipo as "recursoTipo",
+                recurso_id as "recursoId", detalhes
+           from uj.auditoria_da_plataforma($1, $2)`,
+        [q.antes ?? null, q.limite],
+      )
+      return { registros: rows }
+    })
+  })
+
   app.post('/api/v1/plataforma/comunidades', criador, async (pedido) => {
     const corpo = validar(
       z.object({
@@ -80,6 +192,8 @@ export function registrarRotasDePlataforma(app: FastifyInstance, d: Dependencias
           .string()
           .regex(/^#[0-9A-Fa-f]{6}$/)
           .optional(),
+        // Fuso IANA da comunidade (horários dos eventos); sem valor, o padrão P1.
+        fuso: fusoValido.optional(),
         emailDoAdmin: campoEmail.nullish(),
       }),
       pedido.body,
@@ -88,9 +202,9 @@ export function registrarRotasDePlataforma(app: FastifyInstance, d: Dependencias
     const criada = await comoCriador(api, pedido, null, async (c) => {
       try {
         const { rows } = await c.query<{ id: string }>(
-          `insert into uj.comunidades (nome, cor, criado_por) values ($1, coalesce($2, '#5B4BDB'), $3)
-           returning id`,
-          [corpo.nome, corpo.cor ?? null, s.contaId],
+          `insert into uj.comunidades (nome, cor, fuso, criado_por)
+           values ($1, coalesce($2, '#5B4BDB'), $3, $4) returning id`,
+          [corpo.nome, corpo.cor ?? null, corpo.fuso ?? FUSO_PADRAO, s.contaId],
         )
         const id = rows[0]!.id
         // O convite do primeiro admin nasce no contexto da nova comunidade.
@@ -203,13 +317,19 @@ export function registrarRotasDePlataforma(app: FastifyInstance, d: Dependencias
     }
   })
 
-  /** Intervenção: ver os vínculos da comunidade (nome e papel) para escolher um admin. */
+  /**
+   * Intervenção: os vínculos da comunidade (nome, papel e estado) para escolher
+   * quem nomear. Nunca e-mail nem WhatsApp: o Criador não precisa de contato
+   * para intervir, e a consulta fica na auditoria da comunidade.
+   */
   app.get('/api/v1/plataforma/comunidades/:comunidadeId/membros', criador, async (pedido) => {
     const id = idDoCaminho(pedido, 'comunidadeId')
     return comoCriador(api, pedido, id, async (c) => {
+      const existe = await c.query('select 1 from uj.comunidades where id = $1', [id])
+      if (!existe.rows[0]) throw NAO_ENCONTRADO()
       const { rows } = await c.query(
-        `select v.id as "vinculoId", v.papel, v.estado
-           from uj.vinculos v where v.comunidade_id = $1 order by v.papel, v.criado_em`,
+        `select vinculo_id as "vinculoId", nome, papel, estado, desde
+           from uj.vinculos_para_intervencao($1)`,
         [id],
       )
       await auditar(

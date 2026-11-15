@@ -33,3 +33,6 @@ credentials.json
 credentials/
 *.p12
 *.mobileprovision
+
+# Cache do Python dos scripts de arte e conteúdo.
+__pycache__/

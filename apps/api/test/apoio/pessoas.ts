@@ -17,7 +17,8 @@ export interface Pessoa {
 
 /**
  * Conta com senha, já autenticada pela API de verdade. Com `criador`, a conta
- * é a proprietária, tem 2FA, e o token traz a prova de plataforma.
+ * é a proprietária, tem 2FA, e o token traz a prova de plataforma (pedida
+ * depois do login, como o app faz antes de uma ação de plataforma).
  */
 export async function pessoaComSessao(
   b: BancoDeTeste,
@@ -53,13 +54,22 @@ export async function pessoaComSessao(
     payload: { email, senha: SENHA_PADRAO, plataforma: 'ios' },
   })
   let acesso = login.json().acesso as string | undefined
-  if (segredo) {
+  if (segredo && login.json().segundoFator === true) {
     const sf = await app.inject({
       method: 'POST',
       url: '/api/auth/segundo-fator',
       payload: { desafio: login.json().desafio, codigo: codigoTotp(segredo, contadorAtual()) },
     })
     acesso = sf.json().acesso as string
+  } else if (segredo && acesso) {
+    // O Criador entra sem código; a prova de plataforma vem do step-up (D12).
+    const prova = await app.inject({
+      method: 'POST',
+      url: '/api/auth/2fa/provar',
+      headers: { authorization: `Bearer ${acesso}` },
+      payload: { codigo: codigoTotp(segredo, contadorAtual()) },
+    })
+    acesso = prova.json().acesso as string
   }
   if (!acesso) throw new Error(`falha ao autenticar ${nome}: ${login.body}`)
   return { id, email, acesso, auth: { authorization: `Bearer ${acesso}` } }

@@ -828,12 +828,13 @@ describe('cursor de sincronização', () => {
       lenta.release()
     }
     // A marca d'água é do cluster inteiro: transações de outros testes em
-    // paralelo podem atrasá-la (D13: atraso, nunca perda). Espera até 10 s.
+    // paralelo podem atrasá-la (D13: atraso, nunca perda). Espera até 30 s:
+    // com a suíte inteira e a máquina carregada, 10 s já não bastaram.
     let visiveis = 0
-    for (let i = 0; i < 100 && visiveis < 2; i++) {
+    for (let i = 0; i < 300 && visiveis < 2; i++) {
       visiveis = (await b.su.query(consulta, [c, await limite()])).rows.length
       if (visiveis < 2) await new Promise((r) => setTimeout(r, 100))
     }
     expect(visiveis).toBe(2)
-  })
+  }, 60_000)
 })

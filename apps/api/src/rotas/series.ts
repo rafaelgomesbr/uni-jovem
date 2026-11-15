@@ -10,7 +10,7 @@ import {
   MODELOS_EMBUTIDOS,
   type RegraDeRecorrencia,
 } from '@uj/dominio'
-import { ErroHttp, NAO_ENCONTRADO, traduzirErroDoBanco, validar } from '../http.ts'
+import { ErroHttp, NAO_ENCONTRADO, SERIE_ENCERRADA, traduzirErroDoBanco, validar } from '../http.ts'
 import { auditar, exigir, idDoCaminho, naComunidade } from './contexto.ts'
 
 /**
@@ -67,21 +67,30 @@ interface Serie {
   etapas: { titulo: string; duracaoMin: number; descricao?: string | null }[]
   checklist: { tipo: string; texto: string }[]
   versao: number
+  estado: 'ativa' | 'encerrada'
+  encerrada_em: Date | null
 }
 
 const COLUNAS_DA_SERIE = `id, comunidade_id, regra, hora_local, fuso, duracao_min,
   to_char(inicio_em, 'YYYY-MM-DD') as inicio_em, to_char(fim_em, 'YYYY-MM-DD') as fim_em,
   to_char(materializado_ate, 'YYYY-MM-DD') as materializado_ate, titulo, descricao, categoria,
-  local_id, visibilidade, capacidade, informacoes_uteis, status_das_ocorrencias, etapas, checklist, versao`
+  local_id, visibilidade, capacidade, informacoes_uteis, status_das_ocorrencias, etapas, checklist, versao,
+  estado, encerrada_em`
 
 function somarDias(data: string, dias: number): string {
   const [a, m, d] = data.split('-').map(Number) as [number, number, number]
   return new Date(Date.UTC(a, m - 1, d + dias)).toISOString().slice(0, 10)
 }
 
-async function lerSerie(c: pg.PoolClient, comunidadeId: string, serieId: string): Promise<Serie> {
+async function lerSerie(
+  c: pg.PoolClient,
+  comunidadeId: string,
+  serieId: string,
+  o: { travar?: boolean } = {},
+): Promise<Serie> {
   const { rows } = await c.query<Serie>(
-    `select ${COLUNAS_DA_SERIE} from uj.series where id = $1 and comunidade_id = $2`,
+    `select ${COLUNAS_DA_SERIE} from uj.series where id = $1 and comunidade_id = $2
+       ${o.travar ? 'for update' : ''}`,
     [serieId, comunidadeId],
   )
   if (!rows[0]) throw NAO_ENCONTRADO()
@@ -93,6 +102,7 @@ async function lerSerie(c: pg.PoolClient, comunidadeId: string, serieId: string)
  * único por série + data original) e nunca recria ocorrência cancelada.
  */
 export async function materializar(c: pg.PoolClient, serie: Serie, ate: string): Promise<number> {
+  if (serie.estado === 'encerrada') return 0
   const desde = serie.materializado_ate ? somarDias(serie.materializado_ate, 1) : serie.inicio_em
   const datas = gerarDatas(
     serie.regra,
@@ -308,6 +318,7 @@ export function registrarRotasDeSeries(app: FastifyInstance, api: pg.Pool): void
     return tx(pedido, async (c) => {
       const comunidadeId = pedido.comunidade!.id
       const atual = await lerSerie(c, comunidadeId, serieId)
+      if (atual.estado === 'encerrada') throw SERIE_ENCERRADA()
       if (atual.versao !== p.versao) {
         const e = new ErroHttp(
           'conflito',
@@ -439,7 +450,13 @@ export function registrarRotasDeSeries(app: FastifyInstance, api: pg.Pool): void
     })
   })
 
-  /** Encerra a série a partir de uma data: rascunhos somem, publicados são cancelados com motivo. */
+  /**
+   * Encerra a série a partir de uma data: rascunhos somem, publicados são
+   * cancelados com motivo (quem participa é avisado). A partir do primeiro dia
+   * (ou antes), a série inteira fica `encerrada`: não cabe em `fim_em`, que
+   * precisa ser igual ou posterior ao início. Ocorrência que já começou fica
+   * como está: o histórico não é reescrito.
+   */
   app.post(`${base}/:serieId/encerrar`, naCom, async (pedido) => {
     exigir(pedido, 'evento', 'cancelar_ou_adiar')
     const serieId = idDoCaminho(pedido, 'serieId')
@@ -448,12 +465,12 @@ export function registrarRotasDeSeries(app: FastifyInstance, api: pg.Pool): void
       pedido.body,
     )
     return tx(pedido, async (c) => {
-      const serie = await lerSerie(c, pedido.comunidade!.id, serieId)
-      await c.query('update uj.series set fim_em = $2 where id = $1', [
-        serieId,
-        somarDias(p.aPartirDe, -1),
-      ])
-      const limite = instanteNoFuso(p.aPartirDe, '00:00', serie.fuso)
+      const serie = await lerSerie(c, pedido.comunidade!.id, serieId, { travar: true })
+      if (serie.estado === 'encerrada') throw SERIE_ENCERRADA()
+      const inteira = p.aPartirDe <= serie.inicio_em
+      const meiaNoite = instanteNoFuso(p.aPartirDe, '00:00', serie.fuso)
+      const agora = new Date()
+      const limite = meiaNoite > agora ? meiaNoite : agora
       const apagados = await c.query(
         "delete from uj.eventos where serie_id = $1 and inicio >= $2 and status = 'rascunho'",
         [serieId, limite],
@@ -463,6 +480,18 @@ export function registrarRotasDeSeries(app: FastifyInstance, api: pg.Pool): void
           where serie_id = $1 and inicio >= $2 and status in ('publicado', 'adiado')`,
         [serieId, limite, p.motivo],
       )
+      if (inteira) {
+        await c.query(
+          "update uj.series set estado = 'encerrada', encerrada_em = now() where id = $1",
+          [serieId],
+        )
+      } else {
+        // Só encurta: encerrar depois do fim já marcado não estende a série.
+        await c.query(
+          'update uj.series set fim_em = least(coalesce(fim_em, $2::date), $2::date) where id = $1',
+          [serieId, somarDias(p.aPartirDe, -1)],
+        )
+      }
       await auditar(
         c,
         pedido,
@@ -470,10 +499,58 @@ export function registrarRotasDeSeries(app: FastifyInstance, api: pg.Pool): void
         { tipo: 'serie', id: serieId },
         {
           aPartirDe: p.aPartirDe,
+          inteira,
           cancelados: cancelados.rowCount,
         },
       )
-      return { apagados: apagados.rowCount, cancelados: cancelados.rowCount }
+      return {
+        apagados: apagados.rowCount,
+        cancelados: cancelados.rowCount,
+        estado: inteira ? 'encerrada' : 'ativa',
+      }
+    })
+  })
+
+  /**
+   * Exclui a série que nunca teve ocorrência publicada (só rascunhos). Se
+   * alguma já foi publicada, quem participa precisa ser avisado: o caminho é
+   * encerrar, que cancela com motivo.
+   */
+  app.delete(`${base}/:serieId`, naCom, async (pedido) => {
+    exigir(pedido, 'evento', 'excluir')
+    const serieId = idDoCaminho(pedido, 'serieId')
+    return tx(pedido, async (c) => {
+      const comunidadeId = pedido.comunidade!.id
+      await lerSerie(c, comunidadeId, serieId, { travar: true })
+      const apagados = await c.query(
+        `delete from uj.eventos
+          where serie_id = $1 and comunidade_id = $2 and status = 'rascunho'`,
+        [serieId, comunidadeId],
+      )
+      // Conferido DEPOIS de apagar: uma publicação concorrente aparece aqui e
+      // desfaz tudo (a transação inteira volta).
+      const restantes = await c.query('select 1 from uj.eventos where serie_id = $1 limit 1', [
+        serieId,
+      ])
+      if (restantes.rows.length > 0) {
+        throw new ErroHttp(
+          'serie_com_publicadas',
+          409,
+          'Esta série já teve ocorrências publicadas. Encerre a série: quem participa recebe o aviso do cancelamento.',
+        )
+      }
+      await c.query('delete from uj.series where id = $1 and comunidade_id = $2', [
+        serieId,
+        comunidadeId,
+      ])
+      await auditar(
+        c,
+        pedido,
+        'serie.excluida',
+        { tipo: 'serie', id: serieId },
+        { ocorrencias: apagados.rowCount },
+      )
+      return { ok: true, apagados: apagados.rowCount }
     })
   })
 }
@@ -487,7 +564,7 @@ export async function materializarTodas(dono: pg.Pool): Promise<number> {
   try {
     const { rows } = await c.query<Serie>(
       `select ${COLUNAS_DA_SERIE} from uj.series s
-        where (fim_em is null or fim_em >= current_date)
+        where estado = 'ativa' and (fim_em is null or fim_em >= current_date)
           and exists (select 1 from uj.comunidades m where m.id = s.comunidade_id and m.estado = 'ativa')`,
     )
     let total = 0

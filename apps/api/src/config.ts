@@ -23,6 +23,16 @@ const chave32 = (nome: string) =>
     .string({ error: `${nome} é obrigatório` })
     .refine((v) => Buffer.from(v, 'base64').length === 32, `${nome} precisa ser 32 bytes em base64`)
 
+const listaSeparadaPorVirgula = z
+  .string()
+  .default('')
+  .transform((v) =>
+    v
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
+  )
+
 const esquema = z
   .object({
     UJ_AMBIENTE: z.enum(AMBIENTES),
@@ -83,10 +93,18 @@ const esquema = z
       .regex(/^[a-z0-9.-]{3,120}$/, 'APNS_TOPICO é o bundle do app, ex.: com.solerte.unijovem')
       .optional(),
 
-    // Página /suporte: sem valor, a página mostra o marcador [PREENCHER].
+    // Entrar com Google e com a Apple (nunca cria conta). IDs de cliente do
+    // Google aceitos no `aud` do ID token (iOS, Android e web), separados por
+    // vírgula; sem valor, a entrada com Google fica desligada. Não são segredo.
+    GOOGLE_CLIENT_IDS: listaSeparadaPorVirgula,
+    // Bundles do app aceitos no `aud` do token da Apple. Sem valor, só o app do
+    // próprio ambiente (produção: com.solerte.unijovem; os outros: .hml).
+    APPLE_AUDIENCES: listaSeparadaPorVirgula,
+
+    // Página /suporte: sem valor, a página mostra o marcador [PREENCHER] (recusado em produção).
     SUPORTE_EMAIL: z.email('SUPORTE_EMAIL precisa ser um e-mail').optional(),
     // Impressões SHA-256 dos certificados de assinatura Android (assetlinks.json),
-    // separadas por vírgula. Sem valor, a lista sai vazia.
+    // separadas por vírgula. Sem valor, a lista sai vazia (recusado em produção).
     ANDROID_SHA256_IMPRESSOES: z
       .string()
       .default('')
@@ -145,6 +163,17 @@ const esquema = z
     if (c.UJ_AMBIENTE === 'producao' && /-hml\.|localhost/.test(c.URL_PUBLICA)) {
       falha('URL_PUBLICA de produção aponta para homologação ou localhost')
     }
+    if (c.UJ_AMBIENTE === 'producao') {
+      // Lista vazia em produção = App Links do Android sem verificação: o link
+      // de convite abriria no navegador em vez do app. Homologação aceita vazio.
+      if (c.ANDROID_SHA256_IMPRESSOES.length === 0) {
+        falha('ANDROID_SHA256_IMPRESSOES é obrigatório em producao (assetlinks.json)')
+      }
+      // Sem e-mail, a página /suporte mostraria o marcador [PREENCHER].
+      if (!c.SUPORTE_EMAIL) {
+        falha('SUPORTE_EMAIL é obrigatório em producao (página /suporte)')
+      }
+    }
     if (
       c.UJ_AMBIENTE !== 'producao' &&
       c.URL_PUBLICA_PRODUCAO !== undefined &&
@@ -155,6 +184,19 @@ const esquema = z
   })
 
 export type Config = z.infer<typeof esquema>
+
+const APP_DO_AMBIENTE: Record<Ambiente, string> = {
+  producao: 'com.solerte.unijovem',
+  homologacao: 'com.solerte.unijovem.hml',
+  desenvolvimento: 'com.solerte.unijovem.hml',
+}
+
+/** Públicos aceitos no token da Apple: a configuração ou, sem ela, o app do ambiente. */
+export function publicosDaApple(config: Config): string[] {
+  return config.APPLE_AUDIENCES.length > 0
+    ? config.APPLE_AUDIENCES
+    : [APP_DO_AMBIENTE[config.UJ_AMBIENTE]]
+}
 
 export class ConfigInvalida extends Error {
   constructor(public readonly problemas: string[]) {

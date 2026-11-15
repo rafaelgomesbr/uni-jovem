@@ -12,10 +12,12 @@
     "@fastify/formbody": "^8.0.2",
     "@node-rs/argon2": "^2.2.2",
     "@uj/dominio": "*",
+    "@uj/tokens": "*",
     "fastify": "^5.12.8",
     "jose": "^6.2.17",
     "pg": "^8.23.1",
     "qrcode": "^1.5.4",
+    "sharp": "^0.35.5",
     "zod": "^4.6.7"
   },
   "devDependencies": {
