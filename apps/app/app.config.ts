@@ -127,6 +127,15 @@ const config: ExpoConfig = {
     ],
     ['expo-secure-store', { faceIDPermission: false }],
     ['expo-sqlite', { useSQLCipher: true }],
+    // Versículo local e push nativo (F14). Sem alarme exato (bloqueado acima):
+    // o versículo pode chegar com alguns minutos de diferença, sem justificativa à loja.
+    [
+      'expo-notifications',
+      {
+        icon: './assets/images/notification-icon.png',
+        color: '#B83E1A',
+      },
+    ],
   ],
   experiments: {
     typedRoutes: true,

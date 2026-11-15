@@ -11,6 +11,8 @@ import type {
   StatusDoEvento,
 } from '@uj/dominio'
 
+import type { AvisoDoInicio } from './contratoDosModulos'
+
 export type Visibilidade = 'interna' | 'publica'
 export type TipoDeLocal = 'interno' | 'externo'
 
@@ -214,6 +216,8 @@ export interface RespostaDoInicio {
   minhasEscalas: EscalaDoInicio[]
   minhasTarefas: TarefaDoInicio[]
   substituicoesAbertas: number
+  /** Avisos publicados, fixados primeiro. Opcional: API antiga não manda. */
+  avisos?: AvisoDoInicio[]
 }
 
 export interface MinhaEscala extends EscalaDoInicio {

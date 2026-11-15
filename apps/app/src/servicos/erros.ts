@@ -9,14 +9,26 @@ export class ErroDaApi extends Error {
   readonly mensagem: string
   /** Estado atual do servidor, quando a API manda junto (conflito de versão, 409). */
   readonly atual: unknown
+  /**
+   * Campos a mais do corpo do erro, quando a API oferece uma saída (ex.:
+   * `{ acao: 'nomear_admin', comunidades }` ao excluir a conta).
+   */
+  readonly extra: Readonly<Record<string, unknown>>
 
-  constructor(status: number, codigo: string, mensagem: string, atual?: unknown) {
+  constructor(
+    status: number,
+    codigo: string,
+    mensagem: string,
+    atual?: unknown,
+    extra: Record<string, unknown> = {},
+  ) {
     super(mensagem)
     this.name = 'ErroDaApi'
     this.status = status
     this.codigo = codigo
     this.mensagem = mensagem
     this.atual = atual
+    this.extra = extra
   }
 }
 

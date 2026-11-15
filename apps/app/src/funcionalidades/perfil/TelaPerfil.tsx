@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { useSessao } from '@/estado/sessao'
@@ -14,13 +14,20 @@ import { Campo } from '@/ui/Campo'
 import { Cartao } from '@/ui/Cartao'
 import { Linha } from '@/ui/Linha'
 import { Selo } from '@/ui/Selo'
+import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 
+import { usePode } from '../comunidade/permissoes'
 import { TelaDoApp } from '../navegacao/TelaDoApp'
+import { MissoesDeConfiguracao } from '../onboarding/MissoesDeConfiguracao'
+import { abrirDocumento, DOCUMENTOS } from '../privacidade/TelaPrivacidade'
 
-export function TelaPerfil() {
-  const { conta, sair } = useSessao()
+/** Perfil: aba na web larga; no celular, abre pelo "Mais" (`/conta`, na pilha). */
+export function TelaPerfil({ naPilha = false }: { naPilha?: boolean }) {
+  const { conta, sair, comunidadeAtiva } = useSessao()
+  const pode = usePode()
   const [saindo, setSaindo] = useState(false)
+  const Moldura = naPilha ? TelaNaPilha : TelaDoApp
 
   if (!conta) return null
 
@@ -37,8 +44,33 @@ export function TelaPerfil() {
   }
 
   return (
-    <TelaDoApp titulo="Perfil">
+    <Moldura titulo="Perfil">
       <DadosDaConta conta={conta} />
+
+      <Cartao titulo="Notificações" icone="sino">
+        <Linha
+          titulo="Notificações"
+          descricao="O que o app avisa, por tipo e por comunidade, e a permissão do aparelho."
+          icone="sino"
+          aoPressionar={() => router.push('/notificacoes')}
+        />
+        <Linha
+          titulo="Versículo do dia"
+          descricao="Ligar, desligar e escolher o horário."
+          icone="versiculo"
+          aoPressionar={() => router.push('/versiculo')}
+        />
+      </Cartao>
+
+      <Cartao titulo="Mapa da missão" icone="missao">
+        <Linha
+          titulo="Rever o mapa da missão"
+          descricao="O passeio pelo app, com exemplos que não mudam nada de verdade."
+          icone="missao"
+          aoPressionar={() => router.push({ pathname: '/missao', params: { rever: '1' } })}
+        />
+        <MissoesDeConfiguracao />
+      </Cartao>
 
       <Cartao titulo="Segurança" icone="seguranca">
         <Linha
@@ -81,6 +113,41 @@ export function TelaPerfil() {
         </Cartao>
       ) : null}
 
+      {comunidadeAtiva && pode('denuncia', 'ler') ? (
+        <Cartao titulo="Administração" icone="denuncia">
+          <Linha
+            titulo="Denúncias"
+            descricao={`Conteúdos de ${comunidadeAtiva.nome} apontados como problema.`}
+            icone="denuncia"
+            aoPressionar={() => router.push('/denuncias')}
+          />
+        </Cartao>
+      ) : null}
+
+      <Cartao titulo="Privacidade" icone="seguranca">
+        <Linha
+          titulo="Exportar meus dados"
+          descricao="Uma cópia de tudo que é seu no Uni Jovem."
+          icone="baixar"
+          aoPressionar={() => router.push('/privacidade')}
+        />
+        {DOCUMENTOS.map((d) => (
+          <Linha
+            key={d.caminho}
+            titulo={d.titulo}
+            descricao="Abre no navegador."
+            icone={d.icone}
+            aoPressionar={() => void abrirDocumento(d.caminho)}
+          />
+        ))}
+        <Linha
+          titulo="Excluir minha conta"
+          descricao="Apaga a conta e sai de todas as comunidades."
+          icone="excluir"
+          aoPressionar={() => router.push('/excluir-conta')}
+        />
+      </Cartao>
+
       <Cartao>
         <Botao
           titulo="Sair deste aparelho"
@@ -90,7 +157,15 @@ export function TelaPerfil() {
           aoPressionar={() => void pedirParaSair()}
         />
       </Cartao>
-    </TelaDoApp>
+    </Moldura>
+  )
+}
+
+function TelaNaPilha({ titulo, children }: { titulo: string; children: ReactNode }) {
+  return (
+    <Tela cabecalhoNativo titulo={titulo}>
+      {children}
+    </Tela>
   )
 }
 

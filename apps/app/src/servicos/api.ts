@@ -31,6 +31,8 @@ export interface OpcoesDoPedido {
   autenticado?: boolean
   /** Cancela o pedido (ex.: long polling ao sair da tela). Cancelado não vira "sem conexão". */
   sinal?: AbortSignal
+  /** `texto`: devolve o corpo cru (ex.: CSV de uma exportação). Padrão: JSON. */
+  formato?: 'json' | 'texto'
 }
 
 export interface OpcoesDoCliente {
@@ -75,8 +77,7 @@ function normalizarBase(base: string): string {
   return base.replace(/\/+$/, '')
 }
 
-async function lerCorpo(resposta: Response): Promise<unknown> {
-  const texto = await resposta.text()
+function interpretar(texto: string): unknown {
   if (!texto) return undefined
   try {
     return JSON.parse(texto) as unknown
@@ -85,16 +86,20 @@ async function lerCorpo(resposta: Response): Promise<unknown> {
   }
 }
 
+async function lerCorpo(resposta: Response): Promise<unknown> {
+  return interpretar(await resposta.text())
+}
+
 function erroDoCorpo(status: number, corpo: unknown): ErroDaApi {
   if (corpo && typeof corpo === 'object') {
-    const { erro, mensagem, atual } = corpo as {
+    const { erro, mensagem, atual, ...extra } = corpo as {
       erro?: unknown
       mensagem?: unknown
       atual?: unknown
-    }
+    } & Record<string, unknown>
     if (typeof erro === 'string' && typeof mensagem === 'string') {
       // Conflito (409) traz o estado atual do servidor: a tela mostra em vez de sobrescrever.
-      return new ErroDaApi(status, erro, mensagem, atual)
+      return new ErroDaApi(status, erro, mensagem, atual, extra)
     }
   }
   return new ErroDaApi(status, 'desconhecido', MENSAGEM_GENERICA)
@@ -193,7 +198,9 @@ export function criarClienteDaApi(opcoes: OpcoesDoCliente): ClienteDaApi {
         ...(op.corpo !== undefined ? { body: JSON.stringify(op.corpo) } : {}),
         ...(op.sinal ? { signal: op.sinal } : {}),
       })
-      const dados = await lerCorpo(resposta)
+      const texto = await resposta.text()
+      if (resposta.ok && op.formato === 'texto') return texto as T
+      const dados = interpretar(texto)
       if (resposta.ok) return dados as T
 
       const erro = erroDoCorpo(resposta.status, dados)

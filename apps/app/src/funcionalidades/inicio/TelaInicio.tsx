@@ -24,6 +24,9 @@ import { CartaoDaEscala } from '../escalas/CartaoDaEscala'
 import { naComunidade } from '../eventos/consultas'
 import { LinhaDoEvento } from '../eventos/LinhaDoEvento'
 import { useMudancaNoEvento } from '../eventos/mutacoes'
+import { CartaoDaMissao } from '../onboarding/CartaoDaMissao'
+import { CartaoDoVersiculo } from '../versiculo/CartaoDoVersiculo'
+import { AvisosDoInicio } from './AvisosDoInicio'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { TelaDoApp } from '../navegacao/TelaDoApp'
 
@@ -77,6 +80,10 @@ function Inicio({
   return (
     <>
       <Texto cor="textoSuave">Isto é o que está acontecendo em {nomeDaComunidade}.</Texto>
+
+      <AvisosDoInicio avisos={d.avisos ?? []} podePublicar={pode('aviso', 'publicar')} />
+
+      <CartaoDaMissao />
 
       {d.substituicoesAbertas > 0 ? (
         <Aviso tipo="info" titulo="Alguém precisa de substituição">
@@ -145,6 +152,8 @@ function Inicio({
           </View>
         )}
       </Cartao>
+
+      <CartaoDoVersiculo />
 
       <Cartao titulo="Minhas escalas" icone="escalas">
         {d.minhasEscalas.length === 0 ? (
@@ -231,20 +240,6 @@ function Inicio({
               ))}
           </View>
         )}
-      </Cartao>
-
-      {/* Espaço reservado: avisos (F15) e versículo do dia (F14) chegam nas próximas fases. */}
-      <Cartao titulo="Avisos" icone="info">
-        <EstadoVazio
-          icone="info"
-          titulo="Nenhum aviso por enquanto"
-          descricao="Os avisos da organização e o versículo do dia vão aparecer aqui."
-          acao={{
-            titulo: 'Ver a comunidade',
-            icone: 'comunidade',
-            aoPressionar: () => router.push('/comunidade'),
-          }}
-        />
       </Cartao>
     </>
   )

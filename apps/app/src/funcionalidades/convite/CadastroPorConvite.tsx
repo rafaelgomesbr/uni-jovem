@@ -6,6 +6,7 @@ import { useSessao } from '@/estado/sessao'
 import { nomeDoAparelho, plataformaAtual } from '@/servicos/aparelho'
 import { api } from '@/servicos/api'
 import type { SessaoAberta } from '@/servicos/contrato'
+import type { FaixaEtaria } from '@/servicos/contratoDosModulos'
 import { ehErroDaApi } from '@/servicos/erros'
 import { normalizarWhatsApp } from '@/utilidades/formatos'
 import { AvisoDeErro } from '@/ui/AvisoDeErro'
@@ -16,6 +17,13 @@ import { Texto } from '@/ui/Texto'
 
 import { problemaDaSenha } from '../autenticacao/politicaDeSenha'
 import { RegrasDaSenha } from '../autenticacao/RegrasDaSenha'
+import {
+  AceiteDosTermos,
+  ConsentimentoDeFe,
+  MenorDe16,
+  motivoDoConsentimento,
+  PerguntaDeIdade,
+} from './Consentimentos'
 import { guardarConviteEmEspera } from './conviteEmEspera'
 
 type Passo = 'dados' | 'codigo' | 'senha'
@@ -30,7 +38,11 @@ interface Erros {
 
 const CODIGO_ERRADO = new Set(['codigo_invalido', 'codigo_vencido'])
 
-/** Conta nova pelo convite: dados, código de 6 números enviado por e-mail, senha. */
+/**
+ * Conta nova pelo convite: dados, idade (TC-01) e Termos (TC-02); código de 6
+ * números enviado por e-mail; senha e o consentimento sobre a fé (TC-03).
+ * Menor de 16 para no primeiro passo, sem enviar nada.
+ */
 export function CadastroPorConvite({ token, comunidade }: { token: string; comunidade: string }) {
   const sessao = useSessao()
   const [passo, setPasso] = useState<Passo>('dados')
@@ -42,6 +54,11 @@ export function CadastroPorConvite({ token, comunidade }: { token: string; comun
   const [confirmacao, setConfirmacao] = useState('')
   const [verificacaoId, setVerificacaoId] = useState<string | null>(null)
   const [erros, setErros] = useState<Erros>({})
+  const [faixa, setFaixa] = useState<FaixaEtaria | null>(null)
+  const [termos, setTermos] = useState(false)
+  const [fe, setFe] = useState(false)
+  const [responsavel, setResponsavel] = useState(false)
+  const adolescente = faixa === '16_17'
 
   const whatsappNormalizado = normalizarWhatsApp(whatsapp)
 
@@ -54,6 +71,7 @@ export function CadastroPorConvite({ token, comunidade }: { token: string; comun
           nome: nome.trim(),
           email: email.trim(),
           ...(whatsappNormalizado ? { whatsapp: whatsappNormalizado } : {}),
+          ...(faixa ? { faixaEtaria: faixa } : {}),
         },
         { autenticado: false },
       ),
@@ -77,6 +95,10 @@ export function CadastroPorConvite({ token, comunidade }: { token: string; comun
           senha,
           plataforma: plataformaAtual(),
           aparelho: nomeDoAparelho(),
+          faixaEtaria: faixa,
+          aceiteTermos: termos,
+          consentimentoFe: fe,
+          responsavelCiente: adolescente && responsavel,
         },
         { autenticado: false },
       )
@@ -102,6 +124,12 @@ export function CadastroPorConvite({ token, comunidade }: { token: string; comun
       setErros(novos)
       if (Object.keys(novos).length === 0) iniciar.mutate()
     }
+    const motivoDosDados =
+      faixa === null
+        ? 'Responda quantos anos você tem.'
+        : !termos
+          ? 'Para criar a conta, é preciso concordar com os Termos de Uso.'
+          : null
     return (
       <Cartao titulo="Crie sua conta" icone="convidar">
         <Campo
@@ -139,8 +167,22 @@ export function CadastroPorConvite({ token, comunidade }: { token: string; comun
           textContentType="emailAddress"
           onSubmitEditing={enviarDados}
         />
-        {iniciar.error ? <AvisoDeErro erro={iniciar.error} /> : null}
-        <Botao titulo="Enviar código" aoPressionar={enviarDados} carregando={iniciar.isPending} />
+        <PerguntaDeIdade valor={faixa} aoMudar={setFaixa} />
+        {faixa === 'menos_16' ? (
+          <MenorDe16 />
+        ) : (
+          <>
+            <AceiteDosTermos marcada={termos} aoMudar={setTermos} />
+            {iniciar.error ? <AvisoDeErro erro={iniciar.error} /> : null}
+            <Botao
+              titulo="Enviar código"
+              aoPressionar={enviarDados}
+              carregando={iniciar.isPending}
+              desabilitado={motivoDosDados !== null}
+              {...(motivoDosDados ? { motivo: motivoDosDados } : {})}
+            />
+          </>
+        )}
         <Botao
           titulo="Já tenho conta: entrar"
           variante="discreto"
@@ -201,7 +243,9 @@ export function CadastroPorConvite({ token, comunidade }: { token: string; comun
     )
   }
 
+  const motivoDaFe = motivoDoConsentimento(fe, adolescente, responsavel)
   const enviarSenha = () => {
+    if (motivoDaFe) return
     const problema = problemaDaSenha(senha, confirmacao, { nome, email })
     setErros(problema ? { senha: problema } : {})
     if (!problema) concluir.mutate()
@@ -237,11 +281,21 @@ export function CadastroPorConvite({ token, comunidade }: { token: string; comun
         textContentType="newPassword"
         onSubmitEditing={enviarSenha}
       />
+      <ConsentimentoDeFe
+        comunidade={comunidade}
+        marcada={fe}
+        aoMudar={setFe}
+        pedirResponsavel={adolescente}
+        responsavel={responsavel}
+        aoMudarResponsavel={setResponsavel}
+      />
       {outroErro ? <AvisoDeErro erro={concluir.error} /> : null}
       <Botao
         titulo={`Criar conta e entrar em ${comunidade}`}
         aoPressionar={enviarSenha}
         carregando={concluir.isPending}
+        desabilitado={motivoDaFe !== null}
+        {...(motivoDaFe ? { motivo: motivoDaFe } : {})}
       />
       <Botao
         titulo="Voltar ao código"

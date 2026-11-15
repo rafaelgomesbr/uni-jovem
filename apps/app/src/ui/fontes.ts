@@ -2,7 +2,7 @@ import { BricolageGrotesque_600SemiBold } from '@expo-google-fonts/bricolage-gro
 import { BricolageGrotesque_800ExtraBold } from '@expo-google-fonts/bricolage-grotesque/800ExtraBold'
 import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular'
 import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold'
-import { FONTES, TIPO } from '@uj/tokens'
+import { FONTES, type TIPO } from '@uj/tokens'
 
 /**
  * Uma família por peso: no Android, `fontWeight` sobre fonte carregada vira

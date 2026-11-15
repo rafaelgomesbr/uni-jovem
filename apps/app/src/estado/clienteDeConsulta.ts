@@ -30,6 +30,18 @@ export const CHAVES = {
   minhaInscricao: (id: string, eventoId: string) => ['c', id, 'minha-inscricao', eventoId] as const,
   checkin: (id: string, eventoId: string) => ['c', id, 'checkin', eventoId] as const,
   presencas: (id: string, eventoId: string) => ['c', id, 'presencas', eventoId] as const,
+  /** Prefixo de tudo que é pedido de oração (nunca persistido; ver `oracao/consultas`). */
+  oracao: (id: string) => ['c', id, 'oracao'] as const,
+  sugestoes: (id: string) => ['c', id, 'sugestoes'] as const,
+  conteudos: (id: string, tipo: string) => ['c', id, 'conteudos', tipo] as const,
+  avisos: (id: string) => ['c', id, 'avisos'] as const,
+  relatorio: (id: string, tipo: string, filtros: Record<string, string>) =>
+    ['c', id, 'relatorio', tipo, filtros] as const,
+  exportacoes: (id: string) => ['c', id, 'exportacoes'] as const,
+  preferenciasDeNotificacao: (id: string) => ['c', id, 'notificacoes', 'preferencias'] as const,
+  denuncias: (id: string, estado: string) => ['c', id, 'denuncias', estado] as const,
+  /** Preferências da conta (versículo) e o aparelho registrado para push. */
+  notificacoesDaConta: ['eu', 'notificacoes'] as const,
 }
 
 export function criarClienteDeConsulta(): QueryClient {

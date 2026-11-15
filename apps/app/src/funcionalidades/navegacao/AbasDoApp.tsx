@@ -26,12 +26,16 @@ export function AbasDoApp() {
         ? { backgroundColor: cores.superficie, indicatorColor: cores.superficieElevada }
         : {})}
     >
-      {ABAS.map((aba) => (
-        <NativeTabs.Trigger key={aba.rota} name={aba.rota}>
-          <NativeTabs.Trigger.Label>{aba.rotulo}</NativeTabs.Trigger.Label>
-          <NativeTabs.Trigger.Icon sf={ICONES[aba.icone].ios} md={ICONES[aba.icone].android} />
-        </NativeTabs.Trigger>
-      ))}
+      {ABAS.map((aba) => {
+        // No celular a quinta aba é "Mais" (Perfil e os demais módulos).
+        const { rotulo, icone } = aba.compacta ?? aba
+        return (
+          <NativeTabs.Trigger key={aba.rota} name={aba.rota}>
+            <NativeTabs.Trigger.Label>{rotulo}</NativeTabs.Trigger.Label>
+            <NativeTabs.Trigger.Icon sf={ICONES[icone].ios} md={ICONES[icone].android} />
+          </NativeTabs.Trigger>
+        )
+      })}
     </NativeTabs>
   )
 }

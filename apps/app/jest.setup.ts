@@ -53,3 +53,66 @@ jest.mock('expo-crypto', () => {
     randomUUID: jest.fn(() => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`),
   }
 })
+
+// Notificações do sistema: permissão ainda não perguntada, nada agendado.
+jest.mock('expo-notifications', () => {
+  const permissao = {
+    granted: false,
+    canAskAgain: true,
+    status: 'undetermined',
+    expires: 'never',
+    ios: { status: 0 },
+  }
+  return {
+    IosAuthorizationStatus: {
+      NOT_DETERMINED: 0,
+      DENIED: 1,
+      AUTHORIZED: 2,
+      PROVISIONAL: 3,
+      EPHEMERAL: 4,
+    },
+    AndroidImportance: { DEFAULT: 3 },
+    SchedulableTriggerInputTypes: { DATE: 'date' },
+    getPermissionsAsync: jest.fn(async () => permissao),
+    requestPermissionsAsync: jest.fn(async () => permissao),
+    getAllScheduledNotificationsAsync: jest.fn(async () => []),
+    cancelScheduledNotificationAsync: jest.fn(async () => undefined),
+    scheduleNotificationAsync: jest.fn(async () => 'id'),
+    setNotificationHandler: jest.fn(),
+    setNotificationChannelAsync: jest.fn(async () => null),
+    getDevicePushTokenAsync: jest.fn(async () => ({ type: 'ios', data: 'ab'.repeat(32) })),
+  }
+})
+
+jest.mock('expo-keep-awake', () => ({ useKeepAwake: jest.fn() }))
+
+// Arquivo e compartilhamento: o teste confere o conteúdo entregue, não o sistema.
+jest.mock('expo-sharing', () => ({
+  isAvailableAsync: jest.fn(async () => true),
+  shareAsync: jest.fn(async () => undefined),
+}))
+
+jest.mock('expo-file-system', () => {
+  class File {
+    uri: string
+    exists = false
+    conteudo = ''
+    constructor(...partes: unknown[]) {
+      this.uri = `file:///cache/${String(partes.at(-1))}`
+    }
+    create() {
+      this.exists = true
+    }
+    async write(texto: string) {
+      this.conteudo = texto
+      ;(globalThis as { __ultimoArquivo?: { uri: string; conteudo: string } }).__ultimoArquivo = {
+        uri: this.uri,
+        conteudo: texto,
+      }
+    }
+    delete() {
+      this.exists = false
+    }
+  }
+  return { File, Paths: { cache: 'cache' } }
+})

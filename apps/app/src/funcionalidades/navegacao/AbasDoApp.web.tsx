@@ -1,4 +1,5 @@
 import { ESPACO, RAIO } from '@uj/tokens'
+import { router } from 'expo-router'
 import { TabList, TabSlot, TabTrigger, Tabs, type TabTriggerSlotProps } from 'expo-router/ui'
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native'
 
@@ -10,6 +11,7 @@ import { useTema } from '@/ui/tema'
 import { Vidro } from '@/ui/Vidro'
 
 import { ABAS } from './abas'
+import { useGruposDoMais } from './mais'
 
 interface PropsDoBotaoDaAba extends Omit<TabTriggerSlotProps, 'ref'> {
   rotulo: string
@@ -63,6 +65,62 @@ function BotaoDaAba({
 }
 
 /**
+ * Módulos que não são abas (avisos, oração, relatórios...), conforme o papel.
+ * Na web larga ficam na própria barra lateral; abrem como telas da pilha.
+ */
+function MaisNaLateral() {
+  const { cores } = useTema()
+  const grupos = useGruposDoMais()
+  return (
+    <View
+      accessibilityRole="list"
+      style={{
+        gap: ESPACO.x1,
+        marginTop: ESPACO.x4,
+        borderTopWidth: 1,
+        borderTopColor: cores.borda,
+      }}
+    >
+      {grupos.map((g) => (
+        <View key={g.titulo} style={{ gap: ESPACO.x1 }}>
+          <Texto
+            variante="rotulo"
+            cor="textoSuave"
+            accessibilityRole="header"
+            style={{ paddingHorizontal: ESPACO.x3, paddingTop: ESPACO.x3 }}
+          >
+            {g.titulo.toUpperCase()}
+          </Texto>
+          {g.itens.map((i) => (
+            <Pressable
+              key={i.rotulo}
+              accessibilityRole="link"
+              accessibilityLabel={i.rotulo}
+              accessibilityHint={i.descricao}
+              onPress={() => router.push(i.href)}
+              style={({ pressed }) => ({
+                minHeight: ALVO,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: ESPACO.x3,
+                paddingHorizontal: ESPACO.x3,
+                borderRadius: RAIO.medio,
+                opacity: pressed ? 0.8 : 1,
+              })}
+            >
+              <Icone nome={i.icone} cor={cores.textoSuave} tamanho={22} />
+              <Texto variante="corpoForte" style={{ color: cores.textoSuave }}>
+                {i.rotulo}
+              </Texto>
+            </Pressable>
+          ))}
+        </View>
+      ))}
+    </View>
+  )
+}
+
+/**
  * Web: barra lateral em telas largas e barra inferior em telas estreitas.
  * As abas ficam como filhas diretas da TabList (e ela, filha direta de
  * `Tabs`): é só ali que o `Tabs` procura os gatilhos. O vidro da barra
@@ -110,11 +168,15 @@ export function AbasDoApp() {
           </Texto>
         </View>
       ) : null}
-      {ABAS.map((aba) => (
-        <TabTrigger key={aba.rota} name={aba.rota} href={aba.href} asChild>
-          <BotaoDaAba rotulo={aba.rotulo} icone={aba.icone} lateral={lateral} />
-        </TabTrigger>
-      ))}
+      {ABAS.map((aba) => {
+        const { rotulo, icone } = lateral ? aba : (aba.compacta ?? aba)
+        return (
+          <TabTrigger key={aba.rota} name={aba.rota} href={aba.href} asChild>
+            <BotaoDaAba rotulo={rotulo} icone={icone} lateral={lateral} />
+          </TabTrigger>
+        )
+      })}
+      {lateral ? <MaisNaLateral key="mais" /> : null}
     </TabList>
   )
 

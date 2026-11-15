@@ -1,6 +1,7 @@
 import { ESPACO, RAIO, TIPO } from '@uj/tokens'
+import { useKeepAwake } from 'expo-keep-awake'
 import { useLocalSearchParams } from 'expo-router'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { AccessibilityInfo, View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
@@ -84,6 +85,15 @@ export function AoVivo({ comunidadeId, eventoId }: { comunidadeId: string; event
   )
 }
 
+/**
+ * Tela acesa enquanto alguém conduz ou acompanha (a tela ao vivo fica parada
+ * na mão ou no púlpito). Sai do ar sozinho ao encerrar ou ao fechar a tela.
+ */
+function ManterTelaAcesa() {
+  useKeepAwake('uj-ao-vivo')
+  return null
+}
+
 const ROTULO_DO_CONTROLE: Readonly<Record<ControleDoAoVivo, string>> = {
   iniciar: 'Iniciar',
   voltar: 'Voltar etapa',
@@ -103,7 +113,8 @@ const ICONE_DO_CONTROLE: Readonly<Record<ControleDoAoVivo, NomeDoIcone>> = {
 }
 
 interface PropsDoPainel {
-  r: RetratoAoVivo
+  /** `recebidoEm` vem do `useAoVivo`; sem ele, usa o relógio do aparelho. */
+  r: RetratoAoVivo & { recebidoEm?: number }
   conexao: 'ao_vivo' | 'reconectando'
   aviso: string | null
   comandar: (comando: ComandoDoAoVivo, forcar?: boolean) => void
@@ -122,18 +133,19 @@ function Painel({ r, conexao, aviso, comandar, enviando, erro }: PropsDoPainel) 
   const fuso = useFusoDaComunidade()
   const agora = useAgora()
   // Relógio do aparelho corrigido pelo do servidor (o que vale é o andamento compartilhado).
-  const [desvio, setDesvio] = useState({ agora: r.agora, ms: Date.parse(r.agora) - Date.now() })
-  if (desvio.agora !== r.agora) setDesvio({ agora: r.agora, ms: Date.parse(r.agora) - Date.now() })
-  const t = calcularTempo(r, agora + desvio.ms)
+  const desvioMs = r.recebidoEm === undefined ? 0 : Date.parse(r.agora) - r.recebidoEm
+  const t = calcularTempo(r, agora + desvioMs)
   const conduz = pode('ao_vivo', 'conduzir')
   const outroConduz = r.condutor !== null && !r.souCondutor
 
   // Avisa o leitor de tela quando a etapa muda (o resto da tela não é lido sozinho).
+  const idAtual = t.atual?.id
+  const tituloAtual = t.atual?.titulo
   useEffect(() => {
-    if (t.atual) AccessibilityInfo.announceForAccessibility(`Agora: ${t.atual.titulo}`)
+    if (idAtual) AccessibilityInfo.announceForAccessibility(`Agora: ${tituloAtual}`)
     else if (r.situacao === 'encerrado')
       AccessibilityInfo.announceForAccessibility('Evento encerrado')
-  }, [t.atual?.id, r.situacao])
+  }, [idAtual, tituloAtual, r.situacao])
 
   async function executar(controle: ControleDoAoVivo) {
     if (controle === 'encerrar') {
@@ -165,6 +177,7 @@ function Painel({ r, conexao, aviso, comandar, enviando, erro }: PropsDoPainel) 
 
   return (
     <Tela cabecalhoNativo>
+      {r.situacao !== 'encerrado' ? <ManterTelaAcesa /> : null}
       <View style={{ gap: ESPACO.x2 }}>
         <Texto variante="titulo">{r.evento.titulo}</Texto>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.x2 }}>

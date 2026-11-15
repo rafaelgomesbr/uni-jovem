@@ -7,7 +7,16 @@
  * preferência local guardada por conta.
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { createContext, use, useEffect, useRef, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  use,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
+import { Platform } from 'react-native'
 
 import { nomeDoAparelho, plataformaAtual } from '@/servicos/aparelho'
 import { api, type ClienteDaApi } from '@/servicos/api'
@@ -127,20 +136,20 @@ export function ProvedorDeSessao({
 
   // Sincroniza com o armazenamento seguro e a rede na abertura do app. O ref
   // impede uma segunda renovação no modo estrito (refresh repetido derruba o aparelho).
+  const aoAbrir = useEffectEvent(() => {
+    void iniciar()
+  })
   useEffect(() => {
     if (iniciou.current) return
     iniciou.current = true
-    void iniciar()
+    aoAbrir()
   }, [])
 
   // A API pode encerrar a sessão a qualquer momento (aparelho revogado).
-  useEffect(
-    () =>
-      cliente.aoPerderSessao(() => {
-        void encerrarLocalmente()
-      }),
-    [cliente],
-  )
+  const aoPerder = useEffectEvent(() => {
+    void encerrarLocalmente()
+  })
+  useEffect(() => cliente.aoPerderSessao(() => aoPerder()), [cliente])
 
   async function abrirSessao(sessao: SessaoAberta): Promise<void> {
     await cliente.abrirSessao(sessao)
@@ -199,7 +208,13 @@ export function ProvedorDeSessao({
     abrirSessao,
     async sair() {
       try {
-        if (cliente.temAcesso()) await cliente.post('/api/auth/sair')
+        if (cliente.temAcesso()) {
+          // Silencia o push deste aparelho antes de encerrar (a API também apaga ao sair).
+          if (Platform.OS !== 'web') {
+            await cliente.delete('/api/v1/eu/notificacoes/aparelho').catch(() => undefined)
+          }
+          await cliente.post('/api/auth/sair')
+        }
       } catch {
         // Sem rede ou sessão já encerrada: sai deste aparelho do mesmo jeito.
       }

@@ -6,6 +6,11 @@ export interface DefinicaoDaAba {
   href: '/' | '/agenda' | '/programacoes' | '/comunidade' | '/perfil'
   rotulo: string
   icone: NomeDoIcone
+  /**
+   * Na barra compacta (celular e web estreita) a quinta aba vira "Mais": lá
+   * ficam os módulos que não cabem nas abas e o Perfil.
+   */
+  compacta?: { rotulo: string; icone: NomeDoIcone }
 }
 
 /** As cinco abas do app, na ordem em que aparecem (celular e web). */
@@ -14,5 +19,11 @@ export const ABAS: readonly DefinicaoDaAba[] = [
   { rota: 'agenda', href: '/agenda', rotulo: 'Agenda', icone: 'agenda' },
   { rota: 'programacoes', href: '/programacoes', rotulo: 'Programações', icone: 'programacoes' },
   { rota: 'comunidade', href: '/comunidade', rotulo: 'Comunidade', icone: 'comunidade' },
-  { rota: 'perfil', href: '/perfil', rotulo: 'Perfil', icone: 'perfil' },
+  {
+    rota: 'perfil',
+    href: '/perfil',
+    rotulo: 'Perfil',
+    icone: 'perfil',
+    compacta: { rotulo: 'Mais', icone: 'mais' },
+  },
 ]

@@ -21,6 +21,11 @@ function esperar(ms: number, sinal: AbortSignal): Promise<void> {
 
 export type EstadoDaConexao = 'ao_vivo' | 'reconectando'
 
+/** Retrato com a hora em que chegou ao aparelho (para corrigir o relógio local pelo do servidor). */
+export type RetratoRecebido = RetratoAoVivo & { recebidoEm: number }
+
+const carimbar = (r: RetratoAoVivo): RetratoRecebido => ({ ...r, recebidoEm: Date.now() })
+
 /** Intervalo mínimo entre consultas quando o servidor responde sem mudança (evita repetição contínua). */
 const INTERVALO_MINIMO_MS = 1_000
 const ESPERA_APOS_FALHA_MS = 3_000
@@ -40,13 +45,14 @@ export function useAoVivo(comunidadeId: string, eventoId: string) {
 
   const retrato = useQuery({
     queryKey: chave,
-    queryFn: ({ signal }) => api.get<RetratoAoVivo>(caminho, { sinal: signal }),
+    queryFn: ({ signal }) => api.get<RetratoAoVivo>(caminho, { sinal: signal }).then(carimbar),
   })
   const carregado = retrato.data !== undefined
 
   // Sincroniza com o servidor enquanto a tela estiver aberta; ao sair, cancela o pedido pendente.
   useEffect(() => {
     if (!carregado) return
+    const chave = CHAVES.aoVivo(comunidadeId, eventoId)
     const controle = new AbortController()
     async function acompanhar() {
       while (!controle.signal.aborted) {
@@ -58,7 +64,7 @@ export function useAoVivo(comunidadeId: string, eventoId: string) {
           })
           if (controle.signal.aborted) return
           const atual = consultas.getQueryData<RetratoAoVivo>(chave)
-          if (!atual || novo.versao >= atual.versao) consultas.setQueryData(chave, novo)
+          if (!atual || novo.versao >= atual.versao) consultas.setQueryData(chave, carimbar(novo))
           setConexao('ao_vivo')
           if (novo.versao <= versao && Date.now() - inicio < INTERVALO_MINIMO_MS) {
             await esperar(INTERVALO_MINIMO_MS, controle.signal)
@@ -72,7 +78,7 @@ export function useAoVivo(comunidadeId: string, eventoId: string) {
     }
     void acompanhar()
     return () => controle.abort()
-  }, [carregado, caminho])
+  }, [carregado, caminho, comunidadeId, eventoId, consultas])
 
   const comandar = useMutation({
     mutationFn: ({ comando, forcar }: { comando: ComandoDoAoVivo; forcar?: boolean }) => {
@@ -84,11 +90,11 @@ export function useAoVivo(comunidadeId: string, eventoId: string) {
       })
     },
     onMutate: () => setAviso(null),
-    onSuccess: (novo) => consultas.setQueryData(chave, novo),
+    onSuccess: (novo) => consultas.setQueryData(chave, carimbar(novo)),
     onError: (erro) => {
       // Conflito de versão ou de condução: a resposta traz o estado atual.
       if (ehErroDaApi(erro) && erro.status === 409 && erro.atual) {
-        consultas.setQueryData(chave, erro.atual as RetratoAoVivo)
+        consultas.setQueryData(chave, carimbar(erro.atual as RetratoAoVivo))
         setAviso(`${erro.mensagem} A tela já mostra o andamento atual.`)
       }
     },

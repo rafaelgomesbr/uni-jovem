@@ -1,1 +1,1 @@
-export { TelaPerfil as default } from '@/funcionalidades/perfil/TelaPerfil'
+export { AbaPerfilOuMais as default } from '@/funcionalidades/navegacao/AbaPerfilOuMais'
