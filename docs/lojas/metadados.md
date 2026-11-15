@@ -125,7 +125,7 @@ Antes de colar a descrição, confira que cada linha está no binário enviado. 
 | Tema claro e escuro, fonte do sistema, leitor de tela                       | A11Y-01                        | Tokens AA nos dois temas (F1)                                     | Manter só o que foi validado                      |
 | Sem anúncios, sem compras                                                   | (ausência)                     | Verdadeiro (`apps/app/package.json` sem SDK de anúncio ou compra) | (obrigatório)                                     |
 
-**Não pode aparecer na ficha** porque o plano não entrega na v1 (seções 16 e 17 do plano): cadastro aberto, descoberta de comunidades, push na web, envio automático por WhatsApp, mapa embutido no Android (D22), upload de arquivo (D17), foto de perfil, criptografia de ponta a ponta nos pedidos de oração (L02).
+**Não pode aparecer na ficha** porque o plano não entrega na v1 (seções 16 e 17 do plano): cadastro aberto, descoberta de comunidades, push na web, envio automático por WhatsApp, mapa embutido no Android (D22), upload de arquivo (D17), criptografia de ponta a ponta nos pedidos de oração (L02).
 
 ---
 
@@ -165,7 +165,7 @@ O questionário foi atualizado em 2025 e as respostas novas são exigidas desde 
 | Atividades de sorte        | Jogos de azar, simulados, concursos, caixas de recompensa | Nenhum                     | Sem sorteio nem prêmio no app                                                                                                                                                                                                                                                                                                                          |
 | Feito para crianças (Kids) |                                                           | Não                        |                                                                                                                                                                                                                                                                                                                                                        |
 
-**Resultado esperado:** **4+** no global e **A6** no Brasil (a tabela brasileira da Apple coloca "conteúdo gerado por usuários" em A6).
+**Resultado do questionário:** **4+** no global e **A6** no Brasil (a tabela brasileira da Apple coloca "conteúdo gerado por usuários" em A6). **Classificação aplicada em 15/11/2026: 16+ no global e A16 no Brasil.** A tela da Apple pede que um app cujos termos fixam idade mínima seja classificado nessa idade, e os termos do Uni Jovem fixam 16 anos (D27). Ver `estado-das-lojas.md`.
 
 **Curadoria de versículos.** As respostas "nenhum" em violência e temas adultos valem enquanto o plano de 366 versículos em `packages/conteudo/src/versiculos.ts` ficar em trechos de encorajamento. Se entrar trecho com violência ou tema adulto, refaça esta tabela.
 
@@ -191,23 +191,23 @@ O Play gera as classificações de cada autoridade a partir de um questionário 
 
 **Resultado esperado:** ClassInd **Livre**, com o elemento interativo "Usuários interagem". O Google avisa que classificação com resposta falsa leva a remoção ou suspensão.
 
-### 5.3 Por que não uma faixa mais alta "por garantia"
+### 5.3 Por que 16+ e não a faixa do questionário
 
-Classificação inflada também é resposta falsa, e uma faixa 16+ ou 18+ afasta justamente o público de um grupo de jovens. As respostas acima descrevem o que o app tem; se o app mudar (navegador interno, conversa, publicidade), a classificação muda junto.
+As respostas do questionário descrevem o conteúdo, e ele continua sendo o de 4+ (Apple) e Livre (ClassInd). A faixa aplicada sobe para 16+ só porque o próprio app recusa quem tem menos de 16 anos (D27, termos de uso): anunciar 4+ para um app que barra menores de 16 seria incoerente. Não é "por garantia": se a idade mínima dos termos mudar, a faixa muda junto. Se o app mudar (navegador interno, conversa, publicidade), as respostas também mudam.
 
 ### 5.4 Risco que a classificação não resolve: adolescentes
 
-Grupos de jovens costumam ter adolescentes. O Estatuto Digital da Criança e do Adolescente (Lei 15.211/2025) está em vigor desde 17/03/2026 e trata de verificação de idade e proteção de menores em produtos digitais ([ANPD, ECA Digital](https://www.gov.br/anpd/pt-br/assuntos/eca-digital/eca-digital-english); [Machado Meyer, vigência](https://www.machadomeyer.com.br/pt/inteligencia-juridica/publicacoes-ij/direito-digital/estatuto-digital-da-crianca-e-do-adolescente-lei-n-15-211-2025-entra-em-vigor-em-17-de-marco-de-2026)). A aplicação ao Uni Jovem é pergunta jurídica, não de loja: entra na revisão jurídica da PH-11. A classificação 4+ e Livre não muda por isso, porque ela mede o conteúdo, não o público.
+Grupos de jovens costumam ter adolescentes. O Estatuto Digital da Criança e do Adolescente (Lei 15.211/2025) está em vigor desde 17/03/2026 e trata de verificação de idade e proteção de menores em produtos digitais ([ANPD, ECA Digital](https://www.gov.br/anpd/pt-br/assuntos/eca-digital/eca-digital-english); [Machado Meyer, vigência](https://www.machadomeyer.com.br/pt/inteligencia-juridica/publicacoes-ij/direito-digital/estatuto-digital-da-crianca-e-do-adolescente-lei-n-15-211-2025-entra-em-vigor-em-17-de-marco-de-2026)). A análise de 15/11/2026 (política de privacidade, seção para pais e responsáveis) trata o app como dentro do escopo, por prudência, e mantém a idade mínima de 16 anos; os pontos em aberto entram na revisão jurídica da PH-11.
 
 ---
 
 ## 6. Público-alvo (Google: "Público-alvo e conteúdo")
 
-| Pergunta                               | Resposta                         | Justificativa                                                                                                                                          |
-| -------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Faixas etárias do público-alvo         | **13 a 15, 16 a 17, 18 ou mais** | Grupos de jovens de igreja incluem adolescentes. Declarar só 18+ seria falso. Nenhuma faixa abaixo de 13, então a política para famílias não se aplica |
-| O app pode atrair crianças sem querer? | Não                              | Sem personagens, jogos, linguagem ou visual infantil; entrada só por convite                                                                           |
-| Anúncios                               | Não                              |                                                                                                                                                        |
+| Pergunta                               | Resposta                | Justificativa                                                                                                                                                                                           |
+| -------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Faixas etárias do público-alvo         | **16 a 17, 18 ou mais** | O app recusa quem tem menos de 16 anos (D27); quem tem 16 ou 17 declara a ciência do responsável. Declarar só 18+ seria falso. Nenhuma faixa abaixo de 13, então a política para famílias não se aplica |
+| O app pode atrair crianças sem querer? | Não                     | Sem personagens, jogos, linguagem ou visual infantil; entrada só por convite                                                                                                                            |
+| Anúncios                               | Não                     |                                                                                                                                                                                                         |
 
 ---
 
