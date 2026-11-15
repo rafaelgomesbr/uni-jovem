@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Backup diário da homologação às 03:30. Instalado em ~/Library/LaunchAgents
+     pelo implantar.sh; o caminho usa o HOME do dono do Mac. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>br.com.solerte.unijovem-hml-backup</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>-c</string>
+    <string>sh "$HOME/srv/apps/unijovem-hml/codigo/infra/hml/backup.sh" &gt;&gt; "$HOME/srv/apps/unijovem-hml/backups/backup.log" 2&gt;&amp;1</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>3</integer>
+    <key>Minute</key>
+    <integer>30</integer>
+  </dict>
+</dict>
+</plist>

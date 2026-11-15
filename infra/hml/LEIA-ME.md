@@ -41,3 +41,8 @@ O comando imprime um link de uso único, válido por 30 minutos. Abra o link no 
 ## Recursos
 
 O Mac tem 8 GB de memória e o disco anda com cerca de 4 GB livres. Por isso os containers têm limite de memória de 384 MB cada.
+
+## Backup e restauração
+
+- `backup.sh`: `pg_dump` diário às 03:30 pelo launchd do Mac (`br.com.solerte.unijovem-hml-backup.plist`, em `~/Library/LaunchAgents`). Os arquivos ficam em `~/srv/apps/unijovem-hml/backups` com permissão 600. Retenção: 7 diários, 4 semanais e 3 mensais. A cópia externa no R2 depende da PH-05.
+- `provar-restauracao.sh`: restaura o último backup num banco temporário e compara a contagem de linhas de todas as tabelas de `uj`. Primeiro ensaio em 14/11/2026: contagens iguais.
