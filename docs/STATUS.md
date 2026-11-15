@@ -18,6 +18,7 @@ O dono pediu o app inteiro, sem pausas, até rodar no iPhone dele e com as duas 
 
 ## Evidência da última verificação
 
+- Sino de notificações (D42, migração 0020), ainda sem commit em 15/11/2026: caixa da conta paginada por cursor opaco, contador de não lidas, marcar uma e todas como lidas; sino na linha da pílula das raízes de aba e a tela `/caixa-de-notificacoes`. `npx vitest run`: **44 arquivos e 479 testes** passando (10 novos em `caixa-de-notificacoes.test.ts`); app: 12 testes novos em `CaixaDeNotificacoes.test.tsx` passando. A suíte do app tinha 3 falhas em `Convite.test.tsx`, vindas da correção do convite que outro agente fazia em paralelo, fora desta entrega.
 - iPhone do dono: build de homologação do commit `cdf4fd5` (design Aurora completo, D5 incluída) assinado no Mac e instalado pelo `devicectl` em 15/11/2026 ("App installed: com.solerte.unijovem.hml"); também em `https://unijovem-hml.solerte.com.br/instalar`. Conferência visual no aparelho: pendente do dono.
 - Web: republicada na homologação e na produção em 15/11/2026; a tela de entrada da homologação desenha os campos, sem erro de página. `npm run fumaca:web` entrou no `verificar`.
 
