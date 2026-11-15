@@ -51,8 +51,9 @@ export function ancora(texto: string): string {
     .replace(/^-+|-+$/g, '')
 }
 
+/** `//x` e `/\x` os navegadores tratam como outro site (relativo ao protocolo). */
 function destinoSeguro(url: string): boolean {
-  return /^(\/(?!\/)|#|https:\/\/|mailto:)/.test(url)
+  return /^(\/(?![/\\])|#|https:\/\/|mailto:)/.test(url)
 }
 
 function inline(texto: string): string {

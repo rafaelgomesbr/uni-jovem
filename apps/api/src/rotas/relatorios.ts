@@ -560,6 +560,19 @@ export function registrarRotasDeRelatorios(app: FastifyInstance, api: pg.Pool): 
       const nomeArquivo =
         e.tipo === 'membros' ? `membros_${p.hoje}.csv` : `${e.tipo}_${p.de}_a_${p.ate}.csv`
       const filtros = e.tipo === 'membros' ? {} : { de: p.de, ate: p.ate }
+      const conteudo = gerarCsv(cabecalho, linhas)
+      // Cota do dia: exportações por conta e bytes por comunidade (no banco, na
+      // mesma transação: se a gravação falhar, nada é gasto).
+      const cota = await c.query<{ ok: boolean }>('select uj.cota_de_exportacao($1) as ok', [
+        Buffer.byteLength(conteudo, 'utf8'),
+      ])
+      if (cota.rows[0]?.ok !== true) {
+        throw new ErroHttp(
+          'cota_de_exportacao',
+          429,
+          'Você já gerou muitas exportações hoje. Use as que estão na lista ou tente amanhã.',
+        )
+      }
       const { rows } = await c.query<{ id: string; expiraEm: Date }>(
         `insert into uj.exportacoes (comunidade_id, tipo, com_contatos, filtros, token_hash,
                                      nome_arquivo, conteudo, linhas)
@@ -571,7 +584,7 @@ export function registrarRotasDeRelatorios(app: FastifyInstance, api: pg.Pool): 
           JSON.stringify(filtros),
           hashDeToken(token),
           nomeArquivo,
-          gerarCsv(cabecalho, linhas),
+          conteudo,
           linhas.length,
         ],
       )

@@ -2,7 +2,14 @@ import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type pg from 'pg'
 import { z } from 'zod'
 import { ErroHttp, NAO_ENCONTRADO, traduzirErroDoBanco, validar } from '../http.ts'
-import { auditar, exigir, idDoCaminho, naComunidade } from './contexto.ts'
+import {
+  auditar,
+  exigir,
+  idDoCaminho,
+  naComunidade,
+  comLimiteDeEscrita,
+  ESCRITAS_POR_HORA,
+} from './contexto.ts'
 
 /**
  * Sugestões (F15). Qualquer membro sugere; organizadores moderam e respondem.
@@ -22,6 +29,7 @@ const CAMPOS = `id, anonima, titulo, texto, status, resposta, respondida_em as "
 
 export function registrarRotasDeSugestoes(app: FastifyInstance, api: pg.Pool): void {
   const naCom = { preHandler: app.comComunidade }
+  const escrita = comLimiteDeEscrita(app, ESCRITAS_POR_HORA.sugestoes)
   const base = '/api/v1/c/:comunidadeId/sugestoes'
   const tx = <T>(pedido: FastifyRequest, trabalho: (c: pg.PoolClient) => Promise<T>) =>
     naComunidade(api, pedido, async (c) => {
@@ -51,7 +59,7 @@ export function registrarRotasDeSugestoes(app: FastifyInstance, api: pg.Pool): v
     }))
   })
 
-  app.post(base, naCom, async (pedido) => {
+  app.post(base, escrita, async (pedido) => {
     exigir(pedido, 'sugestao', 'criar')
     const s = validar(
       z.object({
@@ -85,7 +93,7 @@ export function registrarRotasDeSugestoes(app: FastifyInstance, api: pg.Pool): v
   })
 
   /** Moderação: mudar o status e responder. */
-  app.patch(`${base}/:sugestaoId`, naCom, async (pedido) => {
+  app.patch(`${base}/:sugestaoId`, escrita, async (pedido) => {
     exigir(pedido, 'sugestao', 'moderar')
     const sugestaoId = idDoCaminho(pedido, 'sugestaoId')
     const m = validar(
@@ -144,7 +152,7 @@ export function registrarRotasDeSugestoes(app: FastifyInstance, api: pg.Pool): v
     })
   })
 
-  app.delete(`${base}/:sugestaoId`, naCom, async (pedido) => {
+  app.delete(`${base}/:sugestaoId`, escrita, async (pedido) => {
     exigir(pedido, 'sugestao', 'moderar')
     const sugestaoId = idDoCaminho(pedido, 'sugestaoId')
     return tx(pedido, async (c) => {

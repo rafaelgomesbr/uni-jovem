@@ -20,6 +20,16 @@ describe('markdown das páginas de política', () => {
     expect(html).not.toContain('href="outro-arquivo.md"')
   })
 
+  it('recusa destino relativo ao protocolo: // e /\\ levam a outro site', () => {
+    const html = markdownParaHtml(
+      '[a](//malicioso.test/x) [b](/\\malicioso.test/x) [c](/\\/malicioso.test) [ok](/termos)',
+    )
+    expect(html).not.toContain('href="//')
+    expect(html).not.toContain('href="/\\')
+    expect(html).not.toContain('<a href="/\\')
+    expect(html).toContain('<a href="/termos">ok</a>')
+  })
+
   it('tabelas, listas, citação, negrito e código', () => {
     const html = markdownParaHtml(
       ['| A | B |', '| - | - |', '| **x** | `y` |', '', '- um', '- dois', '', '> citação'].join(

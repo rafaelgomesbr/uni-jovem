@@ -3,7 +3,14 @@ import type pg from 'pg'
 import { z } from 'zod'
 import { ErroHttp, NAO_ENCONTRADO, traduzirErroDoBanco, validar } from '../http.ts'
 import { notificar } from '../notificacoes/ganchos.ts'
-import { auditar, exigir, idDoCaminho, naComunidade } from './contexto.ts'
+import {
+  auditar,
+  exigir,
+  idDoCaminho,
+  naComunidade,
+  comLimiteDeEscrita,
+  ESCRITAS_POR_HORA,
+} from './contexto.ts'
 
 /**
  * Avisos (F15). Organizador para cima publica, edita, fixa e despublica;
@@ -32,6 +39,7 @@ function conflito(atual: unknown): ErroHttp & { atual?: unknown } {
 
 export function registrarRotasDeAvisos(app: FastifyInstance, api: pg.Pool): void {
   const naCom = { preHandler: app.comComunidade }
+  const escrita = comLimiteDeEscrita(app, ESCRITAS_POR_HORA.avisos)
   const base = '/api/v1/c/:comunidadeId/avisos'
   const tx = <T>(pedido: FastifyRequest, trabalho: (c: pg.PoolClient) => Promise<T>) =>
     naComunidade(api, pedido, async (c) => {
@@ -70,7 +78,7 @@ export function registrarRotasDeAvisos(app: FastifyInstance, api: pg.Pool): void
     }))
   })
 
-  app.post(base, naCom, async (pedido) => {
+  app.post(base, escrita, async (pedido) => {
     exigir(pedido, 'aviso', 'publicar')
     const a = validar(
       z.object({
@@ -122,7 +130,7 @@ export function registrarRotasDeAvisos(app: FastifyInstance, api: pg.Pool): void
   })
 
   /** Editar texto, validade ou fixação. Fixar só vale para aviso publicado. */
-  app.patch(`${base}/:avisoId`, naCom, async (pedido) => {
+  app.patch(`${base}/:avisoId`, escrita, async (pedido) => {
     exigir(pedido, 'aviso', 'publicar')
     const avisoId = idDoCaminho(pedido, 'avisoId')
     const m = validar(
@@ -181,7 +189,7 @@ export function registrarRotasDeAvisos(app: FastifyInstance, api: pg.Pool): void
     ['publicar', 'publicado'],
     ['despublicar', 'despublicado'],
   ] as const) {
-    app.post(`${base}/:avisoId/${acao}`, naCom, async (pedido) => {
+    app.post(`${base}/:avisoId/${acao}`, escrita, async (pedido) => {
       exigir(pedido, 'aviso', 'publicar')
       const avisoId = idDoCaminho(pedido, 'avisoId')
       const resultado = await tx(pedido, async (c) => {
@@ -211,7 +219,7 @@ export function registrarRotasDeAvisos(app: FastifyInstance, api: pg.Pool): void
     })
   }
 
-  app.delete(`${base}/:avisoId`, naCom, async (pedido) => {
+  app.delete(`${base}/:avisoId`, escrita, async (pedido) => {
     exigir(pedido, 'aviso', 'publicar')
     const avisoId = idDoCaminho(pedido, 'avisoId')
     return tx(pedido, async (c) => {

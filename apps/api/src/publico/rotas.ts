@@ -75,6 +75,27 @@ function naoEncontrado(r: FastifyReply) {
   )
 }
 
+/** Texto igual nas duas respostas (inscrição nova e repetida). */
+const AVISO_DE_REPETICAO = html`<p class="suave">
+  Se este WhatsApp já tinha inscrição neste evento, ela continua valendo. Para ver o código de
+  entrada de novo, cancelar ou apagar seus dados, use o link de cancelamento que você recebeu.
+</p>`
+
+async function cartaoDoCodigo(
+  e: { titulo: string; inicio: Date; fuso: string },
+  estado: string | null,
+  codigo: string,
+): Promise<Seguro> {
+  const qr = await QRCode.toString(codigo, { type: 'svg', margin: 1, errorCorrectionLevel: 'M' })
+  return html`<div class="cartao">
+    <p><strong>${e.titulo}</strong><br />${dataPorExtenso(e.inicio, e.fuso)}</p>
+    ${estado === 'espera' ? html`<p>Se abrir uma vaga, sua inscrição passa a confirmada automaticamente.</p>` : ''}
+    <p>Na entrada, mostre este código:</p>
+    <div class="qr" role="img" aria-label="Código de entrada ${codigo}">${new Seguro(qr)}</div>
+    <p>Código: <strong>${codigo}</strong></p>
+  </div>`
+}
+
 export function registrarPaginasPublicas(app: FastifyInstance, o: OpcoesPublicas): void {
   const fator = o.fatorDeLimitePorIp ?? 1
   const limInscricaoIp = new Limitador(10 * fator, 60 * 60_000)
@@ -280,7 +301,7 @@ export function registrarPaginasPublicas(app: FastifyInstance, o: OpcoesPublicas
     }
 
     const token = gerarToken()
-    let r: { estado: string; codigo_checkin: string; ja_existia: boolean } | undefined
+    let r: { estado: string | null; codigo_checkin: string | null; ja_existia: boolean } | undefined
     try {
       r = (
         await o.api.query('select * from uj.inscrever_publico($1, $2, $3, $4, $5, $6, $7, $8)', [
@@ -302,11 +323,25 @@ export function registrarPaginasPublicas(app: FastifyInstance, o: OpcoesPublicas
       throw err
     }
     if (!r) return naoEncontrado(resposta)
-    const qr = await QRCode.toString(r.codigo_checkin, {
-      type: 'svg',
-      margin: 1,
-      errorCorrectionLevel: 'M',
-    })
+    // Repetição com o mesmo WhatsApp: a mesma página para qualquer pessoa, sem
+    // código, sem estado e sem dizer que já havia inscrição. Quem só sabe o
+    // número de alguém não leva o QR de entrada dela; o código volta pelo link
+    // de cancelamento (que só a pessoa recebeu).
+    if (r.ja_existia || r.codigo_checkin === null) {
+      return responder(
+        resposta,
+        200,
+        pagina(
+          html` <p class="suave">${e.comunidade_nome}</p>
+            <h1>Recebemos sua inscrição</h1>
+            <div class="cartao">
+              <p><strong>${e.titulo}</strong><br />${dataPorExtenso(e.inicio, e.fuso)}</p>
+              ${AVISO_DE_REPETICAO}
+            </div>`,
+          { titulo: 'Inscrição', cor: e.comunidade_cor },
+        ),
+      )
+    }
     const cancelar = new URL(`/e/${id.data}/cancelar#t=${token}`, o.config.URL_PUBLICA).toString()
     const compartilhar = `https://wa.me/?text=${encodeURIComponent(`${e.titulo}: ${urlDoEvento(id.data)}`)}`
     return responder(
@@ -317,17 +352,12 @@ export function registrarPaginasPublicas(app: FastifyInstance, o: OpcoesPublicas
           <h1>
             ${r.estado === 'espera' ? 'Você está na lista de espera' : 'Inscrição confirmada'}
           </h1>
-          ${r.ja_existia ? html`<p class="suave">Este WhatsApp já estava inscrito; mantivemos a inscrição anterior.</p>` : ''}
-          <div class="cartao">
-            <p><strong>${e.titulo}</strong><br />${dataPorExtenso(e.inicio, e.fuso)}</p>
-            ${r.estado === 'espera' ? html`<p>Se abrir uma vaga, sua inscrição passa a confirmada automaticamente.</p>` : ''}
-            <p>Na entrada, mostre este código:</p>
-            <div class="qr" role="img" aria-label="Código de entrada ${r.codigo_checkin}">
-              ${new Seguro(qr)}
-            </div>
-            <p>Código: <strong>${r.codigo_checkin}</strong></p>
-          </div>
-          ${r.ja_existia ? '' : html`<p>Guarde este link para cancelar ou apagar seus dados, se precisar: <a href="${cancelar}">cancelar minha inscrição</a>. Ele não aparece de novo.</p>`}
+          ${await cartaoDoCodigo(e, r.estado, r.codigo_checkin)}
+          <p>
+            Guarde este link para cancelar ou apagar seus dados, se precisar:
+            <a href="${cancelar}">cancelar minha inscrição</a>. Ele não aparece de novo.
+          </p>
+          ${AVISO_DE_REPETICAO}
           <p>
             <a class="botao" href="${compartilhar}" rel="noopener noreferrer"
               >Convidar alguém pelo WhatsApp</a
@@ -360,6 +390,9 @@ export function registrarPaginasPublicas(app: FastifyInstance, o: OpcoesPublicas
           >
           <form method="post" action="/e/${id.data}/cancelar" class="cartao">
             <input type="hidden" id="token" name="token" />
+            <p>
+              <button type="submit" name="acao" value="codigo">Ver meu código de entrada</button>
+            </p>
             <p>Ao cancelar, sua vaga fica livre para outra pessoa.</p>
             <p>
               <button type="submit" name="acao" value="cancelar">Cancelar minha inscrição</button>
@@ -395,10 +428,46 @@ export function registrarPaginasPublicas(app: FastifyInstance, o: OpcoesPublicas
     }
     const corpoDoPedido = (pedido.body as Record<string, unknown> | undefined) ?? {}
     const token = String(corpoDoPedido['token'] ?? '')
+    const tokenValido = /^[\w-]{20,200}$/.test(token)
+    // O código de entrada só volta para quem tem o link (token) da inscrição.
+    if (corpoDoPedido['acao'] === 'codigo') {
+      const e = await lerEvento(id.data)
+      const achada = tokenValido
+        ? (
+            await o.api.query<{ estado: string; codigo_checkin: string }>(
+              'select * from uj.codigo_da_inscricao_publica($1, $2)',
+              [id.data, hashDeToken(token)],
+            )
+          ).rows[0]
+        : undefined
+      if (!e || !achada) {
+        return responder(
+          resposta,
+          404,
+          pagina(
+            html`<h1>Não encontramos esta inscrição</h1>
+              <p class="suave">Ela pode já ter sido cancelada ou apagada.</p>`,
+            { titulo: 'Inscrição' },
+          ),
+        )
+      }
+      return responder(
+        resposta,
+        200,
+        pagina(
+          html` <p class="suave">${e.comunidade_nome}</p>
+            <h1>
+              ${achada.estado === 'espera' ? 'Você está na lista de espera' : 'Inscrição confirmada'}
+            </h1>
+            ${await cartaoDoCodigo(e, achada.estado, achada.codigo_checkin)}`,
+          { titulo: 'Inscrição', cor: e.comunidade_cor },
+        ),
+      )
+    }
     const apagar = corpoDoPedido['acao'] === 'apagar'
     const funcao = apagar ? 'uj.apagar_inscricao_publica' : 'uj.cancelar_inscricao_publica'
     const ok =
-      /^[\w-]{20,200}$/.test(token) &&
+      tokenValido &&
       (
         await o.api.query<{ ok: boolean }>(`select ${funcao}($1, $2) as ok`, [
           id.data,

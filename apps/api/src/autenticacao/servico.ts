@@ -73,12 +73,8 @@ const VALIDADE_PROVA_MIN = 10
 /** Falhas de segundo fator por conta antes do bloqueio, e a duração do bloqueio. */
 export const FALHAS_2FA_ANTES_DO_BLOQUEIO = 5
 const BLOQUEIO_2FA_MIN = 15
-/** Cotas diárias de e-mail (o plano gratuito do Resend tem teto de 100/dia). */
-export const COTA_DIARIA = {
-  convite: 60,
-  porConvite: 15,
-  recuperacao: 30,
-} as const
+/** Validade da prova de reautenticação gravada para a exclusão de conta. */
+const VALIDADE_REAUTENTICACAO_MIN = 5
 
 export function normalizarEmail(email: string): string {
   return email.trim().toLowerCase()
@@ -134,11 +130,17 @@ async function auditar(
   ])
 }
 
-async function consumirCota(c: pg.PoolClient | pg.Pool, chave: string, limite: number) {
-  const { rows } = await c.query<{ ok: boolean }>('select uj.consumir_cota($1, $2) as ok', [
-    chave,
-    limite,
-  ])
+/**
+ * Cotas diárias de e-mail (o plano gratuito do Resend tem teto de 100/dia).
+ * Cada finalidade tem a sua função no banco, com o limite lá: o papel não
+ * escolhe chave nem limite (uj.consumir_cota não é executável pelo app).
+ */
+async function cotaDeEmail(
+  c: pg.PoolClient | pg.Pool,
+  sql: 'select uj.cota_email_recuperacao() as ok' | 'select uj.cota_email_convite($1) as ok',
+  params: unknown[] = [],
+) {
+  const { rows } = await c.query<{ ok: boolean }>(sql, params)
   return rows[0]?.ok === true
 }
 
@@ -514,7 +516,7 @@ export function pedirRecuperacao(d: DependenciasAuth, email: string): void {
         )
         const a = rows[0]
         if (!a) return null
-        if (!(await consumirCota(c, 'email:recuperacao', COTA_DIARIA.recuperacao))) return null
+        if (!(await cotaDeEmail(c, 'select uj.cota_email_recuperacao() as ok'))) return null
         await c.query(
           `update uj.recuperacoes_senha set usado_em = now()
             where conta_id = $1 and finalidade = 'senha' and usado_em is null`,
@@ -684,10 +686,8 @@ export async function iniciarCadastroPorConvite(
     traduzirErroDeConvite({ code: 'UJ002' })
   }
 
-  const cotasOk =
-    (await consumirCota(d.auth, 'email:convite', COTA_DIARIA.convite)) &&
-    (await consumirCota(d.auth, `email:convite:${convite.convite_id}`, COTA_DIARIA.porConvite))
-  if (!cotasOk) throw COTA_ESGOTADA()
+  if (!(await cotaDeEmail(d.auth, 'select uj.cota_email_convite($1) as ok', [convite.convite_id])))
+    throw COTA_ESGOTADA()
 
   const verificacaoId = randomUUID()
   const existe = await d.auth.query('select 1 from uj.contas where email = $1', [email])
@@ -961,6 +961,21 @@ export async function reautenticar(
   lancarSeNaoOk(r)
 }
 
+/**
+ * Prova de que a reautenticação acabou de acontecer, de uso único e válida por
+ * poucos minutos. Só o hash fica no banco; `uj.excluir_conta` exige e consome a
+ * prova, então a função não age só com um id de conta (padrão das provas de 2FA).
+ */
+async function gravarProvaDeReautenticacao(d: DependenciasAuth, contaId: string): Promise<string> {
+  const prova = gerarToken()
+  await d.auth.query(
+    `insert into uj.provas_de_reautenticacao (prova_hash, conta_id, finalidade, expira_em)
+     values ($1, $2, 'excluir_conta', now() + make_interval(mins => $3))`,
+    [hashDeToken(prova), contaId, VALIDADE_REAUTENTICACAO_MIN],
+  )
+  return prova
+}
+
 export interface ComunidadeSemOutroAdmin {
   id: string
   nome: string
@@ -1011,11 +1026,13 @@ export async function excluirConta(
   await reautenticar(d, pedido)
   const unicas = await comunidadesSemOutroAdmin(d, pedido.contaId)
   if (unicas.length > 0) throw new ErroUnicoAdmin(unicas)
+  const prova = await gravarProvaDeReautenticacao(d, pedido.contaId)
   let emailAntigo: string
   try {
     emailAntigo = (
-      await d.auth.query<{ email: string }>('select uj.excluir_conta($1) as email', [
+      await d.auth.query<{ email: string }>('select uj.excluir_conta($1, $2) as email', [
         pedido.contaId,
+        prova,
       ])
     ).rows[0]!.email
   } catch (e) {
@@ -1029,7 +1046,7 @@ export async function excluirConta(
     }
     if (codigo === 'UJ041')
       throw new ErroUnicoAdmin(await comunidadesSemOutroAdmin(d, pedido.contaId))
-    if (codigo === 'UJ004') throw SESSAO_INVALIDA()
+    if (codigo === 'UJ004' || codigo === 'UJ042') throw SESSAO_INVALIDA()
     throw e
   }
   d.emSegundoPlano(

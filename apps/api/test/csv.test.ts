@@ -11,12 +11,25 @@ describe('CSV das exportações', () => {
           ['Bia; Caio', 'linha\nquebrada'],
         ],
       ),
-    ).toBe('Nome;Obs\r\nAna;"diz ""oi"""\r\n"Bia; Caio";"linha\nquebrada"\r\n')
+    ).toBe('"Nome";"Obs"\r\n"Ana";"diz ""oi"""\r\n"Bia; Caio";"linha\nquebrada"\r\n')
+  })
+
+  it('toda célula de texto vai entre aspas: a vírgula não abre outra célula com fórmula', () => {
+    // Numa planilha com vírgula como separador, sem aspas viraria "Ana" e "=1+1".
+    expect(celulaCsv('Ana,=1+1')).toBe('"Ana,=1+1"')
+    expect(gerarCsv(['A', 'B'], [['Ana,=1+1', 'x']])).toBe('"A";"B"\r\n"Ana,=1+1";"x"\r\n')
+  })
+
+  it('o apóstrofo também vale depois de espaços iniciais', () => {
+    for (const perigoso of [' =SOMA(A1)', '  +1', ' \t-1', ' @cmd']) {
+      expect(celulaCsv(perigoso)).toBe(`"'${perigoso}"`)
+    }
+    expect(celulaCsv(' Ana')).toBe('" Ana"')
   })
 
   it('neutraliza fórmulas de planilha em texto vindo de formulário', () => {
     for (const perigoso of ['=SOMA(A1)', '+55 11', '-1+1', '@cmd', '\tx']) {
-      expect(celulaCsv(perigoso).replace(/^"/, '').startsWith("'")).toBe(true)
+      expect(celulaCsv(perigoso).startsWith(`"'`)).toBe(true)
     }
     // Número de verdade não é texto: fica como está.
     expect(celulaCsv(-3)).toBe('-3')

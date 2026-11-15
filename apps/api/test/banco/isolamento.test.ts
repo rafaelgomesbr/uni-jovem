@@ -547,6 +547,63 @@ describe('isolamento no corpo e nos filtros (F13, F14, F18)', () => {
     expect(await estadoDeB()).toEqual(antes)
   })
 
+  it('presença em evento de B citando o vínculo de alguém de A: 404 na rota, recusada na fila e no banco', async () => {
+    const vinculoA = (
+      await b.su.query<{ id: string }>(
+        'select id from uj.vinculos where conta_id = $1 and comunidade_id = $2',
+        [adminA.id, comA],
+      )
+    ).rows[0]!.id
+    const presencasDeA = async () =>
+      (await b.su.query('select id from uj.presencas where vinculo_id = $1', [vinculoA])).rows
+    // Quem age é a admin de B, no PRÓPRIO evento, citando a pessoa de A.
+    const rota = await app.inject({
+      method: 'POST',
+      url: `/api/v1/c/${comB}/eventos/${idsDeB['eventoId']}/presencas`,
+      headers: adminB.auth,
+      payload: {
+        chaveIdempotencia: '00000000-0000-4000-8000-0000000000a1',
+        origem: 'manual',
+        vinculoId: vinculoA,
+      },
+    })
+    expect(rota.statusCode).toBe(404)
+    const fila = await app.inject({
+      method: 'POST',
+      url: `/api/v1/c/${comB}/sync/operacoes`,
+      headers: adminB.auth,
+      payload: {
+        operacoes: [
+          {
+            chave: '00000000-0000-7000-8000-0000000000a2',
+            vinculoId: idsDeB['vinculoId'],
+            criadaEm: new Date().toISOString(),
+            tipo: 'presenca.registrar',
+            dados: { eventoId: idsDeB['eventoId'], vinculoId: vinculoA },
+          },
+        ],
+      },
+    })
+    expect(fila.statusCode).toBe(200)
+    expect(fila.json().resultados[0].status).toBe('rejeitada')
+    // O próprio banco recusa, mesmo vindo do dono (gatilho, não só a rota).
+    await expect(
+      b.dono.query(
+        `insert into uj.presencas (comunidade_id, evento_id, vinculo_id, origem, registrada_por, chave_idempotencia)
+         values ($1, $2, $3, 'manual', $4, gen_random_uuid())`,
+        [comB, idsDeB['eventoId'], vinculoA, idsDeB['vinculoId']],
+      ),
+    ).rejects.toMatchObject({ code: '23503' })
+    expect(await presencasDeA()).toEqual([])
+    // E nada de B aparece no "exportar meus dados" da pessoa de A.
+    const exportado = await app.inject({
+      method: 'GET',
+      url: '/api/v1/eu/exportar',
+      headers: adminA.auth,
+    })
+    expect(exportado.json().presencas).toEqual([])
+  })
+
   it('denunciar em A um aviso de B: 404, nada gravado', async () => {
     const antes = await estadoDeB()
     const r = await app.inject({

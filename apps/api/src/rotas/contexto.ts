@@ -1,8 +1,8 @@
-import type { FastifyInstance, FastifyRequest } from 'fastify'
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import type pg from 'pg'
 import { z } from 'zod'
 import { doisFatoresRecente } from '../autenticacao/jwt.ts'
-import { truncarIp } from '../autenticacao/limitador.ts'
+import { Limitador, truncarIp } from '../autenticacao/limitador.ts'
 import { emTransacao } from '../banco/contexto.ts'
 import {
   ehPapel,
@@ -165,4 +165,37 @@ export async function auditar(
       pedido.ip ? truncarIp(pedido.ip) : null,
     ],
   )
+}
+
+/**
+ * Escritas por conta e por hora, por módulo (B6 da revisão de segurança): um
+ * aparelho ou script com sessão válida não enche a comunidade de sugestões,
+ * pedidos, avisos ou operações offline. Em memória, por processo (o servidor
+ * roda uma instância; ver docs/RISCOS.md).
+ */
+export const ESCRITAS_POR_HORA = {
+  sugestoes: 30,
+  oracao: 60,
+  avisos: 60,
+  sincronizacao: 120,
+} as const
+
+/** Opções de rota: contexto de comunidade e, depois dele, o limite de escrita. */
+export function comLimiteDeEscrita(app: FastifyInstance, maximoPorHora: number) {
+  const limitador = new Limitador(maximoPorHora, 60 * 60_000)
+  return {
+    preHandler: [
+      app.comComunidade,
+      async (pedido: FastifyRequest, resposta: FastifyReply) => {
+        const chave = pedido.sessao!.contaId
+        if (limitador.tentar(chave)) return
+        resposta.header('Retry-After', String(limitador.segundosParaLiberar(chave)))
+        throw new ErroHttp(
+          'muitas_escritas',
+          429,
+          'Muitas alterações seguidas. Espere alguns minutos e tente de novo.',
+        )
+      },
+    ],
+  }
 }

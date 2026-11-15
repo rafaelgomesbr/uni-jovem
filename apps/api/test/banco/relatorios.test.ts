@@ -309,7 +309,7 @@ describe('exportações', () => {
 
     const comContatos = await exportar(admin, { tipo: 'inscricoes', comContatos: true })
     const csvAdmin = (await baixar(admin, comContatos.id, comContatos.token)).body
-    expect(csvAdmin.split('\r\n')[0]).toMatch(/Telefone;E-mail/)
+    expect(csvAdmin.split('\r\n')[0]).toMatch(/"Telefone";"E-mail"/)
     expect(csvAdmin).toContain(TELEFONE_PUBLICO)
     expect(csvAdmin).toContain(EMAIL_PUBLICO)
     const membrosAdmin = await exportar(admin, { tipo: 'membros', comContatos: true })
@@ -328,7 +328,7 @@ describe('exportações', () => {
     expect(e.linhas).toBe(4)
     const csvEscalas = (await baixar(org, e.id, e.token)).body
     // A escala assumida diz no lugar de quem.
-    expect(csvEscalas).toMatch(/recepção;Ana;confirmada;Bia/)
+    expect(csvEscalas).toMatch(/"recepção";"Ana";"confirmada";"Bia"/)
   })
 
   it('o link exige o token certo e a dona; cada geração e download vai para a auditoria sem o conteúdo', async () => {

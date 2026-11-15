@@ -6,7 +6,13 @@ import { aplicarComando, CONCESSAO_DE_CONDUCAO_S, type EstadoAoVivo } from '@uj/
 import { ErroHttp, NAO_ENCONTRADO, traduzirErroDoBanco, validar } from '../http.ts'
 import { mascararTelefone } from '../publico/apoio.ts'
 import { montarRetrato } from './ao-vivo.ts'
-import { exigir, idDoCaminho, naComunidade } from './contexto.ts'
+import {
+  exigir,
+  idDoCaminho,
+  naComunidade,
+  comLimiteDeEscrita,
+  ESCRITAS_POR_HORA,
+} from './contexto.ts'
 import { registrarPresenca } from './inscricoes.ts'
 
 /**
@@ -126,6 +132,7 @@ function instanteSeguro(iso: string, agora: Date): Date {
 
 export function registrarRotasDeSincronizacao(app: FastifyInstance, api: pg.Pool): void {
   const naCom = { preHandler: app.comComunidade }
+  const escrita = comLimiteDeEscrita(app, ESCRITAS_POR_HORA.sincronizacao)
   const base = '/api/v1/c/:comunidadeId'
 
   // ---------------------------------------------------------------- operações
@@ -430,7 +437,7 @@ export function registrarRotasDeSincronizacao(app: FastifyInstance, api: pg.Pool
     }
   }
 
-  app.post(`${base}/sync/operacoes`, naCom, async (pedido) => {
+  app.post(`${base}/sync/operacoes`, escrita, async (pedido) => {
     exigir(pedido, 'sincronizacao', 'enviar_operacoes')
     const corpo = validar(
       z.object({ operacoes: z.array(z.unknown()).min(1).max(MAXIMO_POR_LOTE) }),

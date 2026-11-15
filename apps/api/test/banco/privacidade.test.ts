@@ -264,9 +264,15 @@ describe('excluir conta', () => {
 
   it('o Criador não exclui a conta sem transferir a propriedade', async () => {
     const criador = await criarConta(b, 'Criador', { proprietario: true })
-    await expect(b.auth.query('select uj.excluir_conta($1)', [criador])).rejects.toMatchObject({
-      code: 'UJ040',
-    })
+    // Com a prova de reautenticação (o que a API grava depois de conferir senha e 2FA).
+    await b.su.query(
+      `insert into uj.provas_de_reautenticacao (prova_hash, conta_id, finalidade, expira_em)
+       values (sha256('prova-do-criador'::bytea), $1, 'excluir_conta', now() + interval '1 minute')`,
+      [criador],
+    )
+    await expect(
+      b.auth.query('select uj.excluir_conta($1, $2)', [criador, 'prova-do-criador']),
+    ).rejects.toMatchObject({ code: 'UJ040' })
   })
 
   it('apaga oração, nome, e-mail e WhatsApp de todo o banco, mantém os números e avisa o e-mail antigo', async () => {
@@ -678,14 +684,17 @@ describe('páginas públicas de política e suporte', () => {
   })
 
   it('associação de domínio: iOS (convite e app) e Android (impressões da configuração)', async () => {
+    // Desenvolvimento usa o app de homologação; só ele é associado.
     const aasa = await app.inject({ method: 'GET', url: '/.well-known/apple-app-site-association' })
     expect(aasa.headers['content-type']).toContain('application/json')
     expect(aasa.json().applinks.details[0]).toEqual({
-      appIDs: ['8DVJ2U5ZKX.com.solerte.unijovem', '8DVJ2U5ZKX.com.solerte.unijovem.hml'],
+      appIDs: ['8DVJ2U5ZKX.com.solerte.unijovem.hml'],
       components: [{ '/': '/convite*' }, { '/': '/app/*' }],
     })
+    expect(aasa.json().webcredentials).toEqual({ apps: ['8DVJ2U5ZKX.com.solerte.unijovem.hml'] })
     const links = await app.inject({ method: 'GET', url: '/.well-known/assetlinks.json' })
-    expect(links.json()).toHaveLength(2)
+    expect(links.json()).toHaveLength(1)
+    expect(links.json()[0].target.package_name).toBe('com.solerte.unijovem.hml')
     expect(links.json()[0].target.sha256_cert_fingerprints).toEqual([IMPRESSAO])
 
     const semImpressao = criarServidor(carregarConfig(envDeTeste()), {

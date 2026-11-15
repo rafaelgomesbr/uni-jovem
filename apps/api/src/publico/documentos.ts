@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { FastifyInstance, FastifyReply } from 'fastify'
-import type { Config } from '../config.ts'
+import type { Ambiente, Config } from '../config.ts'
 import { CSP_PUBLICA, html, pagina, Seguro } from './html.ts'
 import { markdownParaHtml, semAnexos, semNotasInternas } from './markdown.ts'
 
@@ -24,12 +24,25 @@ export const PASTA_DOS_DOCUMENTOS = join(
   'privacidade',
 )
 
-/** App IDs do iOS (time 8DVJ2U5ZKX): produção e homologação. */
-export const APP_IDS_IOS = [
-  '8DVJ2U5ZKX.com.solerte.unijovem',
-  '8DVJ2U5ZKX.com.solerte.unijovem.hml',
-]
-export const PACOTES_ANDROID = ['com.solerte.unijovem', 'com.solerte.unijovem.hml']
+/**
+ * O app de cada ambiente (time iOS 8DVJ2U5ZKX). Cada domínio associa SÓ o seu
+ * app: o de homologação nunca recebe links nem senhas salvas (webcredentials)
+ * do domínio de produção, e o contrário também não. Desenvolvimento usa o app
+ * de homologação (apps/app/app.config.ts).
+ */
+const PACOTE_DO_AMBIENTE: Record<Ambiente, string> = {
+  producao: 'com.solerte.unijovem',
+  homologacao: 'com.solerte.unijovem.hml',
+  desenvolvimento: 'com.solerte.unijovem.hml',
+}
+
+export function appIdsIos(ambiente: Ambiente): string[] {
+  return [`8DVJ2U5ZKX.${PACOTE_DO_AMBIENTE[ambiente]}`]
+}
+
+export function pacotesAndroid(ambiente: Ambiente): string[] {
+  return [PACOTE_DO_AMBIENTE[ambiente]]
+}
 
 const AVISO_DE_RASCUNHO = html`<div class="cartao aviso" role="note">
   <p>
@@ -196,17 +209,18 @@ export function registrarDocumentosPublicos(
 
   // Links universais do iOS: o convite (o token vai no fragmento, que o
   // sistema não envia a ninguém) e as rotas do app na web.
+  const appIds = appIdsIos(o.config.UJ_AMBIENTE)
   app.get('/.well-known/apple-app-site-association', async (_pedido, resposta) =>
     resposta.header('Content-Type', 'application/json').send({
       applinks: {
         details: [
           {
-            appIDs: APP_IDS_IOS,
+            appIDs: appIds,
             components: [{ '/': '/convite*' }, { '/': '/app/*' }],
           },
         ],
       },
-      webcredentials: { apps: APP_IDS_IOS },
+      webcredentials: { apps: appIds },
     }),
   )
 
@@ -217,7 +231,7 @@ export function registrarDocumentosPublicos(
     return resposta.header('Content-Type', 'application/json').send(
       impressoes.length === 0
         ? []
-        : PACOTES_ANDROID.map((pacote) => ({
+        : pacotesAndroid(o.config.UJ_AMBIENTE).map((pacote) => ({
             relation: ['delegate_permission/common.handle_all_urls'],
             target: {
               namespace: 'android_app',

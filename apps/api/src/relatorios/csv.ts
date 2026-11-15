@@ -5,23 +5,26 @@
  * que fica guardado no banco.
  *
  * Proteção contra injeção de fórmula: célula de texto que começa com = + - @
- * tabulação ou retorno ganha um apóstrofo na frente, para a planilha não
- * executar um nome como "=HYPERLINK(...)" digitado num formulário público.
+ * tabulação ou retorno (mesmo depois de espaços) ganha um apóstrofo na frente,
+ * para a planilha não executar um nome como "=HYPERLINK(...)" digitado num
+ * formulário público. E TODA célula de texto vai entre aspas: aberto numa
+ * planilha configurada com a vírgula como separador, "Ana,=1+1" continua uma
+ * célula só, e o "=1+1" não vira uma célula nova que começa com fórmula.
  */
 
 export type Celula = string | number | boolean | Date | null | undefined
 
-const PERIGOSOS = /^[=+\-@\t\r]/
+const PERIGOSOS = /^\s*[=+\-@\t\r]/
 export const BOM_UTF8 = String.fromCharCode(0xfeff)
+
+const entreAspas = (texto: string) => `"${texto.replace(/"/g, '""')}"`
 
 export function celulaCsv(valor: Celula): string {
   if (valor === null || valor === undefined) return ''
-  let texto: string
-  if (valor instanceof Date) texto = valor.toISOString()
-  else if (typeof valor === 'boolean') texto = valor ? 'sim' : 'não'
-  else if (typeof valor === 'number') texto = String(valor)
-  else texto = PERIGOSOS.test(valor) ? `'${valor}` : valor
-  return /[";\r\n]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto
+  if (valor instanceof Date) return valor.toISOString()
+  if (typeof valor === 'boolean') return valor ? 'sim' : 'não'
+  if (typeof valor === 'number') return String(valor)
+  return entreAspas(PERIGOSOS.test(valor) ? `'${valor}` : valor)
 }
 
 export function gerarCsv(

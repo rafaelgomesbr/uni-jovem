@@ -12,7 +12,14 @@ import {
 import { cifrar, decifrar } from '../autenticacao/cripto.ts'
 import type { Config } from '../config.ts'
 import { ErroHttp, NAO_ENCONTRADO, traduzirErroDoBanco, validar } from '../http.ts'
-import { auditar, exigir, idDoCaminho, naComunidade } from './contexto.ts'
+import {
+  auditar,
+  exigir,
+  idDoCaminho,
+  naComunidade,
+  comLimiteDeEscrita,
+  ESCRITAS_POR_HORA,
+} from './contexto.ts'
 
 /**
  * Pedidos de oração (F15).
@@ -86,6 +93,7 @@ export function registrarRotasDeOracao(
   const { api } = d
   const chave = Buffer.from(d.config.ORACAO_CHAVE, 'base64')
   const naCom = { preHandler: app.comComunidade }
+  const escrita = comLimiteDeEscrita(app, ESCRITAS_POR_HORA.oracao)
   const base = '/api/v1/c/:comunidadeId/oracao'
   const tx = <T>(pedido: FastifyRequest, trabalho: (c: pg.PoolClient) => Promise<T>) =>
     naComunidade(api, pedido, async (c) => {
@@ -183,7 +191,7 @@ export function registrarRotasDeOracao(
     })
   })
 
-  app.post(base, naCom, async (pedido) => {
+  app.post(base, escrita, async (pedido) => {
     exigir(pedido, 'pedido_oracao', 'criar')
     const p = validar(
       z.object({
@@ -223,7 +231,7 @@ export function registrarRotasDeOracao(
   })
 
   /** Editar o texto. A visibilidade muda só pela rota própria, de forma explícita. */
-  app.patch(`${base}/:pedidoId`, naCom, async (pedido) => {
+  app.patch(`${base}/:pedidoId`, escrita, async (pedido) => {
     const pedidoId = idDoCaminho(pedido, 'pedidoId')
     const p = validar(
       z.object({ texto: textoDoPedido, versao: z.number().int().min(1).optional() }),
@@ -254,7 +262,7 @@ export function registrarRotasDeOracao(
    * Mudança explícita de público: o app manda o público que a pessoa VIU (`de`)
    * e o novo (`para`). Se outra tela já tinha mudado, 409 em vez de mudar às cegas.
    */
-  app.put(`${base}/:pedidoId/visibilidade`, naCom, async (pedido) => {
+  app.put(`${base}/:pedidoId/visibilidade`, escrita, async (pedido) => {
     const pedidoId = idDoCaminho(pedido, 'pedidoId')
     const p = validar(z.object({ de: visibilidade, para: visibilidade }), pedido.body)
     return tx(pedido, async (c) => {
@@ -288,7 +296,7 @@ export function registrarRotasDeOracao(
     })
   })
 
-  app.post(`${base}/:pedidoId/respondido`, naCom, async (pedido) => {
+  app.post(`${base}/:pedidoId/respondido`, escrita, async (pedido) => {
     const pedidoId = idDoCaminho(pedido, 'pedidoId')
     const p = validar(z.object({ respondido: z.boolean() }), pedido.body)
     return tx(pedido, async (c) => {
@@ -319,7 +327,7 @@ export function registrarRotasDeOracao(
     return rows[0]!.total
   }
 
-  app.post(`${base}/:pedidoId/orando`, naCom, async (pedido) => {
+  app.post(`${base}/:pedidoId/orando`, escrita, async (pedido) => {
     exigir(pedido, 'pedido_oracao', 'orar')
     const pedidoId = idDoCaminho(pedido, 'pedidoId')
     return tx(pedido, async (c) => {
@@ -333,7 +341,7 @@ export function registrarRotasDeOracao(
     })
   })
 
-  app.delete(`${base}/:pedidoId/orando`, naCom, async (pedido) => {
+  app.delete(`${base}/:pedidoId/orando`, escrita, async (pedido) => {
     exigir(pedido, 'pedido_oracao', 'orar')
     const pedidoId = idDoCaminho(pedido, 'pedidoId')
     return tx(pedido, async (c) => {
@@ -346,7 +354,7 @@ export function registrarRotasDeOracao(
     })
   })
 
-  app.delete(`${base}/:pedidoId`, naCom, async (pedido) => {
+  app.delete(`${base}/:pedidoId`, escrita, async (pedido) => {
     const pedidoId = idDoCaminho(pedido, 'pedidoId')
     return tx(pedido, async (c) => {
       await lerMeuPedido(c, pedido, pedidoId, 'excluir')

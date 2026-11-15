@@ -58,6 +58,13 @@ export function traduzirErroDoBanco(e: unknown): never {
     throw new ErroHttp('so_organizadores', 403, 'Só organizadores podem editar isto.')
   }
   if (msg.includes('row-level security')) throw SEM_PERMISSAO()
+  if (erro.code === 'UJ060') {
+    throw new ErroHttp(
+      'limite_de_avisos',
+      429,
+      'Muitos avisos publicados na última hora. Espere um pouco antes de publicar outro.',
+    )
+  }
   if (erro.code === '23503') {
     // Referência a algo de outra comunidade ou inexistente: mesmo tratamento.
     throw new ErroHttp(

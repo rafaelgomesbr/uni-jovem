@@ -6,7 +6,9 @@ import type { MensagemPush, ResultadoDoEnvio, TransportePush } from './transport
  *
  * Laço: reserva um lote (`uj.push_reservar`, que revalida vínculo, preferência
  * e sessão), envia um a um e grava o resultado (`uj.push_concluir`). Se o
- * processo cair no meio, a reserva vence e o envio volta à fila. Entre lotes,
+ * processo cair no meio, a reserva vence e o envio volta à fila (revalidado e
+ * contando tentativa). Cada reserva tem um identificador aleatório que a
+ * conclusão exige: só quem reservou conclui. Entre lotes,
  * espera `intervaloMs` ou um `acordar()` (gancho de aviso publicado).
  *
  * Parada limpa: `parar()` não pega lote novo, espera o envio em curso e fecha
@@ -15,6 +17,7 @@ import type { MensagemPush, ResultadoDoEnvio, TransportePush } from './transport
 
 interface Linha {
   envio_id: string
+  reserva_id: string
   para_token: string
   para_plataforma: 'ios' | 'android'
   para_ambiente: 'producao' | 'sandbox' | null
@@ -118,8 +121,9 @@ export class TrabalhadorDePush {
       } catch {
         r = { resultado: 'tentar_de_novo', erro: 'transporte_excecao' }
       }
-      await this.pool.query('select uj.push_concluir($1, $2, $3)', [
+      await this.pool.query('select uj.push_concluir($1, $2, $3, $4)', [
         l.envio_id,
+        l.reserva_id,
         r.resultado,
         r.resultado === 'enviado' ? null : r.erro,
       ])

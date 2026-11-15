@@ -146,8 +146,10 @@ describe('página pública', () => {
     expect(r.body).toContain('<svg')
     expect(codigo).not.toMatch(/Beatriz|2222/)
     expect(r.body).toMatch(/\/e\/[0-9a-f]{32}\/cancelar#t=/)
+    // Repetir não duplica nem devolve o código (ver correcoes-de-seguranca.test.ts, M2).
     const de_novo = await inscrever(idPublico, { nome: 'Beatriz', telefone: '+55 11 92222-2222' })
-    expect(de_novo.body).toContain('já estava inscrito')
+    expect(de_novo.statusCode).toBe(200)
+    expect(de_novo.body).not.toContain(codigo)
     const lista = (await req('GET', `/eventos/${id}/inscricoes`, org)).json()
     expect(lista.inscricoes.filter((i: { nome: string }) => i.nome === 'Beatriz')).toHaveLength(1)
     expect(lista.inscricoes[0]).toMatchObject({

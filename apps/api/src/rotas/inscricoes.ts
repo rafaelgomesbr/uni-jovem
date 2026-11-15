@@ -72,6 +72,17 @@ export async function registrarPresenca(
 
   let inscricaoId = p.inscricaoId ?? null
   let vinculoId = p.vinculoId ?? null
+  // Pessoa citada pelo vínculo: só desta comunidade (o banco confere de novo).
+  // De outra, a resposta é a mesma de "não existe": não se confirma o id.
+  if (vinculoId) {
+    const daqui = await c.query('select 1 from uj.vinculos where id = $1 and comunidade_id = $2', [
+      vinculoId,
+      comunidadeId,
+    ])
+    if (!daqui.rows[0]) {
+      throw new ErroHttp('pessoa_nao_encontrada', 404, 'Não encontramos esta pessoa na comunidade.')
+    }
+  }
   if (p.codigo || inscricaoId) {
     const i = (
       await c.query<{ id: string; vinculo_id: string | null; estado: string }>(
