@@ -25,3 +25,9 @@ tmp/
 .dados-dev/
 test-results/
 playwright-report/
+
+# Credenciais de assinatura baixadas do EAS (eas credentials): nunca no git.
+credentials.json
+credentials/
+*.p12
+*.mobileprovision
