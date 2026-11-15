@@ -5,8 +5,7 @@
 # impresso.
 #
 # O que fica por completar depois (ver infra/prod/LEIA-ME.md):
-#   ANDROID_SHA256_IMPRESSOES: impressões do certificado do app Android (a API
-#     não sobe em produção sem elas);
+#   ANDROID_SHA256_IMPRESSOES: acrescentar a chave de assinatura do Google Play;
 #   e-mail (Resend), push, Turnstile real e Google: pendências do dono.
 set -eu
 cd "$(dirname "$0")"
@@ -44,9 +43,10 @@ TOTP_CHAVE=$(chave32)
 # Contato público (página /suporte e páginas legais).
 SUPORTE_EMAIL=contact@solerte.com.br
 # Impressões SHA-256 do certificado do app Android (assetlinks.json), separadas
-# por vírgula: a chave de upload do EAS e a de assinatura do Google Play.
-# Preencher antes da primeira subida; sem elas a API recusa a partida.
-ANDROID_SHA256_IMPRESSOES=
+# por vírgula. Não são segredo. Hoje só a chave de upload do EAS (lida do .aab
+# 1.0.0 (2) com keytool em 15/11/2026); acrescentar a de assinatura do Google
+# Play, que aparece em Integridade do app depois do primeiro envio do .aab.
+ANDROID_SHA256_IMPRESSOES=55:93:38:FC:BF:34:77:2A:7B:D4:D7:57:95:68:63:DF:EF:29:5F:A1:DC:D7:55:78:42:D1:F8:B7:DB:C0:CB:47
 # Sem conta no Resend ainda (pendência do dono): e-mail desligado.
 EMAIL_MODO=desligado
 # Chaves de TESTE oficiais do Cloudflare Turnstile (sempre aprovam). Trocar
