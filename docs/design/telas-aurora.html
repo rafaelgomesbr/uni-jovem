@@ -1,0 +1,1236 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Uni Jovem: telas Aurora</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+/* Tokens: nomes iguais aos da especificação, seção 2.2. Os desenvolvedores copiam daqui. */
+.tema-escuro{
+  --fundo:#12102A;
+  --superficie:rgba(255,255,255,.07);           /* D32: tinta translúcida do mockup */
+  --superficie-opaca:#232139;                    /* Reduzir transparência */
+  --superficie-borda:rgba(255,255,255,.14);
+  --superficie-elevada:#2B2848;
+  --campo-fundo:#1A1833;
+  --campo-borda:#736DA8;
+  --texto:#F5F3FF;
+  --texto-suave:#C9C4EC;
+  --destaque:#FFB199;
+  --primaria:#FF8A65;
+  --primaria-pressionada:#F0764F;
+  --sobre-primaria:#1A0F0A;
+  --contorno:rgba(255,255,255,.36);
+  --tonal:rgba(255,255,255,.08);
+  --tonal-opaco:#25233B;
+  --tonal-borda:rgba(255,255,255,.18);
+  --pressionado:rgba(255,255,255,.08);
+  --separador:rgba(255,255,255,.08);
+  --sucesso:#7FE0B0; --sucesso-fundo:rgba(127,224,176,.16);
+  --alerta:#FFD166;  --alerta-fundo:rgba(255,209,102,.16);
+  --erro:#FF8A8A;    --erro-fundo:rgba(255,138,138,.16);
+  --erro-cheio:#FF8A8A; --erro-cheio-pressionado:#EB7F7F; --sobre-erro:#2A0A0A;
+  --info:#B3A8FF;    --info-fundo:rgba(157,143,255,.16);
+  --quente-fundo:rgba(255,177,153,.16);
+  --neutro-fundo:rgba(255,255,255,.10);
+  --foco:#FFD166;
+  --aba-ativa-fundo:rgba(255,138,101,.20);
+  --barra-fundo:rgba(30,27,62,.86);              /* 0,72 do mockup subiu para 0,86 (1.11 item 3) */
+  --barra-borda:rgba(255,255,255,.16);
+  --seg-ativo-fundo:rgba(255,255,255,.18);
+  --seg-ativo-sombra:none;
+  --interruptor-desligado:rgba(255,255,255,.08);
+  --sombra-cartao:none;
+  --sombra-destaque:none;
+  --sombra-flutuante:0 12px 32px rgba(0,0,0,.40);
+  --aurora-coral:rgba(255,138,101,.55); --aurora-coral-0:rgba(255,138,101,0);
+  --aurora-violeta:rgba(124,108,255,.45); --aurora-violeta-0:rgba(124,108,255,0);
+}
+.tema-claro{
+  --fundo:#F7F5FF;
+  --superficie:#FFFFFF;
+  --superficie-opaca:#FFFFFF;
+  --superficie-borda:rgba(27,24,56,.08);
+  --superficie-elevada:#FFFFFF;
+  --campo-fundo:#FFFFFF;
+  --campo-borda:#857FAF;
+  --texto:#1B1838;
+  --texto-suave:#4B4670;
+  --destaque:#8A2E12;
+  --primaria:#C2491F;
+  --primaria-pressionada:#A93D18;
+  --sobre-primaria:#FFFFFF;
+  --contorno:#857FAF;
+  --tonal:rgba(27,24,56,.05);
+  --tonal-opaco:#ECEAF5;
+  --tonal-borda:rgba(27,24,56,.12);
+  --pressionado:rgba(27,24,56,.06);
+  --separador:rgba(27,24,56,.08);
+  --sucesso:#16794B; --sucesso-fundo:#E3F4EA;
+  --alerta:#8A5A00;  --alerta-fundo:#FFF1D6;
+  --erro:#B42318;    --erro-fundo:#FDE4E1;
+  --erro-cheio:#B42318; --erro-cheio-pressionado:#A62016; --sobre-erro:#FFFFFF;
+  --info:#4B3FC4;    --info-fundo:#ECEAFD;
+  --quente-fundo:#FFE3D9;
+  --neutro-fundo:#EEEBFA;
+  --foco:#4B3FC4;
+  --aba-ativa-fundo:rgba(194,73,31,.12);
+  --barra-fundo:rgba(255,255,255,.80);
+  --barra-borda:rgba(27,24,56,.10);
+  --seg-ativo-fundo:#FFFFFF;
+  --seg-ativo-sombra:inset 0 0 0 1px #857FAF,0 1px 2px rgba(27,24,56,.06),0 6px 16px rgba(27,24,56,.06);
+  /* tonal some no cartão branco: o polegar branco ficaria invisível, então o trilho desligado usa o contorno (3,7:1) */
+  --interruptor-desligado:#857FAF;
+  --sombra-cartao:0 1px 2px rgba(27,24,56,.06),0 6px 16px rgba(27,24,56,.06);
+  --sombra-destaque:0 10px 30px rgba(31,27,77,.28);
+  --sombra-flutuante:0 12px 32px rgba(27,24,56,.14);
+  --aurora-coral:rgba(255,138,101,.30); --aurora-coral-0:rgba(255,138,101,0);
+  --aurora-violeta:rgba(124,108,255,.22); --aurora-violeta-0:rgba(124,108,255,0);
+}
+/* Paleta inversa: cartão de destaque e toast. No escuro vale o claro do mockup; no claro, o índigo "noite dentro do dia". */
+.tema-escuro .inverso{
+  --fundo:#F5F3FF; --texto:#1B1838; --texto-suave:#4B4670; --destaque:#8A2E12;
+  --primaria:#C2491F; --primaria-pressionada:#A93D18; --sobre-primaria:#FFFFFF;
+  --contorno:#857FAF; --tonal:rgba(27,24,56,.05); --tonal-borda:rgba(27,24,56,.12);
+  --pressionado:rgba(27,24,56,.06); --separador:rgba(27,24,56,.10);
+  --sucesso:#16794B; --sucesso-fundo:#E3F4EA; --alerta:#8A5A00; --alerta-fundo:#FFF1D6;
+  --erro:#B42318; --erro-fundo:#FDE4E1; --info:#4B3FC4; --info-fundo:#ECEAFD;
+  --quente-fundo:#FFE3D9; --neutro-fundo:#EEEBFA; --foco:#4B3FC4;
+}
+.tema-claro .inverso{
+  --fundo:#1F1B4D; --texto:#F5F3FF; --texto-suave:#C9C4EC; --destaque:#FFB199;
+  --primaria:#FF8A65; --primaria-pressionada:#F0764F; --sobre-primaria:#1A0F0A;
+  --contorno:rgba(255,255,255,.36); --tonal:rgba(255,255,255,.08); --tonal-borda:rgba(255,255,255,.18);
+  --pressionado:rgba(255,255,255,.08); --separador:rgba(255,255,255,.10);
+  --sucesso:#7FE0B0; --sucesso-fundo:rgba(127,224,176,.16); --alerta:#FFD166; --alerta-fundo:rgba(255,209,102,.16);
+  --erro:#FF8A8A; --erro-fundo:rgba(255,138,138,.16); --info:#B3A8FF; --info-fundo:rgba(157,143,255,.16);
+  --quente-fundo:rgba(255,177,153,.18); --neutro-fundo:rgba(255,255,255,.10); --foco:#FFD166;
+}
+
+/* Página */
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:#E9E7F1;color:#1B1838;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+h1,h2,h3,p{margin:0;font:inherit}
+button{font:inherit;color:inherit;background:none;border:0;margin:0;padding:0;text-align:inherit;cursor:pointer}
+button:disabled{cursor:not-allowed}
+a{color:inherit;text-decoration:none}
+.sprite{position:absolute;width:0;height:0;overflow:hidden}
+.pagina{padding:48px 48px 96px}
+.topo{max-width:880px}
+.topo .sobre{font:600 12px/16px Inter,sans-serif;letter-spacing:1px;text-transform:uppercase;color:#8A2E12}
+.topo h1{margin-top:8px;font:800 34px/38px 'Bricolage Grotesque',system-ui,sans-serif;letter-spacing:-.5px}
+.topo p{margin-top:8px;font-size:15px;line-height:22px;color:#4B4670}
+.secao{margin:56px 0 24px;font:800 24px/28px 'Bricolage Grotesque',system-ui,sans-serif;letter-spacing:-.2px}
+.mesa{display:flex;flex-wrap:wrap;gap:56px 48px;align-items:flex-start}
+.peca{margin:0;display:flex;flex-direction:column;gap:12px;width:410px}
+.peca-titulo{display:flex;gap:8px;align-items:baseline;font:600 15px/20px Inter,sans-serif;color:#1B1838}
+.peca-titulo b{font-weight:600;color:#8A2E12;font-variant-numeric:tabular-nums}
+.peca-titulo i{font-style:normal;font-weight:400;color:#4B4670}
+.peca-nota{font-size:13px;line-height:18px;color:#4B4670}
+.aparelho,.moldura{padding:10px;border-radius:56px;background:#0E0D15;box-shadow:0 0 0 1px #34323F,0 24px 56px rgba(27,24,56,.20)}
+.moldura{border-radius:40px}
+
+/* Tela */
+.tela{position:relative;width:390px;height:844px;overflow:hidden;border-radius:46px;background:var(--fundo);color:var(--texto);font:400 15px/22px Inter,system-ui,sans-serif}
+.tela.folha{height:auto;border-radius:30px}
+.rolagem{position:absolute;inset:0;overflow-x:hidden;overflow-y:auto;scrollbar-width:none;overscroll-behavior:contain}
+.rolagem::-webkit-scrollbar{display:none}
+.folha .rolagem{position:relative;inset:auto;overflow:hidden}
+/* A Aurora mora dentro da rolagem para rolar junto (2.3): o brilho coral fica sempre atrás do cabeçalho. */
+.aurora{position:absolute;top:0;left:0;width:100%;height:0;pointer-events:none}
+.aurora::before,.aurora::after{content:"";position:absolute;border-radius:50%}
+.aurora::before{top:-160px;right:-140px;width:380px;height:380px;background:radial-gradient(circle,var(--aurora-coral),var(--aurora-coral-0) 70%)}
+.aurora::after{top:120px;left:-160px;width:360px;height:360px;background:radial-gradient(circle,var(--aurora-violeta),var(--aurora-violeta-0) 70%)}
+.aurora.pilha{opacity:.6}
+.conteudo{position:relative;display:flex;flex-direction:column;gap:16px;padding:56px 20px 120px}
+.conteudo.com-barra{padding-bottom:122px}
+.conteudo.com-controle{padding-bottom:130px}
+.conteudo.folha-c{padding:32px 20px 40px}
+.sb{position:absolute;z-index:6;top:0;left:0;right:0;height:47px;display:flex;align-items:center;justify-content:space-between;padding:2px 26px 0 48px;font:600 16px/20px Inter,sans-serif;letter-spacing:-.2px;color:var(--texto);pointer-events:none}
+.sb-ic{display:flex;align-items:center;gap:6px}
+.ilha{position:absolute;z-index:7;top:11px;left:50%;width:124px;height:36px;margin-left:-62px;border-radius:18px;background:#000}
+.indicador{position:absolute;z-index:8;bottom:8px;left:50%;width:134px;height:5px;margin-left:-67px;border-radius:3px;background:var(--texto)}
+
+/* Ícones de traço 2 (peso médio do SF Symbols) */
+.ic{flex:none;fill:none;stroke:currentColor;stroke-width:2}
+.ic.g{stroke-width:2.5}
+.ic-f{flex:none;fill:currentColor;stroke:none}
+
+/* Tipografia por papel (2.4) */
+.display{font:800 34px/38px 'Bricolage Grotesque',system-ui,sans-serif;letter-spacing:-.5px}
+.titulo-tela{font:800 28px/32px 'Bricolage Grotesque',system-ui,sans-serif;letter-spacing:-.3px}
+.titulo-cartao{font:800 24px/28px 'Bricolage Grotesque',system-ui,sans-serif;letter-spacing:-.2px}
+.numero{font:800 28px/32px 'Bricolage Grotesque',system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.cronometro{font:800 64px/68px 'Bricolage Grotesque',system-ui,sans-serif;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+.leitura{font:400 17px/26px Inter,system-ui,sans-serif}
+.titulo-item{font:600 16px/22px Inter,system-ui,sans-serif}
+.corpo{font:400 15px/22px Inter,system-ui,sans-serif}
+.lista-t{font:400 14px/20px Inter,system-ui,sans-serif}
+.rotulo{font:600 13px/18px Inter,system-ui,sans-serif}
+.legenda{font:400 13px/18px Inter,system-ui,sans-serif}
+.sob{font:600 12px/16px Inter,system-ui,sans-serif;letter-spacing:1px;text-transform:uppercase;color:var(--destaque)}
+.sob-fora{margin:8px 0 -8px;color:var(--texto-suave)}
+.suave{color:var(--texto-suave)}
+.tab{font-variant-numeric:tabular-nums}
+.anot{font:500 11px/14px Inter,sans-serif;color:var(--info);letter-spacing:.2px}
+
+/* Cabeçalho (2.12.16) */
+.cabecalho{display:flex;flex-direction:column}
+.cab-raiz{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px}
+.cabecalho .display{margin-top:20px}
+.cab-pilha{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px}
+.acoes{display:flex;align-items:center;gap:8px}
+.cabecalho .titulo-tela{margin-top:12px}
+.cabecalho .sub{margin-top:4px}
+.pilula-com{display:flex;align-items:center;gap:10px;min-height:44px;padding:6px 14px 6px 6px;border-radius:999px;border:1px solid var(--tonal-borda);background:var(--tonal);color:var(--texto);font:600 15px/20px Inter,sans-serif;white-space:nowrap}
+.status{display:flex;align-items:center;gap:6px;min-height:44px;font:400 13px/18px Inter,sans-serif;color:var(--texto-suave);white-space:nowrap}
+.status .ic{color:var(--sucesso)}
+
+/* Avatar (2.12.13) */
+.av{display:inline-flex;align-items:center;justify-content:center;flex:none;border-radius:50%;color:#FFFFFF;font-family:'Bricolage Grotesque',system-ui,sans-serif;font-weight:800;letter-spacing:0}
+.av-24{width:24px;height:24px;font-size:10px}
+.av-32{width:32px;height:32px;font-size:13px}
+.av-40{width:40px;height:40px;font-size:16px}
+.av-56{width:56px;height:56px;font-size:22px}
+.av-72{width:72px;height:72px;font-size:28px}
+.av-eu{background:var(--primaria);color:var(--sobre-primaria)}
+.av-vazio{background:transparent;border:1.5px dashed var(--texto-suave);color:var(--texto-suave)}
+.c-indigo{background:#5B4BDB}.c-coral{background:#C2410C}.c-verde{background:#15803D}.c-azul{background:#1D4ED8}.c-roxo{background:#7E22CE}.c-ambar{background:#B45309}
+.av-72.anel{margin:5px;outline:2px solid var(--destaque);outline-offset:3px}
+
+/* Cartões */
+.cartao{padding:18px;border-radius:22px;background:var(--superficie);border:1px solid var(--superficie-borda);box-shadow:var(--sombra-cartao)}
+.cartao-lista{padding:6px 0;border-radius:22px;background:var(--superficie);border:1px solid var(--superficie-borda);box-shadow:var(--sombra-cartao)}
+.destaque{padding:18px;border-radius:22px;background:var(--fundo);color:var(--texto);box-shadow:var(--sombra-destaque)}
+.cartao.form{display:flex;flex-direction:column;gap:16px}
+.meta{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.curtas{display:flex;flex-direction:column;gap:8px;font:400 14px/20px Inter,sans-serif}
+.curtas>div{display:flex;gap:12px}
+.curtas .h{min-width:44px;font-weight:600;font-variant-numeric:tabular-nums}
+.curtas .voce{margin-left:auto;color:var(--destaque);font-weight:600}
+.par{display:flex;gap:10px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+
+/* Botão (2.12.1) */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:48px;padding:0 20px;border-radius:14px;border:1px solid transparent;font:600 15px/20px Inter,sans-serif;white-space:nowrap;flex:none;text-align:center}
+.btn.medio{height:44px;padding:0 16px}
+.btn.cheio{width:100%}
+/* Em pares com flex 1 o padding cai para 6, como no mockup: "Pedir substituição" não cabe com 16 em 152 de largura. */
+.btn.flex{flex:1;min-width:0;padding:0 6px}
+.btn.alto{height:56px}
+.btn svg{width:18px;height:18px}
+.b-pri{background:var(--primaria);color:var(--sobre-primaria)}
+.b-pri.prs{background:var(--primaria-pressionada);transform:scale(.98)}
+.b-sec{border-color:var(--contorno);color:var(--texto)}
+.b-sec.prs{background:var(--pressionado);transform:scale(.98)}
+.b-ter{color:var(--destaque)}
+.b-ter.prs{background:var(--quente-fundo)}
+.b-ter.alinhado{padding-left:0;padding-right:0}
+.b-des{border-color:var(--erro);color:var(--erro)}
+.b-des.prs{background:var(--erro-fundo);transform:scale(.98)}
+.b-desc{background:var(--erro-cheio);color:var(--sobre-erro)}
+.b-desc.prs{background:var(--erro-cheio-pressionado);transform:scale(.98)}
+.b-pri.des,.b-desc.des{background:var(--tonal);color:color-mix(in srgb,var(--texto) 40%,transparent)}
+.b-sec.des,.b-des.des{border-color:var(--tonal-borda);color:color-mix(in srgb,var(--texto) 40%,transparent)}
+.b-ter.des{color:color-mix(in srgb,var(--texto) 40%,transparent)}
+.btn.b-ico{width:44px;height:44px;padding:0;background:var(--tonal);color:var(--texto)}
+.btn.b-ico.redondo{border-radius:22px}
+.btn.b-ico.g48{width:48px;height:48px}
+.btn.b-ico.g56{width:56px;height:56px}
+.btn.b-ico.g56 svg{width:24px;height:24px}
+.btn.b-ico.prs{background-image:linear-gradient(var(--pressionado),var(--pressionado))}
+.btn.b-ico.des{color:color-mix(in srgb,var(--texto) 40%,transparent)}
+.foco{outline:2px solid var(--foco);outline-offset:2px}
+.btn.marca{background:#FFFFFF;color:#1F1F1F;border-color:#747775}
+.btn.marca.apple{color:#000000;border-color:#FFFFFF}
+
+/* Campo (2.12.2 e 2.12.3) */
+.campo{display:flex;flex-direction:column;min-width:0}
+.rot-linha{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px}
+.campo-rotulo{font:600 13px/18px Inter,sans-serif;color:var(--texto-suave)}
+.campo>.campo-rotulo{margin-bottom:8px}
+.campo-rotulo .opc{font-weight:400}
+.caixa{display:flex;align-items:center;gap:8px;width:100%;height:48px;padding:0 16px;border-radius:14px;background:var(--campo-fundo);border:1px solid var(--campo-borda);font:400 16px/22px Inter,sans-serif;color:var(--texto);min-width:0}
+.caixa .v{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.caixa .ex{flex:1;min-width:0;color:var(--texto-suave);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.caixa>svg{width:18px;height:18px;color:var(--texto-suave)}
+.caixa .sufixo{font:400 13px/18px Inter,sans-serif;color:var(--texto-suave)}
+.caixa .acao-dir{margin-right:-14px}
+.caixa.busca{padding-left:14px}
+.caixa.multi{height:120px;align-items:flex-start;padding-top:12px}
+.caixa.multi .ex,.caixa.multi .v{white-space:normal}
+.caixa.c-foco{border-color:var(--foco);box-shadow:inset 0 0 0 1px var(--foco)}
+.caixa.c-erro{border-color:var(--erro);box-shadow:inset 0 0 0 1px var(--erro)}
+.caixa.c-des{background:transparent;border:1px dashed var(--tonal-borda);color:var(--texto-suave)}
+.cursor{display:inline-block;width:2px;height:22px;margin-left:1px;vertical-align:top;border-radius:1px;background:var(--destaque)}
+.apoio{display:flex;gap:6px;align-items:flex-start;margin-top:6px;font:400 13px/18px Inter,sans-serif;color:var(--texto-suave)}
+.apoio.erro{color:var(--erro);font-weight:600}
+.apoio svg{width:16px;height:16px;margin-top:1px}
+.lado{display:flex;gap:12px;align-items:flex-start}
+
+/* Seleção (2.12.4 a 2.12.8) */
+.segs{display:flex;height:44px;padding:4px;border-radius:14px;background:var(--tonal)}
+.seg{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;height:36px;border-radius:10px;font:500 15px/20px Inter,sans-serif;color:var(--texto-suave);white-space:nowrap}
+.seg.ativo{background:var(--seg-ativo-fundo);box-shadow:var(--seg-ativo-sombra);color:var(--texto);font-weight:600}
+.filtros{display:flex;align-items:center;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 -20px;padding:0 20px}
+.filtros::-webkit-scrollbar{display:none}
+.filtros.em-cartao{margin:8px -19px 0;padding:0 19px}
+.pf{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:999px;border:1px solid var(--tonal-borda);color:var(--texto-suave);font:500 14px/20px Inter,sans-serif;white-space:nowrap;flex:none}
+.pf.ativa{background:var(--quente-fundo);border-color:var(--destaque);color:var(--destaque);font-weight:600}
+.pf svg{width:14px;height:14px}
+.sep-v{width:1px;height:20px;background:var(--tonal-borda);flex:none}
+.chip{display:inline-flex;align-items:center;gap:4px;height:24px;padding:4px 10px;border-radius:999px;font:600 12px/16px Inter,sans-serif;white-space:nowrap;flex:none}
+.chip svg{width:12px;height:12px}
+.chip .ponto{width:6px;height:6px;border-radius:50%;background:currentColor}
+.ch-neutro{background:var(--neutro-fundo);color:var(--texto-suave)}
+.ch-quente{background:var(--quente-fundo);color:var(--destaque)}
+.ch-sucesso{background:var(--sucesso-fundo);color:var(--sucesso)}
+.ch-alerta{background:var(--alerta-fundo);color:var(--alerta)}
+.ch-erro{background:var(--erro-fundo);color:var(--erro)}
+.ch-info{background:var(--info-fundo);color:var(--info)}
+.caixa-m{display:flex;align-items:center;justify-content:center;flex:none;width:22px;height:22px;border-radius:6px;border:1.5px solid var(--campo-borda)}
+.caixa-m.on{background:var(--primaria);border-color:var(--primaria);color:var(--sobre-primaria)}
+.caixa-m svg{width:14px;height:14px}
+.radio{display:flex;align-items:center;justify-content:center;flex:none;width:22px;height:22px;border-radius:50%;border:2px solid var(--campo-borda)}
+.radio.on{border-color:var(--primaria)}
+.radio.on::after{content:"";width:10px;height:10px;border-radius:50%;background:var(--primaria)}
+.interruptor{position:relative;flex:none;width:51px;height:31px;border-radius:999px;background:var(--interruptor-desligado)}
+.interruptor::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#FFFFFF;box-shadow:0 3px 8px rgba(0,0,0,.15),0 1px 1px rgba(0,0,0,.16)}
+.interruptor.on{background:var(--primaria)}
+.interruptor.on::after{left:22px}
+.interruptor.des{opacity:.4}
+.linha-int{display:flex;align-items:center;gap:12px;min-height:56px}
+.linha-int .txt{flex:1;min-width:0}
+
+/* Linha de lista (2.12.11) */
+.linha{position:relative;display:flex;align-items:center;gap:12px;min-height:56px;padding:10px 18px}
+.linha+.linha::before{content:"";position:absolute;top:0;right:0;left:var(--recuo,62px);height:1px;background:var(--separador)}
+.linha .txt{flex:1;min-width:0;display:flex;flex-direction:column}
+.l-tit{font:600 16px/22px Inter,sans-serif;color:var(--texto)}
+.l-desc{font:400 13px/18px Inter,sans-serif;color:var(--texto-suave)}
+.l-valor{font:400 15px/22px Inter,sans-serif;color:var(--texto-suave);font-variant-numeric:tabular-nums;white-space:nowrap}
+.dir{display:flex;align-items:center;gap:8px;flex:none}
+.chev{width:14px;height:14px;color:var(--texto-suave)}
+.ladrilho{display:flex;align-items:center;justify-content:center;flex:none;width:32px;height:32px;border-radius:10px;background:var(--tonal);color:var(--destaque)}
+.ladrilho svg{width:18px;height:18px}
+.linha.destrutiva .l-tit{color:var(--erro)}
+.linha.destrutiva .ladrilho{background:var(--erro-fundo);color:var(--erro)}
+.linha.opcao{align-items:flex-start;min-height:64px;padding:12px 18px}
+.linha.marcar-l{align-items:flex-start;min-height:48px;padding:13px 18px}
+.linha.acao-l{color:var(--destaque);font:600 15px/20px Inter,sans-serif}
+.linha.atual{background:var(--quente-fundo)}
+.linha.des-l .l-tit{color:color-mix(in srgb,var(--texto) 40%,transparent)}
+.hora{min-width:44px;flex:none;align-self:flex-start;font:600 14px/22px Inter,sans-serif;font-variant-numeric:tabular-nums}
+.bloco-data{display:flex;flex-direction:column;align-items:center;width:44px;flex:none}
+.bd-dia{font:800 20px/24px 'Bricolage Grotesque',system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.rodape-l{padding:6px 18px 0}
+.rodape-l .btn{height:44px}
+.lista-sob{padding:12px 18px 2px}
+
+/* Estado vazio, aviso e toast (2.12.21, 2.12.23, 2.12.24) */
+.vazio-ladrilho{display:flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:14px;background:var(--quente-fundo);color:var(--destaque)}
+.vazio-ladrilho svg{width:24px;height:24px}
+.aviso{display:flex;gap:12px;padding:14px 16px;border-radius:14px}
+.aviso .av-ic{width:18px;height:18px;margin-top:2px}
+.aviso .av-corpo{flex:1;min-width:0}
+.aviso .btn{margin:2px 0 -10px}
+.av-info{background:var(--info-fundo)}.av-info .av-ic{color:var(--info)}
+.av-sucesso{background:var(--sucesso-fundo)}.av-sucesso .av-ic{color:var(--sucesso)}
+.av-alerta{background:var(--alerta-fundo)}.av-alerta .av-ic{color:var(--alerta)}
+.av-erro{background:var(--erro-fundo)}.av-erro .av-ic{color:var(--erro)}
+.toast{display:flex;align-items:center;gap:12px;min-height:48px;padding:12px 16px;border-radius:14px;background:var(--fundo);color:var(--texto);box-shadow:var(--sombra-flutuante)}
+.toast .btn{height:44px;margin:-10px -8px -10px 0;padding:0 8px}
+
+/* Barra de abas (2.12.17) e barra de ação (2.12.18) */
+.abas{position:absolute;z-index:5;left:16px;right:16px;bottom:24px;display:flex;justify-content:space-between;padding:8px;border-radius:28px;background:var(--barra-fundo);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border:1px solid var(--barra-borda);box-shadow:var(--sombra-flutuante)}
+.aba{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:58px;min-height:48px;border-radius:20px;color:var(--texto-suave);font:500 11px/14px Inter,sans-serif}
+.aba .slot{display:flex;align-items:center;justify-content:center;height:24px}
+.aba svg{width:22px;height:22px}
+.aba[aria-current="page"]{background:var(--aba-ativa-fundo);color:var(--destaque);font-weight:600}
+.aba[aria-current="page"] svg{stroke-width:2.4}
+.aba .av-24{outline:1.5px solid var(--texto-suave);outline-offset:2px}
+.aba[aria-current="page"] .av-24{outline:2px solid var(--destaque)}
+.barra-acao{position:absolute;z-index:5;left:0;right:0;bottom:0;display:flex;gap:10px;padding:12px 20px 46px;background:var(--barra-fundo);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-top:1px solid var(--barra-borda);box-shadow:var(--sombra-flutuante)}
+
+/* Folhas de componentes */
+.estados{display:grid;grid-template-columns:84px 1fr 1fr;gap:12px 8px;align-items:center}
+.estados .btn{width:100%;padding:0 8px}
+.est{font:400 13px/18px Inter,sans-serif;color:var(--texto-suave)}
+.icones{display:flex;justify-content:space-between}
+.ico-item{display:flex;flex-direction:column;align-items:center;gap:6px;width:64px;text-align:center}
+
+/* Agenda (3.3.1) */
+.mes-linha{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.cal{display:grid;grid-template-columns:repeat(7,1fr)}
+.cal-dia-sem{margin-bottom:8px;text-align:center;font:600 12px/16px Inter,sans-serif;letter-spacing:1px;color:var(--texto-suave)}
+.dia{display:flex;flex-direction:column;align-items:center;gap:2px;height:48px;padding-top:6px;font:500 15px/20px Inter,sans-serif;font-variant-numeric:tabular-nums}
+.dia .n{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%}
+.dia.fora{color:var(--texto-suave)}
+.dia.hoje .n{background:var(--primaria);color:var(--sobre-primaria);font-weight:600}
+.dia.sel{padding-top:4px}
+.dia.sel .n{width:36px;height:36px;border:2px solid var(--texto)}
+.pontos{display:flex;gap:3px;height:4px}
+.pontos i{width:4px;height:4px;border-radius:50%;background:var(--destaque)}
+
+/* Ao vivo (3.5.1) */
+.crono{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:68px}
+.crono+.crono{border-top:1px solid var(--separador)}
+.trilho{height:6px;border-radius:999px;background:var(--tonal);overflow:hidden}
+.trilho span{display:block;height:100%;border-radius:999px;background:var(--primaria)}
+.estado-linha{display:flex;align-items:center;gap:8px;font:600 15px/22px Inter,sans-serif}
+
+/* Entrar (3.1.1) */
+.conteudo.entrar{gap:0;padding:87px 20px 40px}
+.icone-app{display:block;width:56px;height:56px;border-radius:16px;overflow:hidden}
+.icone-app svg{display:block}
+</style>
+</head>
+<body>
+
+<svg class="sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="g-ceu" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#15122E"/><stop offset=".5" stop-color="#2E2263"/><stop offset="1" stop-color="#8E446F"/></linearGradient>
+    <radialGradient id="g-brilho" cx=".5" cy=".62" r=".5"><stop offset="0" stop-color="#FFB199" stop-opacity=".45"/><stop offset="1" stop-color="#FFB199" stop-opacity="0"/></radialGradient>
+    <linearGradient id="g-sol" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD166"/><stop offset="1" stop-color="#FF8A65"/></linearGradient>
+    <mask id="m-info"><rect width="24" height="24" fill="#fff"/><path d="M12 11v6" stroke="#000" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="7.6" r="1.3" fill="#000"/></mask>
+    <mask id="m-ok"><rect width="24" height="24" fill="#fff"/><path d="M7.8 12.4l2.9 2.9 5.5-5.8" fill="none" stroke="#000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></mask>
+    <mask id="m-alerta"><rect width="24" height="24" fill="#fff"/><path d="M12 9.4v4.6" stroke="#000" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.25" fill="#000"/></mask>
+    <mask id="m-oct"><rect width="24" height="24" fill="#fff"/><path d="M9 9l6 6M15 9l-6 6" stroke="#000" stroke-width="2.2" stroke-linecap="round"/></mask>
+    <mask id="m-exc"><rect width="24" height="24" fill="#fff"/><path d="M12 7.2v6" stroke="#000" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="16.6" r="1.3" fill="#000"/></mask>
+  </defs>
+  <symbol id="i-casa" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-agenda" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-lista" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></symbol>
+  <symbol id="i-equipe" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5M16 11a3 3 0 1 0 0-6M21 20c0-2-1.5-3.5-3.5-4.3"/></symbol>
+  <symbol id="i-pessoa" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></symbol>
+  <symbol id="i-chev-baixo" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-chev-cima" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></symbol>
+  <symbol id="i-chev-dir" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
+  <symbol id="i-chev-esq" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-mais" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-reticencias" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.9" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.9" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-relogio" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-busca" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></symbol>
+  <symbol id="i-olho" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-repetir" viewBox="0 0 24 24"><path d="M17 2l3 3-3 3M4 11V9a4 4 0 0 1 4-4h12M7 22l-3-3 3-3M20 13v2a4 4 0 0 1-4 4H4"/></symbol>
+  <symbol id="i-predio" viewBox="0 0 24 24"><path d="M4 21V4h10v17M14 9h6v12M2 21h20M7.5 8h3M7.5 12h3M7.5 16h3M16.5 13h1.5M16.5 17h1.5"/></symbol>
+  <symbol id="i-escudo" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.6-3.4 8-8 9-4.6-1-8-4.4-8-9V6z"/><path d="M9 12l2 2 4-4"/></symbol>
+  <symbol id="i-sino" viewBox="0 0 24 24"><path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 8 2.5 8h-17S6 15 6 9z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/></symbol>
+  <symbol id="i-cadeado" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-ajuda" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.2a2.6 2.6 0 0 1 5 .9c0 1.8-2.5 2.3-2.5 3.9"/><circle cx="12" cy="17.2" r="1.2" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-sair" viewBox="0 0 24 24"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1.3 1.3M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1.3-1.3"/></symbol>
+  <symbol id="i-faceid" viewBox="0 0 24 24"><path d="M3 8V6a3 3 0 0 1 3-3h2M16 3h2a3 3 0 0 1 3 3v2M21 16v2a3 3 0 0 1-3 3h-2M8 21H6a3 3 0 0 1-3-3v-2M9 9v1.5M15 9v1.5M12 9v4.5h-1M9 16c1.7 1.3 4.3 1.3 6 0"/></symbol>
+  <symbol id="i-anterior" viewBox="0 0 24 24"><path d="M6 5v14"/><path d="M18 5.5L9 12l9 6.5z" stroke-linejoin="round"/></symbol>
+  <symbol id="i-pausa" viewBox="0 0 24 24"><path d="M9 5v14M15 5v14" stroke-width="3"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></symbol>
+  <symbol id="i-musica" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></symbol>
+  <symbol id="i-giro" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-opacity=".3"/><path d="M21 12a9 9 0 0 0-9-9" stroke-linecap="round"/></symbol>
+  <symbol id="i-info-cheio" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" mask="url(#m-info)"/></symbol>
+  <symbol id="i-ok-cheio" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" mask="url(#m-ok)"/></symbol>
+  <symbol id="i-alerta-cheio" viewBox="0 0 24 24"><path d="M12 3.4L21.4 19.8H2.6z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" mask="url(#m-alerta)"/></symbol>
+  <symbol id="i-erro-oct" viewBox="0 0 24 24"><path d="M8.17 2.76h7.66l5.41 5.41v7.66l-5.41 5.41H8.17l-5.41-5.41V8.17z" mask="url(#m-oct)"/></symbol>
+  <symbol id="i-exc-cheio" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" mask="url(#m-exc)"/></symbol>
+  <symbol id="sb-sinal" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></symbol>
+  <symbol id="sb-wifi" viewBox="0 0 16 12"><path d="M1.3 4.6a9.6 9.6 0 0 1 13.4 0M3.7 7.2a6.2 6.2 0 0 1 8.6 0" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M8 11.6l2-2.3a2.9 2.9 0 0 0-4 0z"/></symbol>
+  <symbol id="sb-bat" viewBox="0 0 27 13"><rect x=".5" y=".5" width="23" height="12" rx="3.5" fill="none" stroke="currentColor" stroke-opacity=".4"/><rect x="2" y="2" width="20" height="9" rx="2"/><path d="M25 4.5v4" fill="none" stroke="currentColor" stroke-opacity=".4" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="app-icone" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="url(#g-ceu)"/><rect width="1024" height="1024" fill="url(#g-brilho)"/><path d="M307 635a205 205 0 0 1 410 0z" fill="url(#g-sol)"/><path d="M512 285v77M336 330l40 70M688 330l-40 70M207 457l70 41M817 457l-70 41" fill="none" stroke="#FFD166" stroke-width="40" stroke-linecap="round"/><rect x="225" y="665" width="574" height="38" rx="19" fill="#FFEDE0"/><rect x="338" y="753" width="348" height="38" rx="19" fill="#E8CCC8"/></symbol>
+  <symbol id="logo-google" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></symbol>
+  <symbol id="logo-apple" viewBox="0 0 384 512"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></symbol>
+</svg>
+
+<div class="pagina">
+<header class="topo">
+  <p class="sobre">Uni Jovem · direção Aurora</p>
+  <h1>Telas para aprovação</h1>
+  <p>15/11/2026. Quadros de 390×844 pt na linguagem do mockup aprovado do Início (1 pt = 1 px). Cores e medidas estão nas variáveis CSS de <code>.tema-escuro</code> e <code>.tema-claro</code>, com os nomes dos tokens da especificação (seção 2). Quadros com mais conteúdo que a tela rolam por dentro, como no aparelho. Nas folhas de componentes, as etiquetas pequenas em lilás são anotações e não fazem parte da interface.</p>
+</header>
+
+<h2 class="secao">1. Folha de componentes</h2>
+<div class="mesa">
+
+<!-- 01a BOTÕES -->
+<figure class="peca">
+<figcaption class="peca-titulo"><b>01a</b> Componentes: botões <i>tema escuro</i></figcaption>
+<div class="moldura"><div class="tela folha tema-escuro"><div class="rolagem"><div class="aurora" aria-hidden="true"></div>
+<div class="conteudo folha-c">
+  <header class="cabecalho">
+    <p class="sob">Folha de componentes</p>
+    <h2 class="titulo-tela">Botões</h2>
+    <p class="corpo suave sub">Grande 48, médio 44, só ícone 44. Raio 14. Rótulo 15/20 em 600.</p>
+  </header>
+
+  <p class="sob sob-fora">Grande · primário e secundário</p>
+  <div class="estados">
+    <span></span><span class="est">Primário</span><span class="est">Secundário</span>
+    <span class="est">Normal</span><button class="btn b-pri">Publicar</button><button class="btn b-sec">Duplicar</button>
+    <span class="est">Pressionado</span><button class="btn b-pri prs">Publicar</button><button class="btn b-sec prs">Duplicar</button>
+    <span class="est">Foco</span><button class="btn b-pri foco">Publicar</button><button class="btn b-sec foco">Duplicar</button>
+    <span class="est">Desabilitado</span><button class="btn b-pri des" disabled>Publicar</button><button class="btn b-sec des" disabled>Duplicar</button>
+    <span class="est">Carregando</span><button class="btn b-pri" aria-busy="true"><svg class="ic g"><use href="#i-giro"/></svg>Publicar</button><button class="btn b-sec" aria-busy="true"><svg class="ic g"><use href="#i-giro"/></svg>Duplicar</button>
+  </div>
+
+  <p class="sob sob-fora">Grande · terciário e destrutivo</p>
+  <div class="estados">
+    <span></span><span class="est">Terciário</span><span class="est">Destrutivo</span>
+    <span class="est">Normal</span><button class="btn b-ter">Ver todos</button><button class="btn b-des">Excluir</button>
+    <span class="est">Pressionado</span><button class="btn b-ter prs">Ver todos</button><button class="btn b-des prs">Excluir</button>
+    <span class="est">Foco</span><button class="btn b-ter foco">Ver todos</button><button class="btn b-des foco">Excluir</button>
+    <span class="est">Desabilitado</span><button class="btn b-ter des" disabled>Ver todos</button><button class="btn b-des des" disabled>Excluir</button>
+    <span class="est">Carregando</span><button class="btn b-ter" aria-busy="true"><svg class="ic g"><use href="#i-giro"/></svg>Ver todos</button><button class="btn b-des" aria-busy="true"><svg class="ic g"><use href="#i-giro"/></svg>Excluir</button>
+  </div>
+
+  <p class="sob sob-fora">Destrutivo cheio · confirmação final</p>
+  <div class="estados">
+    <span></span><span class="est">Normal</span><span class="est">Pressionado</span>
+    <span class="est">Cheio</span><button class="btn b-desc">Excluir conta</button><button class="btn b-desc prs">Excluir conta</button>
+  </div>
+
+  <p class="sob sob-fora">Médio 44 · dentro do cartão</p>
+  <section class="cartao">
+    <p class="sob">Sua escala</p>
+    <p class="titulo-item" style="margin-top:4px">Louvor · violão</p>
+    <p class="legenda suave">Sábado, 21/11 · 16:05 às 16:20</p>
+    <div class="par" style="margin-top:14px"><button class="btn medio b-pri flex">Confirmar</button><button class="btn medio b-sec flex">Pedir substituição</button></div>
+  </section>
+
+  <p class="sob sob-fora">Só ícone · 44, fundo tonal</p>
+  <div class="icones">
+    <div class="ico-item"><button class="btn b-ico redondo" aria-label="Voltar"><svg class="ic g"><use href="#i-chev-esq"/></svg></button><span class="legenda suave">Voltar</span></div>
+    <div class="ico-item"><button class="btn b-ico" aria-label="Mais ações"><svg class="ic"><use href="#i-reticencias"/></svg></button><span class="legenda suave">Normal</span></div>
+    <div class="ico-item"><button class="btn b-ico prs" aria-label="Adicionar"><svg class="ic"><use href="#i-mais"/></svg></button><span class="legenda suave">Pressionado</span></div>
+    <div class="ico-item"><button class="btn b-ico foco" aria-label="Subir"><svg class="ic g"><use href="#i-chev-cima"/></svg></button><span class="legenda suave">Foco</span></div>
+    <div class="ico-item"><button class="btn b-ico des" disabled aria-label="Descer"><svg class="ic g"><use href="#i-chev-baixo"/></svg></button><span class="legenda suave">Desabilitado</span></div>
+  </div>
+
+  <p class="sob sob-fora">Desabilitado com motivo</p>
+  <div>
+    <button class="btn b-pri des cheio" disabled aria-describedby="motivo-1a">Enviar código</button>
+    <p class="legenda suave" id="motivo-1a" style="margin-top:6px">Aceite os termos para continuar.</p>
+  </div>
+</div></div></div></div>
+<p class="peca-nota">Pressionado troca a cor e reduz a 0,98 em 120 ms (só a cor com Reduzir movimento). Foco: anel 2 #FFD166 afastado 2. Carregando trava a largura e mantém o rótulo.</p>
+</figure>
+
+<!-- 01b CAMPOS E SELEÇÃO -->
+<figure class="peca">
+<figcaption class="peca-titulo"><b>01b</b> Componentes: campos e seleção <i>tema escuro</i></figcaption>
+<div class="moldura"><div class="tela folha tema-escuro"><div class="rolagem"><div class="aurora" aria-hidden="true"></div>
+<div class="conteudo folha-c">
+  <header class="cabecalho">
+    <p class="sob">Folha de componentes</p>
+    <h2 class="titulo-tela">Campos e seleção</h2>
+    <p class="corpo suave sub">Campo 48, raio 14, borda 1. Rótulo 13/18 a 8 acima; apoio 13/18 a 6 abaixo.</p>
+  </header>
+
+  <p class="sob sob-fora">Campo de texto · estados</p>
+  <section class="cartao form">
+    <div class="campo">
+      <div class="rot-linha"><p class="campo-rotulo">Título</p><span class="anot">vazio</span></div>
+      <div class="caixa"><span class="ex">Sábado Jovem</span></div>
+      <p class="apoio">Aparece na agenda e no convite.</p>
+    </div>
+    <div class="campo">
+      <div class="rot-linha"><p class="campo-rotulo">Nome</p><span class="anot">preenchido</span></div>
+      <div class="caixa"><span class="v">Ana Lima</span></div>
+    </div>
+    <div class="campo">
+      <div class="rot-linha"><p class="campo-rotulo">E-mail</p><span class="anot">foco</span></div>
+      <div class="caixa c-foco"><span class="v">ana.lima@email.com<span class="cursor"></span></span></div>
+      <p class="apoio">Usamos só para avisos da comunidade.</p>
+    </div>
+    <div class="campo">
+      <div class="rot-linha"><p class="campo-rotulo">Hora de início</p><span class="anot">erro</span></div>
+      <div class="caixa c-erro" aria-invalid="true"><span class="v">16h</span></div>
+      <p class="apoio erro"><svg class="ic-f"><use href="#i-exc-cheio"/></svg>Use o formato 16:00</p>
+    </div>
+    <div class="campo">
+      <div class="rot-linha"><p class="campo-rotulo">Comunidade</p><span class="anot">desabilitado</span></div>
+      <div class="caixa c-des" aria-disabled="true"><span class="v">Jovens Central</span></div>
+      <p class="apoio">Definida pelo convite.</p>
+    </div>
+    <div class="campo">
+      <div class="rot-linha"><p class="campo-rotulo">Senha</p><span class="anot">ação à direita</span></div>
+      <div class="caixa"><span class="v">••••••••••</span><button class="btn b-ico acao-dir" style="background:transparent" aria-label="Mostrar a senha"><svg class="ic"><use href="#i-olho"/></svg></button></div>
+    </div>
+  </section>
+
+  <p class="sob sob-fora">Data, hora, sufixo e busca</p>
+  <section class="cartao form">
+    <div class="lado">
+      <div class="campo" style="flex:1.4"><p class="campo-rotulo">Data</p><button class="caixa"><span class="v">Sáb., 21/11</span><svg class="ic"><use href="#i-agenda"/></svg></button></div>
+      <div class="campo" style="flex:1"><p class="campo-rotulo">Hora</p><button class="caixa"><span class="v tab">16:00</span><svg class="ic"><use href="#i-relogio"/></svg></button></div>
+    </div>
+    <div class="campo" style="width:calc(50% - 6px)"><p class="campo-rotulo">Duração</p><div class="caixa"><span class="v tab">60</span><span class="sufixo">min</span></div></div>
+    <div class="caixa busca" role="search"><svg class="ic"><use href="#i-busca"/></svg><span class="ex">Buscar pelo nome</span></div>
+  </section>
+
+  <p class="sob sob-fora">Segmentos · trilho 44, polegar 36</p>
+  <div class="segs" role="tablist"><span class="seg ativo" role="tab" aria-selected="true">Mês</span><span class="seg" role="tab">Semana</span><span class="seg" role="tab">Lista</span></div>
+  <div class="segs" role="tablist"><span class="seg" role="tab">Visão geral</span><span class="seg ativo" role="tab" aria-selected="true">Etapas</span><span class="seg" role="tab">Equipe</span><span class="seg" role="tab">Preparação</span></div>
+
+  <p class="sob sob-fora">Pílulas de filtro · 36, toque 44</p>
+  <div class="filtros"><span class="pf ativa"><svg class="ic g"><use href="#i-check"/></svg>Próximos</span><span class="pf">Passados</span><span class="sep-v"></span><span class="pf">Rascunhos <span class="tab">2</span></span><span class="pf">Publicados</span><span class="pf">Cancelados</span></div>
+
+  <p class="sob sob-fora">Chips de estado · 24</p>
+  <div class="chips">
+    <span class="chip ch-neutro">Rascunho</span><span class="chip ch-quente">Na igreja</span><span class="chip ch-sucesso">Confirmada</span><span class="chip ch-alerta">Pendente</span>
+    <span class="chip ch-erro">Cancelado</span><span class="chip ch-info">Organizador</span><span class="chip ch-quente"><span class="ponto"></span>Ao vivo</span><span class="chip ch-sucesso"><svg class="ic g"><use href="#i-check"/></svg>Presente</span>
+  </div>
+
+  <p class="sob sob-fora">Caixa de marcar e interruptor</p>
+  <section class="cartao-lista" style="--recuo:52px">
+    <div class="linha marcar-l"><span class="caixa-m" role="checkbox" aria-checked="false"></span><div class="txt"><p class="corpo">Comprar o brinde</p><p class="legenda suave">Ana · até sexta, 27/11</p></div></div>
+    <div class="linha marcar-l"><span class="caixa-m on" role="checkbox" aria-checked="true"><svg class="ic" style="stroke-width:3"><use href="#i-check"/></svg></span><div class="txt"><p class="corpo">Imprimir a lição</p><p class="legenda suave">Felipe · feito em 18/11</p></div></div>
+    <div class="linha" style="--recuo:18px"><div class="txt"><p class="l-tit">Versículo do dia</p><p class="l-desc">Ligado, todos os dias às 07:00</p></div><span class="interruptor on" role="switch" aria-checked="true"></span></div>
+    <div class="linha" style="--recuo:18px"><div class="txt"><p class="l-tit">Avisos por e-mail</p><p class="l-desc">Desligado</p></div><span class="interruptor" role="switch" aria-checked="false"></span></div>
+    <div class="linha des-l" style="--recuo:18px"><div class="txt"><p class="l-tit">Lista de espera</p><p class="l-desc">Defina as vagas primeiro</p></div><span class="interruptor des" role="switch" aria-checked="false" aria-disabled="true"></span></div>
+  </section>
+</div></div></div></div>
+<p class="peca-nota">Foco do campo: borda 1 mais anel interno 1, sem deslocar o texto. O erro substitui a ajuda e diz como corrigir. Data e hora abrem o seletor nativo (@expo/ui).</p>
+</figure>
+
+<!-- 01c LISTAS, AVISOS E TOAST -->
+<figure class="peca">
+<figcaption class="peca-titulo"><b>01c</b> Componentes: listas, avisos e toast <i>tema escuro</i></figcaption>
+<div class="moldura"><div class="tela folha tema-escuro"><div class="rolagem"><div class="aurora" aria-hidden="true"></div>
+<div class="conteudo folha-c">
+  <header class="cabecalho">
+    <p class="sob">Folha de componentes</p>
+    <h2 class="titulo-tela">Listas, avisos e toast</h2>
+    <p class="corpo suave sub">Linha de 56, ladrilho 32 com raio 10, separador recuado. Aviso com raio 14 e sem borda.</p>
+  </header>
+
+  <p class="sob sob-fora">Linha de lista</p>
+  <section class="cartao-lista">
+    <div class="linha"><span class="ladrilho"><svg class="ic"><use href="#i-sino"/></svg></span><div class="txt"><p class="l-tit">Notificações</p><p class="l-desc">Eventos, escalas e avisos</p></div><svg class="ic g chev"><use href="#i-chev-dir"/></svg></div>
+    <div class="linha"><span class="ladrilho"><svg class="ic"><use href="#i-relogio"/></svg></span><div class="txt"><p class="l-tit">Versículo do dia</p></div><div class="dir"><span class="l-valor">07:00</span><svg class="ic g chev"><use href="#i-chev-dir"/></svg></div></div>
+    <div class="linha" style="--recuo:70px"><span class="av av-40 c-azul">BC</span><div class="txt"><p class="l-tit">Bruno Costa</p></div><div class="dir"><span class="chip ch-info">Organizador</span><svg class="ic g chev"><use href="#i-chev-dir"/></svg></div></div>
+    <div class="linha" style="--recuo:74px"><span class="bloco-data"><span class="bd-dia">21</span><span class="sob suave">sáb</span></span><div class="txt"><p class="l-tit">Sábado Jovem</p><p class="l-desc">16:00 · 60 min · Salão principal</p></div><svg class="ic g chev"><use href="#i-chev-dir"/></svg></div>
+    <div class="linha destrutiva"><span class="ladrilho"><svg class="ic"><use href="#i-sair"/></svg></span><div class="txt"><p class="l-tit">Sair deste aparelho</p></div></div>
+  </section>
+
+  <p class="sob sob-fora">Lista de opções · rádio 22</p>
+  <section class="cartao-lista" style="--recuo:52px">
+    <div class="linha opcao" role="radio" aria-checked="true"><span class="radio on"></span><div class="txt"><p class="l-tit">Salão principal</p><p class="l-desc">Local interno</p></div></div>
+    <div class="linha opcao" role="radio" aria-checked="false"><span class="radio"></span><div class="txt"><p class="l-tit">Praça da Matriz</p><p class="l-desc">Rua das Flores, 120, Centro</p></div></div>
+  </section>
+
+  <p class="sob sob-fora">Estado vazio · sempre com ação</p>
+  <section class="cartao">
+    <span class="vazio-ladrilho"><svg class="ic"><use href="#i-agenda"/></svg></span>
+    <p class="titulo-item" style="margin-top:12px">Nenhuma programação ainda</p>
+    <p class="corpo suave" style="margin-top:4px">Comece pelo Sábado padrão: as 7 etapas já vêm prontas e você ajusta depois.</p>
+    <button class="btn medio b-pri" style="margin-top:16px">Novo Sábado padrão</button>
+  </section>
+
+  <p class="sob sob-fora">Aviso · info, sucesso, alerta e erro</p>
+  <div class="aviso av-info" role="status"><svg class="ic-f av-ic"><use href="#i-info-cheio"/></svg><div class="av-corpo"><p class="titulo-item">Alguém precisa de substituição</p><p class="legenda">Bruno pediu troca no Louvor de sábado.</p><button class="btn medio b-ter alinhado">Ver pedidos</button></div></div>
+  <div class="aviso av-sucesso" role="status"><svg class="ic-f av-ic"><use href="#i-ok-cheio"/></svg><div class="av-corpo"><p class="titulo-item">Escala confirmada</p><p class="legenda">Você está no Louvor, sábado às 16:05.</p></div></div>
+  <div class="aviso av-alerta" role="status"><svg class="ic-f av-ic"><use href="#i-alerta-cheio"/></svg><div class="av-corpo"><p class="titulo-item">Sem conexão: o Início volta quando a internet voltar</p><p class="legenda">O que foi preparado neste aparelho continua aqui.</p></div></div>
+  <div class="aviso av-erro" role="alert"><svg class="ic-f av-ic"><use href="#i-erro-oct"/></svg><div class="av-corpo"><p class="titulo-item">Não deu para salvar</p><p class="legenda">Confira a internet e tente de novo. Nada do que você escreveu se perdeu.</p><button class="btn medio b-ter alinhado">Tentar de novo</button></div></div>
+
+  <p class="sob sob-fora">Toast · paleta inversa</p>
+  <div class="toast inverso" role="status"><svg class="ic-f" width="18" height="18" style="color:var(--sucesso)"><use href="#i-ok-cheio"/></svg><span class="corpo" style="flex:1">Presença de Ana registrada</span><button class="btn b-ter">Desfazer</button></div>
+</div></div></div></div>
+<p class="peca-nota">Separador recuado até o texto da linha de baixo: 62 (ladrilho), 70 (avatar), 74 (bloco de data ou de hora), 52 (rádio e caixa) e 18 (interruptor). A última linha não tem separador. Toast: 4 s mais 1 s a cada 10 palavras.</p>
+</figure>
+
+<!-- 01d TEMA CLARO -->
+<figure class="peca">
+<figcaption class="peca-titulo"><b>01d</b> Componentes no tema claro <i>mesma geometria</i></figcaption>
+<div class="moldura"><div class="tela folha tema-claro"><div class="rolagem"><div class="aurora" aria-hidden="true"></div>
+<div class="conteudo folha-c">
+  <header class="cabecalho">
+    <p class="sob">Folha de componentes</p>
+    <h2 class="titulo-tela">Tema claro</h2>
+    <p class="corpo suave sub">Medidas idênticas às das folhas 01a a 01c. Mudam a cor, a sombra do cartão e o inverso, que vira índigo.</p>
+  </header>
+
+  <p class="sob sob-fora">Botões</p>
+  <div class="estados">
+    <span></span><span class="est">Primário</span><span class="est">Secundário</span>
+    <span class="est">Normal</span><button class="btn b-pri">Publicar</button><button class="btn b-sec">Duplicar</button>
+    <span class="est">Pressionado</span><button class="btn b-pri prs">Publicar</button><button class="btn b-sec prs">Duplicar</button>
+    <span class="est">Foco</span><button class="btn b-pri foco">Publicar</button><button class="btn b-sec foco">Duplicar</button>
+    <span class="est">Desabilitado</span><button class="btn b-pri des" disabled>Publicar</button><button class="btn b-sec des" disabled>Duplicar</button>
+  </div>
+  <div class="estados">
+    <span></span><span class="est">Terciário</span><span class="est">Destrutivo</span>
+    <span class="est">Normal</span><button class="btn b-ter">Ver todos</button><button class="btn b-des">Excluir</button>
+    <span class="est">Pressionado</span><button class="btn b-ter prs">Ver todos</button><button class="btn b-des prs">Excluir</button>
+    <span class="est">Cheio</span><button class="btn b-desc">Excluir conta</button><button class="btn b-desc prs">Excluir conta</button>
+  </div>
+
+  <p class="sob sob-fora">Campos</p>
+  <section class="cartao form">
+    <div class="campo"><p class="campo-rotulo">E-mail</p><div class="caixa c-foco"><span class="v">ana.lima@email.com<span class="cursor"></span></span></div></div>
+    <div class="campo"><p class="campo-rotulo">Hora de início</p><div class="caixa c-erro"><span class="v">16h</span></div><p class="apoio erro"><svg class="ic-f"><use href="#i-exc-cheio"/></svg>Use o formato 16:00</p></div>
+    <div class="lado">
+      <div class="campo" style="flex:1.4"><p class="campo-rotulo">Data</p><button class="caixa"><span class="v">Sáb., 21/11</span><svg class="ic"><use href="#i-agenda"/></svg></button></div>
+      <div class="campo" style="flex:1"><p class="campo-rotulo">Hora</p><button class="caixa"><span class="v tab">16:00</span><svg class="ic"><use href="#i-relogio"/></svg></button></div>
+    </div>
+  </section>
+
+  <p class="sob sob-fora">Seleção</p>
+  <div class="segs" role="tablist"><span class="seg ativo" role="tab" aria-selected="true">Mês</span><span class="seg" role="tab">Semana</span><span class="seg" role="tab">Lista</span></div>
+  <div class="filtros"><span class="pf ativa"><svg class="ic g"><use href="#i-check"/></svg>Próximos</span><span class="pf">Passados</span><span class="sep-v"></span><span class="pf">Rascunhos <span class="tab">2</span></span><span class="pf">Cancelados</span></div>
+  <div class="chips">
+    <span class="chip ch-neutro">Rascunho</span><span class="chip ch-quente">Na igreja</span><span class="chip ch-sucesso">Confirmada</span><span class="chip ch-alerta">Pendente</span>
+    <span class="chip ch-erro">Cancelado</span><span class="chip ch-info">Organizador</span>
+  </div>
+  <section class="cartao-lista" style="--recuo:52px">
+    <div class="linha marcar-l"><span class="caixa-m on" role="checkbox" aria-checked="true"><svg class="ic" style="stroke-width:3"><use href="#i-check"/></svg></span><div class="txt"><p class="corpo">Imprimir a lição</p><p class="legenda suave">Felipe · feito em 18/11</p></div></div>
+    <div class="linha" style="--recuo:18px"><div class="txt"><p class="l-tit">Versículo do dia</p><p class="l-desc">Ligado, todos os dias às 07:00</p></div><span class="interruptor on" role="switch" aria-checked="true"></span></div>
+    <div class="linha" style="--recuo:18px"><div class="txt"><p class="l-tit">Avisos por e-mail</p><p class="l-desc">Desligado</p></div><span class="interruptor" role="switch" aria-checked="false"></span></div>
+  </section>
+
+  <p class="sob sob-fora">Lista</p>
+  <section class="cartao-lista">
+    <div class="linha"><span class="ladrilho"><svg class="ic"><use href="#i-escudo"/></svg></span><div class="txt"><p class="l-tit">Segurança</p><p class="l-desc">Verificação em duas etapas</p></div><div class="dir"><span class="chip ch-sucesso">Ligada</span><svg class="ic g chev"><use href="#i-chev-dir"/></svg></div></div>
+    <div class="linha" style="--recuo:70px"><span class="av av-40 c-verde">CD</span><div class="txt"><p class="l-tit">Carla Dias</p></div><div class="dir"><span class="chip ch-neutro">Membro</span><svg class="ic g chev"><use href="#i-chev-dir"/></svg></div></div>
+  </section>
+
+  <p class="sob sob-fora">Avisos e toast</p>
+  <div class="aviso av-info" role="status"><svg class="ic-f av-ic"><use href="#i-info-cheio"/></svg><div class="av-corpo"><p class="titulo-item">Alguém precisa de substituição</p><p class="legenda">Bruno pediu troca no Louvor de sábado.</p></div></div>
+  <div class="aviso av-alerta" role="status"><svg class="ic-f av-ic"><use href="#i-alerta-cheio"/></svg><div class="av-corpo"><p class="titulo-item">Etapas passam da duração</p><p class="legenda">São 66 min para 60 previstos.</p></div></div>
+  <div class="aviso av-erro" role="alert"><svg class="ic-f av-ic"><use href="#i-erro-oct"/></svg><div class="av-corpo"><p class="titulo-item">Não deu para salvar</p><p class="legenda">Confira a internet e tente de novo.</p></div></div>
+  <div class="toast inverso" role="status"><svg class="ic-f" width="18" height="18" style="color:var(--sucesso)"><use href="#i-ok-cheio"/></svg><span class="corpo" style="flex:1">Dados salvos</span><button class="btn b-ter">Desfazer</button></div>
+</div></div></div></div>
+<p class="peca-nota">Primário #C2491F com texto branco (4,9:1). Cartão #FFFFFF com sombra de nível cartão. Interruptor desligado com trilho #857FAF, porque o tonal some no branco.</p>
+</figure>
+
+</div>
+
+<h2 class="secao">2. Telas</h2>
+<div class="mesa">
+
+<!-- 02 INÍCIO CLARO -->
+<figure class="peca">
+<figcaption class="peca-titulo"><b>02</b> Início com dados <i>tema claro</i></figcaption>
+<div class="aparelho"><div class="tela tema-claro">
+  <div class="sb" aria-hidden="true"><span>9:41</span><span class="sb-ic"><svg class="ic-f" width="18" height="12"><use href="#sb-sinal"/></svg><svg class="ic-f" width="16" height="12"><use href="#sb-wifi"/></svg><svg class="ic-f" width="27" height="13"><use href="#sb-bat"/></svg></span></div><div class="ilha" aria-hidden="true"></div>
+  <div class="rolagem"><div class="aurora" aria-hidden="true"></div>
+  <div class="conteudo">
+    <header class="cabecalho">
+      <div class="cab-raiz">
+        <button class="pilula-com" aria-label="Comunidade Jovens Central, Administrador. Trocar de comunidade"><span class="av av-32 av-eu">JC</span>Jovens Central<svg class="ic" width="16" height="16"><use href="#i-chev-baixo"/></svg></button>
+        <span class="status"><svg class="ic g" width="14" height="14"><use href="#i-check"/></svg>Sincronizado 09:38</span>
+      </div>
+      <h1 class="display">Bom dia, Ana</h1>
+    </header>
+    <section class="cartao">
+      <h2 class="sob">Versículo do dia</h2>
+      <p class="leitura" style="margin-top:8px">É pelas bondades do SENHOR que não somos consumidos, porque suas misericórdias não têm fim.</p>
+      <p class="legenda suave" style="margin-top:8px">Lamentações 3:22 · BLIVRE</p>
+    </section>
+    <section class="destaque inverso" aria-label="Próximo encontro">
+      <div class="meta"><p class="rotulo suave">Sábado · 16:00 · 60 min</p><span class="chip ch-quente">Na igreja</span></div>
+      <h2 class="titulo-cartao" style="margin-top:6px">Sábado Jovem</h2>
+      <div class="curtas" style="margin-top:14px">
+        <div><span class="h">16:00</span><span>Boas-vindas</span></div>
+        <div><span class="h">16:05</span><span>Louvor</span><span class="voce">Você</span></div>
+        <div><span class="h">16:20</span><span>Oração intercessora</span></div>
+        <div class="suave"><span class="h">+4</span><span>etapas</span></div>
+      </div>
+    </section>
+    <section class="cartao">
+      <h2 class="sob">Sua escala</h2>
+      <p class="titulo-item" style="margin-top:4px">Louvor · violão</p>
+      <p class="legenda suave">Sábado, 21/11 · 16:05 às 16:20</p>
+      <div class="par" style="margin-top:14px"><button class="btn medio b-pri flex">Confirmar</button><button class="btn medio b-sec flex">Pedir substituição</button></div>
+    </section>
+  </div></div>
+  <nav class="abas" aria-label="Navegação principal">
+    <a class="aba" href="#" aria-current="page"><span class="slot"><svg class="ic"><use href="#i-casa"/></svg></span>Início</a>
+    <a class="aba" href="#"><span class="slot"><svg class="ic"><use href="#i-agenda"/></svg></span>Agenda</a>
+    <a class="aba" href="#"><span class="slot"><svg class="ic"><use href="#i-lista"/></svg></span>Programas</a>
+    <a class="aba" href="#"><span class="slot"><svg class="ic"><use href="#i-equipe"/></svg></span>Equipe</a>
+    <a class="aba" href="#"><span class="slot"><span class="av av-24 av-eu">AL</span></span>Perfil</a>
+  </nav>
+  <div class="indicador" aria-hidden="true"></div>
+</div></div>
+<p class="peca-nota">O destaque claro do escuro vira a "noite": #1F1B4D com sombra 0 10 30 a 28%. Cartões #FFFFFF com sombra de nível cartão. Aurora a 0,30 e 0,22. Barra de abas branca a 80% com desfoque 20.</p>
+</figure>
+
+<!-- 03a DETALHE: ETAPAS -->
+<figure class="peca">
+<figcaption class="peca-titulo"><b>03a</b> Detalhe do evento, organizador <i>segmento Etapas</i></figcaption>
+<div class="aparelho"><div class="tela tema-escuro">
+  <div class="sb" aria-hidden="true"><span>9:41</span><span class="sb-ic"><svg class="ic-f" width="18" height="12"><use href="#sb-sinal"/></svg><svg class="ic-f" width="16" height="12"><use href="#sb-wifi"/></svg><svg class="ic-f" width="27" height="13"><use href="#sb-bat"/></svg></span></div><div class="ilha" aria-hidden="true"></div>
+  <div class="rolagem"><div class="aurora pilha" aria-hidden="true"></div>
+  <div class="conteudo com-barra">
+    <header class="cabecalho">
+      <div class="cab-pilha"><button class="btn b-ico redondo" aria-label="Voltar"><svg class="ic g"><use href="#i-chev-esq"/></svg></button></div>
+      <h1 class="titulo-tela">Sábado Jovem</h1>
+      <p class="corpo suave" style="margin-top:8px">Sábado, 28 de nov. · 16:00 · 60 min</p>
+      <div class="chips" style="margin-top:8px"><span class="chip ch-neutro">Rascunho</span><span class="chip ch-info">Pública</span><span class="chip ch-neutro"><svg class="ic g"><use href="#i-repetir"/></svg>Série</span></div>
+    </header>
+    <div class="segs" role="tablist"><span class="seg" role="tab">Visão geral</span><span class="seg ativo" role="tab" aria-selected="true">Etapas</span><span class="seg" role="tab">Equipe</span><span class="seg" role="tab">Preparação</span></div>
+    <section class="cartao-lista" style="--recuo:74px" aria-label="Etapas">
+      <div class="linha"><span class="hora">16:00</span><div class="txt"><p class="l-tit">Boas-vindas</p><p class="l-desc">5 min · Com Bruno</p></div></div>
+      <div class="linha"><span class="hora">16:05</span><div class="txt"><p class="l-tit">Louvor</p><p class="l-desc">15 min · Com Ana (violão) e Carla (voz)</p></div></div>
+      <div class="linha"><span class="hora">16:20</span><div class="txt"><p class="l-tit">Oração intercessora</p><p class="l-desc">10 min · Com Davi</p></div></div>
+      <div class="linha"><span class="hora">16:30</span><div class="txt"><p class="l-tit">Dinâmica</p><p class="l-desc">10 min · Com Elisa</p></div></div>
+      <div class="linha"><span class="hora">16:40</span><div class="txt"><p class="l-tit">Estudo da lição</p><p class="l-desc">15 min · Com Felipe</p></div></div>
+      <div class="linha"><span class="hora">16:55</span><div class="txt"><p class="l-tit">Brinde</p><p class="l-desc">3 min · Ninguém escalado</p></div></div>
+      <div class="linha"><span class="hora">16:58</span><div class="txt"><p class="l-tit">Encerramento</p><p class="l-desc">2 min · Com Bruno</p></div></div>
+      <div class="rodape-l"><p class="legenda suave tab">Total 60 min de 60 previstos</p><button class="btn medio b-ter alinhado">Editar etapas</button></div>
+    </section>
+  </div></div>
+  <div class="barra-acao"><button class="btn b-ico g48" aria-label="Mais ações"><svg class="ic"><use href="#i-reticencias"/></svg></button><button class="btn b-pri flex">Publicar</button></div>
+  <div class="indicador" aria-hidden="true"></div>
+</div></div>
+<p class="peca-nota">Rascunho visto pelo organizador. Barra de ação: Mais ações 48 (folha com Editar, Duplicar, Salvar como modelo, Ver a série, Adiar e, em vermelho, Excluir rascunho) e o primário Publicar.</p>
+</figure>
+
+<!-- 03b DETALHE: PREPARAÇÃO -->
+<figure class="peca">
+<figcaption class="peca-titulo"><b>03b</b> Detalhe do evento, organizador <i>segmento Preparação</i></figcaption>
+<div class="aparelho"><div class="tela tema-escuro">
+  <div class="sb" aria-hidden="true"><span>9:41</span><span class="sb-ic"><svg class="ic-f" width="18" height="12"><use href="#sb-sinal"/></svg><svg class="ic-f" width="16" height="12"><use href="#sb-wifi"/></svg><svg class="ic-f" width="27" height="13"><use href="#sb-bat"/></svg></span></div><div class="ilha" aria-hidden="true"></div>
+  <div class="rolagem"><div class="aurora pilha" aria-hidden="true"></div>
+  <div class="conteudo com-barra">
+    <header class="cabecalho">
+      <div class="cab-pilha"><button class="btn b-ico redondo" aria-label="Voltar"><svg class="ic g"><use href="#i-chev-esq"/></svg></button></div>
+      <h1 class="titulo-tela">Sábado Jovem</h1>
+      <p class="corpo suave" style="margin-top:8px">Sábado, 28 de nov. · 16:00 · 60 min</p>
+      <div class="chips" style="margin-top:8px"><span class="chip ch-neutro">Rascunho</span><span class="chip ch-info">Pública</span><span class="chip ch-neutro"><svg class="ic g"><use href="#i-repetir"/></svg>Série</span></div>
+    </header>
+    <div class="segs" role="tablist"><span class="seg" role="tab">Visão geral</span><span class="seg" role="tab">Etapas</span><span class="seg" role="tab">Equipe</span><span class="seg ativo" role="tab" aria-selected="true">Preparação</span></div>
+    <section class="cartao-lista" style="--recuo:52px">
+      <div class="lista-sob"><h2 class="sob">Tarefas</h2></div>
+      <div class="linha marcar-l"><span class="caixa-m" role="checkbox" aria-checked="false"></span><div class="txt"><p class="corpo">Comprar o brinde</p><p class="legenda suave">Ana · até sexta, 27/11</p></div></div>
+      <div class="linha marcar-l"><span class="caixa-m on" role="checkbox" aria-checked="true"><svg class="ic" style="stroke-width:3"><use href="#i-check"/></svg></span><div class="txt"><p class="corpo">Imprimir a lição</p><p class="legenda suave">Felipe · feito em 18/11</p></div></div>
+      <div class="linha marcar-l"><span class="caixa-m" role="checkbox" aria-checked="false"></span><div class="txt"><p class="corpo">Testar o som e os microfones</p><p class="legenda suave">Bruno · até sábado, 15:00</p></div></div>
+      <div class="rodape-l"><button class="btn medio b-ter alinhado"><svg class="ic"><use href="#i-mais"/></svg>Adicionar tarefa</button></div>
+    </section>
+    <section class="cartao-lista">
+      <div class="lista-sob"><h2 class="sob">Materiais</h2></div>
+      <div class="linha"><span class="ladrilho"><svg class="ic"><use href="#i-musica"/></svg></span><div class="txt"><p class="l-tit">Cifras do louvor</p><p class="l-desc">Link · adicionado por Ana</p></div><svg class="ic g chev"><use href="#i-chev-dir"/></svg></div>
+      <div class="linha"><span class="ladrilho"><svg class="ic"><use href="#i-doc"/></svg></span><div class="txt"><p class="l-tit">Lição 9 em PDF</p><p class="l-desc">PDF · 1,2 MB</p></div><svg class="ic g chev"><use href="#i-chev-dir"/></svg></div>
+      <div class="rodape-l"><button class="btn medio b-ter alinhado"><svg class="ic"><use href="#i-mais"/></svg>Adicionar material</button></div>
+    </section>
+    <section class="cartao-lista" style="--recuo:52px">
+      <div class="lista-sob"><h2 class="sob">Checklist</h2></div>
+      <div class="linha marcar-l"><span class="caixa-m on" role="checkbox" aria-checked="true"><svg class="ic" style="stroke-width:3"><use href="#i-check"/></svg></span><div class="txt"><p class="corpo">Abrir a sala às 15:00</p></div></div>
+      <div class="linha marcar-l"><span class="caixa-m" role="checkbox" aria-checked="false"></span><div class="txt"><p class="corpo">Ligar o projetor e a mesa de som</p></div></div>
+      <div class="rodape-l"><button class="btn medio b-ter alinhado"><svg class="ic"><use href="#i-mais"/></svg>Adicionar item</button></div>
+    </section>
+    <section class="cartao">
+      <h2 class="sob">Notas</h2>
+      <p class="corpo suave" style="margin-top:8px">Nenhuma nota ainda.</p>
+      <button class="btn medio b-ter alinhado" style="margin-top:6px"><svg class="ic"><use href="#i-mais"/></svg>Adicionar nota</button>
+    </section>
+  </div></div>
+  <div class="barra-acao"><button class="btn b-ico g48" aria-label="Mais ações"><svg class="ic"><use href="#i-reticencias"/></svg></button><button class="btn b-pri flex">Publicar</button></div>
+  <div class="indicador" aria-hidden="true"></div>
+</div></div>
+<p class="peca-nota">Cada bloco de preparação tem a sobrancelha dentro do cartão lista (padding 12 por 18) e o terciário Adicionar alinhado ao texto. Vazio é uma linha só.</p>
+</figure>
+
+<!-- 04 PERFIL -->
+<figure class="peca">
+<figcaption class="peca-titulo"><b>04</b> Perfil com categorias <i>tema escuro</i></figcaption>
+<div class="aparelho"><div class="tela tema-escuro">
+  <div class="sb" aria-hidden="true"><span>9:41</span><span class="sb-ic"><svg class="ic-f" width="18" height="12"><use href="#sb-sinal"/></svg><svg class="ic-f" width="16" height="12"><use href="#sb-wifi"/></svg><svg class="ic-f" width="27" height="13"><use href="#sb-bat"/></svg></span></div><div class="ilha" aria-hidden="true"></div>
+  <div class="rolagem"><div class="aurora" aria-hidden="true"></div>
+  <div class="conteudo">
+    <header class="cabecalho">
+      <div class="cab-raiz">
+        <button class="pilula-com" aria-label="Comunidade Jovens Central, Administrador. Trocar de comunidade"><span class="av av-32 av-eu">JC</span>Jovens Central<svg class="ic" width="16" height="16"><use href="#i-chev-baixo"/></svg></button>
+        <span class="status"><svg class="ic g" width="14" height="14"><use href="#i-check"/></svg>Sincronizado 09:38</span>
+      </div>
+      <h1 class="display">Perfil</h1>
+    </header>
+    <section class="cartao" style="display:flex;align-items:center;gap:16px">
+      <span class="av av-72 av-eu anel">AL</span>
+      <div style="display:flex;flex-direction:column;min-width:0">
+        <h2 class="titulo-cartao">Ana Lima</h2>
+        <p class="legenda suave">ana.lima@email.com</p>
+        <button class="btn medio b-ter alinhado" style="align-self:flex-start">Editar dados</button>
+      </div>
+    </section>
+
+    <h2 class="sob sob-fora">Criador</h2>
+    <section class="cartao-lista">
+      <div class="linha"><span class="ladrilho"><svg class="ic"><use href="#i-predio"/></svg></span><div class="txt"><p class="l-tit">Plataforma</p><p class="l-desc">3 comunidades, saúde e auditoria</p></div><svg class="ic g chev"><use href="#i-chev-dir"/></svg></div>
+    </section>
+
+    <h2 class="sob sob-fora">Sua conta</h2>
+    <section class="cartao-lista">
+      <div class="linha"><span class="ladrilho"><svg class="ic"><use href="#i-pessoa"/></svg></span><div class="txt"><p class="l-tit">Conta</p><p class="l-desc">Nome, e-mail e WhatsApp</p></div><svg class="ic g chev"><use href="#i-chev-dir"/></svg></div>
+      <div class="linha"><span class="ladrilho"><svg class="ic"><use href="#i-escudo"/></svg></span><div class="txt"><p class="l-tit">Segurança</p><p class="l-desc">Duas etapas e Face ID</p></div><div class="dir"><span class="chip ch-sucesso">Ligada</span><svg class="ic g chev"><use href="#i-chev-dir"/></svg></div></div>
+      <div class="linha"><span class="ladrilho"><svg class="ic"><use href="#i-sino"/></svg></span><div class="txt"><p class="l-tit">Notificações</p><p class="l-desc">Eventos, escalas e versículo</p></div><svg class="ic g chev"><use href="#i-chev-dir"/></svg></div>
+    </section>
+
+    <h2 class="sob sob-fora">Comunidades</h2>
+    <section class="cartao-lista" style="--recuo:70px">
+      <div class="linha"><span class="av av-40 av-eu">JC</span><div class="txt"><p class="l-tit">Jovens Central</p><p class="l-desc">Administrador · em uso agora</p></div><svg class="ic g chev"><use href="#i-chev-dir"/></svg></div>
+      <div class="linha"><span class="av av-40 c-verde">JV</span><div class="txt"><p class="l-tit">Jovens Vila Nova</p><p class="l-desc">Membro</p></div><svg class="ic g chev"><use href="#i-chev-dir"/></svg></div>
+    </section>
+
+    <h2 class="sob sob-fora">Ajuda e privacidade</h2>
+    <section class="cartao-lista">
+      <div class="linha"><span class="ladrilho"><svg class="ic"><use href="#i-cadeado"/></svg></span><div class="txt"><p class="l-tit">Privacidade e dados</p><p class="l-desc">Exportar dados ou excluir a conta</p></div><svg class="ic g chev"><use href="#i-chev-dir"/></svg></div>
+      <div class="linha"><span class="ladrilho"><svg class="ic"><use href="#i-ajuda"/></svg></span><div class="txt"><p class="l-tit">Ajuda e sobre</p><p class="l-desc">Mapa da missão, termos e versão</p></div><svg class="ic g chev"><use href="#i-chev-dir"/></svg></div>
+    </section>
+
+    <section class="cartao-lista" style="margin-top:8px">
+      <div class="linha destrutiva"><span class="ladrilho"><svg class="ic"><use href="#i-sair"/></svg></span><div class="txt"><p class="l-tit">Sair deste aparelho</p></div></div>
+    </section>
+    <p class="legenda suave">Uni Jovem 1.0 (42)</p>
+  </div></div>
+  <nav class="abas" aria-label="Navegação principal">
+    <a class="aba" href="#"><span class="slot"><svg class="ic"><use href="#i-casa"/></svg></span>Início</a>
+    <a class="aba" href="#"><span class="slot"><svg class="ic"><use href="#i-agenda"/></svg></span>Agenda</a>
+    <a class="aba" href="#"><span class="slot"><svg class="ic"><use href="#i-lista"/></svg></span>Programas</a>
+    <a class="aba" href="#"><span class="slot"><svg class="ic"><use href="#i-equipe"/></svg></span>Equipe</a>
+    <a class="aba" href="#" aria-current="page"><span class="slot"><span class="av av-24 av-eu">AL</span></span>Perfil</a>
+  </nav>
+  <div class="indicador" aria-hidden="true"></div>
+</div></div>
+<p class="peca-nota">Avatar 72 com anel 2 afastado 3. Sobrancelhas de grupo fora do cartão (24 acima, 8 abaixo) em texto suave. Sair fica isolado, 24 abaixo do último grupo.</p>
+</figure>
+
+<!-- 05 ENTRAR -->
+<figure class="peca">
+<figcaption class="peca-titulo"><b>05</b> Entrar <i>tema escuro</i></figcaption>
+<div class="aparelho"><div class="tela tema-escuro">
+  <div class="sb" aria-hidden="true"><span>9:41</span><span class="sb-ic"><svg class="ic-f" width="18" height="12"><use href="#sb-sinal"/></svg><svg class="ic-f" width="16" height="12"><use href="#sb-wifi"/></svg><svg class="ic-f" width="27" height="13"><use href="#sb-bat"/></svg></span></div><div class="ilha" aria-hidden="true"></div>
+  <div class="rolagem"><div class="aurora" aria-hidden="true"></div>
+  <div class="conteudo entrar">
+    <div>
+      <span class="icone-app" role="img" aria-label="Ícone do Uni Jovem"><svg width="56" height="56"><use href="#app-icone"/></svg></span>
+      <h1 class="display" style="margin-top:16px">Uni Jovem</h1>
+      <p class="corpo suave" style="margin-top:4px">A agenda da juventude, num lugar só</p>
+    </div>
+    <form class="cartao" style="margin-top:24px" action="#">
+      <h2 class="sob">Entrar</h2>
+      <div class="campo" style="margin-top:8px"><p class="campo-rotulo">E-mail</p><div class="caixa"><span class="v">ana.lima@email.com</span></div></div>
+      <div class="campo" style="margin-top:16px"><p class="campo-rotulo">Senha</p><div class="caixa"><span class="v">••••••••••</span><button class="btn b-ico acao-dir" style="background:transparent" type="button" aria-label="Mostrar a senha"><svg class="ic"><use href="#i-olho"/></svg></button></div></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="btn medio b-ter alinhado" type="button">Esqueci a senha</button></div>
+      <div class="par" style="margin-top:16px"><button class="btn b-ico g48" type="button" aria-label="Entrar com Face ID"><svg class="ic" style="width:22px;height:22px"><use href="#i-faceid"/></svg></button><button class="btn b-pri flex" type="button">Entrar</button></div>
+    </form>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px">
+      <button class="btn marca cheio"><svg width="18" height="18"><use href="#logo-google"/></svg>Continuar com o Google</button>
+      <button class="btn marca apple cheio"><svg class="ic-f" width="15" height="18"><use href="#logo-apple"/></svg>Iniciar sessão com a Apple</button>
+    </div>
+    <p class="legenda suave" style="margin-top:16px">A conta é criada por convite.</p>
+    <button class="btn medio b-ter alinhado" style="align-self:flex-start">Tenho um link de convite</button>
+  </div></div>
+  <div class="indicador" aria-hidden="true"></div>
+</div></div>
+<p class="peca-nota">Aurora total e marca a 40 da área segura. Face ID é o só ícone 48 ao lado de Entrar (aparece se há sessão guardada no aparelho). Google e Apple em fundo branco, como pedem as marcas sobre fundo escuro.</p>
+</figure>
+
+<!-- 06 AGENDA MÊS -->
+<figure class="peca">
+<figcaption class="peca-titulo"><b>06</b> Agenda, vista de mês <i>tema escuro</i></figcaption>
+<div class="aparelho"><div class="tela tema-escuro">
+  <div class="sb" aria-hidden="true"><span>9:41</span><span class="sb-ic"><svg class="ic-f" width="18" height="12"><use href="#sb-sinal"/></svg><svg class="ic-f" width="16" height="12"><use href="#sb-wifi"/></svg><svg class="ic-f" width="27" height="13"><use href="#sb-bat"/></svg></span></div><div class="ilha" aria-hidden="true"></div>
+  <div class="rolagem"><div class="aurora" aria-hidden="true"></div>
+  <div class="conteudo">
+    <header class="cabecalho">
+      <div class="cab-raiz">
+        <button class="pilula-com" aria-label="Comunidade Jovens Central, Administrador. Trocar de comunidade"><span class="av av-32 av-eu">JC</span>Jovens Central<svg class="ic" width="16" height="16"><use href="#i-chev-baixo"/></svg></button>
+        <span class="status"><svg class="ic g" width="14" height="14"><use href="#i-check"/></svg>Sincronizado 09:38</span>
+      </div>
+      <h1 class="display">Agenda</h1>
+    </header>
+    <div class="segs" role="tablist"><span class="seg ativo" role="tab" aria-selected="true">Mês</span><span class="seg" role="tab">Semana</span><span class="seg" role="tab">Lista</span></div>
+    <div class="mes-linha">
+      <h2 class="titulo-cartao">Novembro de 2026</h2>
+      <div class="acoes"><button class="btn b-ico" aria-label="Mês anterior"><svg class="ic g"><use href="#i-chev-esq"/></svg></button><button class="btn b-ico" aria-label="Próximo mês"><svg class="ic g"><use href="#i-chev-dir"/></svg></button></div>
+    </div>
+    <section class="cartao" aria-label="Calendário de novembro de 2026">
+      <div class="cal" aria-hidden="true">
+        <span class="cal-dia-sem">D</span><span class="cal-dia-sem">S</span><span class="cal-dia-sem">T</span><span class="cal-dia-sem">Q</span><span class="cal-dia-sem">Q</span><span class="cal-dia-sem">S</span><span class="cal-dia-sem">S</span>
+      </div>
+      <div class="cal">
+        <span class="dia"><span class="n">1</span><span class="pontos"></span></span><span class="dia"><span class="n">2</span><span class="pontos"></span></span><span class="dia"><span class="n">3</span><span class="pontos"></span></span><span class="dia"><span class="n">4</span><span class="pontos"></span></span><span class="dia"><span class="n">5</span><span class="pontos"></span></span><span class="dia"><span class="n">6</span><span class="pontos"></span></span><span class="dia" aria-label="7 de novembro, 1 evento"><span class="n">7</span><span class="pontos"><i></i></span></span>
+        <span class="dia"><span class="n">8</span><span class="pontos"></span></span><span class="dia"><span class="n">9</span><span class="pontos"></span></span><span class="dia"><span class="n">10</span><span class="pontos"></span></span><span class="dia"><span class="n">11</span><span class="pontos"></span></span><span class="dia"><span class="n">12</span><span class="pontos"></span></span><span class="dia"><span class="n">13</span><span class="pontos"></span></span><span class="dia" aria-label="14 de novembro, 1 evento"><span class="n">14</span><span class="pontos"><i></i></span></span>
+        <span class="dia"><span class="n">15</span><span class="pontos"></span></span><span class="dia"><span class="n">16</span><span class="pontos"></span></span><span class="dia"><span class="n">17</span><span class="pontos"></span></span><span class="dia hoje" aria-label="Hoje, 18 de novembro, 1 evento"><span class="n">18</span><span class="pontos"><i></i></span></span><span class="dia"><span class="n">19</span><span class="pontos"></span></span><span class="dia"><span class="n">20</span><span class="pontos"></span></span><span class="dia sel" aria-selected="true" aria-label="21 de novembro, selecionado, 2 eventos"><span class="n">21</span><span class="pontos"><i></i><i></i></span></span>
+        <span class="dia"><span class="n">22</span><span class="pontos"></span></span><span class="dia"><span class="n">23</span><span class="pontos"></span></span><span class="dia"><span class="n">24</span><span class="pontos"></span></span><span class="dia" aria-label="25 de novembro, 1 evento"><span class="n">25</span><span class="pontos"><i></i></span></span><span class="dia"><span class="n">26</span><span class="pontos"></span></span><span class="dia"><span class="n">27</span><span class="pontos"></span></span><span class="dia" aria-label="28 de novembro, 1 evento"><span class="n">28</span><span class="pontos"><i></i></span></span>
+        <span class="dia"><span class="n">29</span><span class="pontos"></span></span><span class="dia"><span class="n">30</span><span class="pontos"></span></span><span class="dia fora"><span class="n">1</span><span class="pontos"></span></span><span class="dia fora"><span class="n">2</span><span class="pontos"></span></span><span class="dia fora"><span class="n">3</span><span class="pontos"></span></span><span class="dia fora"><span class="n">4</span><span class="pontos"></span></span><span class="dia fora"><span class="n">5</span><span class="pontos"></span></span>
+      </div>
+    </section>
+    <h2 class="sob sob-fora">Sábado, 21 de novembro</h2>
+    <section class="cartao-lista" style="--recuo:74px">
+      <div class="linha"><span class="hora">14:00</span><div class="txt"><p class="l-tit">Ensaio do louvor</p><p class="l-desc">90 min · Sala 2</p></div><svg class="ic g chev"><use href="#i-chev-dir"/></svg></div>
+      <div class="linha"><span class="hora">16:00</span><div class="txt"><p class="l-tit">Sábado Jovem</p><p class="l-desc">60 min · Salão principal</p></div><svg class="ic g chev"><use href="#i-chev-dir"/></svg></div>
+      <div class="linha acao-l" style="--recuo:18px"><span style="flex:1">Ver a linha do tempo do dia</span><svg class="ic g chev" style="color:var(--destaque)"><use href="#i-chev-dir"/></svg></div>
+    </section>
+  </div></div>
+  <nav class="abas" aria-label="Navegação principal">
+    <a class="aba" href="#"><span class="slot"><svg class="ic"><use href="#i-casa"/></svg></span>Início</a>
+    <a class="aba" href="#" aria-current="page"><span class="slot"><svg class="ic"><use href="#i-agenda"/></svg></span>Agenda</a>
+    <a class="aba" href="#"><span class="slot"><svg class="ic"><use href="#i-lista"/></svg></span>Programas</a>
+    <a class="aba" href="#"><span class="slot"><svg class="ic"><use href="#i-equipe"/></svg></span>Equipe</a>
+    <a class="aba" href="#"><span class="slot"><span class="av av-24 av-eu">AL</span></span>Perfil</a>
+  </nav>
+  <div class="indicador" aria-hidden="true"></div>
+</div></div>
+<p class="peca-nota">Grade de 7 colunas iguais e célula de 48. Hoje: círculo 32 coral. Selecionado: anel 2 em volta de 36 (sinal de forma). Até 3 pontos de 4, a 2 abaixo do círculo. "Hoje" só aparece fora do mês atual.</p>
+</figure>
+
+<!-- 07 CRIAR PROGRAMAÇÃO -->
+<figure class="peca">
+<figcaption class="peca-titulo"><b>07</b> Criar programação <i>tema escuro</i></figcaption>
+<div class="aparelho"><div class="tela tema-escuro">
+  <div class="sb" aria-hidden="true"><span>9:41</span><span class="sb-ic"><svg class="ic-f" width="18" height="12"><use href="#sb-sinal"/></svg><svg class="ic-f" width="16" height="12"><use href="#sb-wifi"/></svg><svg class="ic-f" width="27" height="13"><use href="#sb-bat"/></svg></span></div><div class="ilha" aria-hidden="true"></div>
+  <div class="rolagem"><div class="aurora pilha" aria-hidden="true"></div>
+  <div class="conteudo com-barra">
+    <header class="cabecalho">
+      <div class="cab-pilha"><button class="btn b-ico redondo" aria-label="Fechar"><svg class="ic g"><use href="#i-x"/></svg></button></div>
+      <h1 class="titulo-tela">Nova programação</h1>
+    </header>
+
+    <h2 class="sob sob-fora">O que é</h2>
+    <section class="cartao form">
+      <div class="campo"><p class="campo-rotulo">Título</p><div class="caixa"><span class="v">Sábado Jovem</span></div></div>
+      <div class="campo"><p class="campo-rotulo">Categoria</p><div class="caixa"><span class="v">Culto jovem</span></div>
+        <div class="filtros em-cartao"><span class="pf ativa"><svg class="ic g"><use href="#i-check"/></svg>Culto jovem</span><span class="pf">Ensaio</span><span class="pf">Reunião</span><span class="pf">Retiro</span><span class="pf">Vigília</span></div>
+      </div>
+      <div class="campo"><p class="campo-rotulo">Descrição <span class="opc">(opcional)</span></p><div class="caixa multi"><span class="ex">Louvor, estudo da lição e um lanche no fim.</span></div><p class="apoio"><span style="flex:1"></span><span class="tab">0/500</span></p></div>
+    </section>
+
+    <h2 class="sob sob-fora">Quando</h2>
+    <section class="cartao form">
+      <div class="lado">
+        <div class="campo" style="flex:1.4"><p class="campo-rotulo">Data</p><button class="caixa" aria-label="Data, sábado, 5 de dezembro de 2026"><span class="v">Sáb., 05/12</span><svg class="ic"><use href="#i-agenda"/></svg></button></div>
+        <div class="campo" style="flex:1"><p class="campo-rotulo">Hora</p><button class="caixa c-foco" aria-label="Hora, 16:00"><span class="v tab">16:00</span><svg class="ic"><use href="#i-relogio"/></svg></button></div>
+      </div>
+      <div class="campo"><p class="campo-rotulo">Duração</p><div class="caixa"><span class="v tab">60</span><span class="sufixo">min</span></div>
+        <div class="filtros em-cartao"><span class="pf">30 min</span><span class="pf ativa"><svg class="ic g"><use href="#i-check"/></svg>60 min</span><span class="pf">90 min</span><span class="pf">120 min</span></div>
+      </div>
+    </section>
+
+    <h2 class="sob sob-fora">Onde</h2>
+    <section class="cartao-lista" style="--recuo:52px" role="radiogroup" aria-label="Local">
+      <div class="linha opcao" role="radio" aria-checked="true"><span class="radio on"></span><div class="txt"><p class="l-tit">Salão principal</p><p class="l-desc">Local interno</p></div></div>
+      <div class="linha opcao" role="radio" aria-checked="false"><span class="radio"></span><div class="txt"><p class="l-tit">Sala 2</p><p class="l-desc">Local interno</p></div></div>
+      <div class="linha opcao" role="radio" aria-checked="false"><span class="radio"></span><div class="txt"><p class="l-tit">Praça da Matriz</p><p class="l-desc">Rua das Flores, 120, Centro</p></div></div>
+      <div class="linha acao-l"><svg class="ic" width="22" height="22"><use href="#i-mais"/></svg><span>Cadastrar outro local</span></div>
+    </section>
+
+    <h2 class="sob sob-fora">Quem vê e inscrições</h2>
+    <section class="cartao form">
+      <div>
+        <div class="segs" role="tablist"><span class="seg" role="tab">Interna</span><span class="seg ativo" role="tab" aria-selected="true">Pública</span></div>
+        <p class="legenda suave" style="margin-top:6px">Aparece na página pública e aceita inscrições de quem não é da comunidade.</p>
+      </div>
+      <div class="campo" style="width:calc(50% - 6px)"><p class="campo-rotulo">Vagas <span class="opc">(opcional)</span></p><div class="caixa"><span class="ex">30</span></div></div>
+      <div class="linha-int"><div class="txt"><p class="titulo-item" style="color:color-mix(in srgb,var(--texto) 40%,transparent)">Lista de espera</p><p class="legenda suave">Defina as vagas primeiro</p></div><span class="interruptor des" role="switch" aria-checked="false" aria-disabled="true"></span></div>
+      <div class="lado">
+        <div class="campo" style="flex:1.4"><p class="campo-rotulo">Inscrições até</p><button class="caixa"><span class="v">Sex., 04/12</span><svg class="ic"><use href="#i-agenda"/></svg></button></div>
+        <div class="campo" style="flex:1"><p class="campo-rotulo">Hora</p><button class="caixa"><span class="v tab">23:59</span><svg class="ic"><use href="#i-relogio"/></svg></button></div>
+      </div>
+    </section>
+
+    <h2 class="sob sob-fora">Informações úteis</h2>
+    <section class="cartao form">
+      <div class="campo"><p class="campo-rotulo">Para quem vai <span class="opc">(opcional)</span></p><div class="caixa multi"><span class="ex">Traga a Bíblia e um agasalho.</span></div></div>
+    </section>
+  </div></div>
+  <div class="barra-acao"><button class="btn b-sec flex">Salvar rascunho</button><button class="btn b-pri flex">Publicar</button></div>
+  <div class="indicador" aria-hidden="true"></div>
+</div></div>
+<p class="peca-nota">Modal em tela cheia. Data e hora lado a lado na proporção 1,4 para 1, intervalo 12; o toque abre o seletor nativo (a Hora aparece em foco). A barra de ação sobe com o teclado.</p>
+</figure>
+
+<!-- 08a EQUIPE: PESSOAS -->
+<figure class="peca">
+<figcaption class="peca-titulo"><b>08a</b> Equipe <i>segmento Pessoas</i></figcaption>
+<div class="aparelho"><div class="tela tema-escuro">
+  <div class="sb" aria-hidden="true"><span>9:41</span><span class="sb-ic"><svg class="ic-f" width="18" height="12"><use href="#sb-sinal"/></svg><svg class="ic-f" width="16" height="12"><use href="#sb-wifi"/></svg><svg class="ic-f" width="27" height="13"><use href="#sb-bat"/></svg></span></div><div class="ilha" aria-hidden="true"></div>
+  <div class="rolagem"><div class="aurora" aria-hidden="true"></div>
+  <div class="conteudo">
+    <header class="cabecalho">
+      <div class="cab-raiz">
+        <button class="pilula-com" aria-label="Comunidade Jovens Central, Administrador. Trocar de comunidade"><span class="av av-32 av-eu">JC</span>Jovens Central<svg class="ic" width="16" height="16"><use href="#i-chev-baixo"/></svg></button>
+        <span class="status"><svg class="ic g" width="14" height="14"><use href="#i-check"/></svg>Sincronizado 09:38</span>
+      </div>
+      <h1 class="display">Equipe</h1>
+      <p class="corpo suave sub">Você é Administrador · <span class="tab">24</span> pessoas</p>
+    </header>
+    <section class="destaque inverso">
+      <h2 class="sob">Convites</h2>
+      <p class="titulo-cartao" style="margin-top:8px">Convidar pessoas</p>
+      <p class="corpo suave" style="margin-top:8px">Mande um link para quem vai servir com você. Você escolhe o papel e quantos dias ele vale.</p>
+      <button class="btn medio b-pri" style="margin-top:14px"><svg class="ic"><use href="#i-link"/></svg>Criar convite</button>
+    </section>
+    <div class="segs" role="tablist"><span class="seg ativo" role="tab" aria-selected="true">Pessoas</span><span class="seg" role="tab">Convites (3)</span></div>
+    <div class="caixa busca" role="search"><svg class="ic"><use href="#i-busca"/></svg><span class="ex">Buscar pelo nome</span></div>
+    <section class="cartao-lista" style="--recuo:70px">
+      <div class="linha"><span class="av av-40 av-eu">AL</span><div class="txt"><p class="l-tit">Ana Lima (você)</p></div><div class="dir"><span class="chip ch-quente">Administrador</span></div></div>
+      <div class="linha"><span class="av av-40 c-azul">BC</span><div class="txt"><p class="l-tit">Bruno Costa</p></div><div class="dir"><span class="chip ch-info">Organizador</span><svg class="ic g chev"><use href="#i-chev-dir"/></svg></div></div>
+      <div class="linha"><span class="av av-40 c-verde">CD</span><div class="txt"><p class="l-tit">Carla Dias</p></div><div class="dir"><span class="chip ch-neutro">Membro</span><span class="chip ch-quente">Oração</span><svg class="ic g chev"><use href="#i-chev-dir"/></svg></div></div>
+      <div class="linha"><span class="av av-40 c-roxo">DR</span><div class="txt"><p class="l-tit">Davi Rocha</p></div><div class="dir"><span class="chip ch-neutro">Membro</span><svg class="ic g chev"><use href="#i-chev-dir"/></svg></div></div>
+      <div class="linha"><span class="av av-40 c-ambar">EP</span><div class="txt"><p class="l-tit">Elisa Prado</p></div><div class="dir"><span class="chip ch-info">Organizador</span><svg class="ic g chev"><use href="#i-chev-dir"/></svg></div></div>
+      <div class="linha"><span class="av av-40 c-indigo">FN</span><div class="txt"><p class="l-tit">Felipe Nunes</p></div><div class="dir"><span class="chip ch-neutro">Membro</span><svg class="ic g chev"><use href="#i-chev-dir"/></svg></div></div>
+      <div class="linha"><span class="av av-40 c-coral">GR</span><div class="txt"><p class="l-tit">Gabriela Reis</p></div><div class="dir"><span class="chip ch-neutro">Membro</span><svg class="ic g chev"><use href="#i-chev-dir"/></svg></div></div>
+    </section>
+    <section class="cartao-lista" style="margin-top:8px">
+      <div class="linha destrutiva"><span class="ladrilho"><svg class="ic"><use href="#i-sair"/></svg></span><div class="txt"><p class="l-tit">Sair de Jovens Central</p></div></div>
+    </section>
+  </div></div>
+  <nav class="abas" aria-label="Navegação principal">
+    <a class="aba" href="#"><span class="slot"><svg class="ic"><use href="#i-casa"/></svg></span>Início</a>
+    <a class="aba" href="#"><span class="slot"><svg class="ic"><use href="#i-agenda"/></svg></span>Agenda</a>
+    <a class="aba" href="#"><span class="slot"><svg class="ic"><use href="#i-lista"/></svg></span>Programas</a>
+    <a class="aba" href="#" aria-current="page"><span class="slot"><svg class="ic"><use href="#i-equipe"/></svg></span>Equipe</a>
+    <a class="aba" href="#"><span class="slot"><span class="av av-24 av-eu">AL</span></span>Perfil</a>
+  </nav>
+  <div class="indicador" aria-hidden="true"></div>
+</div></div>
+<p class="peca-nota">Papel em chip: Administrador quente, Organizador info, Membro neutro. E-mail e WhatsApp só no detalhe da pessoa. Sem chevron na própria linha, porque ninguém altera o próprio papel.</p>
+</figure>
+
+<!-- 08b EQUIPE: CONVITES -->
+<figure class="peca">
+<figcaption class="peca-titulo"><b>08b</b> Equipe <i>segmento Convites</i></figcaption>
+<div class="aparelho"><div class="tela tema-escuro">
+  <div class="sb" aria-hidden="true"><span>9:41</span><span class="sb-ic"><svg class="ic-f" width="18" height="12"><use href="#sb-sinal"/></svg><svg class="ic-f" width="16" height="12"><use href="#sb-wifi"/></svg><svg class="ic-f" width="27" height="13"><use href="#sb-bat"/></svg></span></div><div class="ilha" aria-hidden="true"></div>
+  <div class="rolagem"><div class="aurora" aria-hidden="true"></div>
+  <div class="conteudo">
+    <header class="cabecalho">
+      <div class="cab-raiz">
+        <button class="pilula-com" aria-label="Comunidade Jovens Central, Administrador. Trocar de comunidade"><span class="av av-32 av-eu">JC</span>Jovens Central<svg class="ic" width="16" height="16"><use href="#i-chev-baixo"/></svg></button>
+        <span class="status"><svg class="ic g" width="14" height="14"><use href="#i-check"/></svg>Sincronizado 09:38</span>
+      </div>
+      <h1 class="display">Equipe</h1>
+      <p class="corpo suave sub">Você é Administrador · <span class="tab">24</span> pessoas</p>
+    </header>
+    <section class="destaque inverso">
+      <h2 class="sob">Convites</h2>
+      <p class="titulo-cartao" style="margin-top:8px">Convidar pessoas</p>
+      <p class="corpo suave" style="margin-top:8px">Mande um link para quem vai servir com você. Você escolhe o papel e quantos dias ele vale.</p>
+      <button class="btn medio b-pri" style="margin-top:14px"><svg class="ic"><use href="#i-link"/></svg>Criar convite</button>
+    </section>
+    <div class="segs" role="tablist"><span class="seg" role="tab">Pessoas</span><span class="seg ativo" role="tab" aria-selected="true">Convites (3)</span></div>
+    <section class="cartao-lista">
+      <div class="linha"><span class="ladrilho"><svg class="ic"><use href="#i-link"/></svg></span><div class="txt"><p class="l-tit">Membro</p><p class="l-desc">Para gabi.reis@email.com · vence em 3 dias</p></div><span class="chip ch-sucesso">Válido</span></div>
+      <div class="linha"><span class="ladrilho"><svg class="ic"><use href="#i-link"/></svg></span><div class="txt"><p class="l-tit">Organizador</p><p class="l-desc">Link aberto · vence amanhã</p></div><span class="chip ch-sucesso">Válido</span></div>
+      <div class="linha"><span class="ladrilho"><svg class="ic"><use href="#i-link"/></svg></span><div class="txt"><p class="l-tit">Membro</p><p class="l-desc">Link aberto · vence em 6 dias</p></div><span class="chip ch-sucesso">Válido</span></div>
+      <div class="linha"><span class="ladrilho"><svg class="ic"><use href="#i-link"/></svg></span><div class="txt"><p class="l-tit">Membro</p><p class="l-desc">Para joao.pedro@email.com · venceu em 12/11</p></div><span class="chip ch-neutro">Vencido</span></div>
+      <div class="linha"><span class="ladrilho"><svg class="ic"><use href="#i-link"/></svg></span><div class="txt"><p class="l-tit">Membro</p><p class="l-desc">Usado por Davi Rocha em 08/11</p></div><span class="chip ch-neutro">Usado</span></div>
+      <div class="linha"><span class="ladrilho"><svg class="ic"><use href="#i-link"/></svg></span><div class="txt"><p class="l-tit">Organizador</p><p class="l-desc">Cancelado por Ana em 05/11</p></div><span class="chip ch-erro">Cancelado</span></div>
+    </section>
+  </div></div>
+  <nav class="abas" aria-label="Navegação principal">
+    <a class="aba" href="#"><span class="slot"><svg class="ic"><use href="#i-casa"/></svg></span>Início</a>
+    <a class="aba" href="#"><span class="slot"><svg class="ic"><use href="#i-agenda"/></svg></span>Agenda</a>
+    <a class="aba" href="#"><span class="slot"><svg class="ic"><use href="#i-lista"/></svg></span>Programas</a>
+    <a class="aba" href="#" aria-current="page"><span class="slot"><svg class="ic"><use href="#i-equipe"/></svg></span>Equipe</a>
+    <a class="aba" href="#"><span class="slot"><span class="av av-24 av-eu">AL</span></span>Perfil</a>
+  </nav>
+  <div class="indicador" aria-hidden="true"></div>
+</div></div>
+<p class="peca-nota">O título da linha é o papel; a legenda diz para quem e até quando. Situação em chip: Válido sucesso, Vencido e Usado neutro, Cancelado erro. O toque abre a folha com Copiar link, Compartilhar e Cancelar convite.</p>
+</figure>
+
+<!-- 09 AO VIVO -->
+<figure class="peca">
+<figcaption class="peca-titulo"><b>09</b> Ao vivo <i>escuro, sem Aurora</i></figcaption>
+<div class="aparelho"><div class="tela tema-escuro">
+  <div class="sb" aria-hidden="true"><span>16:20</span><span class="sb-ic"><svg class="ic-f" width="18" height="12"><use href="#sb-sinal"/></svg><svg class="ic-f" width="16" height="12"><use href="#sb-wifi"/></svg><svg class="ic-f" width="27" height="13"><use href="#sb-bat"/></svg></span></div><div class="ilha" aria-hidden="true"></div>
+  <div class="rolagem">
+  <div class="conteudo com-controle">
+    <header class="cabecalho">
+      <div class="cab-pilha">
+        <button class="btn b-ico redondo" aria-label="Voltar"><svg class="ic g"><use href="#i-chev-esq"/></svg></button>
+        <div class="acoes"><span class="chip ch-sucesso"><span class="ponto"></span>Ao vivo</span><button class="btn b-ico redondo" aria-label="Mais ações"><svg class="ic"><use href="#i-reticencias"/></svg></button></div>
+      </div>
+      <h1 class="titulo-tela">Sábado Jovem</h1>
+    </header>
+    <section class="destaque inverso" aria-live="polite">
+      <h2 class="sob">Agora · etapa 2 de 7</h2>
+      <p class="display" style="margin-top:8px">Louvor</p>
+      <div style="margin-top:16px">
+        <div class="crono"><span class="sob suave">Decorrido</span><span class="cronometro" aria-label="11 minutos e 2 segundos">11:02</span></div>
+        <div class="crono"><span class="sob suave">Restante</span><span class="cronometro" aria-label="3 minutos e 58 segundos">03:58</span></div>
+      </div>
+      <p class="legenda suave" style="margin-top:12px">Previsto 15 min, das 16:05 às 16:20</p>
+    </section>
+    <section class="cartao" style="background:var(--superficie-opaca)">
+      <h2 class="sob">A seguir</h2>
+      <p class="titulo-item" style="margin-top:4px">Oração intercessora</p>
+      <p class="legenda suave">10 min · das 16:20 às 16:30 · Com Davi</p>
+    </section>
+    <p class="estado-linha" style="color:var(--alerta)"><svg class="ic" width="18" height="18"><use href="#i-relogio"/></svg>Atraso acumulado: 4 min</p>
+    <div>
+      <div class="trilho" role="progressbar" aria-valuemin="0" aria-valuemax="7" aria-valuenow="1"><span style="width:14.3%"></span></div>
+      <p class="legenda suave" style="margin-top:8px">1 de 7 etapas concluídas</p>
+    </div>
+    <h2 class="sob sob-fora">Todas as etapas</h2>
+    <section class="cartao-lista" style="--recuo:74px;background:var(--superficie-opaca)">
+      <div class="linha"><span class="hora">16:00</span><div class="txt"><p class="l-tit">Boas-vindas</p><p class="l-desc">Concluída em 9 min, previsto 5</p></div><svg class="ic g" width="18" height="18" style="color:var(--sucesso)"><use href="#i-check"/></svg></div>
+      <div class="linha atual" aria-current="step"><span class="hora">16:05</span><div class="txt"><p class="l-tit">Louvor</p><p class="l-desc">15 min · Com Ana e Carla</p></div><span class="chip ch-neutro">Agora</span></div>
+      <div class="linha"><span class="hora">16:20</span><div class="txt"><p class="l-tit">Oração intercessora</p><p class="l-desc">10 min · Com Davi</p></div></div>
+      <div class="linha"><span class="hora">16:30</span><div class="txt"><p class="l-tit">Dinâmica</p><p class="l-desc">10 min · Com Elisa</p></div></div>
+      <div class="linha"><span class="hora">16:40</span><div class="txt"><p class="l-tit">Estudo da lição</p><p class="l-desc">15 min · Com Felipe</p></div></div>
+      <div class="linha"><span class="hora">16:55</span><div class="txt"><p class="l-tit">Brinde</p><p class="l-desc">3 min</p></div></div>
+      <div class="linha"><span class="hora">16:58</span><div class="txt"><p class="l-tit">Encerramento</p><p class="l-desc">2 min · Com Bruno</p></div></div>
+    </section>
+  </div></div>
+  <div class="barra-acao">
+    <button class="btn b-ico g56" aria-label="Voltar etapa"><svg class="ic"><use href="#i-anterior"/></svg></button>
+    <button class="btn b-pri flex alto">Avançar etapa</button>
+    <button class="btn b-ico g56" aria-label="Pausar"><svg class="ic"><use href="#i-pausa"/></svg></button>
+  </div>
+  <div class="indicador" aria-hidden="true"></div>
+</div></div>
+<p class="peca-nota">Fundo chapado e cartões opacos #232139. Controles de 56 porque a tela é usada sob pressão. Cronômetros 64/68 com tabular-nums, empilhados com o rótulo à esquerda. Encerrar e Assumir ficam em Mais ações, com confirmação.</p>
+</figure>
+
+<!-- 10 INÍCIO SEM COMUNIDADE (CRIADOR) -->
+<figure class="peca">
+<figcaption class="peca-titulo"><b>10</b> Início sem comunidade, Criador <i>tema escuro</i></figcaption>
+<div class="aparelho"><div class="tela tema-escuro">
+  <div class="sb" aria-hidden="true"><span>21:05</span><span class="sb-ic"><svg class="ic-f" width="18" height="12"><use href="#sb-sinal"/></svg><svg class="ic-f" width="16" height="12"><use href="#sb-wifi"/></svg><svg class="ic-f" width="27" height="13"><use href="#sb-bat"/></svg></span></div><div class="ilha" aria-hidden="true"></div>
+  <div class="rolagem"><div class="aurora" aria-hidden="true"></div>
+  <div class="conteudo">
+    <header class="cabecalho">
+      <div class="cab-raiz">
+        <button class="pilula-com" aria-label="Sem comunidade. Entrar numa comunidade"><span class="av av-32 av-vazio"><svg class="ic" width="14" height="14"><use href="#i-equipe"/></svg></span>Sem comunidade</button>
+      </div>
+      <h1 class="display">Boa noite, Ana</h1>
+    </header>
+    <section class="destaque inverso">
+      <h2 class="sob">Primeiros passos</h2>
+      <p class="titulo-cartao" style="margin-top:8px">Crie sua primeira comunidade</p>
+      <p class="corpo suave" style="margin-top:8px">Você é o Criador da plataforma. Crie uma comunidade e mande o convite para quem vai administrá-la.</p>
+      <button class="btn medio b-pri" style="margin-top:14px"><svg class="ic"><use href="#i-mais"/></svg>Criar comunidade</button>
+    </section>
+    <section class="cartao">
+      <h2 class="sob">Versículo do dia</h2>
+      <p class="leitura" style="margin-top:8px">Olha que te mando que te esforces e sejas valente: não temas nem desmaies, porque o SENHOR teu Deus será contigo onde quer que fores.</p>
+      <p class="legenda suave" style="margin-top:8px">Josué 1:9 · BLIVRE</p>
+    </section>
+    <section class="cartao-lista">
+      <div class="linha"><span class="ladrilho"><svg class="ic"><use href="#i-predio"/></svg></span><div class="txt"><p class="l-tit">Plataforma</p><p class="l-desc">Comunidades, saúde e auditoria</p></div><svg class="ic g chev"><use href="#i-chev-dir"/></svg></div>
+    </section>
+  </div></div>
+  <nav class="abas" aria-label="Navegação principal">
+    <a class="aba" href="#" aria-current="page"><span class="slot"><svg class="ic"><use href="#i-casa"/></svg></span>Início</a>
+    <a class="aba" href="#"><span class="slot"><svg class="ic"><use href="#i-agenda"/></svg></span>Agenda</a>
+    <a class="aba" href="#"><span class="slot"><svg class="ic"><use href="#i-lista"/></svg></span>Programas</a>
+    <a class="aba" href="#"><span class="slot"><svg class="ic"><use href="#i-equipe"/></svg></span>Equipe</a>
+    <a class="aba" href="#"><span class="slot"><span class="av av-24 av-eu">AL</span></span>Perfil</a>
+  </nav>
+  <div class="indicador" aria-hidden="true"></div>
+</div></div>
+<p class="peca-nota">Pílula vazia com avatar tracejado e sem status. O destaque é a única coisa a fazer; Criar comunidade abre a folha de criar. A Plataforma fica a um toque.</p>
+</figure>
+
+</div>
+</div>
+</body>
+</html>
