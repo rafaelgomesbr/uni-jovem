@@ -1,9 +1,10 @@
 import { ALTURA, ESPACO } from '@uj/tokens'
-import { Children, useEffect, type ReactNode } from 'react'
+import { Children, useEffect, useId, type ReactNode } from 'react'
 import { View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { EmPar } from './Botao'
+import { ContextoDoMotivoNaBarra, EmPar } from './Botao'
+import { Texto } from './Texto'
 import { sombra, useTema } from './tema'
 import { registrarRodape } from './Toast'
 import { Vidro } from './Vidro'
@@ -24,36 +25,62 @@ export function fimComBarraDeAcao(margemDeBaixo: number): number {
  * segura mais 12 embaixo. Até 2 botões grandes lado a lado (secundário à
  * esquerda, primário à direita) ou 1 primário com o só ícone "Mais ações".
  * Quem a posiciona (e a faz subir com o teclado) é a `Tela`.
+ *
+ * O motivo de um botão desabilitado fica numa linha própria, na largura toda,
+ * embaixo dos botões (ao lado, na meia coluna, o texto ficava espremido). O
+ * `aviso` (erro de envio, por exemplo) fica acima dos botões, sempre à vista.
  */
-export function BarraDeAcao({ children }: { children: ReactNode }) {
+export function BarraDeAcao({ children, aviso }: { children: ReactNode; aviso?: ReactNode }) {
   const { elevacao } = useTema()
   const margens = useSafeAreaInsets()
   const altura = alturaDaBarraDeAcao(margens.bottom)
   // O toast precisa saber onde a barra termina: registra ao montar e libera ao sair.
   useEffect(() => registrarRodape(altura), [altura])
+  const idDoMotivo = `motivo-da-barra-${useId()}`
   const itens = Children.toArray(children).filter(Boolean)
+  const motivos = itens.map(motivoDoFilho).filter((m): m is string => m !== null)
   return (
     <Vidro borda="cima" style={sombra(elevacao.flutuante)}>
       <View
         style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: ESPACO.e10,
+          gap: ESPACO.e8,
           paddingTop: ESPACO.e12,
           paddingHorizontal: ESPACO.e20,
           paddingBottom: margens.bottom + ESPACO.e12,
         }}
       >
-        <EmPar>
-          {itens.map((filho, i) => (
-            <View key={i} style={ehSoIcone(filho) ? null : { flex: 1 }}>
-              {filho}
-            </View>
-          ))}
-        </EmPar>
+        {aviso}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e10 }}>
+          <ContextoDoMotivoNaBarra.Provider value={idDoMotivo}>
+            <EmPar>
+              {itens.map((filho, i) => (
+                <View key={i} style={ehSoIcone(filho) ? null : { flex: 1 }}>
+                  {filho}
+                </View>
+              ))}
+            </EmPar>
+          </ContextoDoMotivoNaBarra.Provider>
+        </View>
+        {motivos.length ? (
+          <Texto variante="legenda" cor="textoSuave" nativeID={idDoMotivo}>
+            {motivos.join(' ')}
+          </Texto>
+        ) : null}
       </View>
     </Vidro>
   )
+}
+
+/** O motivo escrito de um botão desabilitado (o mesmo critério do `Botao`). */
+function motivoDoFilho(filho: ReactNode): string | null {
+  if (typeof filho !== 'object' || filho === null || !('props' in filho)) return null
+  const p = filho.props as { desabilitado?: unknown; carregando?: unknown; motivo?: unknown }
+  return p.desabilitado === true &&
+    p.carregando !== true &&
+    typeof p.motivo === 'string' &&
+    p.motivo
+    ? p.motivo
+    : null
 }
 
 /** O só ícone "Mais ações" não estica: fica com 48×48 ao lado do primário. */

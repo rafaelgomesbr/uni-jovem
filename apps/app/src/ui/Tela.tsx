@@ -1,5 +1,14 @@
-import { AURORA, DURACAO, ESPACO, RITMO } from '@uj/tokens'
-import { createContext, useContext, useEffect, useState, type ReactNode, type Ref } from 'react'
+import { ALTURA, AURORA, DURACAO, ESPACO, RITMO } from '@uj/tokens'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentRef,
+  type ReactNode,
+  type Ref,
+} from 'react'
 import {
   Animated,
   KeyboardAvoidingView,
@@ -28,6 +37,22 @@ import { Vidro } from './Vidro'
  * A barra fica por cima do conteúdo; a tela reserva esse espaço no fim da rolagem.
  */
 export const ContextoDaBarraDeAbas = createContext(0)
+
+/**
+ * Onde a rolagem assenta quando para perto da troca de cabeçalho (como o
+ * título grande do iOS): nunca no meio, com o título ou o primeiro bloco
+ * cortado pela faixa do cabeçalho compacto. `limiar` é a rolagem em que o
+ * título some por baixo dele. Até a metade, volta ao topo; depois, até o
+ * primeiro bloco (16 de intervalo e um controle de 48) passar inteiro, vai
+ * para logo depois do limiar: o cabeçalho compacto aparece e o primeiro bloco
+ * fica 16 abaixo dele. Mais longe que isso, a rolagem fica onde está (`null`).
+ */
+export function pontoDeAssentar(y: number, limiar: number): number | null {
+  if (limiar <= 0 || y <= 0) return null
+  if (y >= limiar + RITMO.entreSecoes + ALTURA.controle) return null
+  const alvo = y < limiar / 2 ? 0 : limiar + 1
+  return Math.abs(alvo - y) < 1 ? null : alvo
+}
 
 interface PropsDaTela {
   children: ReactNode
@@ -91,8 +116,10 @@ export function Tela({
   semCabecalho = false,
 }: PropsDaTela) {
   const { cores } = useTema()
+  const { reduzirMovimento } = usePreferenciasDeAcessibilidade()
   const margens = useSafeAreaInsets()
   const espacoDaBarra = useContext(ContextoDaBarraDeAbas)
+  const rolagem = useRef<ComponentRef<typeof ScrollView>>(null)
   const [fimDoTitulo, setFimDoTitulo] = useState<number | null>(null)
   const [compacto, setCompacto] = useState(false)
   // Altura real da barra de ação: com fonte grande o botão cresce, e o ao vivo usa controles de 56.
@@ -160,6 +187,13 @@ export function Tela({
     if (saiu !== compacto) setCompacto(saiu)
   }
 
+  // A rolagem parou: se foi no meio da troca de cabeçalho, termina a troca.
+  function assentar(y: number) {
+    if (fimDoTitulo === null || !titulo) return
+    const alvo = pontoDeAssentar(y, fimDoTitulo + preenchimento.paddingTop - alturaDoCompacto)
+    if (alvo !== null) rolagem.current?.scrollTo({ y: alvo, animated: !reduzirMovimento })
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: cores.fundo }}>
       <KeyboardAvoidingView
@@ -168,9 +202,17 @@ export function Tela({
       >
         {rolar ? (
           <ScrollView
+            ref={rolagem}
             contentInsetAdjustmentBehavior="never"
             keyboardShouldPersistTaps="handled"
             onScroll={aoRolar}
+            // Sem inércia, o dedo soltou e a rolagem parou ali; com inércia, espera ela acabar.
+            onScrollEndDrag={(e) => {
+              if (Math.abs(e.nativeEvent.velocity?.y ?? 0) < 0.05) {
+                assentar(e.nativeEvent.contentOffset.y)
+              }
+            }}
+            onMomentumScrollEnd={(e) => assentar(e.nativeEvent.contentOffset.y)}
             scrollEventThrottle={16}
             contentContainerStyle={[{ flexGrow: 1 }, preenchimento]}
           >

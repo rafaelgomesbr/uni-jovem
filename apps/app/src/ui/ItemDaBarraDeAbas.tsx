@@ -26,6 +26,10 @@ export interface PropsDoItemDaBarra {
  * rótulo em 600 e o traço em 2,4 (no Perfil, o anel do avatar): peso e forma
  * além da cor. Celular: papel `tab` com estado selecionado; web: link com
  * `aria-current="page"`.
+ *
+ * Perfil: só o avatar, maior (32, o da pílula) e centrado na altura dos
+ * outros itens, sem a legenda embaixo. O leitor de tela continua ouvindo
+ * "Perfil de {nome}" e o estado selecionado; o anel muda de forma no ativo.
  */
 export function ItemDaBarraDeAbas({
   rotulo,
@@ -62,35 +66,50 @@ export function ItemDaBarraDeAbas({
         backgroundColor: ativo ? cores.abaAtivaFundo : pressed ? cores.pressionado : 'transparent',
       })}
     >
-      <View style={{ height: 24, alignItems: 'center', justifyContent: 'center' }}>
-        {icone ? (
-          <IconeDeTraco
-            nome={icone}
-            cor={cor}
-            tamanho={BARRA_DE_ABAS.tamanhoDoIcone}
-            traco={ativo ? 2.4 : 2}
-          />
-        ) : avatar ? (
-          <Avatar
-            nome={avatar.nome}
-            avatar={avatar.dados ?? null}
-            proprio
-            tamanho="aba"
-            anel={ativo ? 'ativo' : 'inativo'}
-            decorativo
-          />
-        ) : (
-          <IconeDeTraco nome="pessoa" cor={cor} tamanho={BARRA_DE_ABAS.tamanhoDoIcone} />
-        )}
-      </View>
-      <Texto
-        variante="aba"
-        peso={ativo ? 'forte' : 'medio'}
-        numberOfLines={1}
-        style={{ color: cor }}
-      >
-        {rotulo}
-      </Texto>
+      {!icone && avatar ? (
+        <Avatar
+          nome={avatar.nome}
+          avatar={avatar.dados ?? null}
+          proprio
+          tamanho="pilula"
+          anel={ativo ? 'ativo' : 'inativo'}
+          decorativo
+        />
+      ) : (
+        <>
+          <ItemComIcone icone={icone} cor={cor} ativo={ativo} />
+          <Texto
+            variante="aba"
+            peso={ativo ? 'forte' : 'medio'}
+            numberOfLines={1}
+            style={{ color: cor }}
+          >
+            {rotulo}
+          </Texto>
+        </>
+      )}
     </Pressable>
+  )
+}
+
+/** A vaga de 24 com o ícone de traço (o da pessoa enquanto a conta não chega). */
+function ItemComIcone({
+  icone,
+  cor,
+  ativo,
+}: {
+  icone: NomeDoTraco | null
+  cor: string
+  ativo: boolean
+}) {
+  return (
+    <View style={{ height: 24, alignItems: 'center', justifyContent: 'center' }}>
+      <IconeDeTraco
+        nome={icone ?? 'pessoa'}
+        cor={cor}
+        tamanho={BARRA_DE_ABAS.tamanhoDoIcone}
+        traco={ativo && icone ? 2.4 : 2}
+      />
+    </View>
   )
 }

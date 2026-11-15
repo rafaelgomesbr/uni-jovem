@@ -46,12 +46,14 @@ export interface RefsDosCampos {
 }
 
 export function useRefsDosCampos(): RefsDosCampos {
-  return {
-    titulo: useRef<NoDoCampo>(null),
-    categoria: useRef<NoDoCampo>(null),
-    duracao: useRef<NoDoCampo>(null),
-    capacidade: useRef<NoDoCampo>(null),
-  }
+  // Cada hook numa linha própria, nunca dentro do objeto: o React Compiler
+  // memoizava o objeto inteiro e pulava os quatro `useRef` a partir do segundo
+  // render. A ordem dos hooks mudava e o app fechava em "Nova programação".
+  const titulo = useRef<NoDoCampo>(null)
+  const categoria = useRef<NoDoCampo>(null)
+  const duracao = useRef<NoDoCampo>(null)
+  const capacidade = useRef<NoDoCampo>(null)
+  return { titulo, categoria, duracao, capacidade }
 }
 
 /** Leva o foco ao primeiro campo de texto com erro, na ordem da tela. */

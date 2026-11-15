@@ -130,6 +130,35 @@ describe('foto de perfil (D33)', () => {
     )
   })
 
+  test('depois de trocar, Dados pessoais mostra a foto na hora e /eu é buscado de novo', async () => {
+    seletor.launchImageLibraryAsync.mockResolvedValue(ESCOLHIDA)
+    let enviou = false
+    const { servidor } = await renderizarTela(<TelaEditarPerfil />, {
+      rotas: {
+        // Antes do envio, sem foto; depois, a busca de novo falha (rede ruim, por exemplo).
+        'GET /api/v1/eu': () =>
+          enviou
+            ? { status: 503, corpo: { erro: 'indisponivel', mensagem: 'Fora do ar.' } }
+            : { status: 200, corpo: euComFoto(null) },
+        'PUT /api/v1/eu/foto': () => {
+          enviou = true
+          return { status: 200, corpo: { temFoto: true, fotoVersao: 'nova', tipo: 'image/webp' } }
+        },
+      },
+    })
+    expect(await screen.findByText(/Ainda sem imagem\./)).toBeOnTheScreen()
+    const buscasAntes = pedidosPara(servidor, 'GET', '/api/v1/eu').length
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Escolher da galeria' }))
+
+    // A resposta do envio já basta: a foto nova vale mesmo sem a volta de /eu.
+    expect(await screen.findByRole('button', { name: 'Remover foto' })).toBeOnTheScreen()
+    expect(screen.queryByText(/Ainda sem imagem\./)).toBeNull()
+    await waitFor(() =>
+      expect(pedidosPara(servidor, 'GET', '/api/v1/eu').length).toBeGreaterThan(buscasAntes),
+    )
+  })
+
   test('desistir na galeria não envia nada', async () => {
     seletor.launchImageLibraryAsync.mockResolvedValue({ canceled: true, assets: null })
     const { servidor } = await renderizarTela(<TelaEditarPerfil />, {

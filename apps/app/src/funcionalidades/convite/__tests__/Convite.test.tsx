@@ -1,14 +1,19 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native'
+import { router, useLocalSearchParams } from 'expo-router'
 
-import { pedidosPara, renderizarTela } from '@/testes/telas'
+import { lerComunidadeAtiva } from '@/estado/comunidadeAtivaSalva'
+import { COMUNIDADE, pedidosPara, renderizarTela } from '@/testes/telas'
 
 import { AceitarComConta } from '../AceitarComConta'
 import { CadastroPorConvite } from '../CadastroPorConvite'
+import { TelaConvite } from '../TelaConvite'
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), setParams: jest.fn() },
   useLocalSearchParams: jest.fn(() => ({})),
 }))
+
+const parametros = useLocalSearchParams as jest.Mock
 
 const TOKEN = 'c'.repeat(43)
 
@@ -126,8 +131,20 @@ describe('conta existente aceitando convite', () => {
     const entrar = await screen.findByRole('button', {
       name: 'Entrar em Jovens Centro como Membro',
     })
-    expect(entrar).toBeDisabled()
+    // Sem marcar, o botão não envia nada: o que falta aparece junto da caixa.
+    await fireEvent.press(entrar)
+    expect(
+      await screen.findByText('Para entrar na comunidade, marque a concordância sobre a sua fé.'),
+    ).toBeOnTheScreen()
+    expect(screen.getByRole('checkbox', { name: /^Concordo que a Jovens Centro/ })).toHaveProp(
+      'accessibilityHint',
+      'Erro: Para entrar na comunidade, marque a concordância sobre a sua fé.',
+    )
+    expect(pedidosPara(servidor, 'POST', '/api/auth/convite/aceitar')).toHaveLength(0)
     await fireEvent.press(screen.getByRole('checkbox', { name: /^Concordo que a Jovens Centro/ }))
+    expect(
+      screen.queryByText('Para entrar na comunidade, marque a concordância sobre a sua fé.'),
+    ).toBeNull()
     await fireEvent.press(entrar)
 
     await fireEvent.press(await screen.findByRole('radio', { name: 'Tenho 18 anos ou mais.' }))
@@ -145,5 +162,123 @@ describe('conta existente aceitando convite', () => {
       faixaEtaria: '18_mais',
       responsavelCiente: false,
     })
+  })
+
+  test('a API diz que a conta já participa: estado claro com "Abrir", nunca um botão mudo', async () => {
+    await renderizarTela(
+      <AceitarComConta token={TOKEN} comunidade="Jovens Centro" papel="Membro" />,
+      {
+        rotas: {
+          'POST /api/auth/convite/aceitar': () => ({
+            status: 409,
+            corpo: { erro: 'ja_participa', mensagem: 'Você já participa desta comunidade.' },
+          }),
+        },
+      },
+    )
+    await fireEvent.press(
+      await screen.findByRole('checkbox', { name: /^Concordo que a Jovens Centro/ }),
+    )
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Entrar em Jovens Centro como Membro' }),
+    )
+
+    expect(await screen.findByText('Você já faz parte de Jovens Centro')).toBeOnTheScreen()
+    expect(screen.queryByText('Sobre a sua fé')).toBeNull()
+    await fireEvent.press(screen.getByRole('button', { name: 'Abrir Jovens Centro' }))
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/'))
+    expect(await lerComunidadeAtiva('conta-eu')).toBe(COMUNIDADE)
+  })
+
+  test('convite usado ou vencido: a mensagem da API em tela inteira, com saída', async () => {
+    await renderizarTela(
+      <AceitarComConta token={TOKEN} comunidade="Jovens Centro" papel="Membro" />,
+      {
+        rotas: {
+          'POST /api/auth/convite/aceitar': () => ({
+            status: 409,
+            corpo: {
+              erro: 'convite_indisponivel',
+              mensagem: 'Este convite já foi usado. Peça um novo a quem convidou você.',
+            },
+          }),
+        },
+      },
+    )
+    await fireEvent.press(
+      await screen.findByRole('checkbox', { name: /^Concordo que a Jovens Centro/ }),
+    )
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Entrar em Jovens Centro como Membro' }),
+    )
+
+    expect(await screen.findByText('Este convite não vale mais')).toBeOnTheScreen()
+    expect(
+      screen.getByText('Este convite já foi usado. Peça um novo a quem convidou você.'),
+    ).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Ir para o Início' })).toBeOnTheScreen()
+  })
+
+  test('outra falha: aviso em linguagem humana acima dos botões, e dá para tentar de novo', async () => {
+    let tentativas = 0
+    await renderizarTela(
+      <AceitarComConta token={TOKEN} comunidade="Jovens Centro" papel="Membro" />,
+      {
+        rotas: {
+          'POST /api/auth/convite/aceitar': () => {
+            tentativas++
+            return tentativas === 1
+              ? { status: 503, corpo: { erro: 'indisponivel', mensagem: 'Tente de novo já já.' } }
+              : { status: 200, corpo: { vinculoId: 'v1' } }
+          },
+        },
+      },
+    )
+    await fireEvent.press(
+      await screen.findByRole('checkbox', { name: /^Concordo que a Jovens Centro/ }),
+    )
+    const entrar = screen.getByRole('button', { name: 'Entrar em Jovens Centro como Membro' })
+    await fireEvent.press(entrar)
+
+    expect(await screen.findByText('Não deu para entrar na comunidade')).toBeOnTheScreen()
+    expect(screen.getByText('Tente de novo já já.')).toBeOnTheScreen()
+    await fireEvent.press(entrar)
+    expect(
+      await screen.findByText('Agora você participa de Jovens Centro como Membro.'),
+    ).toBeOnTheScreen()
+  })
+})
+
+describe('convite aberto por quem já está conectado', () => {
+  beforeEach(() => jest.clearAllMocks())
+
+  function consultaDoConvite(nome: string, cor: string) {
+    return {
+      'POST /api/auth/convite/consultar': () => ({
+        status: 200,
+        corpo: { situacao: 'valido', comunidade: { nome, cor }, papel: 'membro' },
+      }),
+    }
+  }
+
+  test('da comunidade em que já participa: "Você já faz parte", sem o aceite', async () => {
+    parametros.mockReturnValue({ '#': `t=${TOKEN}` })
+    // A comunidade de teste da sessão: Jovens Centro, #5B4BDB.
+    await renderizarTela(<TelaConvite />, { rotas: consultaDoConvite('Jovens Centro', '#5B4BDB') })
+
+    expect(await screen.findByText('Você já faz parte de Jovens Centro')).toBeOnTheScreen()
+    expect(screen.queryByText('Sobre a sua fé')).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Entrar em/ })).toBeNull()
+    await fireEvent.press(screen.getByRole('button', { name: 'Abrir Jovens Centro' }))
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/'))
+  })
+
+  test('de outra comunidade: o aceite continua', async () => {
+    parametros.mockReturnValue({ '#': `t=${TOKEN}` })
+    await renderizarTela(<TelaConvite />, { rotas: consultaDoConvite('Jovens Norte', '#C2410C') })
+
+    expect(await screen.findByText('Você recebeu um convite')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Entrar em Jovens Norte como Membro' })).toBeEnabled()
+    expect(screen.queryByText(/Você já faz parte/)).toBeNull()
   })
 })

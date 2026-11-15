@@ -18,7 +18,7 @@ import { EstadoVazio } from '@/ui/EstadoVazio'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 
-import { AceitarComConta } from './AceitarComConta'
+import { AceitarComConta, JaParticipa } from './AceitarComConta'
 import { CadastroPorConvite } from './CadastroPorConvite'
 import { lerConviteEmEspera } from './conviteEmEspera'
 
@@ -148,6 +148,17 @@ export function TelaConvite() {
         <EstadoVazio icone="link" titulo={titulo} descricao={descricao} telaInteira acao={sair} />
       </Tela>
     )
+  }
+
+  // Já participa desta comunidade? Decide antes do formulário, pela lista da sessão
+  // (a consulta do convite traz nome e cor, sem o id). Nome e cor repetidos não decidem:
+  // nesse caso o aceite segue, e a API responde `ja_participa` se for o caso.
+  const { nome, cor } = convite.comunidade
+  const daSessao = conectado
+    ? sessao.comunidades.filter((c) => c.nome === nome && c.cor === cor)
+    : []
+  if (daSessao.length === 1) {
+    return <JaParticipa comunidade={nome} comunidadeId={daSessao[0]!.id} />
   }
 
   const cartao = (

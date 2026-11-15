@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react'
 import { criarClienteDeConsulta, ligarGerentesDoReactQuery } from '@/estado/clienteDeConsulta'
 import { ProvedorDeSessao, useSessao } from '@/estado/sessao'
 import { DialogoDeConfirmacao } from '@/ui/DialogoDeConfirmacao'
+import { ErroDeRota } from '@/ui/ErroDeRota'
 import { EstilosDaWeb } from '@/ui/EstilosDaWeb'
 import { useDestinoDepoisDeEntrar } from '@/funcionalidades/autenticacao/destinoDepoisDeEntrar'
 import { useOpcoesDaPilha } from '@/funcionalidades/navegacao/opcoesDaPilha'
@@ -20,6 +21,14 @@ import { useTema } from '@/ui/tema'
 
 // A abertura fica na tela até as fontes carregarem e a sessão salva ser conferida.
 void SplashScreen.preventAutoHideAsync()
+
+/**
+ * Limite de erro em toda tela do app (as dos layouts de dentro herdam): um
+ * erro de renderização mostra o `ErroDaTela` com "Tentar de novo" no lugar
+ * daquela tela, em vez de fechar o app. O `ErrorBoundary` cobre os layouts.
+ */
+export const unstable_settings = { screenErrorBoundary: ErroDeRota }
+export { ErroDeRota as ErrorBoundary }
 
 export default function LayoutRaiz() {
   const [clienteDeConsulta] = useState(criarClienteDeConsulta)

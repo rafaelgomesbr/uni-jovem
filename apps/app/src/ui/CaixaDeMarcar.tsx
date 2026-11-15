@@ -1,12 +1,15 @@
 import { ESPACO, RAIO } from '@uj/tokens'
+import type { Ref } from 'react'
 import { Pressable, View } from 'react-native'
 
 import { useNoCartaoLista } from './CartaoDeVidro'
 import { ALFA_DESABILITADO, comOpacidade } from './cor'
-import { useAnelDeFoco } from './foco'
+import { useAnelDeFoco, type NoDeView } from './foco'
 import { Icone } from './Icone'
 import { Texto } from './Texto'
 import { useTema } from './tema'
+import { useAnunciar } from './useAnunciar'
+import { soNaWeb } from './web'
 
 interface PropsDaCaixa {
   rotulo: string
@@ -14,6 +17,14 @@ interface PropsDaCaixa {
   marcada: boolean
   aoMudar: (marcada: boolean) => void
   desabilitada?: boolean
+  /**
+   * O que falta (ex.: tocou em continuar sem marcar). Aparece embaixo do
+   * rótulo com o ícone de erro, a caixa ganha borda de 2 na cor de erro (forma
+   * além da cor) e o leitor de tela ouve o texto.
+   */
+  erro?: string | null
+  /** Para levar o foco à caixa quando ela é o que falta. */
+  ref?: Ref<NoDeView>
 }
 
 /**
@@ -24,8 +35,20 @@ interface PropsDaCaixa {
  * lista, ganha o padding de 18 da linha e o separador recua 52
  * (`RECUO_DA_LISTA.caixa`).
  */
-export function CaixaDeMarcar({ rotulo, descricao, marcada, aoMudar, desabilitada }: PropsDaCaixa) {
-  const { cores, semFundo } = useTema()
+export function CaixaDeMarcar({
+  rotulo,
+  descricao,
+  marcada,
+  aoMudar,
+  desabilitada,
+  erro,
+  ref,
+}: PropsDaCaixa) {
+  const { cores, semFundo, superficie } = useTema()
+  const mostrarErro = !!erro && !desabilitada
+  // No cartão translúcido, o texto em `erro` não passa AA no pico da Aurora: ícone na cor, texto em `texto`.
+  const corDoErro = superficie === 'translucida' ? 'texto' : 'erro'
+  useAnunciar(mostrarErro ? erro : null)
   const noCartaoLista = useNoCartaoLista()
   const anel = useAnelDeFoco(cores.foco)
   const corDoRotulo = desabilitada ? comOpacidade(cores.texto, ALFA_DESABILITADO) : cores.texto
@@ -33,8 +56,10 @@ export function CaixaDeMarcar({ rotulo, descricao, marcada, aoMudar, desabilitad
     <Pressable
       accessibilityRole="checkbox"
       accessibilityLabel={rotulo}
-      accessibilityHint={descricao}
+      accessibilityHint={mostrarErro ? `Erro: ${erro}` : descricao}
       aria-checked={marcada}
+      {...(mostrarErro ? soNaWeb({ 'aria-invalid': true }) : {})}
+      ref={ref}
       aria-disabled={!!desabilitada}
       disabled={desabilitada}
       onPress={() => aoMudar(!marcada)}
@@ -58,8 +83,12 @@ export function CaixaDeMarcar({ rotulo, descricao, marcada, aoMudar, desabilitad
           width: 22,
           height: 22,
           borderRadius: RAIO.marca,
-          borderWidth: marcada && !desabilitada ? 0 : 1.5,
-          borderColor: desabilitada ? cores.tonalBorda : cores.campoBorda,
+          borderWidth: marcada && !desabilitada ? 0 : mostrarErro ? 2 : 1.5,
+          borderColor: desabilitada
+            ? cores.tonalBorda
+            : mostrarErro
+              ? cores.erro
+              : cores.campoBorda,
           backgroundColor: marcada && !desabilitada ? cores.primaria : semFundo,
           alignItems: 'center',
           justifyContent: 'center',
@@ -82,6 +111,23 @@ export function CaixaDeMarcar({ rotulo, descricao, marcada, aoMudar, desabilitad
           <Texto variante="legenda" cor="textoSuave">
             {descricao}
           </Texto>
+        ) : null}
+        {mostrarErro ? (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'flex-start',
+              gap: ESPACO.e6,
+              marginTop: ESPACO.e6,
+            }}
+          >
+            <View style={{ height: 18, justifyContent: 'center' }}>
+              <Icone nome="erroDeCampo" cor={cores.erro} tamanho={16} />
+            </View>
+            <Texto variante="legenda" peso="forte" cor={corDoErro} style={{ flex: 1 }}>
+              {erro}
+            </Texto>
+          </View>
         ) : null}
       </View>
     </Pressable>

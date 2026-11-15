@@ -1,4 +1,5 @@
 import { ESPACO } from '@uj/tokens'
+import type { Ref } from 'react'
 import { View } from 'react-native'
 
 import { NOME_DO_APP } from '@/constantes'
@@ -6,6 +7,7 @@ import type { FaixaEtaria } from '@/servicos/contratoDosModulos'
 import { Aviso } from '@/ui/Aviso'
 import { Botao } from '@/ui/Botao'
 import { CaixaDeMarcar } from '@/ui/CaixaDeMarcar'
+import type { NoDeView } from '@/ui/foco'
 import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
 import { Texto } from '@/ui/Texto'
 
@@ -101,6 +103,10 @@ export function ConsentimentoDeFe({
   pedirResponsavel,
   responsavel,
   aoMudarResponsavel,
+  erro,
+  erroDoResponsavel,
+  refDaConcordancia,
+  refDoResponsavel,
 }: {
   comunidade: string
   marcada: boolean
@@ -108,6 +114,11 @@ export function ConsentimentoDeFe({
   pedirResponsavel: boolean
   responsavel: boolean
   aoMudarResponsavel: (v: boolean) => void
+  /** Tocou em entrar sem marcar: o aviso aparece junto da caixa. */
+  erro?: string | null
+  erroDoResponsavel?: string | null
+  refDaConcordancia?: Ref<NoDeView>
+  refDoResponsavel?: Ref<NoDeView>
 }) {
   // Sem caixa com borda dentro do cartão (2.12.9): o bloco se separa pelo título e pelo espaço.
   return (
@@ -121,12 +132,16 @@ export function ConsentimentoDeFe({
         rotulo={`Concordo que a ${comunidade} e o ${NOME_DO_APP} tratem meus dados para organizar a minha participação nesta comunidade: eventos, escalas, presença, avisos, sugestões e pedidos de oração. Sei que nome e papel ficam visíveis para os membros desta comunidade, e meu e-mail e WhatsApp só para organizadores e administradores.`}
         marcada={marcada}
         aoMudar={aoMudar}
+        erro={erro ?? null}
+        {...(refDaConcordancia ? { ref: refDaConcordancia } : {})}
       />
       {pedirResponsavel ? (
         <CaixaDeMarcar
           rotulo="Meu pai, minha mãe ou meu responsável legal sabe deste consentimento e concorda."
           marcada={responsavel}
           aoMudar={aoMudarResponsavel}
+          erro={erroDoResponsavel ?? null}
+          {...(refDoResponsavel ? { ref: refDoResponsavel } : {})}
         />
       ) : null}
       <Texto variante="legenda" cor="textoSuave">

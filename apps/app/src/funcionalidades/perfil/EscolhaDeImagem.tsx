@@ -12,6 +12,9 @@ import { mostrarToast } from '@/ui/Toast'
 
 import type { MutacoesDaImagem } from './imagens'
 
+/** Largura que "Escolher da galeria" (ícone, 8 e o rótulo) pede na fonte padrão. */
+const LARGURA_DO_BOTAO_DE_IMAGEM = 210
+
 interface Textos {
   /** Sobrancelha do cartão ("Foto de perfil", "Logotipo"). */
   titulo: string
@@ -47,7 +50,8 @@ interface Props {
 
 /**
  * Escolher, trocar e remover uma imagem (D33): prévia no avatar de 72,
- * "Escolher da galeria" e "Tirar foto" (no celular) lado a lado, e o
+ * "Escolher da galeria" e "Tirar foto" (no celular) lado a lado quando cabem
+ * (empilhados na largura toda em tela estreita), e o
  * terciário de remover. Erro em linguagem humana; trocar e remover confirmam
  * com toast. A escolha abre o recorte 1:1 do sistema.
  */
@@ -91,7 +95,8 @@ export function EscolhaDeImagem({
     <CartaoDeVidro
       sobrancelha={textos.titulo}
       acoes={
-        <ParDeBotoes>
+        // "Escolher da galeria" com o ícone pede uns 210 pt: em tela estreita, um embaixo do outro.
+        <ParDeBotoes larguraMinima={LARGURA_DO_BOTAO_DE_IMAGEM}>
           <Botao
             titulo={naWeb ? 'Escolher imagem' : 'Escolher da galeria'}
             icone="galeria"

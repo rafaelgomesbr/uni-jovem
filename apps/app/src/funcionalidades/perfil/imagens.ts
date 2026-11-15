@@ -5,7 +5,7 @@ import * as ImagePicker from 'expo-image-picker'
 import { NOME_DO_APP } from '@/constantes'
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { api } from '@/servicos/api'
-import type { ComunidadeDoVinculo, Conta, Membro } from '@/servicos/contrato'
+import type { ComunidadeDoVinculo, Conta, Membro, RespostaEu } from '@/servicos/contrato'
 import { ErroLocal } from '@/servicos/erros'
 import type { FotoDoAvatar } from '@/ui/Avatar'
 
@@ -149,7 +149,7 @@ export interface MutacoesDaImagem {
 function useMutacoesDaImagem(
   caminho: string,
   camera: 'frente' | 'tras',
-  aoMudar: () => Promise<unknown>,
+  aoMudar: (resposta: unknown) => Promise<unknown>,
 ): MutacoesDaImagem {
   const enviar = useMutation<unknown, Error, OrigemDaImagem>({
     mutationFn: async (origem) => {
@@ -157,23 +157,39 @@ function useMutacoesDaImagem(
       if (!imagem) return null
       return api.put(caminho, { imagem })
     },
-    onSuccess: (resposta) => (resposta ? aoMudar() : undefined),
+    onSuccess: (resposta) => (resposta ? aoMudar(resposta) : undefined),
     // A imagem em base64 não fica no cache do React Query.
     gcTime: 0,
   })
   const remover = useMutation<unknown, Error, void>({
     mutationFn: () => api.delete(caminho),
-    onSuccess: aoMudar,
+    onSuccess: (resposta) => aoMudar(resposta),
   })
   return { enviar, remover }
 }
 
-/** Trocar e remover a própria foto. A conta (`/eu`) volta com a versão nova. */
+/**
+ * Trocar e remover a própria foto. A resposta do envio já diz a versão nova:
+ * ela entra na conta em cache (`/eu`) na hora, e Perfil, aba e Dados pessoais
+ * mostram a foto sem esperar a volta da rede. Depois, `/eu` é buscado de novo
+ * (e a cópia para abrir sem internet acompanha).
+ */
 export function useFotoDePerfil(): MutacoesDaImagem {
   const consultas = useQueryClient()
-  return useMutacoesDaImagem(CAMINHO_DA_MINHA_FOTO, 'frente', () =>
-    consultas.invalidateQueries({ queryKey: CHAVES.eu }),
-  )
+  return useMutacoesDaImagem(CAMINHO_DA_MINHA_FOTO, 'frente', async (resposta) => {
+    const foto = resposta as ComFoto | null
+    if (foto && typeof foto.temFoto === 'boolean') {
+      consultas.setQueryData<RespostaEu>(CHAVES.eu, (eu) =>
+        eu
+          ? {
+              ...eu,
+              conta: { ...eu.conta, temFoto: foto.temFoto, fotoVersao: foto.fotoVersao ?? null },
+            }
+          : eu,
+      )
+    }
+    await consultas.invalidateQueries({ queryKey: CHAVES.eu })
+  })
 }
 
 /** Trocar e remover o logotipo (só admin; a API confere). */

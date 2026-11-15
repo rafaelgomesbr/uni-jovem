@@ -152,6 +152,13 @@ export function aparenciaDoBotao(
 /** Dentro do `ParDeBotoes`, cada botão ocupa a sua metade. */
 const ContextoDoPar = createContext(false)
 
+/**
+ * Dentro da `BarraDeAcao`: o id da linha de motivo que a barra desenha na
+ * largura toda, embaixo dos botões. O botão não desenha o motivo ao lado (a
+ * coluna de meia largura espremia o texto); só aponta para ele.
+ */
+export const ContextoDoMotivoNaBarra = createContext<string | null>(null)
+
 /** O anel de foco (2, afastado 2) desenhado sem foco de verdade, para o catálogo. */
 function ANEL_DE_VITRINE(cor: string): ViewStyle {
   return { outlineWidth: 2, outlineStyle: 'solid', outlineColor: cor, outlineOffset: 2 }
@@ -188,17 +195,19 @@ export function Botao({
   ref,
 }: PropsDoBotao) {
   const noPar = useContext(ContextoDoPar)
+  const idDoMotivoNaBarra = useContext(ContextoDoMotivoNaBarra)
   const larguraTotal = larguraTotalPedida ?? noPar
   const tema = useTema()
   const { cores } = tema
   const { reduzirMovimento } = usePreferenciasDeAcessibilidade()
-  const idDoMotivo = `motivo-${useId()}`
+  const idProprio = `motivo-${useId()}`
   // Carregando: a largura fica travada na medida do estado normal (o botão não "pula").
   const [larguraNormal, setLarguraNormal] = useState<number | null>(null)
   const anel = useAnelDeFoco(cores.foco)
   const inativo = desabilitado || carregando
   const aparencia = aparenciaDoBotao(variante, desabilitado && !carregando, tema, !!marcado)
   const mostrarMotivo = desabilitado && !carregando && motivo
+  const idDoMotivo = idDoMotivoNaBarra ?? idProprio
   // Em par (`flex: 1`) o padding cai para 6, como no quadro: "Pedir substituição" cabe em 152.
   // No alto (Ao vivo), o rótulo mais longo ("Concluir a última etapa") cabe entre dois controles de 56.
   const padding = alinhado
@@ -270,11 +279,12 @@ export function Botao({
         ) : icone ? (
           <Icone nome={icone} cor={aparencia.texto} tamanho={ladoDoIcone(alturaDoBotao(tamanho))} />
         ) : null}
-        <Texto variante="botao" style={{ color: aparencia.texto }} centralizado>
+        {/* Encolhe e quebra a linha em vez de empurrar o ícone para fora do botão. */}
+        <Texto variante="botao" style={{ color: aparencia.texto, flexShrink: 1 }} centralizado>
           {titulo}
         </Texto>
       </Pressable>
-      {mostrarMotivo ? (
+      {mostrarMotivo && !idDoMotivoNaBarra ? (
         <Texto
           variante="legenda"
           cor="textoSuave"
@@ -358,15 +368,33 @@ export function EmPar({ children }: { children: ReactNode }) {
 
 /**
  * Até 2 botões lado a lado, cada um com `flex: 1` e intervalo de 10 (M). Com
- * fonte grande (`fontScale` de 1,35 ou mais), viram coluna.
+ * fonte grande (`fontScale` de 1,35 ou mais), viram coluna. Com
+ * `larguraMinima` (a de cada botão, na fonte padrão), também viram coluna
+ * quando a metade da linha não comporta o rótulo: nada de rótulo cortado.
  */
-export function ParDeBotoes({ children }: { children: ReactNode }) {
+export function ParDeBotoes({
+  children,
+  larguraMinima,
+}: {
+  children: ReactNode
+  larguraMinima?: number
+}) {
   const { fontScale } = useWindowDimensions()
-  const coluna = fontScale >= 1.35
+  // Largura real da linha (a do cartão em que o par está), medida no layout.
+  const [largura, setLargura] = useState<number | null>(null)
   const itens = Children.toArray(children).filter(Boolean)
+  const metade = largura === null ? null : (largura - ESPACO.e10) / 2
+  const naoCabe =
+    larguraMinima !== undefined &&
+    itens.length > 1 &&
+    (metade === null || metade < larguraMinima * fontScale)
+  const coluna = fontScale >= 1.35 || naoCabe
   return (
     <ContextoDoPar.Provider value>
-      <View style={{ flexDirection: coluna ? 'column' : 'row', gap: ESPACO.e10 }}>
+      <View
+        onLayout={(e) => setLargura(e.nativeEvent.layout.width)}
+        style={{ flexDirection: coluna ? 'column' : 'row', gap: ESPACO.e10 }}
+      >
         {itens.map((filho, i) => (
           <View key={i} style={coluna ? { alignSelf: 'stretch' } : { flex: 1 }}>
             {filho}

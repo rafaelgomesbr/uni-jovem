@@ -9,6 +9,7 @@ import { Text, View } from 'react-native'
 import { CabecalhoDeTela } from '../CabecalhoDeTela'
 import { ItemDaBarraDeAbas } from '../ItemDaBarraDeAbas'
 import { PilulaDaComunidade } from '../PilulaDaComunidade'
+import { pontoDeAssentar } from '../Tela'
 
 jest.mock('expo-router', () => ({
   router: { back: jest.fn(), replace: jest.fn(), canGoBack: jest.fn(() => true) },
@@ -32,6 +33,27 @@ describe('casca', () => {
     expect(screen.getByRole('tab', { name: 'Início', selected: true })).toBeOnTheScreen()
     expect(screen.getByRole('tab', { name: 'Agenda', selected: false })).toBeOnTheScreen()
     expect(screen.getByRole('tab', { name: 'Perfil de Ana Lima' })).toBeOnTheScreen()
+  })
+
+  test('aba Perfil: só o avatar, sem a legenda, e o leitor de tela ouve nome e estado', async () => {
+    await render(
+      <View accessibilityRole="tablist">
+        <ItemDaBarraDeAbas rotulo="Início" icone="abaInicio" ativo={false} />
+        <ItemDaBarraDeAbas
+          rotulo="Perfil"
+          icone={null}
+          avatar={{ nome: 'Ana Lima' }}
+          nomeAcessivel="Perfil de Ana Lima"
+          ativo
+        />
+      </View>,
+    )
+    expect(
+      screen.getByRole('tab', { name: 'Perfil de Ana Lima', selected: true }),
+    ).toBeOnTheScreen()
+    // As outras abas mantêm a legenda; o Perfil não escreve "Perfil" embaixo do avatar.
+    expect(screen.getByText('Início')).toBeOnTheScreen()
+    expect(screen.queryByText('Perfil')).toBeNull()
   })
 
   test('cabeçalho de pilha: voltar circular chamado "Voltar" e título de nível 1', async () => {
@@ -90,5 +112,19 @@ describe('casca', () => {
       }),
     ).toBeOnTheScreen()
     expect(screen.getByText('Jovens Central')).toBeOnTheScreen()
+  })
+
+  test('cabeçalho compacto: a rolagem nunca repousa no meio da troca (Agenda com os segmentos)', () => {
+    // Limiar de 100: com 100 de rolagem, o título acabou de sumir por baixo do compacto.
+    expect(pontoDeAssentar(0, 100)).toBeNull()
+    // Antes da metade: volta ao topo, com o título inteiro.
+    expect(pontoDeAssentar(30, 100)).toBe(0)
+    // Da metade em diante: o compacto aparece e o primeiro bloco fica 16 abaixo dele.
+    expect(pontoDeAssentar(70, 100)).toBe(101)
+    // O caso do print: os segmentos pela metade debaixo da faixa voltam a aparecer inteiros.
+    expect(pontoDeAssentar(128, 100)).toBe(101)
+    // Longe da troca, a rolagem fica onde a pessoa deixou.
+    expect(pontoDeAssentar(100 + 16 + 48, 100)).toBeNull()
+    expect(pontoDeAssentar(400, 100)).toBeNull()
   })
 })
