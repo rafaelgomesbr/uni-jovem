@@ -8,7 +8,7 @@
 set -euo pipefail
 SERVIDOR="${UJ_SERVIDOR:-mac-cityhall}"
 cd "$(git rev-parse --show-toplevel)"
-VERSAO=$(node -e "console.log(require('./apps/app/package.json').version)")
+VERSAO=$(grep -oE "VERSAO = '[0-9.]+'" apps/app/app.config.ts | grep -oE '[0-9.]+')
 COMMIT=$(git rev-parse --short HEAD)
 echo "Enviando $COMMIT para o Mac..."
 git archive --format=tar HEAD | ssh -o BatchMode=yes "$SERVIDOR" '
@@ -27,4 +27,4 @@ ssh -o BatchMode=yes "$SERVIDOR" "zsh -lc '
   cd apps/app && npx expo prebuild --platform ios --clean > ~/srv/builds/prebuild.log 2>&1
   zsh ~/srv/builds/assinar-ios.sh
 '"
-bash infra/hml/publicar-ipa.sh '/Users/rafaelgomes/srv/builds/saida-ios/UniJovemHML.ipa' "$VERSAO ($COMMIT)"
+bash infra/hml/publicar-ipa.sh '/Users/rafaelgomes/srv/builds/saida-ios/UniJovemHML.ipa' "$VERSAO"
