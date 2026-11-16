@@ -251,3 +251,11 @@ Com isso, a checagem rápida passou ("As mudanças podem ser enviadas para revis
 **Envio para revisão das 9 mudanças: pendente do dono.** A trava de segurança do agente bloqueou o clique em "Enviar 9 mudanças para revisão"; o dono clica em Visão geral da publicação.
 
 A variante com barra final (`/privacidade/`, `/excluir-conta/`, `/termos/`) responde 404. Não está cadastrada em lugar nenhum, mas fica registrada caso alguém digite assim.
+
+### 7.5 Builds e servidores (15/11/2026, noite, e 16/11/2026)
+
+- **Produção:** app aberto implantado em 15/11/2026, com a migração 0022, a pedido do dono ("SIM"). A 0023 (convocação) está **só na homologação**: a trava do agente barrou a implantação na produção em 16/11/2026. Falta o dono rodar `UJ_CONFIRMO_PRODUCAO=sim bash infra/prod/implantar.sh`.
+- **TestFlight:** 1.0.0 (2), do commit `876fdcc` (app aberto), enviado em 15/11/2026 às 23:04 (entrega `f084cb98-24e4-4d6c-b1c7-922e30bb2e18`), com "Entrar com a Apple" assinado. O grupo interno "Equipe Uni Jovem" recebe todos os builds.
+- **Google Play, teste interno:** 1.0.0 (4), do EAS `160c5226`, publicado em 15/11/2026 às 23:35, com as notas "Nova versão de teste...".
+- **Login:** a produção aceita Apple (padrão `com.solerte.unijovem`); Google está desligado (sem `GOOGLE_CLIENT_IDS`, PH-14) e o e-mail também (`EMAIL_MODO=desligado`, PH-03). No Android, sem esses dois, quem não tem conta não consegue se cadastrar.
+- **Próximos builds:** iOS 1.0.0 (3) e Android 1.0.0 (5), do commit `ba85cef`, com o seletor de data e hora em folha no iPhone, o aceite do Termo do Administrador corrigido e a convocação.
