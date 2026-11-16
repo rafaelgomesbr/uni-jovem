@@ -24,19 +24,50 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LARGURA_MAXIMA_DO_CONTEUDO, LARGURA_MAXIMA_LARGA } from '@/constantes'
 
 import { usePreferenciasDeAcessibilidade } from './acessibilidade'
-import { fimComBarraDeAcao } from './BarraDeAcao'
+import {
+  baseDaBarraDeAcao,
+  ContextoDaBarraFlutuanteEmbaixo,
+  fimComBarraDeAcao,
+} from './BarraDeAcao'
 import { BotaoDeSaida, CabecalhoDeTela, voltar } from './CabecalhoDeTela'
 import type { NoDeTexto } from './foco'
 import { FundoAurora } from './FundoAurora'
+import { useTecladoAberto } from './teclado'
 import { Texto } from './Texto'
 import { sombra, useTema } from './tema'
 import { Vidro } from './Vidro'
 
 /**
- * Altura que a barra de abas flutuante ocupa no fim da tela (0 fora das abas).
+ * Altura que a barra de abas flutuante ocupa no fim da tela: nas abas e nas
+ * telas empilhadas que mostram a barra (D56); 0 nas exceções e fora do app.
  * A barra fica por cima do conteúdo; a tela reserva esse espaço no fim da rolagem.
  */
 export const ContextoDaBarraDeAbas = createContext(0)
+
+/**
+ * Padding do fim da rolagem: o último bloco sempre rola até 16 acima do que
+ * flutua embaixo. Com barra de ação, a altura dela (medida, porque o botão
+ * cresce com a fonte), que já inclui a barra de abas flutuante quando esta
+ * está embaixo (`barraFlutuante`, no lugar da área segura). Só com a barra
+ * flutuante, 120 ou a barra mais 16. Sem nada, a área segura mais 24.
+ */
+export function fimDaTela({
+  margemDeBaixo,
+  barraFlutuante,
+  barraDeAcao,
+}: {
+  margemDeBaixo: number
+  barraFlutuante: number
+  /** Altura medida da barra de ação (0 enquanto não mede); `null` sem barra de ação. */
+  barraDeAcao: number | null
+}): number {
+  if (barraDeAcao !== null) {
+    const base = baseDaBarraDeAcao(margemDeBaixo, barraFlutuante)
+    return Math.max(fimComBarraDeAcao(base), barraDeAcao + ESPACO.e16)
+  }
+  if (barraFlutuante > 0) return Math.max(RITMO.fimDasAbas, barraFlutuante + ESPACO.e16)
+  return margemDeBaixo + ESPACO.e24
+}
 
 /**
  * Onde a rolagem assenta quando para perto da troca de cabeçalho (como o
@@ -119,6 +150,7 @@ export function Tela({
   const { reduzirMovimento } = usePreferenciasDeAcessibilidade()
   const margens = useSafeAreaInsets()
   const espacoDaBarra = useContext(ContextoDaBarraDeAbas)
+  const teclado = useTecladoAberto()
   const rolagem = useRef<ComponentRef<typeof ScrollView>>(null)
   const [fimDoTitulo, setFimDoTitulo] = useState<number | null>(null)
   const [compacto, setCompacto] = useState(false)
@@ -128,12 +160,13 @@ export function Tela({
 
   const temCabecalho = !semCabecalho && !!(titulo || topo || pilha || passos)
   const intensidade = aurora ?? (pilha ? AURORA.intensidadeNaPilha : 1)
-  // Com barra de ação, o último bloco precisa rolar até 16 acima dela.
-  const fim = barraDeAcao
-    ? Math.max(fimComBarraDeAcao(margens.bottom), alturaDaBarraDeAcao + ESPACO.e16)
-    : espacoDaBarra > 0
-      ? Math.max(RITMO.fimDasAbas, espacoDaBarra + ESPACO.e16)
-      : margens.bottom + ESPACO.e24
+  // Com o teclado aberto a barra flutuante some, e a barra de ação volta a encostar no fim.
+  const barraFlutuanteEmbaixo = barraDeAcao && !teclado ? espacoDaBarra : 0
+  const fim = fimDaTela({
+    margemDeBaixo: margens.bottom,
+    barraFlutuante: barraDeAcao ? barraFlutuanteEmbaixo : espacoDaBarra,
+    barraDeAcao: barraDeAcao ? alturaDaBarraDeAcao : null,
+  })
 
   const cabecalho = temCabecalho ? (
     <View
@@ -233,7 +266,9 @@ export function Tela({
               if (altura !== alturaDaBarraDeAcao) setAlturaDaBarraDeAcao(altura)
             }}
           >
-            {barraDeAcao}
+            <ContextoDaBarraFlutuanteEmbaixo.Provider value={barraFlutuanteEmbaixo}>
+              {barraDeAcao}
+            </ContextoDaBarraFlutuanteEmbaixo.Provider>
           </View>
         ) : null}
       </KeyboardAvoidingView>

@@ -1,5 +1,5 @@
 import { ALTURA, ESPACO } from '@uj/tokens'
-import { Children, useEffect, useId, type ReactNode } from 'react'
+import { Children, createContext, useContext, useEffect, useId, type ReactNode } from 'react'
 import { View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -8,6 +8,20 @@ import { Texto } from './Texto'
 import { sombra, useTema } from './tema'
 import { registrarRodape } from './Toast'
 import { Vidro } from './Vidro'
+
+/**
+ * Quanto a barra de abas flutuante ocupa embaixo da barra de ação (0 sem
+ * ela, ou com o teclado aberto). A `Tela` fornece. Com a barra flutuante, o
+ * fundo da barra de ação desce por trás dela até o fim da tela e os botões
+ * ficam logo acima: esse espaço toma o lugar da área segura (a barra
+ * flutuante já cuida dela), sem somar as duas.
+ */
+export const ContextoDaBarraFlutuanteEmbaixo = createContext(0)
+
+/** O que fica embaixo dos botões: a barra flutuante, se houver; senão, a área segura. */
+export function baseDaBarraDeAcao(margemDeBaixo: number, barraFlutuante: number): number {
+  return barraFlutuante > 0 ? barraFlutuante : margemDeBaixo
+}
 
 /** Quanto a barra ocupa: padding de 12, botão de 48 e a área segura mais 12. */
 export function alturaDaBarraDeAcao(margemDeBaixo: number): number {
@@ -22,8 +36,9 @@ export function fimComBarraDeAcao(margemDeBaixo: number): number {
 /**
  * Barra de ação (seção 2.12.18): rodapé fixo das telas de pilha com ação
  * principal. Vidro da barra com borda de cima, padding 12 por 20 e a área
- * segura mais 12 embaixo. Até 2 botões grandes lado a lado (secundário à
- * esquerda, primário à direita) ou o primário com o botão de ícone "Mais".
+ * segura (ou a barra de abas flutuante) mais 12 embaixo. Até 2 botões
+ * grandes lado a lado (secundário à esquerda, primário à direita) ou o
+ * primário com o botão de ícone "Mais".
  * Quem a posiciona (e a faz subir com o teclado) é a `Tela`.
  *
  * O motivo de um botão desabilitado fica numa linha própria, na largura toda,
@@ -33,7 +48,9 @@ export function fimComBarraDeAcao(margemDeBaixo: number): number {
 export function BarraDeAcao({ children, aviso }: { children: ReactNode; aviso?: ReactNode }) {
   const { elevacao } = useTema()
   const margens = useSafeAreaInsets()
-  const altura = alturaDaBarraDeAcao(margens.bottom)
+  const barraFlutuante = useContext(ContextoDaBarraFlutuanteEmbaixo)
+  const base = baseDaBarraDeAcao(margens.bottom, barraFlutuante)
+  const altura = alturaDaBarraDeAcao(base)
   // O toast precisa saber onde a barra termina: registra ao montar e libera ao sair.
   useEffect(() => registrarRodape(altura), [altura])
   const idDoMotivo = `motivo-da-barra-${useId()}`
@@ -46,7 +63,7 @@ export function BarraDeAcao({ children, aviso }: { children: ReactNode; aviso?: 
           gap: ESPACO.e8,
           paddingTop: ESPACO.e12,
           paddingHorizontal: ESPACO.e20,
-          paddingBottom: margens.bottom + ESPACO.e12,
+          paddingBottom: base + ESPACO.e12,
         }}
       >
         {aviso}

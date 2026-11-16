@@ -61,7 +61,7 @@ function useMutacaoDeOracao<V, R>(comunidadeId: string, executar: (v: V) => Prom
 export function useCriarPedido(comunidadeId: string) {
   return useMutacaoDeOracao(
     comunidadeId,
-    (v: { texto: string; visibilidade: VisibilidadeDeOracao }) =>
+    (v: { texto: string; visibilidade: VisibilidadeDeOracao; anonimo: boolean }) =>
       api.post<{ id: string }>(base(comunidadeId), v),
   )
 }
@@ -69,6 +69,13 @@ export function useCriarPedido(comunidadeId: string) {
 export function useEditarPedido(comunidadeId: string) {
   return useMutacaoDeOracao(comunidadeId, (v: { id: string; texto: string; versao: number }) =>
     api.patch(`${base(comunidadeId)}/${v.id}`, { texto: v.texto, versao: v.versao }),
+  )
+}
+
+/** Liga ou desliga o anonimato (só a autora; a API confere a versão). */
+export function useMudarAnonimato(comunidadeId: string) {
+  return useMutacaoDeOracao(comunidadeId, (v: { id: string; anonimo: boolean; versao: number }) =>
+    api.patch(`${base(comunidadeId)}/${v.id}`, { anonimo: v.anonimo, versao: v.versao }),
   )
 }
 

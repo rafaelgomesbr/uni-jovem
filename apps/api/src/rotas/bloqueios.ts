@@ -17,7 +17,7 @@ import {
  * - Por comunidade: o bloqueio nasce de algo que a pessoa vê NESTA comunidade
  *   (pedido de oração, sugestão, aviso ou a pessoa na lista) e só vale aqui.
  * - Esconde, só para quem bloqueou, os pedidos de oração e as sugestões não
- *   anônimas da outra pessoa (a RLS e `uj.sugestoes_visiveis` filtram). Avisos e
+ *   anônimos da outra pessoa (a RLS e `uj.sugestoes_visiveis` filtram; D55). Avisos e
  *   programação continuam: são informação da comunidade (D36).
  * - Quem foi bloqueado não fica sabendo: nada muda para ela, a lista só mostra
  *   os bloqueios de quem pergunta, e a auditoria vai sem comunidade (a
@@ -76,7 +76,7 @@ export function registrarRotasDeBloqueios(app: FastifyInstance, api: pg.Pool): v
           ])
         ).rows[0]!
       } catch (e) {
-        throw erroDoBloqueio(e)
+        throw erroDoBloqueio(e, tipo)
       }
       if (r.novo) {
         // Sem comunidade de propósito: a administração lê a auditoria da comunidade.
@@ -130,7 +130,7 @@ export function registrarRotasDeBloqueios(app: FastifyInstance, api: pg.Pool): v
   })
 }
 
-function erroDoBloqueio(e: unknown): Error {
+function erroDoBloqueio(e: unknown, tipo: string): Error {
   switch ((e as { code?: string }).code) {
     case 'UJ080':
       return NAO_ENCONTRADO()
@@ -138,7 +138,7 @@ function erroDoBloqueio(e: unknown): Error {
       return new ErroHttp(
         'autoria_anonima',
         422,
-        'Esta sugestão é anônima: não dá para saber quem escreveu, então não dá para bloquear. Se ela tiver um problema, use "Denunciar".',
+        `${tipo === 'pedido_oracao' ? 'Este pedido é anônimo' : 'Esta sugestão é anônima'}: não dá para saber quem escreveu, então não dá para bloquear. Se houver um problema, use "Denunciar".`,
       )
     case 'UJ082':
       return new ErroHttp(

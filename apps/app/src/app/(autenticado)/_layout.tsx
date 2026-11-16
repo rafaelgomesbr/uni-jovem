@@ -1,6 +1,7 @@
 import { Redirect, Stack } from 'expo-router'
 
 import { useSessao } from '@/estado/sessao'
+import { BarraDaPilha, leiauteDaTelaNaPilha } from '@/funcionalidades/navegacao/BarraDaPilha'
 import { useOpcoesDaPilha } from '@/funcionalidades/navegacao/opcoesDaPilha'
 import { TermoDoAdminPendente } from '@/funcionalidades/comunidade/TermoDoAdminPendente'
 import { AgendadorDoAparelho } from '@/funcionalidades/notificacoes/AgendadorDoAparelho'
@@ -37,7 +38,11 @@ export default function LayoutAutenticado() {
       {/* Versículo local e token de push, sempre em dia com a conta (sem interface). */}
       <AgendadorDoAparelho />
       {/* Sem cabeçalho nativo: cada tela tem o próprio cabeçalho (2.12.16) sobre a Aurora. */}
-      <Stack screenOptions={{ ...opcoesDaPilha, headerShown: false }}>
+      {/* Cada tela recebe o espaço da barra flutuante (0 nas abas e nas exceções, D56). */}
+      <Stack
+        screenOptions={{ ...opcoesDaPilha, headerShown: false }}
+        screenLayout={leiauteDaTelaNaPilha}
+      >
         <Stack.Screen name="(abas)" options={{ headerShown: false, title: 'Início' }} />
         <Stack.Screen
           name="trocar-comunidade"
@@ -125,6 +130,8 @@ export default function LayoutAutenticado() {
         <Stack.Screen name="pendencias" options={{ title: 'Pendências' }} />
         <Stack.Screen name="excluir-conta" options={{ title: 'Excluir conta' }} />
       </Stack>
+      {/* A barra de abas também nas telas empilhadas de navegação (D56), por cima da pilha. */}
+      <BarraDaPilha />
       {/* TC-16 pendente (admin promovido depois ou termo novo): folha antes de administrar. */}
       <TermoDoAdminPendente />
     </>

@@ -17,6 +17,9 @@ export interface PedidoDeOracao {
   visibilidade: VisibilidadeDeOracao
   quemVe: string
   minha: boolean
+  /** Publicado como anônimo (D55): o nome só aparece para a própria autora. */
+  anonimo: boolean
+  /** `null` quando é anônimo (para todos, inclusive equipe e liderança) e não é seu. */
   autorNome: string | null
   respondidoEm: string | null
   criadoEm: string

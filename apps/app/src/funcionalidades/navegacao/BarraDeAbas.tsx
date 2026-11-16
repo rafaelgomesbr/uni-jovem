@@ -1,17 +1,17 @@
 import { ALTURA, BARRA_DE_ABAS, RAIO } from '@uj/tokens'
 import { TabTrigger, type TabTriggerSlotProps } from 'expo-router/ui'
-import { useEffect, useState } from 'react'
-import { Keyboard, Platform, StyleSheet, useWindowDimensions } from 'react-native'
+import { Platform, StyleSheet, useWindowDimensions } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
 import type { NomeDoTraco } from '@/ui/IconeDeTraco'
 import { ItemDaBarraDeAbas, rotulosCabemNaBarra } from '@/ui/ItemDaBarraDeAbas'
+import { useTecladoAberto } from '@/ui/teclado'
 import { sombra, useTema } from '@/ui/tema'
 import { Vidro } from '@/ui/Vidro'
 import { soNaWeb } from '@/ui/web'
 
 import { fotoDaConta } from '../perfil/imagens'
-import { ABAS } from './abas'
+import { ABAS, type DefinicaoDaAba } from './abas'
 
 /** Altura da barra: item de 48, padding de 8 em cima e embaixo e a borda de 1 (66). */
 export const ALTURA_DA_BARRA = ALTURA.aba + BARRA_DE_ABAS.preenchimento * 2 + 2
@@ -29,25 +29,8 @@ export function espacoDaBarra(margemDeBaixo: number): number {
 /** Os rótulos escritos (a aba Perfil mostra o avatar, sem rótulo). */
 const ROTULOS_ESCRITOS = ABAS.filter((a) => a.icone !== 'avatar').map((a) => a.rotulo)
 
-/** O teclado está aberto? A barra some enquanto ele está na tela (2.12.17). */
-export function useTecladoAberto(): boolean {
-  const [aberto, setAberto] = useState(false)
-  // O teclado é um sistema externo: assina os eventos dele enquanto a barra existe.
-  useEffect(() => {
-    const ios = Platform.OS === 'ios'
-    const abrir = Keyboard.addListener(ios ? 'keyboardWillShow' : 'keyboardDidShow', () =>
-      setAberto(true),
-    )
-    const fechar = Keyboard.addListener(ios ? 'keyboardWillHide' : 'keyboardDidHide', () =>
-      setAberto(false),
-    )
-    return () => {
-      abrir.remove()
-      fechar.remove()
-    }
-  }, [])
-  return aberto
-}
+/** Reexportado daqui porque a barra e quem a monta leem o teclado juntos. */
+export { useTecladoAberto }
 
 interface PropsDoItem extends Omit<TabTriggerSlotProps, 'ref'> {
   rotulo: string
@@ -115,6 +98,29 @@ export function itensDaBarraFlutuante() {
       <TabTrigger key={aba.rota} name={aba.rota} href={aba.href} asChild>
         <ItemDaBarra rotulo={aba.rotulo} icone={aba.icone} />
       </TabTrigger>
+    )),
+  ]
+}
+
+/**
+ * Os mesmos itens fora do `Tabs`, para a barra das telas empilhadas: não há
+ * `TabTrigger` ali, então quem diz a aba marcada (a última aberta) e o que
+ * fazer ao tocar é a `BarraDaPilha`.
+ */
+export function itensDaBarraNaPilha(
+  abaMarcada: DefinicaoDaAba['rota'],
+  aoEscolher: (aba: DefinicaoDaAba) => void,
+) {
+  return [
+    <FundoDaBarra key="vidro" />,
+    ...ABAS.map((aba) => (
+      <ItemDaBarra
+        key={aba.rota}
+        rotulo={aba.rotulo}
+        icone={aba.icone}
+        isFocused={aba.rota === abaMarcada}
+        onPress={() => aoEscolher(aba)}
+      />
     )),
   ]
 }

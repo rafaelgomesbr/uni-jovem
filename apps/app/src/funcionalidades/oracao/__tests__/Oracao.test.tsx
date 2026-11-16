@@ -27,6 +27,7 @@ const PEDIDO = {
   visibilidade: 'somente_eu',
   quemVe: QUEM_VE_O_PEDIDO.somente_eu,
   minha: true,
+  anonimo: false,
   autorNome: 'Ana Souza',
   respondidoEm: null,
   criadoEm: '2026-11-10T12:00:00.000Z',
@@ -82,6 +83,7 @@ describe('novo pedido de oração', () => {
     expect(pedidosPara(servidor, 'POST', `${BASE}/oracao`)[0]!.corpo).toEqual({
       texto: 'Pela prova de sábado',
       visibilidade: 'somente_eu',
+      anonimo: false,
     })
     // "Somente eu" não pede confirmação: ninguém além da pessoa vai ler.
     expect(dialogo).not.toHaveBeenCalled()

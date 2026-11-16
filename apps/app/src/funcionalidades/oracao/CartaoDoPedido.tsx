@@ -11,7 +11,9 @@ import { primeiroNome } from '@/utilidades/formatos'
 import { Botao, BotaoIcone } from '@/ui/Botao'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Chip } from '@/ui/Chip'
+import { Icone } from '@/ui/Icone'
 import { Texto } from '@/ui/Texto'
+import { useTema } from '@/ui/tema'
 
 import { BotaoDenunciar } from '../denuncias/BotaoDenunciar'
 import { useEstouOrando, useExcluirPedido, useMarcarRespondido } from './consultas'
@@ -30,9 +32,41 @@ function diaCurto(iso: string): string {
   return Number.isNaN(d.getTime()) ? '' : `${d.getDate()} ${MESES[d.getMonth()]}`
 }
 
-/** "Seu pedido" ou "Pedido de Bruno Lima": a base dos rótulos falados. */
+/** Nome genérico do pedido anônimo de outra pessoa (D55). */
+export const ANONIMO = 'Anônimo'
+
+/** Marca, só para a autora, de que o pedido saiu sem o nome dela. */
+export const MARCA_DO_ANONIMO = 'Você publicou como anônimo'
+
+/** "Seu pedido", "Pedido anônimo" ou "Pedido de Bruno Lima": a base dos rótulos falados. */
 export function autorDoPedido(p: PedidoDeOracao): string {
-  return p.minha ? 'Seu pedido' : `Pedido de ${p.autorNome ?? 'uma pessoa'}`
+  if (p.minha) return 'Seu pedido'
+  if (p.anonimo) return 'Pedido anônimo'
+  return `Pedido de ${p.autorNome ?? 'uma pessoa'}`
+}
+
+/** A sobrancelha do cartão: "Seu pedido", "Anônimo" ou "Pedido de Ana". */
+export function quemEscreveu(p: PedidoDeOracao): string {
+  if (p.minha) return 'Seu pedido'
+  if (p.anonimo) return ANONIMO
+  return `Pedido de ${primeiroNome(p.autorNome) || 'uma pessoa'}`
+}
+
+/** Para a autora: o ícone e a frase, o sinal nunca é só a cor. */
+function MarcaDoAnonimo() {
+  const { cores } = useTema()
+  return (
+    <View
+      accessible
+      accessibilityLabel={MARCA_DO_ANONIMO}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e4 }}
+    >
+      <Icone nome="anonimo" cor={cores.textoSuave} tamanho={16} />
+      <Texto variante="meta" cor="textoSuave">
+        {MARCA_DO_ANONIMO}
+      </Texto>
+    </View>
+  )
 }
 
 /** "5 pessoas orando", "Você e mais 2 orando", "Ninguém orando ainda". */
@@ -129,6 +163,8 @@ export function MaisAcoesDoPedido({
             recursoTipo="pedido_oracao"
             recursoId={pedido.id}
             descricao={`o ${autor}`}
+            // Anônimo: não há pessoa a identificar, a API recusaria o bloqueio.
+            podeBloquear={!pedido.anonimo}
             {...(aoBloquear ? { aoBloquear } : {})}
           />
         ) : null}
@@ -139,9 +175,11 @@ export function MaisAcoesDoPedido({
 
 /**
  * Um pedido de oração (3.7.1): cartão de vidro com a sobrancelha "PEDIDO DE
- * ANA · 12 NOV" (ou "SEU PEDIDO"), à direita o chip de quem vê e o de
- * respondido; o texto em `leitura` (até 6 linhas, com "Ler tudo"); e a
- * linha de ação com "Estou orando", quantos estão orando e "Mais ações".
+ * ANA · 12 NOV" (ou "SEU PEDIDO", ou "ANÔNIMO"), à direita o chip de quem vê,
+ * o de anônimo (com ícone) e o de respondido; para a autora do anônimo, a
+ * marca "Você publicou como anônimo"; o texto em `leitura` (até 6 linhas,
+ * com "Ler tudo"); e a linha de ação com "Estou orando", quantos estão
+ * orando e "Mais ações".
  * `completo` (no detalhe) mostra o texto inteiro e deixa a ação para a barra.
  */
 export function CartaoDoPedido({
@@ -157,9 +195,7 @@ export function CartaoDoPedido({
   const [folhaAberta, setFolhaAberta] = useState(false)
   const [linhas, setLinhas] = useState(0)
   const autor = autorDoPedido(pedido)
-  const quem = pedido.minha
-    ? 'Seu pedido'
-    : `Pedido de ${primeiroNome(pedido.autorNome) || 'uma pessoa'}`
+  const quem = quemEscreveu(pedido)
   const texto = pedido.texto ?? 'Não foi possível mostrar o texto deste pedido.'
   const longo = !completo && (linhas >= LINHAS_NA_LISTA || texto.length > TEXTO_LONGO)
   const temMaisAcoes = pedido.minha || podeDenunciar(pedido)
@@ -185,6 +221,7 @@ export function CartaoDoPedido({
           >
             <Chip texto={NOME_DA_VISIBILIDADE[pedido.visibilidade]} tom="neutro" />
           </View>
+          {pedido.anonimo ? <Chip texto={ANONIMO} tom="neutro" icone="anonimo" /> : null}
           {pedido.respondidoEm ? <Chip texto="Respondido" tom="sucesso" icone="check" /> : null}
         </View>
       }
@@ -223,6 +260,7 @@ export function CartaoDoPedido({
             ),
           })}
     >
+      {pedido.minha && pedido.anonimo ? <MarcaDoAnonimo /> : null}
       <Texto
         variante="leitura"
         selectable

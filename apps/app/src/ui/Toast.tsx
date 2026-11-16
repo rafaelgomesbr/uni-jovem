@@ -28,6 +28,11 @@ interface ToastNaFila extends PedidoDeToast {
  */
 let fila: ToastNaFila[] = []
 let proximoId = 1
+// Cada rodapé registrado (barra das abas, barra da pilha, barra de ação). Vale o mais alto:
+// com a barra de ação acima da barra flutuante, as duas ficam registradas ao mesmo tempo, e
+// a ordem em que os efeitos rodam não pode decidir onde o toast aparece.
+const rodapes = new Map<number, number>()
+let proximoRodape = 1
 let rodape = 0
 const ouvintes = new Set<() => void>()
 const avisar = () => ouvintes.forEach((o) => o())
@@ -42,14 +47,25 @@ function tirarDaFila(id: number) {
   avisar()
 }
 
-/** A barra de abas e a barra de ação dizem quanto ocupam no fim da tela (0 ao sair). */
+/**
+ * A barra de abas e a barra de ação dizem quanto ocupam no fim da tela; a
+ * função devolvida retira o registro. O toast fica acima do maior.
+ */
 export function registrarRodape(altura: number): () => void {
-  rodape = altura
+  const id = proximoRodape++
+  rodapes.set(id, altura)
+  rodape = Math.max(0, ...rodapes.values())
   avisar()
   return () => {
-    if (rodape === altura) rodape = 0
+    rodapes.delete(id)
+    rodape = Math.max(0, ...rodapes.values())
     avisar()
   }
+}
+
+/** Onde o toast se apoia agora (o maior rodapé registrado; 0 sem nenhum). */
+export function rodapeDoToast(): number {
+  return rodape
 }
 
 function assinar(o: () => void) {

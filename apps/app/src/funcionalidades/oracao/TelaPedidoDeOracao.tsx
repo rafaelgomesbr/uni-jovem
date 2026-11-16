@@ -16,6 +16,7 @@ import { Campo } from '@/ui/Campo'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
+import { Interruptor } from '@/ui/Interruptor'
 import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
 import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
 import { useConfirmarDescarte, voltarOu } from '@/ui/navegacao'
@@ -35,10 +36,16 @@ import {
 import {
   useEditarPedido,
   useEstouOrando,
+  useMudarAnonimato,
   useMudarVisibilidade,
   usePedidoDeOracao,
 } from './consultas'
-import { AVISO_DO_TEXTO, entenderComoEGuardado } from './TelaNovoPedido'
+import {
+  AVISO_DO_TEXTO,
+  entenderComoEGuardado,
+  estadoDoAnonimato,
+  TEXTO_DO_ANONIMATO_DA_ORACAO,
+} from './TelaNovoPedido'
 import {
   ampliando,
   explicarVisibilidade,
@@ -226,9 +233,78 @@ function EditarPedido(props: PropsDoPedido) {
             contagem={contagem}
             recarregar={() => void pedido.refetch()}
           />
+          <MudarAnonimato
+            comunidadeId={props.comunidadeId}
+            pedido={pedido.data}
+            recarregar={() => void pedido.refetch()}
+          />
         </>
       )}
     </Tela>
+  )
+}
+
+/**
+ * Anônimo depois de publicado (D55): só a autora muda. Mostrar o nome pede
+ * confirmação, porque quem lê passa a saber de quem é o pedido; esconder
+ * avisa que quem já leu pode ter visto o nome.
+ */
+function MudarAnonimato({
+  comunidadeId,
+  pedido,
+  recarregar,
+}: {
+  comunidadeId: string
+  pedido: PedidoDeOracao
+  recarregar: () => void
+}) {
+  const mudar = useMudarAnonimato(comunidadeId)
+
+  async function alternar(anonimo: boolean) {
+    const ok = await confirmar(
+      anonimo
+        ? {
+            titulo: 'Esconder o seu nome?',
+            mensagem:
+              'O pedido passa a aparecer como "Anônimo" para todos. Quem já leu pode ter visto o seu nome antes desta mudança.',
+            confirmar: 'Esconder meu nome',
+          }
+        : {
+            titulo: 'Mostrar o seu nome?',
+            mensagem: 'Quem pode ler este pedido vai saber que ele é seu.',
+            confirmar: 'Mostrar meu nome',
+          },
+    )
+    if (!ok) return
+    mudar.mutate(
+      { id: pedido.id, anonimo, versao: pedido.versao },
+      {
+        onSuccess: () =>
+          mostrarToast({
+            texto: anonimo ? 'Agora o pedido é anônimo.' : 'Agora o seu nome aparece.',
+          }),
+      },
+    )
+  }
+
+  return (
+    <CartaoDeVidro sobrancelha="Quem vê que foi você" opaco comecaComTitulo>
+      <Interruptor
+        rotulo="Publicar como anônimo"
+        ligado={pedido.anonimo}
+        aoMudar={(ligado) => void alternar(ligado)}
+        descricao={estadoDoAnonimato(pedido.anonimo)}
+        desabilitado={mudar.isPending}
+      />
+      <Texto variante="legenda" cor="textoSuave">
+        {TEXTO_DO_ANONIMATO_DA_ORACAO}
+      </Texto>
+      {ehErroDaApi(mudar.error, 'conflito') ? (
+        <AvisoDeFalha erro={mudar.error} titulo="O pedido mudou" aoTentarDeNovo={recarregar} />
+      ) : mudar.error ? (
+        <AvisoDeFalha erro={mudar.error} />
+      ) : null}
+    </CartaoDeVidro>
   )
 }
 

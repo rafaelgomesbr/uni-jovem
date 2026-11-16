@@ -31,6 +31,10 @@ import {
  * - Quem lê é decidido pela RLS de `uj.pedidos_oracao` e, de novo aqui, por
  *   `podeVerPedidoDeOracao`. Ser admin ou Criador não abre pedido de ninguém.
  * - Sem armazenamento offline e sem notificação com conteúdo.
+ * - Anônimo (D55, mesma regra das sugestões): `uj_api` nem lê `autor_conta_id`.
+ *   A autoria chega por `autor_publico` (nula no anônimo) e "é meu?" por
+ *   `uj.meus_pedidos_de_oracao()`. Para todos, exceto a autora, o pedido
+ *   anônimo sai com `autorNome: null`; ninguém mais descobre quem escreveu.
  *
  * Limite honesto (L02): não é ponta a ponta; quem opera o servidor e tem a
  * chave consegue decifrar.
@@ -45,9 +49,10 @@ const textoDoPedido = z
 
 interface LinhaDoPedido {
   id: string
-  autorContaId: string
+  minha: boolean
   textoCifrado: Buffer
   visibilidade: VisibilidadeDeOracao
+  anonimo: boolean
   autorNome: string | null
   respondidoEm: Date | null
   criadoEm: Date
@@ -60,14 +65,21 @@ interface LinhaDoPedido {
 
 // Nomes saem de pessoas_da_comunidade (uj_api não lê `contas` de terceiros).
 // Quem a pessoa bloqueou (D35) some também da lista de quem está orando; o
-// pedido dela a RLS já esconde.
+// pedido dela a RLS já esconde (o anônimo não, para não revelar a autoria).
+// O nome da autora: o próprio para quem escreveu; `autor_publico` para os
+// demais, que é nulo no pedido anônimo (D55).
 const CONSULTA = `
   with pessoas as materialized (
     select conta_id, nome from uj.pessoas_da_comunidade()
      where estado = 'ativo' and not (conta_id = any (uj.contas_bloqueadas_no_contexto()))
-  )
-  select p.id, p.autor_conta_id as "autorContaId", p.texto_cifrado as "textoCifrado",
-         p.visibilidade, a.nome as "autorNome", p.respondido_em as "respondidoEm",
+  ),
+  meus as materialized (select uj.meus_pedidos_de_oracao() as id),
+  eu as materialized (select nome from uj.pessoas_da_comunidade() where conta_id = $2)
+  select p.id, p.id in (select id from meus) as minha, p.texto_cifrado as "textoCifrado",
+         p.visibilidade, p.anonimo,
+         case when p.id in (select id from meus) then (select nome from eu) else a.nome end
+           as "autorNome",
+         p.respondido_em as "respondidoEm",
          p.criado_em as "criadoEm", p.atualizado_em as "atualizadoEm", p.versao,
          (select count(*)::int from uj.intercessoes i where i.pedido_id = p.id) as "orandoTotal",
          exists (select 1 from uj.intercessoes i where i.pedido_id = p.id and i.conta_id = $2)
@@ -76,7 +88,7 @@ const CONSULTA = `
                      from uj.intercessoes i join pessoas x on x.conta_id = i.conta_id
                     where i.pedido_id = p.id), '{}') as orando
     from uj.pedidos_oracao p
-    left join pessoas a on a.conta_id = p.autor_conta_id
+    left join pessoas a on a.conta_id = p.autor_publico
    where p.comunidade_id = $1`
 
 function conflito(atual: unknown): ErroHttp & { atual?: unknown } {
@@ -111,9 +123,11 @@ export function registrarRotasDeOracao(
   /** Segunda camada: mesmo que a RLS falhasse, a regra do domínio filtra de novo. */
   function visivel(pedido: FastifyRequest, linha: LinhaDoPedido): boolean {
     const c = pedido.comunidade!
+    const contaId = pedido.sessao!.contaId
+    // A API não sabe a autoria de pedido alheio (D55): basta saber se é da própria pessoa.
     return podeVerPedidoDeOracao(
-      { autorContaId: linha.autorContaId, visibilidade: linha.visibilidade },
-      { contaId: pedido.sessao!.contaId, papel: c.papel, designacoes: c.designacoes },
+      { autorContaId: linha.minha ? contaId : '', visibilidade: linha.visibilidade },
+      { contaId, papel: c.papel, designacoes: c.designacoes },
     )
   }
 
@@ -125,14 +139,15 @@ export function registrarRotasDeOracao(
       // Texto adulterado ou chave trocada: o pedido aparece sem o texto, sem derrubar a lista.
       texto = null
     }
-    const minha = linha.autorContaId === pedido.sessao!.contaId
     return {
       id: linha.id,
       texto,
       visibilidade: linha.visibilidade,
       quemVe: QUEM_VE_O_PEDIDO[linha.visibilidade],
-      minha,
-      autorNome: linha.autorNome,
+      minha: linha.minha,
+      anonimo: linha.anonimo,
+      // Anônimo e de outra pessoa: nulo para todos, inclusive equipe e liderança.
+      autorNome: linha.anonimo && !linha.minha ? null : linha.autorNome,
       respondidoEm: linha.respondidoEm,
       criadoEm: linha.criadoEm,
       atualizadoEm: linha.atualizadoEm,
@@ -164,9 +179,7 @@ export function registrarRotasDeOracao(
     acao: 'editar' | 'excluir' | 'mudar_visibilidade' | 'marcar_respondido',
   ) {
     const linha = await lerPedido(c, pedido, pedidoId)
-    exigir(pedido, 'pedido_oracao', acao, {
-      proprio: linha.autorContaId === pedido.sessao!.contaId,
-    })
+    exigir(pedido, 'pedido_oracao', acao, { proprio: linha.minha })
     return linha
   }
 
@@ -182,7 +195,7 @@ export function registrarRotasDeOracao(
     return tx(pedido, async (c) => {
       const { rows } = await c.query<LinhaDoPedido>(
         `${CONSULTA}
-           and ($3 = 'todos' or ($3 = 'meus') = (p.autor_conta_id = $2))
+           and ($3 = 'todos' or ($3 = 'meus') = (p.id in (select id from meus)))
            and ($4 = 'incluir' or ($4 = 'somente') = (p.respondido_em is not null))
          order by p.respondido_em is not null, p.criado_em desc
          limit 200`,
@@ -200,26 +213,34 @@ export function registrarRotasDeOracao(
       z.object({
         texto: textoDoPedido,
         visibilidade: visibilidade.default(VISIBILIDADE_PADRAO_DE_ORACAO),
+        anonimo: z.boolean().default(false),
       }),
       pedido.body,
     )
     const id = randomUUID()
     return tx(pedido, async (c) => {
       const { rows } = await c.query<{ versao: number; criadoEm: Date }>(
-        `insert into uj.pedidos_oracao (id, comunidade_id, texto_cifrado, visibilidade)
-         values ($1, $2, $3, $4) returning versao, criado_em as "criadoEm"`,
-        [id, pedido.comunidade!.id, cifrar(chave, p.texto, `oracao:${id}`), p.visibilidade],
+        `insert into uj.pedidos_oracao (id, comunidade_id, texto_cifrado, visibilidade, anonimo)
+         values ($1, $2, $3, $4, $5) returning versao, criado_em as "criadoEm"`,
+        [
+          id,
+          pedido.comunidade!.id,
+          cifrar(chave, p.texto, `oracao:${id}`),
+          p.visibilidade,
+          p.anonimo,
+        ],
       )
       await auditar(
         c,
         pedido,
         'oracao.criado',
         { tipo: 'pedido_oracao', id },
-        { visibilidade: p.visibilidade },
+        { visibilidade: p.visibilidade, anonimo: p.anonimo },
       )
       return {
         id,
         visibilidade: p.visibilidade,
+        anonimo: p.anonimo,
         quemVe: QUEM_VE_O_PEDIDO[p.visibilidade],
         versao: rows[0]!.versao,
         criadoEm: rows[0]!.criadoEm,
@@ -233,11 +254,22 @@ export function registrarRotasDeOracao(
     return tx(pedido, async (c) => apresentar(pedido, await lerPedido(c, pedido, pedidoId)))
   })
 
-  /** Editar o texto. A visibilidade muda só pela rota própria, de forma explícita. */
+  /**
+   * Editar o texto e/ou o anonimato (só a autora: a matriz e a RLS). A
+   * visibilidade muda só pela rota própria, de forma explícita.
+   */
   app.patch(`${base}/:pedidoId`, escrita, async (pedido) => {
     const pedidoId = idDoCaminho(pedido, 'pedidoId')
     const p = validar(
-      z.object({ texto: textoDoPedido, versao: z.number().int().min(1).optional() }),
+      z
+        .object({
+          texto: textoDoPedido.optional(),
+          anonimo: z.boolean().optional(),
+          versao: z.number().int().min(1).optional(),
+        })
+        .refine((v) => v.texto !== undefined || v.anonimo !== undefined, {
+          message: 'Diga o que mudar: o texto ou o anonimato.',
+        }),
       pedido.body,
     )
     return tx(pedido, async (c) => {
@@ -245,19 +277,33 @@ export function registrarRotasDeOracao(
       if (p.versao !== undefined && p.versao !== atual.versao) {
         throw conflito({ versao: atual.versao })
       }
+      const anonimo = p.anonimo ?? atual.anonimo
       const { rows } = await c.query<{ versao: number }>(
-        `update uj.pedidos_oracao set texto_cifrado = $3
+        `update uj.pedidos_oracao
+            set texto_cifrado = coalesce($3, texto_cifrado), anonimo = $5
           where id = $1 and comunidade_id = $2 and versao = $4 returning versao`,
         [
           pedidoId,
           pedido.comunidade!.id,
-          cifrar(chave, p.texto, `oracao:${pedidoId}`),
+          p.texto === undefined ? null : cifrar(chave, p.texto, `oracao:${pedidoId}`),
           atual.versao,
+          anonimo,
         ],
       )
       if (!rows[0]) throw conflito({ versao: atual.versao })
-      await auditar(c, pedido, 'oracao.editado', { tipo: 'pedido_oracao', id: pedidoId })
-      return { id: pedidoId, versao: rows[0].versao }
+      if (p.texto !== undefined) {
+        await auditar(c, pedido, 'oracao.editado', { tipo: 'pedido_oracao', id: pedidoId })
+      }
+      if (anonimo !== atual.anonimo) {
+        await auditar(
+          c,
+          pedido,
+          'oracao.anonimato_alterado',
+          { tipo: 'pedido_oracao', id: pedidoId },
+          { anonimo },
+        )
+      }
+      return { id: pedidoId, versao: rows[0].versao, anonimo }
     })
   })
 
