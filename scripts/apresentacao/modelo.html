@@ -1,0 +1,837 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Uni Jovem: o que o app faz</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400..800&family=Inter:wght@400;600&display=swap"
+    />
+    <style>
+      :root {
+        --noite: #14112e;
+        --noite2: #1e1a40;
+        --cartao: #2a2552;
+        --claro: #f4f1fb;
+        --suave: #c9c2e6;
+        --laranja: #ff8a65;
+        --amarelo: #f2c94c;
+        --papel: #f6f3fb;
+        --tinta: #1b1638;
+        --tinta-suave: #4a4468;
+        --borda: #3a3466;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        background: var(--noite);
+        color: var(--claro);
+        font-family:
+          'Inter',
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          Arial,
+          sans-serif;
+        overflow: hidden;
+      }
+      h1,
+      h2,
+      h3 {
+        font-family: 'Bricolage Grotesque', 'Inter', system-ui, sans-serif;
+        line-height: 1.08;
+      }
+
+      .slide {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 5vh 6vw 9vh;
+        opacity: 0;
+        visibility: hidden;
+        transition:
+          opacity 400ms ease,
+          visibility 0s linear 400ms;
+        background: var(--noite);
+      }
+      .slide.ativo {
+        opacity: 1;
+        visibility: visible;
+        transition: opacity 400ms ease;
+      }
+      .slide.alt {
+        background: var(--noite2);
+      }
+      .slide.papel {
+        background: var(--papel);
+        color: var(--tinta);
+      }
+      .slide.destaque {
+        background: var(--laranja);
+        color: var(--tinta);
+      }
+      .slide::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(60vw 50vh at 85% 0%, rgba(255, 138, 101, 0.16), transparent 70%),
+          radial-gradient(50vw 50vh at 0% 60%, rgba(108, 92, 231, 0.18), transparent 70%);
+      }
+      .slide.papel::before,
+      .slide.destaque::before {
+        display: none;
+      }
+
+      .conteudo {
+        position: relative;
+        width: 100%;
+        max-width: 1400px;
+        display: flex;
+        gap: 5vw;
+        align-items: center;
+      }
+      .coluna {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2.4vh;
+        min-width: 0;
+      }
+      .sobrancelha {
+        font-size: clamp(13px, 1.25vw, 18px);
+        font-weight: 600;
+        letter-spacing: 0.18em;
+        color: var(--amarelo);
+        text-transform: uppercase;
+      }
+      .papel .sobrancelha,
+      .destaque .sobrancelha {
+        color: var(--tinta-suave);
+      }
+      h1 {
+        font-size: clamp(40px, 6.2vw, 96px);
+        font-weight: 800;
+      }
+      h2 {
+        font-size: clamp(28px, 3.6vw, 56px);
+        font-weight: 700;
+      }
+      h3 {
+        font-size: clamp(20px, 1.9vw, 30px);
+        font-weight: 700;
+      }
+      .lead {
+        font-size: clamp(18px, 1.9vw, 28px);
+        line-height: 1.4;
+        color: var(--suave);
+        max-width: 46ch;
+      }
+      .papel .lead {
+        color: var(--tinta-suave);
+      }
+
+      .itens {
+        display: flex;
+        flex-direction: column;
+        gap: 1.6vh;
+      }
+      .item {
+        border-left: 4px solid var(--laranja);
+        padding-left: 18px;
+      }
+      .item b {
+        display: block;
+        font-size: clamp(16px, 1.45vw, 22px);
+        color: var(--claro);
+        margin-bottom: 2px;
+      }
+      .item span {
+        font-size: clamp(15px, 1.25vw, 19px);
+        line-height: 1.45;
+        color: var(--suave);
+      }
+      .nota {
+        font-size: clamp(14px, 1.2vw, 18px);
+        color: var(--amarelo);
+        line-height: 1.4;
+      }
+
+      .telas {
+        display: flex;
+        gap: 2vw;
+        flex-shrink: 0;
+      }
+      .tela {
+        height: min(74vh, 760px);
+        aspect-ratio: 402 / 874;
+        object-fit: cover;
+        border-radius: clamp(20px, 2.4vw, 40px);
+        border: 5px solid var(--borda);
+        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45);
+        background: #0d0b20;
+      }
+
+      .grade {
+        display: grid;
+        gap: 18px;
+      }
+      .g2 {
+        grid-template-columns: 1fr 1fr;
+      }
+      .g4 {
+        grid-template-columns: repeat(4, 1fr);
+      }
+      .cartao {
+        background: var(--cartao);
+        border-radius: 22px;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .papel .cartao {
+        background: #ebe5f7;
+      }
+      .cartao .rotulo {
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        color: var(--laranja);
+      }
+      .papel .cartao .rotulo {
+        color: #b2421f;
+      }
+      .cartao p {
+        font-size: clamp(15px, 1.25vw, 19px);
+        line-height: 1.45;
+        color: var(--suave);
+      }
+      .papel .cartao p {
+        color: var(--tinta-suave);
+      }
+      .papel h3 {
+        color: var(--tinta);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: clamp(14px, 1.2vw, 18px);
+      }
+      th {
+        text-align: left;
+        color: var(--amarelo);
+        font-weight: 600;
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--borda);
+      }
+      td {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--borda);
+        color: var(--suave);
+        line-height: 1.4;
+        vertical-align: top;
+      }
+      td:last-child {
+        color: var(--claro);
+      }
+
+      .lista {
+        padding-left: 1.2em;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        font-size: clamp(16px, 1.4vw, 21px);
+        line-height: 1.4;
+      }
+
+      .barra {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 64px;
+        z-index: 5;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 24px;
+        color: var(--suave);
+        font-size: 15px;
+        background: rgba(20, 17, 46, 0.92);
+      }
+      .barra button {
+        min-width: 44px;
+        min-height: 44px;
+        border-radius: 22px;
+        border: 1px solid var(--borda);
+        background: rgba(42, 37, 82, 0.85);
+        color: var(--claro);
+        font-size: 15px;
+        padding: 0 18px;
+        cursor: pointer;
+      }
+      .barra button:focus-visible {
+        outline: 3px solid var(--amarelo);
+        outline-offset: 2px;
+      }
+      .barra .botoes {
+        display: flex;
+        gap: 10px;
+      }
+      .progresso {
+        position: fixed;
+        left: 0;
+        top: 0;
+        height: 4px;
+        background: var(--laranja);
+        z-index: 6;
+        transition: width 300ms ease;
+      }
+      .dica {
+        opacity: 0.8;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .slide,
+        .slide.ativo,
+        .progresso {
+          transition: none;
+        }
+      }
+
+      /* Celular ou janela estreita: os slides viram uma página para rolar. */
+      @media (max-width: 860px) {
+        body {
+          overflow: auto;
+        }
+        .slide {
+          position: relative;
+          inset: auto;
+          opacity: 1;
+          visibility: visible;
+          min-height: auto;
+          padding: 56px 16px;
+        }
+        .conteudo {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 28px;
+        }
+        .telas {
+          justify-content: center;
+        }
+        .tela {
+          height: auto;
+          width: 44vw;
+        }
+        .g4,
+        .g2 {
+          grid-template-columns: 1fr;
+        }
+        .barra,
+        .progresso {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <section class="slide" aria-label="Capa">
+      <div class="conteudo">
+        <div class="coluna">
+          <p class="sobrancelha">Uni Jovem · novembro de 2026</p>
+          <h1>A agenda da juventude, num lugar só.</h1>
+          <p class="lead">
+            O que o app faz, quem usa cada parte e o que vem a seguir. Todas as telas desta
+            apresentação são do app de verdade.
+          </p>
+        </div>
+        <div class="telas">
+          <img
+            class="tela"
+            src="{{03-inicio}}"
+            alt="Tela Início do app, com o nome da comunidade, o versículo do dia e o próximo encontro"
+          />
+        </div>
+      </div>
+    </section>
+
+    <section class="slide papel" aria-label="Em uma frase">
+      <div class="conteudo">
+        <div class="coluna">
+          <p class="sobrancelha">Em uma frase</p>
+          <h2>
+            O Uni Jovem organiza a vida do grupo de jovens da igreja: o encontro de sábado, quem
+            serve em cada parte, a presença e os pedidos de oração.
+          </h2>
+          <div class="grade g2" style="margin-top: 12px">
+            <div class="cartao">
+              <span class="rotulo">PARA QUEM ORGANIZA</span>
+              <h3>Liderança</h3>
+              <p>
+                Monta a programação, convoca quem vai servir, faz o check-in e acompanha os
+                relatórios. Sai a planilha e o PDF solto.
+              </p>
+            </div>
+            <div class="cartao">
+              <span class="rotulo">PARA QUEM PARTICIPA</span>
+              <h3>Jovens</h3>
+              <p>
+                Veem o próximo encontro, aceitam ou recusam a convocação, se inscrevem, leem os
+                avisos e pedem oração.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" aria-label="Papéis">
+      <div class="conteudo">
+        <div class="coluna">
+          <p class="sobrancelha">Quem é quem</p>
+          <h2>Quatro papéis, cada um vê só o que precisa</h2>
+          <div class="grade g4">
+            <div class="cartao">
+              <span class="rotulo">MEMBRO</span>
+              <p>Vê a agenda, responde convocações, se inscreve, pede oração, manda sugestões.</p>
+            </div>
+            <div class="cartao">
+              <span class="rotulo">ORGANIZADOR</span>
+              <p>
+                Tudo do membro, mais: cria encontros, convoca, faz check-in, publica avisos, vê
+                relatórios.
+              </p>
+            </div>
+            <div class="cartao">
+              <span class="rotulo">ADMIN</span>
+              <p>
+                Tudo do organizador, mais: convites, papéis das pessoas, configurações da
+                comunidade.
+              </p>
+            </div>
+            <div class="cartao">
+              <span class="rotulo">CRIADOR</span>
+              <p>
+                Você. Cuida da plataforma: verifica comunidades novas e vê denúncias de comunidade.
+              </p>
+            </div>
+          </div>
+          <p class="lead">
+            Ninguém dá a outra pessoa um papel acima do seu, e toda comunidade tem sempre pelo menos
+            um admin.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide alt" aria-label="Abas">
+      <div class="conteudo">
+        <div class="coluna">
+          <p class="sobrancelha">Como o app está organizado hoje</p>
+          <h2>Cinco abas na barra de baixo</h2>
+          <div class="itens">
+            <div class="item">
+              <b>Início</b
+              ><span>O que importa hoje: próximo encontro, sua convocação, avisos e tarefas.</span>
+            </div>
+            <div class="item"><b>Agenda</b><span>Calendário do mês, da semana e do dia.</span></div>
+            <div class="item">
+              <b>Programas</b><span>Os mesmos encontros em lista, com busca e "Nova".</span>
+            </div>
+            <div class="item">
+              <b>Equipe</b
+              ><span>Pessoas, convites, pedidos de entrada e código da comunidade.</span>
+            </div>
+            <div class="item">
+              <b>Perfil</b><span>Sua conta e também avisos, oração e relatórios.</span>
+            </div>
+          </div>
+        </div>
+        <div class="telas">
+          <img
+            class="tela"
+            src="{{03-inicio}}"
+            alt="Aba Início com o versículo do dia e o próximo encontro"
+          />
+          <img class="tela" src="{{04-agenda}}" alt="Aba Agenda com o calendário do mês" />
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" aria-label="Montar o encontro">
+      <div class="conteudo">
+        <div class="coluna">
+          <p class="sobrancelha">Montar o encontro · organização</p>
+          <h2>Do "Sábado padrão" ao encontro publicado</h2>
+          <div class="itens">
+            <div class="item">
+              <b>1. Criar</b
+              ><span>"Sábado padrão" já vem pronto. Ou em branco, ou de um modelo.</span>
+            </div>
+            <div class="item">
+              <b>2. Roteiro</b
+              ><span>Etapas com horário e duração: boas-vindas, louvor, palavra.</span>
+            </div>
+            <div class="item">
+              <b>3. Preparar</b><span>Tarefas com responsável, materiais, checklist e anexos.</span>
+            </div>
+            <div class="item">
+              <b>4. Publicar</b
+              ><span>Só publicado ele aparece para os jovens e as convocações saem.</span>
+            </div>
+          </div>
+        </div>
+        <div class="telas">
+          <img
+            class="tela"
+            src="{{06-evento}}"
+            alt="Detalhe do encontro Sábado Jovem com quando e onde, inscrições e check-in"
+          />
+          <img
+            class="tela"
+            src="{{07-roteiro}}"
+            alt="Roteiro do encontro com as etapas e horários"
+          />
+        </div>
+      </div>
+    </section>
+
+    <section class="slide alt" aria-label="Convocação, quem organiza">
+      <div class="conteudo">
+        <div class="coluna">
+          <p class="sobrancelha">Convocação · quem organiza</p>
+          <h2>Convocar quem vai servir em cada parte</h2>
+          <div class="itens">
+            <div class="item">
+              <b>Convocados</b
+              ><span>O resumo diz quantos aceitaram, quantos aguardam e quem não pode.</span>
+            </div>
+            <div class="item">
+              <b>Convocar pessoa</b
+              ><span>Abre direto a lista; quem já foi convocado aparece travado.</span>
+            </div>
+            <div class="item">
+              <b>Aviso de recusa</b
+              ><span
+                >Quando alguém diz "Não posso ir", a organização recebe "Convocação recusada".</span
+              >
+            </div>
+          </div>
+          <p class="nota">Novo: no TestFlight 1.0.0 (3) e no Android 1.0.0 (5).</p>
+        </div>
+        <div class="telas">
+          <img
+            class="tela"
+            src="{{08-convocados}}"
+            alt="Convocados do encontro: 11 convocados, 9 aceitaram, 2 aguardando"
+          />
+          <img
+            class="tela"
+            src="{{09-convocar}}"
+            alt="Folha Convocar pessoa com a lista; uma pessoa aparece como Já convocado"
+          />
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" aria-label="Convocação, quem participa">
+      <div class="conteudo">
+        <div class="coluna">
+          <p class="sobrancelha">Convocação · quem participa</p>
+          <h2>O jovem recebe e responde em um toque</h2>
+          <div class="itens">
+            <div class="item">
+              <b>Sino</b><span>"Nova convocação: você foi convocado para servir."</span>
+            </div>
+            <div class="item">
+              <b>Início</b
+              ><span
+                >"Você foi convocado" mostra primeiro a que espera resposta: Aceitar ou Não posso
+                ir.</span
+              >
+            </div>
+            <div class="item">
+              <b>Troca</b
+              ><span>Pedir para alguém substituir, ou assumir a vaga de outra pessoa.</span>
+            </div>
+          </div>
+          <p class="nota">
+            O aviso no celular (push) depende das chaves de notificação da produção.
+          </p>
+        </div>
+        <div class="telas">
+          <img
+            class="tela"
+            src="{{23b-voce-foi-convocado}}"
+            alt="Início do membro com o cartão Você foi convocado e os botões Aceitar e Não posso ir"
+          />
+          <img class="tela" src="{{25-sino}}" alt="Sino de notificações com os avisos recebidos" />
+        </div>
+      </div>
+    </section>
+
+    <section class="slide alt" aria-label="No dia do encontro">
+      <div class="conteudo">
+        <div class="coluna">
+          <p class="sobrancelha">No dia do encontro</p>
+          <h2>Tudo à mão, mesmo sem internet</h2>
+          <div class="itens">
+            <div class="item">
+              <b>Ao vivo</b><span>Etapa atual, tempo restante e atraso, em tela grande.</span>
+            </div>
+            <div class="item">
+              <b>Check-in</b><span>Presença pelo QR Code na entrada ou pelo nome.</span>
+            </div>
+            <div class="item">
+              <b>Inscrições</b><span>Link para o WhatsApp, vagas e lista de espera.</span>
+            </div>
+            <div class="item">
+              <b>Sem internet</b><span>Presença e etapas funcionam offline e sobem depois.</span>
+            </div>
+          </div>
+        </div>
+        <div class="telas">
+          <img class="tela" src="{{11-ao-vivo}}" alt="Tela Ao vivo do encontro" />
+          <img class="tela" src="{{10-checkin}}" alt="Tela de check-in com a busca por nome" />
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" aria-label="Comunidade">
+      <div class="conteudo">
+        <div class="coluna">
+          <p class="sobrancelha">A vida da comunidade</p>
+          <h2>Recados, oração e ideias</h2>
+          <div class="itens">
+            <div class="item">
+              <b>Avisos</b><span>Recados da liderança, com fixar no topo e data para sair.</span>
+            </div>
+            <div class="item">
+              <b>Pedidos de oração</b
+              ><span>Cada um escolhe quem vê: só eu, equipe de oração ou todos.</span>
+            </div>
+            <div class="item">
+              <b>Sugestões</b><span>Ideias para a liderança, até sem mostrar o nome.</span>
+            </div>
+            <div class="item">
+              <b>Conteúdos e relatórios</b
+              ><span>Músicas, dinâmicas, presença e inscrições em planilha.</span>
+            </div>
+          </div>
+        </div>
+        <div class="telas">
+          <img
+            class="tela"
+            src="{{16-avisos}}"
+            alt="Lista de avisos da comunidade, com um aviso fixado"
+          />
+          <img class="tela" src="{{17-oracao}}" alt="Pedidos de oração com quem pode ver cada um" />
+        </div>
+      </div>
+    </section>
+
+    <section class="slide alt" aria-label="Equipe e Perfil">
+      <div class="conteudo">
+        <div class="coluna">
+          <p class="sobrancelha">Pessoas e conta</p>
+          <h2>Equipe e Perfil</h2>
+          <div class="itens">
+            <div class="item">
+              <b>Equipe</b
+              ><span>Quem participa, o papel de cada um, convites e pedidos de entrada.</span>
+            </div>
+            <div class="item">
+              <b>Convidar</b
+              ><span>Convite com papel e validade, ou o código da comunidade com QR.</span>
+            </div>
+            <div class="item">
+              <b>Perfil</b><span>Foto, notificações, segurança, privacidade e excluir conta.</span>
+            </div>
+          </div>
+        </div>
+        <div class="telas">
+          <img class="tela" src="{{14-equipe}}" alt="Aba Equipe com a lista de pessoas" />
+          <img class="tela" src="{{20-perfil}}" alt="Aba Perfil com as opções da conta" />
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" aria-label="Como alguém chega">
+      <div class="conteudo">
+        <div class="coluna">
+          <p class="sobrancelha">Como alguém chega</p>
+          <h2>Do download à comunidade certa</h2>
+          <div class="itens">
+            <div class="item">
+              <b>Criar conta</b
+              ><span>"Entrar com a Apple" no iPhone. Menores de 16 não criam conta.</span>
+            </div>
+            <div class="item">
+              <b>Achar o grupo</b
+              ><span>Código, QR, convite ou "Procurar comunidade" pelo nome.</span>
+            </div>
+            <div class="item">
+              <b>Criar comunidade</b
+              ><span>Quem cria vira admin; até 30 pessoas antes da verificação.</span>
+            </div>
+          </div>
+          <p class="nota">
+            No Android, cadastro novo depende do e-mail ou do Google ligados na produção.
+          </p>
+        </div>
+        <div class="telas">
+          <img class="tela" src="{{02-criar-conta}}" alt="Tela Criar conta" />
+          <img
+            class="tela"
+            src="{{22-tenho-um-codigo}}"
+            alt="Tela Tenho um código para entrar na comunidade"
+          />
+        </div>
+      </div>
+    </section>
+
+    <section class="slide alt" aria-label="O que vamos simplificar">
+      <div class="conteudo">
+        <div class="coluna">
+          <p class="sobrancelha">O que confunde hoje e o que propomos</p>
+          <h2>Menos lugares, um nome para cada coisa</h2>
+          <table>
+            <tr>
+              <th style="width: 44%">Hoje</th>
+              <th>Proposta</th>
+            </tr>
+            <tr>
+              <td>
+                Cinco nomes para o mesmo encontro: evento, programação, programas, encontro, sábado
+              </td>
+              <td>Um nome só: "Encontro"; as etapas viram "Roteiro"</td>
+            </tr>
+            <tr>
+              <td>Agenda e Programas mostram os mesmos encontros</td>
+              <td>Uma aba "Agenda" com calendário e lista; a vaga vira "Escalas"</td>
+            </tr>
+            <tr>
+              <td>Avisos, oração e sugestões dentro do Perfil</td>
+              <td>Aba "Comunidade"; o Perfil fica só com a sua conta</td>
+            </tr>
+            <tr>
+              <td>Convocar alguém levava 7 toques e não avisava quem organiza</td>
+              <td>Feito: botão direto, resumo de respostas e aviso de recusa</td>
+            </tr>
+            <tr>
+              <td>Termos técnicos à vista: sincronizado, pendências, série</td>
+              <td>Esconder o técnico; falar como o grupo fala</td>
+            </tr>
+          </table>
+          <p class="nota">
+            Mudar abas e nomes é decisão sua. O calendário cortado e a folha do termo presa já foram
+            corrigidos.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide destaque" aria-label="Onde estamos">
+      <div class="conteudo">
+        <div class="coluna">
+          <p class="sobrancelha">Onde estamos e o que depende de você</p>
+          <h2>Pronto para testar, com algumas chaves na sua mão</h2>
+          <div class="grade g2" style="gap: 36px">
+            <div>
+              <h3>No ar</h3>
+              <ul class="lista" style="margin-top: 12px">
+                <li>iPhone: TestFlight 1.0.0 (3), com "Entrar com a Apple" e a convocação</li>
+                <li>Android: teste interno 1.0.0 (5)</li>
+                <li>Calendário e hora do iPhone corrigidos; Termo do Administrador aceita</li>
+              </ul>
+            </div>
+            <div>
+              <h3>Depende de você</h3>
+              <ul class="lista" style="margin-top: 12px">
+                <li>Liberar a produção com a convocação</li>
+                <li>Enviar as mudanças do Google Play para revisão</li>
+                <li>Chaves de push, para o aviso chegar no celular</li>
+                <li>Serviço de e-mail e login com Google</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="progresso" aria-hidden="true"></div>
+    <nav class="barra" aria-label="Navegação dos slides">
+      <span class="dica">Setas do teclado ou toque nas laterais para navegar</span>
+      <div class="botoes">
+        <button type="button" id="anterior" aria-label="Slide anterior">Anterior</button>
+        <span
+          id="contador"
+          aria-live="polite"
+          style="align-self: center; min-width: 64px; text-align: center"
+        ></span>
+        <button type="button" id="proximo" aria-label="Próximo slide">Próximo</button>
+      </div>
+    </nav>
+
+    <script>
+      const slides = [...document.querySelectorAll('.slide')]
+      const contador = document.getElementById('contador')
+      const progresso = document.querySelector('.progresso')
+      let atual = Math.max(
+        0,
+        Math.min(slides.length - 1, (parseInt(location.hash.slice(1), 10) || 1) - 1),
+      )
+
+      function mostrar(i) {
+        atual = Math.max(0, Math.min(slides.length - 1, i))
+        slides.forEach((s, k) => {
+          s.classList.toggle('ativo', k === atual)
+          s.setAttribute('aria-hidden', k === atual ? 'false' : 'true')
+        })
+        contador.textContent = `${atual + 1} / ${slides.length}`
+        progresso.style.width = `${((atual + 1) / slides.length) * 100}%`
+        history.replaceState(null, '', `#${atual + 1}`)
+      }
+
+      document.getElementById('anterior').addEventListener('click', () => mostrar(atual - 1))
+      document.getElementById('proximo').addEventListener('click', () => mostrar(atual + 1))
+      document.addEventListener('keydown', (e) => {
+        if (['ArrowRight', 'PageDown', ' '].includes(e.key)) {
+          e.preventDefault()
+          mostrar(atual + 1)
+        }
+        if (['ArrowLeft', 'PageUp'].includes(e.key)) {
+          e.preventDefault()
+          mostrar(atual - 1)
+        }
+        if (e.key === 'Home') mostrar(0)
+        if (e.key === 'End') mostrar(slides.length - 1)
+      })
+      document.addEventListener('click', (e) => {
+        if (e.target.closest('.barra')) return
+        if (window.matchMedia('(max-width: 860px)').matches) return
+        mostrar(e.clientX > window.innerWidth / 2 ? atual + 1 : atual - 1)
+      })
+      window.addEventListener('hashchange', () => {
+        const n = parseInt(location.hash.slice(1), 10)
+        if (n && n - 1 !== atual) mostrar(n - 1)
+      })
+      mostrar(atual)
+    </script>
+  </body>
+</html>

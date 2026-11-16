@@ -11,3 +11,5 @@ docs/design/*.html
 .previa
 # Gerado pelo Expo (expo start) e ignorado pelo git.
 apps/app/expo-env.d.ts
+# Apresentação gerada por scripts/apresentacao/montar.ts (telas embutidas).
+docs/apresentacao/*.html
