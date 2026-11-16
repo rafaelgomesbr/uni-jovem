@@ -4,7 +4,7 @@ import { StyleSheet } from 'react-native'
 
 import { BASE, pedidosPara, renderizarTela } from '@/testes/telas'
 
-import { TelaPerfil } from '../../perfil/TelaPerfil'
+import { TelaComunidade } from '../../comunidade/TelaComunidade'
 import { Numero } from '../GraficoDeBarras'
 import { TelaExportacoes } from '../TelaExportacoes'
 import { rotuloDoPeriodo, TelaRelatorios } from '../TelaRelatorios'
@@ -34,29 +34,21 @@ const PRESENCA = {
 describe('relatórios', () => {
   beforeEach(() => jest.clearAllMocks())
 
-  test('membro não vê relatórios: nem no Perfil, nem a tela busca dados', async () => {
+  test('membro não vê relatórios: nem na aba Comunidade, nem a tela busca dados', async () => {
     const { servidor } = await renderizarTela(<TelaRelatorios />, { papel: 'membro' })
     expect(await screen.findByText('Relatórios são da organização')).toBeOnTheScreen()
     expect(servidor.pedidos.filter((p) => p.url.includes('/relatorios/'))).toHaveLength(0)
   })
 
-  test('o Perfil (que reúne o antigo "Mais") lista Relatórios só para organizador para cima', async () => {
-    await renderizarTela(<TelaPerfil />, { papel: 'membro' })
-    expect(await screen.findByRole('button', { name: /^Oração\./ })).toBeOnTheScreen()
-    expect(screen.queryByRole('button', { name: /^Relatórios\./ })).toBeNull()
+  test('a aba Comunidade lista Relatórios só para organizador para cima (D57)', async () => {
+    await renderizarTela(<TelaComunidade />, { papel: 'membro' })
+    expect(await screen.findByRole('button', { name: /^Pedidos de oração[.]/ })).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: /^Relatórios[.]/ })).toBeNull()
   })
 
-  test('o Perfil abre com "Minhas escalas e disponibilidade" no topo, para qualquer papel', async () => {
-    await renderizarTela(<TelaPerfil />, { papel: 'membro' })
-    await fireEvent.press(
-      await screen.findByRole('button', { name: /^Minhas escalas e disponibilidade/ }),
-    )
-    expect(router.push).toHaveBeenCalledWith('/escalas')
-  })
-
-  test('organizador vê Relatórios no Perfil e abre a tela', async () => {
-    await renderizarTela(<TelaPerfil />, { papel: 'organizador' })
-    await fireEvent.press(await screen.findByRole('button', { name: /^Relatórios\./ }))
+  test('organizador vê Relatórios na aba Comunidade e abre a tela', async () => {
+    await renderizarTela(<TelaComunidade />, { papel: 'organizador' })
+    await fireEvent.press(await screen.findByRole('button', { name: /^Relatórios[.]/ }))
     expect(router.push).toHaveBeenCalledWith('/relatorios')
   })
 
@@ -66,7 +58,7 @@ describe('relatórios', () => {
       rotas: { [`GET ${BASE}/relatorios/presenca`]: () => ({ status: 200, corpo: PRESENCA }) },
     })
     expect(await screen.findByLabelText('presenças: 30')).toBeOnTheScreen()
-    expect(screen.getByLabelText('out/2026 (1 evento): 14')).toBeOnTheScreen()
+    expect(screen.getByLabelText('out/2026 (1 encontro): 14')).toBeOnTheScreen()
     const pedido = pedidosPara(servidor, 'GET', `${BASE}/relatorios/presenca`)[0]!
     expect(pedido.url).toContain('agrupar=mes')
     expect(pedido.url).toMatch(/de=\d{4}-\d{2}-\d{2}&ate=\d{4}-\d{2}-\d{2}/)

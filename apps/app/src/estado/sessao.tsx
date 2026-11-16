@@ -357,10 +357,9 @@ export function ProvedorDeSessao({
 
   const comunidades = fase === 'conectado' ? (eu.data?.comunidades ?? []) : []
   const conta = fase === 'conectado' ? (eu.data?.conta ?? null) : null
-  const comunidadeAtiva =
-    comunidades.length === 1
-      ? (comunidades[0] ?? null)
-      : (comunidades.find((c) => c.id === preferida) ?? null)
+  // Nunca abre com as abas vazias (D57): sem escolha guardada (ou com uma que não vale
+  // mais), entra na primeira comunidade; a escolha guardada é sempre a última usada.
+  const comunidadeAtiva = comunidades.find((c) => c.id === preferida) ?? comunidades[0] ?? null
 
   const estado: EstadoDaSessao =
     fase === 'iniciando'

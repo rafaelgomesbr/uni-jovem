@@ -22,7 +22,7 @@ import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { mostrarToast } from '@/ui/Toast'
 
-import { useGruposDoMais } from '../navegacao/mais'
+import { useDetalheDaComunidade } from '../comunidade/consultas'
 import { TelaDoApp } from '../navegacao/TelaDoApp'
 import { mensagemDePendencias } from '../offline/avisoAntesDeApagar'
 import { useOffline } from '../offline/ProvedorOffline'
@@ -59,15 +59,17 @@ function useTransferenciaPendente(ligado: boolean): boolean {
 }
 
 /**
- * Perfil (3.6.4 e quadro 04): aba que absorveu o "Mais". Cartão de
- * identidade (avatar de 72 com anel, nome, e-mail e "Editar dados") e as
- * categorias, cada uma com a sobrancelha fora do cartão e um cartão lista.
+ * Perfil (3.6.4, quadro 04 e D57): só a conta. Cartão de identidade (avatar
+ * de 72 com anel, nome, e-mail e "Editar dados"), "Sua conta", as
+ * comunidades (trocar), o grupo do Criador e "Mais opções" no fim, cada um
+ * com a sobrancelha fora do cartão e um cartão lista. Os módulos da
+ * comunidade (avisos, oração, relatórios...) moram na aba Comunidade.
  * "Sair deste aparelho" fica isolado no fim, com a versão do app.
  */
 export function TelaPerfil({ naPilha = false }: { naPilha?: boolean }) {
   const { conta, sair, comunidadeAtiva, comunidades, trocarComunidade } = useSessao()
   const offline = useOffline()
-  const grupos = useGruposDoMais()
+  const idPublico = useDetalheDaComunidade(comunidadeAtiva?.id ?? null).data?.idPublico ?? null
   const transferenciaPendente = useTransferenciaPendente(conta !== null)
   const [saindo, setSaindo] = useState(false)
 
@@ -96,85 +98,22 @@ export function TelaPerfil({ naPilha = false }: { naPilha?: boolean }) {
     await sair()
   }
 
-  const [naComunidade, organizacao] = [
-    grupos.find((g) => g.titulo === 'Comunidade'),
-    grupos.find((g) => g.titulo === 'Organização'),
-  ]
-
   const conteudo = (
     <>
       <Identidade conta={conta} />
 
-      {/* Escalas e disponibilidade têm lugar fixo: antes, só um cartão do Início levava lá (U-03). */}
-      {comunidadeAtiva ? (
-        <Grupo titulo="Você na comunidade">
-          <LinhaDeLista
-            icone="escalas"
-            titulo="Minhas escalas e disponibilidade"
-            descricao="Onde você serve, pedidos de substituição e os dias em que não pode"
-            aoPressionar={() => router.push('/escalas')}
-          />
-        </Grupo>
-      ) : null}
-
-      {conta.criador || transferenciaPendente ? (
-        <Grupo titulo="Criador">
-          {conta.criador ? (
-            <LinhaDeLista
-              icone="plataforma"
-              titulo="Plataforma"
-              descricao="Comunidades, saúde e auditoria"
-              aoPressionar={() => router.push('/plataforma')}
-            />
-          ) : null}
-          <LinhaDeLista
-            icone="trocar"
-            titulo="Transferência de propriedade"
-            descricao={
-              transferenciaPendente
-                ? 'Há uma transferência esperando a sua resposta.'
-                : 'Passar a plataforma para outra pessoa.'
-            }
-            {...(transferenciaPendente ? { extra: <Chip texto="Pendente" tom="alerta" /> } : {})}
-            aoPressionar={() => router.push('/plataforma/transferencia')}
-          />
-        </Grupo>
-      ) : null}
-
-      {comunidadeAtiva && naComunidade?.itens.length ? (
-        <Grupo titulo="Na comunidade">
-          {naComunidade.itens.map((i) => (
-            <LinhaDeLista
-              key={i.rotulo}
-              icone={i.icone}
-              titulo={i.rotulo}
-              descricao={i.descricao}
-              aoPressionar={() => router.push(i.href)}
-            />
-          ))}
-        </Grupo>
-      ) : null}
-
-      {comunidadeAtiva && organizacao?.itens.length ? (
-        <Grupo titulo="Organização">
-          {organizacao.itens.map((i) => (
-            <LinhaDeLista
-              key={i.rotulo}
-              icone={i.icone}
-              titulo={i.rotulo}
-              descricao={i.descricao}
-              aoPressionar={() => router.push(i.href)}
-            />
-          ))}
-        </Grupo>
-      ) : null}
-
       <Grupo titulo="Sua conta">
         <LinhaDeLista
           icone="pessoa"
-          titulo="Conta"
-          descricao="Nome, e-mail e WhatsApp"
+          titulo="Editar perfil"
+          descricao="Nome, e-mail, WhatsApp e foto"
           aoPressionar={() => router.push('/editar-perfil')}
+        />
+        <LinhaDeLista
+          icone="sino"
+          titulo="Ajustes de notificação"
+          descricao="O que o app avisa: encontros, escalas e avisos"
+          aoPressionar={() => router.push('/notificacoes')}
         />
         <LinhaDeLista
           icone="seguranca"
@@ -190,16 +129,22 @@ export function TelaPerfil({ naPilha = false }: { naPilha?: boolean }) {
           aoPressionar={() => router.push(ROTA_DA_SEGURANCA)}
         />
         <LinhaDeLista
-          icone="sino"
-          titulo="Notificações"
-          descricao="Eventos, escalas e avisos"
-          aoPressionar={() => router.push('/notificacoes')}
-        />
-        <LinhaDeLista
           icone="versiculo"
           titulo="Versículo do dia"
           descricao="Ligar, desligar e o horário"
           aoPressionar={() => router.push('/versiculo')}
+        />
+        <LinhaDeLista
+          icone="documento"
+          titulo="Privacidade e dados"
+          descricao="Exportar dados ou excluir a conta"
+          aoPressionar={() => router.push('/privacidade')}
+        />
+        <LinhaDeLista
+          icone="ajuda"
+          titulo="Ajuda e sobre"
+          descricao="Primeiros passos, termos e versão"
+          aoPressionar={() => router.push('/ajuda')}
         />
       </Grupo>
 
@@ -220,7 +165,7 @@ export function TelaPerfil({ naPilha = false }: { naPilha?: boolean }) {
                 descricao={descricao}
                 rotuloAcessivel={
                   ativa
-                    ? `${c.nome}, ${descricao}. Abrir a Equipe`
+                    ? `${c.nome}, ${descricao}. Abrir a aba Comunidade`
                     : `${c.nome}, ${descricao}. Usar esta comunidade`
                 }
                 aoPressionar={() => {
@@ -238,22 +183,31 @@ export function TelaPerfil({ naPilha = false }: { naPilha?: boolean }) {
         </Grupo>
       ) : null}
 
-      <Grupo titulo="Ajuda e privacidade">
-        <LinhaDeLista
-          icone="sincronizar"
-          titulo="Pendências e uso sem internet"
-          descricao="O que está neste aparelho e o que falta enviar"
-          {...(offline.pendentes
-            ? { extra: <Chip texto={String(offline.pendentes)} tom="alerta" /> }
-            : {})}
-          aoPressionar={() => router.push('/pendencias')}
-        />
-        <LinhaDeLista
-          icone="seguranca"
-          titulo="Privacidade e dados"
-          descricao="Exportar dados ou excluir a conta"
-          aoPressionar={() => router.push('/privacidade')}
-        />
+      {conta.criador || transferenciaPendente ? (
+        <Grupo titulo="Criador">
+          {conta.criador ? (
+            <LinhaDeLista
+              icone="plataforma"
+              titulo="Plataforma do Criador"
+              descricao="Comunidades, saúde e auditoria"
+              aoPressionar={() => router.push('/plataforma')}
+            />
+          ) : null}
+          <LinhaDeLista
+            icone="trocar"
+            titulo="Transferência de propriedade"
+            descricao={
+              transferenciaPendente
+                ? 'Há uma transferência esperando a sua resposta.'
+                : 'Passar a plataforma para outra pessoa.'
+            }
+            {...(transferenciaPendente ? { extra: <Chip texto="Pendente" tom="alerta" /> } : {})}
+            aoPressionar={() => router.push('/plataforma/transferencia')}
+          />
+        </Grupo>
+      ) : null}
+
+      <Grupo titulo="Mais opções">
         <LinhaDeLista
           icone="anonimo"
           titulo="Pessoas bloqueadas"
@@ -261,11 +215,39 @@ export function TelaPerfil({ naPilha = false }: { naPilha?: boolean }) {
           aoPressionar={() => router.push('/bloqueados')}
         />
         <LinhaDeLista
-          icone="ajuda"
-          titulo="Ajuda e sobre"
-          descricao="Mapa da missão, termos e versão"
-          aoPressionar={() => router.push('/ajuda')}
+          icone="sincronizar"
+          titulo="Uso sem internet"
+          descricao="O que está neste aparelho e o que falta enviar"
+          {...(offline.pendentes
+            ? { extra: <Chip texto={`${offline.pendentes} a enviar`} tom="alerta" /> }
+            : {})}
+          aoPressionar={() => router.push('/pendencias')}
         />
+        <LinhaDeLista
+          icone="link"
+          titulo="Entrar em outra comunidade"
+          descricao="Código, convite ou busca"
+          aoPressionar={() => router.push('/comece-por-aqui')}
+        />
+        <LinhaDeLista
+          icone="adicionar"
+          titulo="Criar comunidade"
+          rotuloAcessivel="Criar comunidade"
+          aoPressionar={() => router.push(conta.criador ? '/plataforma/nova' : '/criar-comunidade')}
+        />
+        {comunidadeAtiva && idPublico ? (
+          <LinhaDeLista
+            icone="denuncia"
+            titulo="Denunciar comunidade"
+            descricao={`Algo errado em ${comunidadeAtiva.nome}? A equipe do app olha`}
+            aoPressionar={() =>
+              router.push({
+                pathname: '/denunciar-comunidade',
+                params: { idPublico, nome: comunidadeAtiva.nome },
+              })
+            }
+          />
+        ) : null}
       </Grupo>
 
       <View style={{ marginTop: ESPACO.e8 }}>

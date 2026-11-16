@@ -95,8 +95,8 @@ export function SecaoEtapas({ evento, comunidadeId, aoVerVisaoGeral }: Props) {
           titulo="Nenhuma etapa ainda"
           descricao={
             gerenciar
-              ? 'Monte a programação com as etapas do encontro, cada uma com a sua duração.'
-              : 'A organização ainda não montou a programação deste evento.'
+              ? 'Monte o roteiro com as etapas do encontro, cada uma com a sua duração.'
+              : 'A organização ainda não montou o roteiro deste encontro.'
           }
           acao={
             gerenciar

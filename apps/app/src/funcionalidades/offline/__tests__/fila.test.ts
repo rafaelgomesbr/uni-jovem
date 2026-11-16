@@ -48,9 +48,9 @@ describe('fila de saída', () => {
     expect(op?.estado).toBe('pendente')
   })
 
-  test('sem vínculo conhecido (evento não preparado), nada entra na fila', async () => {
+  test('sem vínculo conhecido (encontro não baixado), nada entra na fila', async () => {
     const { p } = await particao(COMUNIDADE_A, null)
-    await expect(registrarAcao(p, concluir('tar-1'))).rejects.toThrow(/prepare o evento/)
+    await expect(registrarAcao(p, concluir('tar-1'))).rejects.toThrow(/baixe o encontro/)
     expect(await p.operacoes()).toHaveLength(0)
   })
 

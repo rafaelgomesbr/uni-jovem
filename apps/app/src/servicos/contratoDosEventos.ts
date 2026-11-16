@@ -223,6 +223,18 @@ export interface RespostaDoInicio {
   avisos?: AvisoDoInicio[]
 }
 
+/** `GET /convocacoes/aguardando-resposta` (D57): só contagens, para a organização. */
+export interface EncontroAguardandoResposta {
+  id: string
+  titulo: string
+  inicio: string
+  fuso: string
+  /** Convocados que ainda não responderam. */
+  pendentes: number
+  /** Convocados que avisaram que não podem ir. */
+  recusadas: number
+}
+
 export interface MinhaEscala extends EscalaDoInicio {
   eventoStatus: StatusDoEvento
   /** Id do pedido de substituição em aberto, se houver. */

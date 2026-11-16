@@ -64,7 +64,7 @@ export function LinhaDoEventoNaAgenda({ evento }: { evento: ResumoDoEvento }) {
           }
         : {})}
       rotuloAcessivel={rotuloFaladoDoEvento(evento, evento.fuso)}
-      dica="Abre a programação."
+      dica="Abre o encontro."
       aoPressionar={() => abrirEvento(evento.id)}
     />
   )
@@ -139,11 +139,11 @@ export function CartaoDoDia({
           ? {
               acoes: (
                 <Botao
-                  titulo="Nova programação neste dia"
+                  titulo="Novo encontro neste dia"
                   icone="adicionar"
                   variante="terciario"
                   alinhado
-                  rotuloAcessivel={`Nova programação em ${formatarDataPorExtenso(dia)}`}
+                  rotuloAcessivel={`Novo encontro em ${formatarDataPorExtenso(dia)}`}
                   aoPressionar={() => setFolhaAberta(true)}
                 />
               ),

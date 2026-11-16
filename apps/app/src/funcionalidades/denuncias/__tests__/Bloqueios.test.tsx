@@ -67,7 +67,7 @@ describe('bloquear esta pessoa (junto do Denunciar)', () => {
     // A confirmação diz o alcance, que a pessoa não é avisada e como desfazer.
     expect(pedidoDeConfirmacao.mensagem).toMatch(/só nesta comunidade/)
     expect(pedidoDeConfirmacao.mensagem).toMatch(/não é avisada/)
-    expect(pedidoDeConfirmacao.mensagem).toMatch(/Avisos e programação continuam/)
+    expect(pedidoDeConfirmacao.mensagem).toMatch(/Avisos e encontros continuam/)
     expect(pedidoDeConfirmacao.mensagem).toMatch(/Pessoas bloqueadas/)
     expect(pedidosPara(servidor, 'POST', `${BASE}/bloqueios`)).toHaveLength(0)
 

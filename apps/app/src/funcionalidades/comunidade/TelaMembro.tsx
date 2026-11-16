@@ -79,7 +79,7 @@ export function TelaMembro() {
           icone="comunidade"
           titulo="Pessoa não encontrada"
           descricao="Ela pode ter saído da comunidade."
-          acao={{ titulo: 'Voltar para a Equipe', aoPressionar: () => voltarOu('/comunidade') }}
+          acao={{ titulo: 'Voltar para a Comunidade', aoPressionar: () => voltarOu('/comunidade') }}
         />
       </Tela>
     )

@@ -297,8 +297,8 @@ export function registrarDocumentosPublicos(
           <h2>Como denunciar uma comunidade</h2>
           <p>
             Viu uma comunidade falsa, um golpe, conteúdo ofensivo, alguém com menos de 16 anos ou
-            risco a um menor? No app, abra a comunidade (pela busca ou pela aba Equipe, se você
-            participa dela) e toque em "Denunciar comunidade". A denúncia vai para a equipe do
+            risco a um menor? No app, abra a comunidade pela busca ou, se você participa dela, vá em
+            Perfil, Mais opções, e toque em "Denunciar comunidade". A denúncia vai para a equipe do
             ${NOME_DO_APP}, não para a liderança da comunidade. Em caso de risco imediato, procure
             também as autoridades.
           </p>

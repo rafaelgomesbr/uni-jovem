@@ -66,14 +66,14 @@ export function TelaNovoEvento() {
   if (!comunidadeAtiva) {
     return (
       <Tela pilha modal>
-        <SemComunidade oQue="as programações" />
+        <SemComunidade oQue="os encontros" />
       </Tela>
     )
   }
   if (!pode('evento', 'criar')) {
     return (
-      <Tela pilha modal titulo="Nova programação">
-        <Aviso tipo="info" titulo="Só a organização cria programações">
+      <Tela pilha modal titulo="Novo encontro">
+        <Aviso tipo="info" titulo="Só a organização cria encontros">
           Fale com quem organiza a sua comunidade para montar um encontro.
         </Aviso>
       </Tela>
@@ -225,7 +225,7 @@ function NovoEvento({
       duracaoOpcional: !!modelo,
     })
     const fimInvalido = regra.repeticao !== 'nao' && regra.fim.trim() && !lerDataDigitada(regra.fim)
-    setErroDoFim(fimInvalido ? 'Escolha o dia em que a série acaba.' : null)
+    setErroDoFim(fimInvalido ? 'Escolha o dia em que a repetição acaba.' : null)
     setErros(novos)
     focarPrimeiroErro(novos, refs)
     if (!dados || fimInvalido) return
@@ -233,7 +233,7 @@ function NovoEvento({
       const ok = await confirmar({
         titulo: 'Esta data já passou',
         mensagem:
-          'O início marcado é anterior a agora: confira o dia e o ano. Publicada, a programação aparece para todos da comunidade.',
+          'O início marcado é anterior a agora: confira o dia e o ano. Publicado, o encontro aparece para todos da comunidade.',
         confirmar: 'Publicar mesmo assim',
       })
       if (!ok) return
@@ -250,7 +250,7 @@ function NovoEvento({
     <Tela
       pilha
       modal
-      titulo="Nova programação"
+      titulo="Novo encontro"
       barraDeAcao={
         <BarraDeAcao>
           <Botao
@@ -259,7 +259,7 @@ function NovoEvento({
             tamanho="grande"
             dica={
               ehSerie
-                ? 'Cria a série com as datas em rascunho. Só a organização vê.'
+                ? 'Cria a repetição com as datas em rascunho. Só a organização vê.'
                 : 'Só a organização vê rascunhos.'
             }
             carregando={salvar.isPending && !salvar.variables?.publicar}
@@ -271,7 +271,7 @@ function NovoEvento({
             tamanho="grande"
             dica={
               ehSerie
-                ? 'Cria a série e publica as datas. Todos da comunidade passam a ver.'
+                ? 'Cria a repetição e publica as datas. Todos da comunidade passam a ver.'
                 : 'Todos da comunidade passam a ver.'
             }
             carregando={salvar.isPending && !!salvar.variables?.publicar}
@@ -284,9 +284,7 @@ function NovoEvento({
       {resumo ? (
         <AvisoDeFalha titulo={resumo} mensagem="As mensagens estão junto de cada campo." />
       ) : null}
-      {salvar.error ? (
-        <AvisoDeFalha erro={salvar.error} titulo="A programação não foi salva" />
-      ) : null}
+      {salvar.error ? <AvisoDeFalha erro={salvar.error} titulo="O encontro não foi salvo" /> : null}
 
       {escolherModelo ? (
         <Secao titulo="Começar de">
@@ -351,8 +349,8 @@ function NovoEvento({
         </CartaoDeVidro>
       </Secao>
       {ehSerie ? (
-        <Aviso tipo="info" titulo="Série de encontros">
-          Cada data vira um evento próprio, que você pode editar sozinho depois. Prazo e lista de
+        <Aviso tipo="info" titulo="Encontros que se repetem">
+          Cada data vira um encontro próprio, que você pode editar sozinho depois. Prazo e lista de
           espera valem por data e são ajustados em cada uma.
         </Aviso>
       ) : null}

@@ -49,7 +49,7 @@ function linha(i: InscricaoMinha) {
       }
       rotuloAcessivel={`${i.evento.titulo}, ${falarQuando(i.evento.inicio, i.evento.fuso)}. ${
         i.presente ? 'Presença registrada' : espera ? 'Na lista de espera' : 'Inscrição confirmada'
-      }. Abrir o evento e o código de entrada.`}
+      }. Abrir o encontro e o código de entrada.`}
       aoPressionar={() =>
         router.push({ pathname: '/evento/[eventoId]', params: { eventoId: i.evento.id } })
       }

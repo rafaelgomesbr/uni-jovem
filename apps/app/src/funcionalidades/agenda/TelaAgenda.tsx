@@ -1,24 +1,24 @@
 import { ESPACO, RAIO, TIPO } from '@uj/tokens'
-import { router } from 'expo-router'
-import { useState } from 'react'
+import { useLocalSearchParams } from 'expo-router'
+import { useState, type ReactNode } from 'react'
 import { useWindowDimensions, View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
-import type { ResumoDoEvento } from '@/servicos/contratoDosEventos'
 import { ErroDaTela } from '@/ui/Falha'
 import { hojeNoFuso, type DataLocal } from '@/utilidades/datas'
 import { Aviso } from '@/ui/Aviso'
 import { Botao, BotaoIcone } from '@/ui/Botao'
 import { BlocoDeEsqueleto, CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
-import { EstadoVazio } from '@/ui/EstadoVazio'
 import { LayoutDividido, useLayoutLargo } from '@/ui/LayoutDividido'
 import { Segmentos } from '@/ui/Segmentos'
 import { TextoAnunciado } from '@/ui/TextoAnunciado'
+import { parametro } from '@/utilidades/parametros'
 
 import { useFusoDaComunidade } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
 import { useEventosNoPeriodo } from '../eventos/consultas'
 import { FolhaNovaProgramacao } from '../eventos/FolhaNovaProgramacao'
+import { ListaDeEncontros } from '../eventos/ListaDeEncontros'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { TelaDoApp } from '../navegacao/TelaDoApp'
 import {
@@ -36,6 +36,13 @@ import { ESQUELETO_DA_GRADE } from './medidas'
 import { VistaDaSemana } from './VistaDaSemana'
 import { ESCALA_DA_LISTA, VistaDoMes } from './VistaDoMes'
 
+export type VistaDaAgenda = 'calendario' | 'lista'
+
+/** `/agenda?vista=lista` (o redirecionamento da antiga aba Programas) abre na Lista. */
+function vistaDoParametro(valor: string | null): VistaDaAgenda | null {
+  return valor === 'calendario' || valor === 'lista' ? valor : null
+}
+
 export function TelaAgenda() {
   const { comunidadeAtiva } = useSessao()
   if (!comunidadeAtiva) {
@@ -45,25 +52,96 @@ export function TelaAgenda() {
       </TelaDoApp>
     )
   }
-  return <Agenda comunidadeId={comunidadeAtiva.id} />
+  return <AgendaDaComunidade comunidadeId={comunidadeAtiva.id} />
 }
 
 /**
- * Agenda (3.3 e quadro 06): segmentos Mês, Semana e Lista; a linha do
- * período com o título em `tituloCartao`, o terciário "Hoje" (fora do
- * período atual) e os botões só ícone de anterior e próximo; a grade num
- * cartão de vidro e, abaixo, o dia escolhido. Com fonte grande, abre em Lista.
+ * Aba Agenda (D57): junta o calendário (3.3) e a lista dos encontros (a
+ * antiga aba Programas, 3.4.1), com o seletor "Calendário | Lista" no topo e
+ * "Novo encontro" ao lado do título para quem cria (Sábado padrão, Em branco
+ * ou A partir de modelo). Com fonte grande, abre na Lista.
  */
-function Agenda({ comunidadeId }: { comunidadeId: string }) {
+function AgendaDaComunidade({ comunidadeId }: { comunidadeId: string }) {
+  const pode = usePode()
+  const podeCriar = pode('evento', 'criar')
+  const { fontScale } = useWindowDimensions()
+  const pedida = vistaDoParametro(parametro(useLocalSearchParams<{ vista?: string }>().vista))
+  const [vista, setVista] = useState<VistaDaAgenda>(
+    () => pedida ?? (fontScale >= ESCALA_DA_LISTA ? 'lista' : 'calendario'),
+  )
+  // A aba fica montada: um link novo (`?vista=`) troca o modo já aberto.
+  const [ultimaPedida, setUltimaPedida] = useState(pedida)
+  if (pedida !== ultimaPedida) {
+    setUltimaPedida(pedida)
+    if (pedida) setVista(pedida)
+  }
+  const [folhaAberta, setFolhaAberta] = useState(false)
+  const abrirFolha = () => setFolhaAberta(true)
+
+  const seletor = (
+    <Segmentos
+      rotulo="Como ver a agenda"
+      valor={vista}
+      aoMudar={setVista}
+      segmentos={[
+        { valor: 'calendario', rotulo: 'Calendário' },
+        { valor: 'lista', rotulo: 'Lista' },
+      ]}
+    />
+  )
+  // Criar é a ação principal: "Novo encontro" escrito, não só um "+" (auditoria U-06).
+  const acao = podeCriar ? (
+    <Botao
+      titulo="Novo encontro"
+      icone="adicionar"
+      variante="secundario"
+      aoPressionar={abrirFolha}
+    />
+  ) : undefined
+
+  return (
+    <>
+      {vista === 'lista' ? (
+        <ListaDeEncontros
+          comunidadeId={comunidadeId}
+          seletor={seletor}
+          {...(acao ? { acao } : {})}
+          aoCriar={abrirFolha}
+          aoVerCalendario={() => setVista('calendario')}
+        />
+      ) : (
+        <Calendario comunidadeId={comunidadeId} seletor={seletor} {...(acao ? { acao } : {})} />
+      )}
+      {podeCriar ? (
+        <FolhaNovaProgramacao aberta={folhaAberta} aoFechar={() => setFolhaAberta(false)} />
+      ) : null}
+    </>
+  )
+}
+
+type ModoDoCalendario = Exclude<ModoDaAgenda, 'lista'>
+
+/**
+ * Calendário (3.3 e quadro 06): segmentos Mês e Semana; a linha do período
+ * com o título em `tituloCartao`, o terciário "Hoje" (fora do período atual)
+ * e os botões só ícone de anterior e próximo; a grade num cartão de vidro e,
+ * abaixo, o dia escolhido.
+ */
+function Calendario({
+  comunidadeId,
+  seletor,
+  acao,
+}: {
+  comunidadeId: string
+  seletor: ReactNode
+  acao?: ReactNode
+}) {
   const fuso = useFusoDaComunidade()
   const pode = usePode()
   const podeCriar = pode('evento', 'criar')
   const largo = useLayoutLargo()
-  const { fontScale } = useWindowDimensions()
   const hoje = hojeNoFuso(fuso)
-  const [modo, setModo] = useState<ModoDaAgenda>(() =>
-    fontScale >= ESCALA_DA_LISTA ? 'lista' : 'mes',
-  )
+  const [modo, setModo] = useState<ModoDoCalendario>('mes')
   const [referencia, setReferencia] = useState<DataLocal>(hoje)
   const [selecionado, setSelecionado] = useState<DataLocal>(hoje)
   const intervalo = intervaloDoModo(modo, referencia)
@@ -85,8 +163,9 @@ function Agenda({ comunidadeId }: { comunidadeId: string }) {
 
   const controles = (
     <>
+      {seletor}
       <Segmentos
-        rotulo="Modo de exibição"
+        rotulo="Mês ou semana"
         valor={modo}
         aoMudar={(m) => {
           setModo(m)
@@ -95,7 +174,6 @@ function Agenda({ comunidadeId }: { comunidadeId: string }) {
         segmentos={[
           { valor: 'mes', rotulo: 'Mês' },
           { valor: 'semana', rotulo: 'Semana' },
-          { valor: 'lista', rotulo: 'Lista' },
         ]}
       />
       <LinhaDoPeriodo
@@ -111,7 +189,7 @@ function Agenda({ comunidadeId }: { comunidadeId: string }) {
   const grade = eventos.isPending ? (
     eventos.fetchStatus === 'paused' ? (
       <Aviso tipo="alerta" titulo="Sem conexão: a agenda volta quando a internet voltar">
-        O que foi preparado neste aparelho continua no Início.
+        O que foi baixado neste aparelho continua no Início.
       </Aviso>
     ) : (
       <EsqueletoDaAgenda modo={modo} />
@@ -130,7 +208,7 @@ function Agenda({ comunidadeId }: { comunidadeId: string }) {
       porDia={porDia}
       aoEscolher={setSelecionado}
     />
-  ) : modo === 'semana' ? (
+  ) : (
     <VistaDaSemana
       inicio={intervalo.inicio}
       hoje={hoje}
@@ -138,40 +216,26 @@ function Agenda({ comunidadeId }: { comunidadeId: string }) {
       porDia={porDia}
       aoEscolher={setSelecionado}
     />
-  ) : (
-    <VistaDeLista porDia={porDia} hoje={hoje} podeCriar={podeCriar} aoAvancar={() => mover(1)} />
   )
 
-  const painelDoDia =
-    modo !== 'lista' && pronto ? (
-      <View style={{ gap: ESPACO.e8 }}>
-        <SobrancelhaDoDia
-          dia={selecionado}
-          hoje={hoje}
-          quantidade={porDia.get(selecionado)?.length ?? 0}
-        />
-        <CartaoDoDia
-          dia={selecionado}
-          eventos={porDia.get(selecionado) ?? []}
-          podeCriar={podeCriar}
-        />
-      </View>
-    ) : null
+  const painelDoDia = pronto ? (
+    <View style={{ gap: ESPACO.e8 }}>
+      <SobrancelhaDoDia
+        dia={selecionado}
+        hoje={hoje}
+        quantidade={porDia.get(selecionado)?.length ?? 0}
+      />
+      <CartaoDoDia
+        dia={selecionado}
+        eventos={porDia.get(selecionado) ?? []}
+        podeCriar={podeCriar}
+      />
+    </View>
+  ) : null
 
-  // Atalho fixo para as escalas: quem pensa em calendário procura aqui (U-03).
-  const escalas = (
-    <Botao
-      titulo="Minhas escalas"
-      icone="escalas"
-      variante="secundario"
-      dica="Onde você serve e os dias em que não pode."
-      aoPressionar={() => router.push('/escalas')}
-    />
-  )
-
-  if (largo && modo !== 'lista') {
+  if (largo) {
     return (
-      <TelaDoApp titulo="Agenda" rolar={false} larga acaoComTexto={escalas}>
+      <TelaDoApp titulo="Agenda" rolar={false} larga {...(acao ? { acaoComTexto: acao } : {})}>
         <LayoutDividido
           rotuloDoDetalhe="Dia escolhido"
           lista={
@@ -187,7 +251,7 @@ function Agenda({ comunidadeId }: { comunidadeId: string }) {
   }
 
   return (
-    <TelaDoApp titulo="Agenda" acaoComTexto={escalas}>
+    <TelaDoApp titulo="Agenda" {...(acao ? { acaoComTexto: acao } : {})}>
       {controles}
       {grade}
       {painelDoDia}
@@ -242,90 +306,17 @@ function LinhaDoPeriodo({
   )
 }
 
-/** Esqueleto da grade (ou das listas), com a altura do que vai chegar. */
-function EsqueletoDaAgenda({ modo }: { modo: ModoDaAgenda }) {
+/** Esqueleto da grade, com a altura do que vai chegar. */
+function EsqueletoDaAgenda({ modo }: { modo: ModoDoCalendario }) {
   const sobrancelha = Math.round(TIPO.sobrancelha.altura * 0.6)
   return (
     <Esqueleto rotulo="Carregando a agenda">
-      {modo === 'lista' ? null : (
-        <BlocoDeEsqueleto
-          altura={modo === 'mes' ? ESQUELETO_DA_GRADE.mes : ESQUELETO_DA_GRADE.semana}
-          raio={RAIO.cartao}
-        />
-      )}
+      <BlocoDeEsqueleto
+        altura={modo === 'mes' ? ESQUELETO_DA_GRADE.mes : ESQUELETO_DA_GRADE.semana}
+        raio={RAIO.cartao}
+      />
       <BlocoDeEsqueleto largura="48%" altura={sobrancelha} />
       <CartaoDeEsqueleto />
-      {modo === 'lista' ? (
-        <>
-          <BlocoDeEsqueleto largura="48%" altura={sobrancelha} />
-          <CartaoDeEsqueleto />
-        </>
-      ) : null}
     </Esqueleto>
-  )
-}
-
-/**
- * Lista (3.3.3): um grupo por dia, cada um com a sobrancelha (hoje com o
- * ponto coral e "Hoje") e um cartão lista com as linhas de evento. Vazio:
- * estado vazio com "Nova programação" para quem cria e o período seguinte
- * para os demais.
- */
-function VistaDeLista({
-  porDia,
-  hoje,
-  podeCriar,
-  aoAvancar,
-}: {
-  porDia: Map<DataLocal, ResumoDoEvento[]>
-  hoje: DataLocal
-  podeCriar: boolean
-  aoAvancar: () => void
-}) {
-  const [folhaAberta, setFolhaAberta] = useState(false)
-  const dias = [...porDia.keys()].sort()
-  if (dias.length === 0) {
-    return (
-      <>
-        <EstadoVazio
-          icone="agenda"
-          titulo="Nada marcado neste período"
-          descricao={
-            podeCriar
-              ? 'Crie a próxima programação para ela aparecer aqui.'
-              : 'Quando a organização marcar algo, aparece aqui. Veja também os dias seguintes.'
-          }
-          acao={
-            podeCriar
-              ? {
-                  titulo: 'Nova programação',
-                  icone: 'adicionar',
-                  aoPressionar: () => setFolhaAberta(true),
-                }
-              : {
-                  titulo: 'Ver o período seguinte',
-                  variante: 'secundario',
-                  aoPressionar: aoAvancar,
-                }
-          }
-        />
-        {podeCriar ? (
-          <FolhaNovaProgramacao aberta={folhaAberta} aoFechar={() => setFolhaAberta(false)} />
-        ) : null}
-      </>
-    )
-  }
-  return (
-    <>
-      {dias.map((dia) => {
-        const lista = porDia.get(dia) ?? []
-        return (
-          <View key={dia} style={{ gap: ESPACO.e8 }}>
-            <SobrancelhaDoDia dia={dia} hoje={hoje} quantidade={lista.length} />
-            <CartaoDoDia dia={dia} eventos={lista} podeCriar={false} comLinhaDoTempo={false} />
-          </View>
-        )
-      })}
-    </>
   )
 }

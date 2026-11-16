@@ -18,6 +18,7 @@ import { Texto } from '@/ui/Texto'
 import { mostrarToast } from '@/ui/Toast'
 import { compartilharTexto } from '@/utilidades/compartilhar'
 
+import { usePode } from '../comunidade/permissoes'
 import { DetalheLocalDoEvento } from '../offline/DetalheLocalDoEvento'
 import { useEstaOnline, usePacoteDoEvento } from '../offline/ProvedorOffline'
 import { AcoesNoPainel, BarraDoEvento, useAcoesDoEvento } from './BarraDoEvento'
@@ -48,9 +49,12 @@ interface Props {
 export function DetalheDoEvento({
   comunidadeId,
   eventoId,
-  aoSair = () => voltarOu('/programacoes'),
+  aoSair = () => voltarOu('/agenda'),
   painel = false,
 }: Props) {
+  const pode = usePode()
+  // Baixar para usar sem internet é coisa de quem organiza ou conduz (D57).
+  const baixa = pode('evento', 'editar') || pode('ao_vivo', 'conduzir')
   const evento = useEvento(comunidadeId, eventoId)
   const online = useEstaOnline()
   const guardado = usePacoteDoEvento(eventoId).data ?? null
@@ -68,9 +72,10 @@ export function DetalheDoEvento({
   if (pausado) {
     return (
       <Moldura painel={painel}>
-        <Aviso tipo="alerta" titulo="Sem conexão: esta programação abre quando a internet voltar">
-          Ela não foi preparada para usar sem internet. Da próxima vez, use Preparar para usar sem
-          internet, em Mais, antes de sair.
+        <Aviso tipo="alerta" titulo="Sem conexão: este encontro abre quando a internet voltar">
+          {baixa
+            ? 'Ele não foi baixado neste aparelho. Da próxima vez, antes de sair, abra o encontro, toque em Mais e depois em Baixar para usar sem internet.'
+            : 'Ele não foi baixado neste aparelho. Quem organiza pode baixar o encontro para usar sem internet.'}
         </Aviso>
       </Moldura>
     )
@@ -78,7 +83,7 @@ export function DetalheDoEvento({
   if (evento.isPending) {
     return (
       <Moldura painel={painel}>
-        <Esqueleto rotulo="Carregando a programação">
+        <Esqueleto rotulo="Carregando o encontro">
           <CartaoDeEsqueleto titulo />
           <CartaoDeEsqueleto />
         </Esqueleto>
@@ -91,14 +96,14 @@ export function DetalheDoEvento({
         {ehErroDaApi(evento.error) && evento.error.status === 404 ? (
           <EstadoVazio
             icone="eventos"
-            titulo="Programação não encontrada"
-            descricao="Ela pode ter sido excluída, ou é de outra comunidade."
-            acao={{ titulo: 'Voltar para os programas', aoPressionar: aoSair }}
+            titulo="Encontro não encontrado"
+            descricao="Ele pode ter sido excluído, ou é de outra comunidade."
+            acao={{ titulo: 'Voltar para a agenda', aoPressionar: aoSair }}
           />
         ) : (
           <ErroDaTela
             erro={evento.error}
-            titulo="A programação não abriu"
+            titulo="O encontro não abriu"
             aoTentarDeNovo={() => void evento.refetch()}
           />
         )}
@@ -154,15 +159,16 @@ function Conteudo({
   const acoes = useAcoesDoEvento({ evento: e, comunidadeId, aoSair })
   const [visao, setVisao] = useState<Visao>('geral')
 
-  // Membro: Visão geral e Programação; a Preparação aparece quando há o que marcar.
-  // "Programação" e "Convocados", não "Etapas" e "Equipe": essas palavras já
-  // querem dizer outra coisa no app (verificação em duas etapas, aba Equipe; U-08).
+  // Membro: Visão geral e Roteiro; a Preparação aparece quando há o que marcar.
+  // "Roteiro" e "Convocados", não "Etapas" e "Equipe": essas palavras já querem
+  // dizer outra coisa no app (verificação em duas etapas, equipe de oração; U-08).
+  // "Programação" também não: o encontro inteiro já foi chamado assim (D57).
   const temPreparacao =
     acoes.organiza ||
     e.tarefas.length + e.materiais.length + e.checklist.length + e.anexos.length > 0
   const visoes: Segmento<Visao>[] = [
     { valor: 'geral', rotulo: 'Visão geral' },
-    { valor: 'etapas', rotulo: 'Programação' },
+    { valor: 'etapas', rotulo: 'Roteiro' },
     ...(acoes.organiza ? [{ valor: 'equipe' as const, rotulo: 'Convocados' }] : []),
     ...(temPreparacao ? [{ valor: 'preparacao' as const, rotulo: 'Preparação' }] : []),
   ]
@@ -217,12 +223,7 @@ function Conteudo({
         comunidadeId={comunidadeId}
         inscricaoSecundaria={acoes.primaria !== null}
       />
-      <Segmentos
-        rotulo="Partes da programação"
-        segmentos={visoes}
-        valor={atual}
-        aoMudar={setVisao}
-      />
+      <Segmentos rotulo="Partes do encontro" segmentos={visoes} valor={atual} aoMudar={setVisao} />
       {atual === 'geral' ? (
         <VisaoGeralDoEvento evento={e} comunidadeId={comunidadeId} />
       ) : atual === 'etapas' ? (

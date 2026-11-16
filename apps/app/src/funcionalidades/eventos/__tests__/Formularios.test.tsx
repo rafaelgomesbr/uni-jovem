@@ -51,7 +51,7 @@ const ROTAS_DO_FORMULARIO = {
   [`GET ${BASE}/locais`]: () => ({ status: 200, corpo: { locais: [] } }),
 }
 
-describe('criar programação', () => {
+describe('criar encontro', () => {
   beforeEach(() => jest.clearAllMocks())
 
   test('Sábado padrão vem preenchido e cria o rascunho com o modelo', async () => {
@@ -91,7 +91,7 @@ describe('criar programação', () => {
     )
   })
 
-  test('"Nova programação neste dia" (Agenda): a data já vem escolhida', async () => {
+  test('"Novo encontro neste dia" (Agenda): a data já vem escolhida', async () => {
     parametros.mockReturnValue({ data: '2026-12-05' })
     await renderizarTela(<TelaNovoEvento />, { rotas: ROTAS_DO_FORMULARIO })
     expect(
@@ -174,10 +174,10 @@ describe('criar programação', () => {
   })
 })
 
-describe('editar programação', () => {
+describe('editar encontro', () => {
   beforeEach(() => jest.clearAllMocks())
 
-  test('evento de série: salvar exige escolher o alcance; "só esta" faz PATCH no evento', async () => {
+  test('encontro que se repete: salvar exige escolher o alcance; "só esta" faz PATCH no evento', async () => {
     parametros.mockReturnValue({ eventoId: EVENTO_ID })
     const { servidor } = await renderizarTela(<TelaEditarEvento />, {
       rotas: {
@@ -194,7 +194,7 @@ describe('editar programação', () => {
     const salvar = await screen.findByRole('button', { name: 'Salvar alterações' })
     expect(salvar).toBeDisabled()
     expect(
-      screen.getByText('Escolha acima se a mudança vale só para esta ocorrência ou para a série.'),
+      screen.getByText('Escolha acima se a mudança vale só para esta data ou para a repetição.'),
     ).toBeOnTheScreen()
 
     await usuario.press(screen.getByRole('radio', { name: 'Só esta ocorrência' }))
@@ -262,14 +262,14 @@ describe('cancelar ou adiar', () => {
     })
     const usuario = userEvent.setup()
 
-    await usuario.press(await screen.findByRole('button', { name: 'Cancelar evento' }))
+    await usuario.press(await screen.findByRole('button', { name: 'Cancelar encontro' }))
     expect(
       await screen.findByText('Explique o motivo: ele vai para quem participa.'),
     ).toBeOnTheScreen()
     expect(pedidosPara(servidor, 'POST', `${CAMINHO}/status`)).toHaveLength(0)
 
     await fireEvent.changeText(screen.getByLabelText('Motivo'), 'Chuva forte na região')
-    await usuario.press(screen.getByRole('button', { name: 'Cancelar evento' }))
+    await usuario.press(screen.getByRole('button', { name: 'Cancelar encontro' }))
 
     await waitFor(() =>
       expect(pedidosPara(servidor, 'POST', `${CAMINHO}/status`)[0]?.corpo).toEqual({
@@ -287,6 +287,6 @@ describe('cancelar ou adiar', () => {
       rotas: { [`GET ${CAMINHO}`]: () => ({ status: 200, corpo: eventoDeTeste() }) },
     })
     expect(await screen.findByText('Só a organização cancela ou adia eventos.')).toBeOnTheScreen()
-    expect(screen.queryByRole('button', { name: 'Cancelar evento' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Cancelar encontro' })).toBeNull()
   })
 })

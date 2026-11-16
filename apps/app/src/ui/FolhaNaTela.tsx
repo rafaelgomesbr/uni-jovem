@@ -18,6 +18,7 @@ import { focar, type NoDeTexto } from './foco'
 import type { NomeDoIcone } from './Icone'
 import { LinhaDeLista, Lista } from './LinhaDeLista'
 import { ProvedorDeSuperficie, sombra, useTema } from './tema'
+import { Texto } from './Texto'
 
 /**
  * Tempo da folha sair da tela no iOS. A ação escolhida espera esse tempo:
@@ -131,6 +132,11 @@ export interface AcaoDoMenu {
   motivo?: string | null
   /** Chip quente à direita ("Recomendado"). */
   chip?: string
+  /**
+   * Grupo com título ("Organizar", "Neste aparelho"), na ordem em que aparece
+   * pela primeira vez. As destrutivas continuam por último, sem título.
+   */
+  grupo?: string
 }
 
 interface PropsDoMenu {
@@ -161,7 +167,12 @@ export function MenuDeAcoes({
   esperarAcao = false,
 }: PropsDoMenu) {
   const validas = acoes.filter((a): a is AcaoDoMenu => !!a)
-  const grupos = [validas.filter((a) => !a.destrutiva), validas.filter((a) => a.destrutiva)]
+  const comuns = validas.filter((a) => !a.destrutiva)
+  const titulos = [...new Set(comuns.map((a) => a.grupo ?? ''))]
+  const grupos = [
+    ...titulos.map((t) => ({ titulo: t, acoes: comuns.filter((a) => (a.grupo ?? '') === t) })),
+    { titulo: '', acoes: validas.filter((a) => a.destrutiva) },
+  ]
 
   async function escolher(a: AcaoDoMenu) {
     if (esperarAcao) {
@@ -179,24 +190,31 @@ export function MenuDeAcoes({
       {validas.length ? (
         <View style={{ gap: ESPACO.e8 }}>
           {grupos.map((grupo, i) =>
-            grupo.length ? (
-              <Lista key={i}>
-                {grupo.map((a) => {
-                  const apoio = a.motivo ?? a.descricao
-                  return (
-                    <LinhaDeLista
-                      key={a.titulo}
-                      icone={a.icone}
-                      titulo={a.titulo}
-                      {...(apoio ? { descricao: apoio } : {})}
-                      destrutivo={!!a.destrutiva}
-                      semSeta={!a.navega}
-                      {...(a.chip ? { extra: <Chip texto={a.chip} tom="quente" /> } : {})}
-                      {...(a.motivo ? {} : { aoPressionar: () => void escolher(a) })}
-                    />
-                  )
-                })}
-              </Lista>
+            grupo.acoes.length ? (
+              <View key={i} style={{ gap: ESPACO.e8 }}>
+                {grupo.titulo ? (
+                  <Texto variante="sobrancelha" accessibilityRole="header" nivel={3}>
+                    {grupo.titulo}
+                  </Texto>
+                ) : null}
+                <Lista>
+                  {grupo.acoes.map((a) => {
+                    const apoio = a.motivo ?? a.descricao
+                    return (
+                      <LinhaDeLista
+                        key={a.titulo}
+                        icone={a.icone}
+                        titulo={a.titulo}
+                        {...(apoio ? { descricao: apoio } : {})}
+                        destrutivo={!!a.destrutiva}
+                        semSeta={!a.navega}
+                        {...(a.chip ? { extra: <Chip texto={a.chip} tom="quente" /> } : {})}
+                        {...(a.motivo ? {} : { aoPressionar: () => void escolher(a) })}
+                      />
+                    )
+                  })}
+                </Lista>
+              </View>
             ) : null,
           )}
         </View>

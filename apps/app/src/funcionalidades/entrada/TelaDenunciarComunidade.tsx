@@ -67,7 +67,7 @@ export function TelaDenunciarComunidade() {
         <EstadoVazio
           icone="denuncia"
           titulo="Escolha a comunidade primeiro"
-          descricao="Abra a comunidade pela busca ou pela aba Equipe e toque em Denunciar."
+          descricao="Abra a comunidade pela busca, ou use Perfil, Mais opções, Denunciar comunidade."
           acao={{ titulo: 'Voltar', aoPressionar: () => voltarOu('/') }}
         />
       </Tela>

@@ -52,16 +52,16 @@ export const OPCOES_DE_ESCOPO: readonly { valor: Escopo; rotulo: string; descric
   {
     valor: 'esta',
     rotulo: 'Só esta ocorrência',
-    descricao: 'As outras datas da série não mudam.',
+    descricao: 'As outras datas da repetição não mudam.',
   },
   {
     valor: 'a_partir_de',
     rotulo: 'Esta e as próximas',
-    descricao: 'A série se divide nesta data; as anteriores continuam como estão.',
+    descricao: 'A repetição se divide nesta data; as anteriores continuam como estão.',
   },
   {
     valor: 'serie',
-    rotulo: 'Toda a série',
+    rotulo: 'Toda a repetição',
     descricao: 'Vale para as próximas ocorrências que não foram editadas à parte.',
   },
 ]
@@ -76,23 +76,23 @@ export function TelaEditarEvento() {
   if (!comunidadeAtiva || !eventoId) {
     return (
       <Tela pilha modal>
-        <SemComunidade oQue="a programação" />
+        <SemComunidade oQue="o encontro" />
       </Tela>
     )
   }
   if (!pode('evento', 'editar')) {
     return (
-      <Tela pilha modal titulo="Editar programação">
-        <Aviso tipo="info" titulo="Só a organização edita programações">
-          Você pode ver a programação, mas não alterar.
+      <Tela pilha modal titulo="Editar encontro">
+        <Aviso tipo="info" titulo="Só a organização edita encontros">
+          Você pode ver o encontro, mas não alterar.
         </Aviso>
       </Tela>
     )
   }
   if (evento.isPending) {
     return (
-      <Tela pilha modal titulo="Editar programação">
-        <Esqueleto rotulo="Carregando a programação">
+      <Tela pilha modal titulo="Editar encontro">
+        <Esqueleto rotulo="Carregando o encontro">
           <CartaoDeEsqueleto titulo />
           <CartaoDeEsqueleto />
         </Esqueleto>
@@ -101,7 +101,7 @@ export function TelaEditarEvento() {
   }
   if (evento.error) {
     return (
-      <Tela pilha modal titulo="Editar programação">
+      <Tela pilha modal titulo="Editar encontro">
         <ErroDaTela erro={evento.error} aoTentarDeNovo={() => void evento.refetch()} />
       </Tela>
     )
@@ -244,7 +244,7 @@ function EditarEvento({
       }
       await invalidar(inicial.id)
       await consultas.invalidateQueries({ queryKey: CHAVES.serie(comunidadeId, inicial.serieId!) })
-      mostrarToast({ texto: 'Alterações salvas na série.' })
+      mostrarToast({ texto: 'Alterações salvas na repetição.' })
       liberar()
       sair()
     },
@@ -286,13 +286,13 @@ function EditarEvento({
   const resumo = resumoDosErros(Object.keys(erros).length)
   const motivo = conflito
     ? 'Resolva o conflito acima primeiro.'
-    : 'Escolha acima se a mudança vale só para esta ocorrência ou para a série.'
+    : 'Escolha acima se a mudança vale só para esta data ou para a repetição.'
 
   return (
     <Tela
       pilha
       modal
-      titulo="Editar programação"
+      titulo="Editar encontro"
       descricao={inicial.titulo}
       barraDeAcao={
         <BarraDeAcao>
@@ -312,7 +312,7 @@ function EditarEvento({
       ) : null}
       {semMudancas ? (
         <Aviso tipo="info" anunciar>
-          {`Nada mudou${daSerie ? ' nos campos que valem para a série' : ''}. Altere algum campo antes de salvar.`}
+          {`Nada mudou${daSerie ? ' nos campos que valem para a repetição' : ''}. Altere algum campo antes de salvar.`}
         </Aviso>
       ) : null}
       {erroVisivel ? <AvisoDeFalha erro={erro} titulo="As alterações não foram salvas" /> : null}
@@ -328,7 +328,7 @@ function EditarEvento({
             />
             {daSerie ? (
               <Texto variante="legenda" cor="textoSuave">
-                Na série valem título, categoria, descrição, local, hora e duração. Vagas,
+                Na repetição valem título, categoria, descrição, local, hora e duração. Vagas,
                 visibilidade, prazo e informações úteis são de cada data: para mudá-los, escolha Só
                 esta ocorrência.
               </Texto>
@@ -414,7 +414,7 @@ function ConflitoDeEdicao({
   return (
     <>
       <Aviso tipo="alerta" anunciar titulo="Conflito de edição">
-        A programação mudou enquanto você editava. Compare e escolha o que fica.
+        O encontro mudou enquanto você editava. Compare e escolha o que fica.
       </Aviso>
       <CartaoDeVidro
         sobrancelha="Outra pessoa salvou antes de você"

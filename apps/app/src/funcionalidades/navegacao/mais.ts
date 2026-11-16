@@ -17,9 +17,9 @@ export interface GrupoDoMais {
 }
 
 /**
- * O que não cabe nas cinco abas: "Mais" no celular e na web estreita, e a
- * barra lateral na web larga. Cada item só aparece para quem pode usá-lo
- * (mesma matriz da API; quem decide é sempre a API).
+ * Os módulos da comunidade que não são aba (D57): atalhos no topo da aba
+ * Comunidade e, na web larga, na barra lateral. Cada item só aparece para
+ * quem pode usá-lo (mesma matriz da API; quem decide é sempre a API).
  */
 export function useGruposDoMais(): GrupoDoMais[] {
   const pode = usePode()
@@ -31,18 +31,18 @@ export function useGruposDoMais(): GrupoDoMais[] {
       icone: 'aviso',
     },
     {
+      href: '/oracao',
+      rotulo: 'Pedidos de oração',
+      descricao: 'Cada pedido mostra quem pode ler.',
+      icone: 'oracao',
+    },
+    {
       href: '/sugestoes',
       rotulo: 'Sugestões',
       descricao: pode('sugestao', 'moderar')
         ? 'Ideias da comunidade para analisar e responder.'
         : 'Mande uma ideia, se quiser sem mostrar seu nome.',
       icone: 'sugestao',
-    },
-    {
-      href: '/oracao',
-      rotulo: 'Oração',
-      descricao: 'Pedidos de oração. Cada um mostra quem vê.',
-      icone: 'oracao',
     },
     {
       href: '/conteudos',
@@ -77,7 +77,7 @@ export function useGruposDoMais(): GrupoDoMais[] {
           {
             href: '/modelos' as const,
             rotulo: 'Modelos',
-            descricao: 'Modelos de programação da comunidade.',
+            descricao: 'Modelos de encontro da comunidade.',
             icone: 'modelo' as const,
           },
         ]
@@ -98,43 +98,3 @@ export function useGruposDoMais(): GrupoDoMais[] {
     ...(organizacao.length ? [{ titulo: 'Organização', itens: organizacao }] : []),
   ]
 }
-
-/** Atalhos pessoais (no "Mais" do celular; na web larga ficam no Perfil). */
-export const ITENS_PESSOAIS: readonly ItemDoMais[] = [
-  {
-    href: '/conta',
-    rotulo: 'Perfil e segurança',
-    descricao: 'Seus dados, código extra ao entrar e aparelhos.',
-    icone: 'perfil',
-  },
-  {
-    href: '/notificacoes',
-    rotulo: 'Notificações',
-    descricao: 'O que o app avisa, por tipo e por comunidade.',
-    icone: 'sino',
-  },
-  {
-    href: '/versiculo',
-    rotulo: 'Versículo do dia',
-    descricao: 'Ligar, desligar e escolher o horário.',
-    icone: 'versiculo',
-  },
-  {
-    href: { pathname: '/missao', params: { rever: '1' } },
-    rotulo: 'Mapa da missão',
-    descricao: 'Rever o passeio pelo app.',
-    icone: 'missao',
-  },
-  {
-    href: '/pendencias',
-    rotulo: 'Pendências e uso sem internet',
-    descricao: 'Sincronizar, resolver conflitos e ver o que está guardado no aparelho.',
-    icone: 'sincronizar',
-  },
-  {
-    href: '/privacidade',
-    rotulo: 'Privacidade e dados',
-    descricao: 'Exportar seus dados, documentos e excluir a conta.',
-    icone: 'seguranca',
-  },
-]

@@ -135,7 +135,9 @@ describe('indicadores', () => {
     expect(semConexao?.texto).toBe('Sem conexão')
     // O detalhe que não cabe nos 22 caracteres vai para o leitor de tela.
     expect(semConexao?.falado).toBe('Sem conexão. 3 alterações pendentes')
-    expect(sinalDaSincronizacao({ ...base, fase: 'sincronizando' })?.texto).toBe('Sincronizando')
+    expect(sinalDaSincronizacao({ ...base, pendentes: 1, fase: 'sincronizando' })?.texto).toBe(
+      'Sincronizando',
+    )
     expect(sinalDaSincronizacao({ ...base, conflitos: 1, fase: 'falha' })).toEqual(
       expect.objectContaining({ texto: '1 conflito', falado: '1 conflito a resolver' }),
     )
@@ -145,18 +147,24 @@ describe('indicadores', () => {
     )
     expect(sinalDaSincronizacao({ ...base, pendentes: 1 })?.texto).toBe('1 pendente')
     expect(sinalDaSincronizacao({ ...base, pendentes: 1 })?.falado).toBe('1 alteração pendente')
+    // D57: com tudo enviado, o cabeçalho não diz nada ("Sincronizado" não dizia nada a ninguém).
     expect(
       sinalDaSincronizacao({
         ...base,
         temParticao: true,
         fase: 'concluido',
         ultimaSincronizacao: '2026-11-14T17:32:00.000Z',
-      })?.texto,
-    ).toMatch(/^Sincronizado \d{2}:\d{2}$/)
+      }),
+    ).toBeNull()
+    // A atualização de rotina, sem nada a enviar, também fica quieta.
+    expect(sinalDaSincronizacao({ ...base, temParticao: true, fase: 'sincronizando' })).toBeNull()
+    expect(sinalDaSincronizacao({ ...base, pendentes: 2, fase: 'sincronizando' })?.texto).toBe(
+      'Sincronizando',
+    )
   })
 })
 
-describe('preparar evento', () => {
+describe('baixar o encontro', () => {
   test('mostra "Pronto para usar sem internet · atualizado às HH:MM · válido até DD/MM"', async () => {
     const deposito = criarDeposito()
     const { rotas } = rotasDeSincronizacao(BASE)
@@ -168,7 +176,7 @@ describe('preparar evento', () => {
     )
     await userEvent
       .setup()
-      .press(await screen.findByRole('button', { name: 'Preparar para usar sem internet' }))
+      .press(await screen.findByRole('button', { name: 'Baixar para usar sem internet' }))
 
     const validoAte = (await deposito.listar())[0]?.validoAte ?? ''
     expect(
@@ -196,7 +204,7 @@ describe('sem conexão', () => {
     )
     expect(await screen.findByText('Sem conexão: cópia deste aparelho')).toBeOnTheScreen()
     // O que exige conexão fica desabilitado, com a explicação.
-    expect(screen.getByRole('button', { name: 'Editar a programação' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Editar o encontro' })).toBeDisabled()
 
     await userEvent.setup().press(screen.getByRole('checkbox', { name: 'Testar o som' }))
     await waitFor(async () => {

@@ -48,7 +48,7 @@ export function DetalheLocalDoEvento({
     <>
       <CabecalhoLocal evento={evento} />
       <Aviso tipo="alerta" titulo="Sem conexão: cópia deste aparelho">
-        {`Esta é a programação preparada (atualizada às ${horaNoAparelho(guardado.baixadoEm)}). Marcar tarefas, checklists e presença funciona e vai para o servidor quando a internet voltar. Editar, escalar e mudar o status exigem conexão.`}
+        {`Esta é a cópia baixada do encontro (atualizada às ${horaNoAparelho(guardado.baixadoEm)}). Marcar tarefas, checklists e presença funciona e vai para o servidor quando a internet voltar. Editar, escalar e mudar o status exigem conexão.`}
       </Aviso>
       <CartaoDeVidro sobrancelha="No dia">
         <View style={{ gap: ESPACO.e8 }}>
@@ -58,7 +58,7 @@ export function DetalheLocalDoEvento({
             variante="secundario"
             larguraTotal
             desabilitado={!podeIrAoVivo(evento.status)}
-            motivo="O ao vivo fica disponível quando o evento for publicado."
+            motivo="O ao vivo fica disponível quando o encontro for publicado."
             aoPressionar={() => router.push({ pathname: '/evento/[eventoId]/ao-vivo', params })}
           />
           {pode('presenca', 'registrar') && guardado.pacote.checkin ? (
@@ -72,7 +72,7 @@ export function DetalheLocalDoEvento({
           ) : null}
           {pode('evento', 'editar') ? (
             <Botao
-              titulo="Editar a programação"
+              titulo="Editar o encontro"
               icone="editar"
               variante="secundario"
               larguraTotal
@@ -153,7 +153,7 @@ function ProgramacaoLocal({ evento }: { evento: DetalheDoEvento }) {
   const geral = evento.atribuicoes.filter((a) => a.etapaId === null)
   return (
     <>
-      <Secao titulo="Programação">
+      <Secao titulo="Roteiro">
         {evento.etapas.length === 0 ? (
           <Texto variante="corpo" cor="textoSuave">
             Nenhuma etapa cadastrada.
@@ -172,7 +172,7 @@ function ProgramacaoLocal({ evento }: { evento: DetalheDoEvento }) {
                     valor={formatarHora(e.inicioPrevisto, evento.fuso)}
                     descricao={[
                       formatarDuracao(e.duracaoMin),
-                      equipe.length ? `Equipe: ${equipe.join(', ')}` : null,
+                      equipe.length ? `Quem serve: ${equipe.join(', ')}` : null,
                     ]
                       .filter(Boolean)
                       .join(' · ')}
@@ -184,7 +184,7 @@ function ProgramacaoLocal({ evento }: { evento: DetalheDoEvento }) {
         )}
       </Secao>
       {geral.length ? (
-        <Secao titulo="Equipe do evento">
+        <Secao titulo="Quem serve no encontro todo">
           <CartaoDeVidro lista>
             <Lista>
               {geral.map((a) => (

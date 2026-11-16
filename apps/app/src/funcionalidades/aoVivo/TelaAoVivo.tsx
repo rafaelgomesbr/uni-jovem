@@ -173,7 +173,11 @@ function Painel({ r, conexao, comandar, enviando, erro }: PropsDoPainel) {
   // Avisa o leitor de tela quando a etapa muda (o resto da tela não é lido sozinho).
   const tituloAtual = t.atual?.titulo
   useAnunciar(
-    tituloAtual ? `Agora: ${tituloAtual}` : r.situacao === 'encerrado' ? 'Evento encerrado' : null,
+    tituloAtual
+      ? `Agora: ${tituloAtual}`
+      : r.situacao === 'encerrado'
+        ? 'Encontro encerrado'
+        : null,
   )
   // Perder e recuperar a conexão muda o que a tela mostra: o leitor de tela fica sabendo.
   useAnunciar(
@@ -223,7 +227,7 @@ function Painel({ r, conexao, comandar, enviando, erro }: PropsDoPainel) {
       ? 'Outra pessoa está conduzindo. Assuma a condução para mudar o andamento.'
       : controles.includes(c)
         ? motivoDaRecusa(r, c)
-        : 'Disponível com o evento em andamento.'
+        : 'Disponível com o encontro em andamento.'
 
   const encerrado = r.situacao === 'encerrado'
   const acoesDoMenu = conduz
@@ -351,7 +355,7 @@ function Painel({ r, conexao, comandar, enviando, erro }: PropsDoPainel) {
       {local ? (
         <Aviso tipo="alerta" titulo="Sem conexão: só neste aparelho">
           {conduz
-            ? 'Os comandos ficam guardados aqui e vão como proposta quando a internet voltar. Se outra pessoa avançou no servidor, você vê as duas linhas do tempo em Pendências e escolhe qual vale.'
+            ? 'Os comandos ficam guardados aqui e vão como proposta quando a internet voltar. Se outra pessoa avançou no servidor, você vê as duas linhas do tempo em Perfil, Uso sem internet, e escolhe qual vale.'
             : 'Este é o andamento da última sincronização. Ele volta a se atualizar quando a internet voltar.'}
         </Aviso>
       ) : null}
@@ -437,7 +441,7 @@ function EtapaAtual({
     return (
       <CartaoDeDestaque sobrancelha="Encerrado">
         <Texto variante="display" nivel={2} style={{ marginTop: ESPACO.e8 }}>
-          Evento encerrado
+          Encontro encerrado
         </Texto>
       </CartaoDeDestaque>
     )

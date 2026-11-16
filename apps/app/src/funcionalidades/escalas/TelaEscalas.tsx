@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { ESPACO } from '@uj/tokens'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 import { View } from 'react-native'
 
@@ -29,14 +29,17 @@ import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
 import { PilulasDeFiltro } from '@/ui/PilulasDeFiltro'
 import { Secao } from '@/ui/Secao'
 import { Segmentos } from '@/ui/Segmentos'
-import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
+import { parametro } from '@/utilidades/parametros'
 
 import { useFusoDaComunidade, useMeuVinculo } from '../comunidade/consultas'
+import { usePode } from '../comunidade/permissoes'
 import { naComunidade, useEventosNoPeriodo } from '../eventos/consultas'
 import { SemComunidade } from '../navegacao/SemComunidade'
+import { TelaDoApp } from '../navegacao/TelaDoApp'
 import { CartaoDaEscala, quandoDaEscala } from './CartaoDaEscala'
 import {
+  useAguardandoResposta,
   useDisponibilidade,
   useInvalidarEscalas,
   useMinhasEscalas,
@@ -45,24 +48,42 @@ import {
 
 type Vista = 'proximas' | 'disponibilidade'
 
+/** `/escalas?vista=disponibilidade` (do Início, "Informar minha disponibilidade") abre ali. */
+function vistaDoParametro(valor: string | null): Vista | null {
+  return valor === 'proximas' || valor === 'disponibilidade' ? valor : null
+}
+
 /**
- * Rota `/escalas` (3.4.5): segmentos "Próximas" (as minhas escalas e os
- * pedidos de substituição que posso assumir) e "Disponibilidade" (os dias em
- * que posso ajudar, em pílulas).
+ * Aba Escalas (D57, 3.4.5): para quem convoca, o cartão "Aguardando
+ * resposta" no topo; depois, os segmentos "Próximas" (as minhas convocações
+ * e os pedidos de substituição que posso assumir) e "Disponibilidade" (os
+ * dias em que posso ajudar, em pílulas).
  */
 export function TelaEscalas() {
   const { comunidadeAtiva } = useSessao()
-  const [vista, setVista] = useState<Vista>('proximas')
   if (!comunidadeAtiva) {
     return (
-      <Tela pilha titulo="Escalas">
+      <TelaDoApp titulo="Escalas">
         <SemComunidade oQue="as suas escalas" />
-      </Tela>
+      </TelaDoApp>
     )
   }
-  const id = comunidadeAtiva.id
+  return <Escalas comunidadeId={comunidadeAtiva.id} />
+}
+
+function Escalas({ comunidadeId }: { comunidadeId: string }) {
+  const pode = usePode()
+  const pedida = vistaDoParametro(parametro(useLocalSearchParams<{ vista?: string }>().vista))
+  const [vista, setVista] = useState<Vista>(pedida ?? 'proximas')
+  // A aba fica montada: um link novo (`?vista=`) troca o segmento já aberto.
+  const [ultimaPedida, setUltimaPedida] = useState(pedida)
+  if (pedida !== ultimaPedida) {
+    setUltimaPedida(pedida)
+    if (pedida) setVista(pedida)
+  }
   return (
-    <Tela pilha titulo="Escalas" descricao={`Em ${comunidadeAtiva.nome}`}>
+    <TelaDoApp titulo="Escalas">
+      {pode('escala', 'atribuir') ? <AguardandoResposta comunidadeId={comunidadeId} /> : null}
       <Segmentos
         rotulo="O que mostrar"
         valor={vista}
@@ -73,11 +94,70 @@ export function TelaEscalas() {
         ]}
       />
       {vista === 'proximas' ? (
-        <Proximas comunidadeId={id} aoInformar={() => setVista('disponibilidade')} />
+        <Proximas comunidadeId={comunidadeId} aoInformar={() => setVista('disponibilidade')} />
       ) : (
-        <MinhaDisponibilidade comunidadeId={id} />
+        <MinhaDisponibilidade comunidadeId={comunidadeId} />
       )}
-    </Tela>
+    </TelaDoApp>
+  )
+}
+
+/** "2 sem resposta · 1 não pode ir": o número sempre com a palavra, nunca só a cor. */
+export function resumoDasRespostas(pendentes: number, recusadas: number): string {
+  return [
+    pendentes ? `${pendentes} sem resposta` : null,
+    recusadas ? `${recusadas} ${recusadas === 1 ? 'não pode ir' : 'não podem ir'}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+}
+
+/**
+ * Para quem convoca (D57): os encontros publicados com convocação ainda sem
+ * resposta ou recusada. O toque abre o encontro, onde fica "Convocar
+ * pessoa". Sem nada esperando, o cartão não ocupa espaço.
+ */
+function AguardandoResposta({ comunidadeId }: { comunidadeId: string }) {
+  const fuso = useFusoDaComunidade()
+  const consulta = useAguardandoResposta(comunidadeId, true)
+  if (consulta.isPending) return null
+  if (consulta.error) {
+    return (
+      <AvisoDeFalha
+        erro={consulta.error}
+        titulo="Não deu para ver quem falta responder"
+        aoTentarDeNovo={() => void consulta.refetch()}
+      />
+    )
+  }
+  if (consulta.data.length === 0) return null
+  return (
+    <Secao
+      titulo="Aguardando resposta"
+      rodape="Encontros publicados com convocação sem resposta ou recusada."
+    >
+      <CartaoDeVidro lista>
+        <Lista>
+          {consulta.data.map((e) => {
+            const quando = quandoDaEscala(e.inicio, e.fuso || fuso)
+            const resumo = resumoDasRespostas(e.pendentes, e.recusadas)
+            return (
+              <LinhaDeLista
+                key={e.id}
+                icone={e.recusadas ? 'avisoAlerta' : 'relogio'}
+                titulo={e.titulo}
+                descricao={`${quando}\n${resumo}`}
+                linhasDaDescricao={0}
+                rotuloAcessivel={`${e.titulo}, ${falarQuando(e.inicio, e.fuso || fuso)}. ${resumo}. Abrir o encontro`}
+                aoPressionar={() =>
+                  router.push({ pathname: '/evento/[eventoId]', params: { eventoId: e.id } })
+                }
+              />
+            )
+          })}
+        </Lista>
+      </CartaoDeVidro>
+    </Secao>
   )
 }
 

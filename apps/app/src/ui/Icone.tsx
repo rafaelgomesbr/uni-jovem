@@ -32,8 +32,8 @@ export const ICONES = {
   // Barra de abas: traços como no mockup (casa, calendário, três linhas, duas pessoas).
   abaInicio: { ios: 'house', android: 'home', web: 'home' },
   abaAgenda: { ios: 'calendar', android: 'calendar_today', web: 'calendar_today' },
-  abaProgramas: { ios: 'text.alignleft', android: 'notes', web: 'notes' },
-  abaEquipe: { ios: 'person.2', android: 'group', web: 'group' },
+  abaEscalas: { ios: 'text.alignleft', android: 'notes', web: 'notes' },
+  abaComunidade: { ios: 'person.2', android: 'group', web: 'group' },
   voltar: { ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' },
   email: { ios: 'envelope', android: 'mail', web: 'mail' },
   tarefas: { ios: 'checklist', android: 'checklist', web: 'checklist' },

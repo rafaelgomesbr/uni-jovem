@@ -65,7 +65,7 @@ export function SecaoEquipe({
   })
   const [escolhida, setEscolhida] = useState<Atribuicao | null>(null)
   const grupos = [
-    { id: EQUIPE_GERAL, titulo: 'Evento todo', etapaId: null as string | null },
+    { id: EQUIPE_GERAL, titulo: 'Encontro todo', etapaId: null as string | null },
     ...evento.etapas.map((e) => ({
       id: e.id,
       titulo: `${formatarHora(e.inicioPrevisto, evento.fuso)} · ${e.titulo}`,
@@ -106,7 +106,7 @@ export function SecaoEquipe({
             icone="adicionar"
             variante="terciario"
             alinhado
-            rotuloAcessivel={`Convocar pessoa: ${g.etapaId ? g.titulo : 'evento todo'}`}
+            rotuloAcessivel={`Convocar pessoa: ${g.etapaId ? g.titulo : 'encontro todo'}`}
             aoPressionar={() => abrirFolha(g.id)}
           />
         ) : undefined

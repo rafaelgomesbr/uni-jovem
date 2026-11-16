@@ -34,8 +34,8 @@ export function TelaMapaDaMissao() {
 
   if (!progresso) {
     return (
-      <Tela pilha aurora={1} titulo="Mapa da missão">
-        <Esqueleto rotulo="Abrindo o mapa">
+      <Tela pilha aurora={1} titulo="Primeiros passos">
+        <Esqueleto rotulo="Abrindo os primeiros passos">
           <CartaoDeEsqueleto titulo />
         </Esqueleto>
       </Tela>
@@ -96,7 +96,7 @@ function Mapa({
       <Tela
         pilha
         aurora={1}
-        titulo="Mapa da missão"
+        titulo="Primeiros passos"
         barraDeAcao={
           <BarraDeAcao>
             <Botao
@@ -114,7 +114,7 @@ function Mapa({
           </CartaoDeVidro>
         </Secao>
         <Botao
-          titulo="Rever o mapa"
+          titulo="Rever os primeiros passos"
           variante="terciario"
           alinhado
           aoPressionar={() => {
@@ -137,8 +137,8 @@ function Mapa({
         <Botao
           titulo="Pular"
           variante="terciario"
-          rotuloAcessivel="Pular o mapa"
-          dica="Dá para rever quando quiser, no Perfil."
+          rotuloAcessivel="Pular os primeiros passos"
+          dica="Dá para rever quando quiser, em Perfil, Ajuda e sobre."
           aoPressionar={() => {
             salvar({ ...progresso, estado: 'pulado', etapa: 0 })
             voltarOu('/')
@@ -158,7 +158,7 @@ function Mapa({
             }}
           />
           <Botao
-            titulo={ultima ? 'Concluir o mapa' : 'Próxima etapa'}
+            titulo={ultima ? 'Concluir' : 'Próxima etapa'}
             tamanho="grande"
             aoPressionar={proxima}
           />
@@ -209,7 +209,7 @@ export function Celebracao() {
   const { reduzirMovimento } = usePreferenciasDeAcessibilidade()
   const [escala] = useState(() => new Animated.Value(reduzirMovimento ? 1 : 0.85))
   useEffect(() => {
-    anunciar('Mapa concluído. Você já conhece o caminho.')
+    anunciar('Primeiros passos concluídos. Você já conhece o caminho.')
     if (reduzirMovimento) {
       escala.setValue(1)
       return
@@ -224,9 +224,9 @@ export function Celebracao() {
   }, [reduzirMovimento, escala])
   return (
     <CartaoDeDestaque
-      sobrancelha="Mapa concluído"
+      sobrancelha="Primeiros passos concluídos"
       titulo="Tudo pronto"
-      descricao="Você já conhece o caminho. Quando quiser rever, está no Perfil."
+      descricao="Você já conhece o caminho. Quando quiser rever, está em Perfil, Ajuda e sobre."
     >
       <IconeDaCelebracao escala={escala} />
     </CartaoDeDestaque>

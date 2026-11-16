@@ -86,7 +86,7 @@ function tituloDoErro(erro: unknown): string {
  * de passos: (1) nome e cidade; (2) cor, com a prévia, e o logotipo opcional,
  * escolhido aqui e enviado depois que a comunidade existe; (3) o Termo do
  * Administrador (TC-16.v1, com "Ler o termo completo" e a caixa) e, em bloco
- * separado, o consentimento sobre a fé (TC-03.v3, forma de criação). Pede 18
+ * separado, o consentimento sobre a fé (TC-03.v4, forma de criação). Pede 18
  * anos ou mais: quem declarou 16 ou 17 vê como entrar numa comunidade.
  * Ao concluir, a comunidade vira a ativa e abre "Convide sua equipe".
  */
@@ -176,7 +176,7 @@ function Assistente() {
         cor,
         ...(cidade.trim() ? { cidade: cidade.trim() } : {}),
         aceiteDoTermoDoAdmin: true,
-        // TC-03.v3 na forma de criação: quem cria também participa.
+        // TC-03.v4 na forma de criação: quem cria também participa.
         consentimentoFe: true,
       })
       // A comunidade já existe: se o logotipo falhar, dá para enviar depois em Configurações.

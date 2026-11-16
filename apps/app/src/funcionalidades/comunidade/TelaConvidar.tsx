@@ -62,7 +62,7 @@ export function TelaConvidar() {
           icone="seguranca"
           titulo="Convites são criados pela administração"
           descricao="Só quem administra a comunidade pode convidar pessoas. Fale com uma pessoa administradora."
-          acao={{ titulo: 'Voltar para a Equipe', aoPressionar: () => voltarOu('/comunidade') }}
+          acao={{ titulo: 'Voltar para a Comunidade', aoPressionar: () => voltarOu('/comunidade') }}
         />
       </Tela>
     )

@@ -36,14 +36,14 @@ export function TelaDuplicar() {
   if (!comunidadeAtiva || !eventoId) {
     return (
       <Tela pilha modal>
-        <SemComunidade oQue="a programação" />
+        <SemComunidade oQue="o encontro" />
       </Tela>
     )
   }
   if (evento.isPending) {
     return (
       <Tela pilha modal titulo="Duplicar">
-        <Esqueleto rotulo="Carregando a programação">
+        <Esqueleto rotulo="Carregando o encontro">
           <CartaoDeEsqueleto />
         </Esqueleto>
       </Tela>

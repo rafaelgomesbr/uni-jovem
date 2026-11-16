@@ -180,11 +180,12 @@ export function CamposDoEvento({
             <>
               <View style={{ gap: ESPACO.e4, alignItems: 'flex-start' }}>
                 <Texto variante="corpo" cor="textoSuave">
-                  O dia de cada data vem da regra da série. Para mudar o dia da semana, use a série.
+                  O dia de cada data vem da regra da repetição. Para mudar o dia da semana, use a
+                  repetição.
                 </Texto>
                 {aoAbrirSerie ? (
                   <Botao
-                    titulo="Abrir a série"
+                    titulo="Abrir a repetição"
                     variante="terciario"
                     alinhado
                     aoPressionar={aoAbrirSerie}
@@ -378,7 +379,7 @@ function ListaDeLocais({
           {
             valor: LOCAL_NOVO,
             rotulo: r.novoLocal.nome.trim() || 'Local novo',
-            descricao: `${descreverLocal({ tipo: r.novoLocal.tipo, endereco: r.novoLocal.endereco.trim() || null })} · salvo com a programação`,
+            descricao: `${descreverLocal({ tipo: r.novoLocal.tipo, endereco: r.novoLocal.endereco.trim() || null })} · salvo com o encontro`,
           },
         ]
       : []),

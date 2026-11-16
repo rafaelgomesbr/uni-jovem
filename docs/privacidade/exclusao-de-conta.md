@@ -197,7 +197,7 @@ Página renderizada no servidor, como as outras públicas: funciona sem JavaScri
 >
 > ## Quer apagar só uma parte?
 >
-> Sem excluir a conta, você pode cancelar um pedido de entrada que ainda não teve resposta, apagar um pedido de oração na própria tela, sair de uma comunidade (na aba **Equipe**, toque em "Sair de" e o nome da comunidade), apagar seu WhatsApp em **Perfil > Conta** ou desconectar o Google ou a Apple em **Perfil > Segurança > Contas conectadas**. Para apagar uma sugestão ou outro dado, escreva para [contact@solerte.com.br](mailto:contact@solerte.com.br).
+> Sem excluir a conta, você pode cancelar um pedido de entrada que ainda não teve resposta, apagar um pedido de oração na própria tela, sair de uma comunidade (na aba **Comunidade**, toque em "Sair de" e o nome da comunidade), apagar seu WhatsApp em **Perfil > Editar perfil** ou desconectar o Google ou a Apple em **Perfil > Segurança > Contas conectadas**. Para apagar uma sugestão ou outro dado, escreva para [contact@solerte.com.br](mailto:contact@solerte.com.br).
 >
 > ## Fez uma inscrição pública num evento, sem conta?
 >

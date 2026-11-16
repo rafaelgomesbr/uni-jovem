@@ -69,8 +69,8 @@ PARA QUEM PARTICIPA
 • Notificações por tipo e por comunidade, do jeito que você escolher
 • Versículo do dia, no horário que você escolher
 
-NO DIA DO EVENTO, MESMO SEM INTERNET
-Prepare o evento com antecedência e use a programação, a escala e a lista de presença sem conexão. O que for registrado sem internet é enviado quando a conexão voltar, sem duplicar.
+NO DIA DO ENCONTRO, MESMO SEM INTERNET
+Baixe o encontro com antecedência e use o roteiro, a escala e a lista de presença sem conexão. O que for registrado sem internet é enviado quando a conexão voltar, sem duplicar.
 
 PEDIDOS DE ORAÇÃO COM PRIVACIDADE
 Você escolhe quem vê cada pedido: só você, a equipe de oração ou a comunidade. O texto do pedido nunca aparece em notificação e é guardado cifrado no servidor.

@@ -14,7 +14,7 @@ export function EventosPreparados() {
   if (!offline.disponivel || !offline.pacotes.length) return null
   return (
     <Secao
-      titulo="Preparados para usar sem internet"
+      titulo="Baixados para usar sem internet"
       rodape="Abrem mesmo sem conexão. O que você marcar vai para o servidor quando a internet voltar."
     >
       <CartaoDeVidro lista>

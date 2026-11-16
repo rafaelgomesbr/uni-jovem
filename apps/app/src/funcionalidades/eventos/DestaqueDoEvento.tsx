@@ -127,7 +127,7 @@ function SuaParticipacao({
   const etapa = evento.etapas.find((e) => e.id === atribuicao.etapaId) ?? null
   const inicio = etapa?.inicioPrevisto ?? evento.inicio
   const duracao = etapa?.duracaoMin ?? evento.duracaoMin
-  const onde = etapa ? etapa.titulo : 'Evento todo'
+  const onde = etapa ? etapa.titulo : 'Encontro todo'
   const chip = CHIP_DO_ESTADO_DA_ATRIBUICAO[atribuicao.estado]
   const funcao = primeiraMaiuscula(atribuicao.funcao)
 

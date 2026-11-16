@@ -22,19 +22,21 @@ export function CartaoDaMissao() {
   const continuar = progresso.estado === 'em_andamento' || progresso.estado === 'pausado'
   return (
     <CartaoDeVidro
-      sobrancelha="Mapa da missão"
+      sobrancelha="Primeiros passos"
       acoes={
         <ParDeBotoes>
           <Botao
             titulo={continuar ? 'Continuar' : 'Começar'}
             variante="secundario"
-            rotuloAcessivel={continuar ? 'Continuar o mapa da missão' : 'Começar o mapa da missão'}
+            rotuloAcessivel={
+              continuar ? 'Continuar os primeiros passos' : 'Começar os primeiros passos'
+            }
             aoPressionar={() => router.push('/missao')}
           />
           <Botao
             titulo="Agora não"
             variante="terciario"
-            dica="O mapa fica no Perfil para quando quiser."
+            dica="Fica em Perfil, Ajuda e sobre, para quando quiser."
             aoPressionar={() => salvar({ ...progresso, estado: 'pulado' })}
           />
         </ParDeBotoes>

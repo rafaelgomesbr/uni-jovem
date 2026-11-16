@@ -67,7 +67,7 @@ export function TelaCodigoDaComunidade() {
           icone="seguranca"
           titulo="Só a administração vê o código"
           descricao="Peça o código ou um convite a uma pessoa administradora."
-          acao={{ titulo: 'Voltar para a Equipe', aoPressionar: () => voltarOu('/comunidade') }}
+          acao={{ titulo: 'Voltar para a Comunidade', aoPressionar: () => voltarOu('/comunidade') }}
         />
       </Tela>
     )

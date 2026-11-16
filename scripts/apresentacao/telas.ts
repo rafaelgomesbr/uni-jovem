@@ -130,7 +130,8 @@ async function main() {
   await foto(admin, '03-inicio')
   await irPara(admin, '/agenda')
   await foto(admin, '04-agenda')
-  await irPara(admin, '/programacoes')
+  // A antiga aba Programas é a Agenda no modo Lista (D57).
+  await irPara(admin, '/agenda?vista=lista')
   await foto(admin, '05-programas')
 
   let evento = ''
@@ -144,7 +145,7 @@ async function main() {
     await foto(admin, '06-evento')
   })
   await tentar('roteiro', async () => {
-    await admin.getByRole('radio', { name: /^Programação/ }).click()
+    await admin.getByRole('radio', { name: /^Roteiro/ }).click()
     await assentar(admin)
     await foto(admin, '07-roteiro')
   })

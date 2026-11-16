@@ -7,7 +7,12 @@ import { BASE, pedidosPara, PESSOAS, renderizarTela } from '@/testes/telas'
 import { mostrarToast } from '@/ui/Toast'
 import { formatarDataPorExtenso } from '@/utilidades/datas'
 
-import { datasParaDisponibilidade, rotuloDaData, TelaEscalas } from '../TelaEscalas'
+import {
+  datasParaDisponibilidade,
+  resumoDasRespostas,
+  rotuloDaData,
+  TelaEscalas,
+} from '../TelaEscalas'
 import { TelaPedirSubstituicao } from '../TelaPedirSubstituicao'
 
 jest.mock('expo-router', () => ({
@@ -71,7 +76,103 @@ const ROTAS = {
   [`GET ${BASE}/disponibilidade`]: () => ({ status: 200, corpo: { disponibilidade: [] } }),
 }
 
+describe('aba Escalas (D57)', () => {
+  beforeEach(() => jest.mocked(useLocalSearchParams).mockReturnValue({}))
+  afterEach(() => jest.restoreAllMocks())
+
+  test('a convocação pendente tem "Aceitar" à vista e aceita na própria aba, com toast', async () => {
+    const { servidor } = await renderizarTela(<TelaEscalas />, {
+      papel: 'membro',
+      rotas: {
+        ...ROTAS,
+        [`POST ${BASE}/atribuicoes/a1/confirmar`]: () => ({
+          status: 200,
+          corpo: { estado: 'confirmada' },
+        }),
+      },
+    })
+    // Raiz de aba: título "Escalas" e os segmentos Próximas e Disponibilidade.
+    expect(await screen.findByRole('radio', { name: 'Próximas' })).toBeChecked()
+    await userEvent.setup().press(
+      await screen.findByRole('button', {
+        name: 'Aceitar a convocação em Sábado com a juventude, Louvor · responsável',
+      }),
+    )
+    await waitFor(() =>
+      expect(pedidosPara(servidor, 'POST', `${BASE}/atribuicoes/a1/confirmar`)).toHaveLength(1),
+    )
+    expect(mostrarToast).toHaveBeenCalledWith({
+      texto: 'Você aceitou. A organização já vê sua resposta.',
+    })
+    // Membro não convoca: o cartão "Aguardando resposta" nem é pedido.
+    expect(pedidosPara(servidor, 'GET', `${BASE}/convocacoes/aguardando-resposta`)).toHaveLength(0)
+    expect(screen.queryByRole('header', { name: 'Aguardando resposta' })).toBeNull()
+  })
+
+  test('para a organização, "Aguardando resposta" no topo lista os encontros e abre cada um', async () => {
+    await renderizarTela(<TelaEscalas />, {
+      papel: 'organizador',
+      rotas: {
+        ...ROTAS,
+        [`GET ${BASE}/convocacoes/aguardando-resposta`]: () => ({
+          status: 200,
+          corpo: {
+            encontros: [
+              {
+                id: 'e1',
+                titulo: 'Sábado com a juventude',
+                inicio: SABADO,
+                fuso: 'America/Sao_Paulo',
+                pendentes: 2,
+                recusadas: 1,
+              },
+            ],
+          },
+        }),
+      },
+    })
+    expect(await screen.findByRole('header', { name: 'Aguardando resposta' })).toBeOnTheScreen()
+    // O número sempre com a palavra: nunca só a cor.
+    const linha = screen.getByRole('button', {
+      name: /^Sábado com a juventude, .*2 sem resposta · 1 não pode ir\. Abrir o encontro$/,
+    })
+    await userEvent.setup().press(linha)
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/evento/[eventoId]',
+      params: { eventoId: 'e1' },
+    })
+  })
+
+  test('sem nada esperando resposta, o cartão não aparece', async () => {
+    await renderizarTela(<TelaEscalas />, {
+      papel: 'admin',
+      rotas: {
+        ...ROTAS,
+        [`GET ${BASE}/convocacoes/aguardando-resposta`]: () => ({
+          status: 200,
+          corpo: { encontros: [] },
+        }),
+      },
+    })
+    expect(await screen.findByRole('radio', { name: 'Próximas' })).toBeOnTheScreen()
+    expect(screen.queryByRole('header', { name: 'Aguardando resposta' })).toBeNull()
+  })
+
+  test('`?vista=disponibilidade` (do Início) abre direto na Disponibilidade', async () => {
+    jest.mocked(useLocalSearchParams).mockReturnValue({ vista: 'disponibilidade' })
+    await renderizarTela(<TelaEscalas />, { papel: 'membro', rotas: ROTAS })
+    expect(await screen.findByRole('radio', { name: 'Disponibilidade' })).toBeChecked()
+  })
+
+  test('resumo das respostas, com a palavra junto do número', () => {
+    expect(resumoDasRespostas(1, 0)).toBe('1 sem resposta')
+    expect(resumoDasRespostas(0, 2)).toBe('2 não podem ir')
+    expect(resumoDasRespostas(3, 1)).toBe('3 sem resposta · 1 não pode ir')
+  })
+})
+
 describe('escalas', () => {
+  beforeEach(() => jest.mocked(useLocalSearchParams).mockReturnValue({}))
   afterEach(() => jest.restoreAllMocks())
 
   test('assumir uma substituição aberta, com confirmação', async () => {

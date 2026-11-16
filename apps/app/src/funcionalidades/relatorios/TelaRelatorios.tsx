@@ -173,21 +173,21 @@ function Presenca({ comunidadeId, filtros, fuso }: PropsDoRelatorio & { fuso: st
   return (
     <>
       <GradeDeNumeros>
-        <Numero rotulo="eventos" valor={totais.eventos} />
+        <Numero rotulo="encontros" valor={totais.eventos} />
         <Numero rotulo="presenças" valor={totais.presentes} />
-        <Numero rotulo="média por evento" valor={totais.mediaPorEvento.toLocaleString('pt-BR')} />
+        <Numero rotulo="média por encontro" valor={totais.mediaPorEvento.toLocaleString('pt-BR')} />
         <Numero rotulo="membros diferentes" valor={totais.membrosDistintos} />
       </GradeDeNumeros>
       <GraficoDeBarras
         titulo={filtros.agrupar === 'mes' ? 'Presenças por mês' : 'Presenças por semana'}
         barras={porPeriodo.map((p) => ({
-          rotulo: `${rotuloDoPeriodo(p.inicio, filtros.agrupar)} (${p.eventos} ${p.eventos === 1 ? 'evento' : 'eventos'})`,
+          rotulo: `${rotuloDoPeriodo(p.inicio, filtros.agrupar)} (${p.eventos} ${p.eventos === 1 ? 'encontro' : 'encontros'})`,
           valor: p.presentes,
           texto: `${p.presentes}`,
         }))}
       />
       <GraficoDeBarras
-        titulo="Presenças por evento"
+        titulo="Presenças por encontro"
         barras={porEvento.map((e) => ({
           rotulo: `${e.titulo}, ${dataCurta(e.inicio, fuso)}`,
           valor: e.presentes,
@@ -217,10 +217,10 @@ function Inscricoes({ comunidadeId, filtros, fuso }: PropsDoRelatorio & { fuso: 
         <Numero rotulo="presentes sem inscrição" valor={totais.presentesSemInscricao} />
       </GradeDeNumeros>
       <Texto variante="legenda" cor="textoSuave">
-        Faltas e comparecimento só contam eventos que já aconteceram.
+        Faltas e comparecimento só contam encontros que já aconteceram.
       </Texto>
       <GraficoDeBarras
-        titulo="Confirmadas e presentes por evento"
+        titulo="Confirmadas e presentes por encontro"
         barras={porEvento.map((e) => ({
           rotulo: `${e.titulo}, ${dataCurta(e.inicio, fuso)}${e.realizado ? '' : ' (ainda não aconteceu)'}`,
           valor: e.confirmadas,
@@ -263,9 +263,9 @@ function Escalas({ comunidadeId, filtros }: PropsDoRelatorio) {
 }
 
 const NOMES_DA_ATIVIDADE: Record<string, string> = {
-  eventosRealizados: 'Eventos realizados',
-  eventosPrevistos: 'Eventos previstos',
-  eventosCancelados: 'Eventos cancelados',
+  eventosRealizados: 'Encontros realizados',
+  eventosPrevistos: 'Encontros previstos',
+  eventosCancelados: 'Encontros cancelados',
   inscricoes: 'Inscrições',
   presencas: 'Presenças',
   novosVinculos: 'Pessoas novas na comunidade',

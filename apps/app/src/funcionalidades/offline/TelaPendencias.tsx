@@ -54,7 +54,7 @@ export function TelaPendencias() {
     <Tela
       pilha
       refDoTitulo={tituloRef}
-      titulo="Pendências e uso sem internet"
+      titulo="Uso sem internet"
       descricao="O que foi feito sem internet e ainda não chegou ao servidor."
     >
       <AlteracoesDescartadas />
@@ -169,11 +169,11 @@ function Pendencias({
         <EstadoVazio
           icone="confirmado"
           titulo="Nada pendente"
-          descricao="Tudo o que você fez já está no servidor. Para usar um evento sem internet, abra a programação e toque em Preparar para usar sem internet."
+          descricao="Tudo o que você fez já está no servidor. Para usar um encontro sem internet, abra o encontro, toque em Mais e depois em Baixar para usar sem internet."
           acao={{
-            titulo: 'Ver programações',
+            titulo: 'Ver a agenda',
             icone: 'programacoes',
-            aoPressionar: () => router.push('/programacoes'),
+            aoPressionar: () => router.push({ pathname: '/agenda', params: { vista: 'lista' } }),
           }}
         />
       ) : null}
@@ -442,7 +442,7 @@ function Preparados({ offline, pedirFoco }: { offline: Offline; pedirFoco: Pedir
   return (
     <Secao
       titulo="Guardado neste aparelho"
-      rodape={`${contar(offline.pacotes.length, 'programação guardada', 'programações guardadas')}, cifradas, para usar sem internet.`}
+      rodape={`${contar(offline.pacotes.length, 'encontro guardado', 'encontros guardados')}, cifrados, para usar sem internet.`}
     >
       <CartaoDeVidro lista opaco>
         <Lista>

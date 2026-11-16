@@ -42,7 +42,7 @@ export function TelaModelos() {
     <Tela
       pilha
       titulo="Modelos"
-      descricao="Pontos de partida para novas programações. Para criar um, abra um evento e use Salvar como modelo."
+      descricao="Pontos de partida para novos encontros. Para criar um, abra um encontro e use Salvar como modelo."
     >
       {!comunidadeAtiva ? (
         <SemComunidade oQue="os modelos" />
@@ -53,7 +53,7 @@ export function TelaModelos() {
         />
       ) : (
         <Aviso tipo="info" titulo="Só a organização usa os modelos">
-          Organizadores e administradores montam programações a partir deles.
+          Organizadores e administradores montam encontros a partir deles.
         </Aviso>
       )}
     </Tela>
@@ -82,7 +82,7 @@ function ModelosDaComunidade({
   async function pedirApagar(m: ModeloDaComunidade) {
     const ok = await confirmar({
       titulo: `Apagar o modelo ${m.nome}?`,
-      mensagem: 'As programações criadas com ele continuam iguais. Só o modelo some.',
+      mensagem: 'Os encontros criados com ele continuam iguais. Só o modelo some.',
       confirmar: 'Apagar modelo',
       destrutivo: true,
     })
@@ -109,11 +109,11 @@ function ModelosDaComunidade({
           <EstadoVazio
             icone="modelo"
             titulo="Nenhum modelo próprio"
-            descricao="Abra uma programação que deu certo e use Salvar como modelo para repetir depois."
+            descricao="Abra um encontro que deu certo e use Salvar como modelo para repetir depois."
             acao={{
-              titulo: 'Ver os programas',
+              titulo: 'Ver a agenda',
               variante: 'secundario',
-              aoPressionar: () => router.push('/programacoes'),
+              aoPressionar: () => router.push({ pathname: '/agenda', params: { vista: 'lista' } }),
             }}
           />
         ) : (
@@ -160,7 +160,7 @@ function ModelosDaComunidade({
                 {
                   titulo: 'Usar este modelo',
                   icone: 'adicionar',
-                  descricao: 'Nova programação com as etapas dele',
+                  descricao: 'Novo encontro com as etapas dele',
                   navega: true,
                   aoPressionar: () => usar(escolhido.id),
                 },

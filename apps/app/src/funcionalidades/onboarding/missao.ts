@@ -5,7 +5,7 @@ import { gravarPreferenciaLocal, lerPreferenciaLocal } from '@/estado/preferenci
 import { useSessao } from '@/estado/sessao'
 
 /**
- * "Mapa da missão" (F17): um passeio curto pelo app, por papel, com dados de
+ * "Primeiros passos" (F17, antes "Mapa da missão"): um passeio curto pelo app, por papel, com dados de
  * exemplo SÓ EM MEMÓRIA. Nada aqui chama rota de escrita da API; o progresso
  * fica no aparelho (preferência de interface). Sem pontos nem ranking.
  */
@@ -30,9 +30,9 @@ const BOAS_VINDAS: Etapa = {
 
 const AGENDA: Etapa = {
   id: 'agenda',
-  titulo: 'Agenda e programação',
+  titulo: 'Agenda e encontros',
   texto:
-    'Cada encontro tem etapas com horário: boas-vindas, louvor, estudo. Na Agenda você vê o mês e a linha do tempo do dia.',
+    'Cada encontro tem um roteiro com horário: boas-vindas, louvor, estudo. Na Agenda você vê o calendário do mês e a lista dos encontros.',
   demo: 'evento',
 }
 
@@ -40,7 +40,7 @@ const ESCALA: Etapa = {
   id: 'escala',
   titulo: 'Convocações',
   texto:
-    'Quando a organização convocar você, aceite ou avise que não pode ir. Já aceitou e surgiu um imprevisto? Peça substituição: alguém da equipe assume.',
+    'Quando a organização convocar você, aceite ou avise que não pode ir na aba Escalas. Já aceitou e surgiu um imprevisto? Peça substituição: outra pessoa assume.',
   demo: 'escala',
 }
 
@@ -56,15 +56,15 @@ const AVISOS: Etapa = {
   id: 'avisos',
   titulo: 'Avisos e sugestões',
   texto:
-    'Os avisos da organização aparecem no Início, os fixados primeiro. Tem uma ideia? Mande uma sugestão, se quiser sem mostrar seu nome.',
+    'Os avisos da organização aparecem no Início, os fixados primeiro, e todos ficam na aba Comunidade. Tem uma ideia? Mande uma sugestão, se quiser sem mostrar seu nome.',
   demo: 'aviso',
 }
 
 const MONTAR: Etapa = {
   id: 'montar',
-  titulo: 'Montar a programação',
+  titulo: 'Montar o encontro',
   texto:
-    'Comece pelo Sábado padrão e ajuste as etapas. Para reordenar, use os botões subir e descer.',
+    'Na Agenda, toque em Novo encontro e comece pelo Sábado padrão; depois ajuste o roteiro. Para reordenar as etapas, use os botões subir e descer.',
   demo: 'evento',
 }
 

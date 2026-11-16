@@ -52,7 +52,7 @@ function MesEmLista({ referencia, hoje, selecionado, porDia, aoEscolher }: Props
     return (
       <CartaoDeVidro>
         <Texto variante="corpo" cor="textoSuave">
-          Nenhum evento neste mês.
+          Nenhum encontro neste mês.
         </Texto>
       </CartaoDeVidro>
     )

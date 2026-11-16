@@ -57,14 +57,14 @@ export function TelaSerie() {
   if (!comunidadeAtiva || !serieId) {
     return (
       <Tela pilha>
-        <SemComunidade oQue="a série" />
+        <SemComunidade oQue="a repetição" />
       </Tela>
     )
   }
   if (!pode('evento', 'editar')) {
     return (
-      <Tela pilha titulo="Série">
-        <Aviso tipo="info" titulo="Só a organização gerencia séries">
+      <Tela pilha titulo="Repetição">
+        <Aviso tipo="info" titulo="Só a organização gerencia repetições">
           Cada data da série aparece na agenda como um evento.
         </Aviso>
       </Tela>
@@ -72,8 +72,8 @@ export function TelaSerie() {
   }
   if (serie.isPending) {
     return (
-      <Tela pilha titulo="Série">
-        <Esqueleto rotulo="Carregando a série">
+      <Tela pilha titulo="Repetição">
+        <Esqueleto rotulo="Carregando a repetição">
           <CartaoDeEsqueleto titulo />
           <CartaoDeEsqueleto />
         </Esqueleto>
@@ -82,7 +82,7 @@ export function TelaSerie() {
   }
   if (serie.error) {
     return (
-      <Tela pilha titulo="Série">
+      <Tela pilha titulo="Repetição">
         <ErroDaTela erro={serie.error} aoTentarDeNovo={() => void serie.refetch()} />
       </Tela>
     )
@@ -120,19 +120,19 @@ function Serie({ serie, comunidadeId }: { serie: DetalheDaSerie; comunidadeId: s
       mostrarToast({
         texto:
           r.apagados === 1
-            ? 'Série excluída com o rascunho dela.'
-            : `Série excluída com os ${r.apagados} rascunhos dela.`,
+            ? 'Repetição excluída com o rascunho dela.'
+            : `Repetição excluída com os ${r.apagados} rascunhos dela.`,
       })
-      voltarOu('/programacoes')
+      voltarOu('/agenda')
     },
   })
 
   async function pedirExclusao() {
     const ok = await confirmar({
-      titulo: 'Excluir esta série?',
+      titulo: 'Excluir esta repetição?',
       mensagem:
-        'Nenhuma data foi publicada: a série e todas as datas em rascunho somem, sem avisar ninguém. Não dá para desfazer.',
-      confirmar: 'Excluir série',
+        'Nenhuma data foi publicada: a repetição e todas as datas em rascunho somem, sem avisar ninguém. Não dá para desfazer.',
+      confirmar: 'Excluir repetição',
       destrutivo: true,
     })
     if (ok) excluir.mutate()
@@ -142,7 +142,7 @@ function Serie({ serie, comunidadeId }: { serie: DetalheDaSerie; comunidadeId: s
     <Tela
       pilha
       titulo={serie.titulo}
-      descricao="Série de encontros"
+      descricao="Encontros que se repetem"
       {...(podeEncerrar || podeExcluir
         ? {
             acoes: (
@@ -157,13 +157,13 @@ function Serie({ serie, comunidadeId }: { serie: DetalheDaSerie; comunidadeId: s
         : {})}
     >
       {excluir.error ? (
-        <AvisoDeFalha erro={excluir.error} titulo="A série não foi excluída" />
+        <AvisoDeFalha erro={excluir.error} titulo="A repetição não foi excluída" />
       ) : null}
       {!ativa ? (
-        <Aviso tipo="info" titulo="Série encerrada">
+        <Aviso tipo="info" titulo="Repetição encerrada">
           {serie.encerrada_em
-            ? `Encerrada em ${formatarDataLocal(dataDoInstante(serie.encerrada_em, serie.fuso))}. Ela não recebe mais alterações; para continuar os encontros, crie uma série nova.`
-            : 'Ela não recebe mais alterações; para continuar os encontros, crie uma série nova.'}
+            ? `Encerrada em ${formatarDataLocal(dataDoInstante(serie.encerrada_em, serie.fuso))}. Ela não recebe mais alterações; para continuar os encontros, crie uma repetição nova.`
+            : 'Ela não recebe mais alterações; para continuar os encontros, crie uma repetição nova.'}
         </Aviso>
       ) : null}
 
@@ -193,11 +193,15 @@ function Serie({ serie, comunidadeId }: { serie: DetalheDaSerie; comunidadeId: s
         <EstadoVazio
           icone="agenda"
           titulo="Nenhuma data futura"
-          descricao="A série não tem datas pela frente. Mude a regra para criar as próximas."
+          descricao="A repetição não tem datas pela frente. Mude a regra para criar as próximas."
           acao={
             ativa
               ? { titulo: 'Editar regra', aoPressionar: () => setEditandoRegra(true) }
-              : { titulo: 'Ver os programas', aoPressionar: () => router.push('/programacoes') }
+              : {
+                  titulo: 'Ver a agenda',
+                  aoPressionar: () =>
+                    router.push({ pathname: '/agenda', params: { vista: 'lista' } }),
+                }
           }
         />
       ) : (
@@ -255,14 +259,14 @@ function Serie({ serie, comunidadeId }: { serie: DetalheDaSerie; comunidadeId: s
         aoFechar={() => setMenu(false)}
         acoes={[
           podeEncerrar && {
-            titulo: 'Encerrar a série',
+            titulo: 'Encerrar a repetição',
             icone: 'cancelar',
             descricao: 'Rascunhos somem e as datas publicadas são canceladas',
             destrutiva: true,
             aoPressionar: () => setEncerrando(true),
           },
           podeExcluir && {
-            titulo: 'Excluir série',
+            titulo: 'Excluir repetição',
             icone: 'excluir',
             descricao: 'Nenhuma data foi publicada ainda',
             destrutiva: true,
@@ -324,8 +328,8 @@ function EditarRegra({
       mostrarToast({
         texto:
           r.recriadas === 1
-            ? 'Série atualizada: 1 data recriada.'
-            : `Série atualizada: ${r.recriadas} datas recriadas.`,
+            ? 'Repetição atualizada: 1 data recriada.'
+            : `Repetição atualizada: ${r.recriadas} datas recriadas.`,
       })
       aoFechar()
       await invalidar()
@@ -363,13 +367,13 @@ function EditarRegra({
         opcoes={[
           {
             valor: 'agora',
-            rotulo: 'Toda a série, de agora em diante',
+            rotulo: 'Toda a repetição, de agora em diante',
             descricao: 'Vale para todas as próximas datas.',
           },
           ...futuras.slice(0, 8).map((o) => ({
             valor: o.id,
             rotulo: `A partir de ${formatarQuando(o.inicio, serie.fuso)}`,
-            descricao: 'A série se divide nesta data; as anteriores ficam como estão.',
+            descricao: 'A repetição se divide nesta data; as anteriores ficam como estão.',
           })),
         ]}
       />
@@ -412,7 +416,7 @@ function resumoDoEncerramento(r: { apagados: number; cancelados: number }): stri
       ? `${r.apagados} ${r.apagados === 1 ? 'rascunho apagado' : 'rascunhos apagados'}`
       : null,
   ].filter(Boolean)
-  return partes.length ? `Série encerrada: ${partes.join(' e ')}.` : 'Série encerrada.'
+  return partes.length ? `Repetição encerrada: ${partes.join(' e ')}.` : 'Repetição encerrada.'
 }
 
 /** Folha "Encerrar a série": a partir de que dia, o motivo e o destrutivo cheio. */
@@ -441,39 +445,39 @@ function EncerrarSerie({
       await invalidar()
       mostrarToast({ texto: resumoDoEncerramento(r) })
       aoFechar()
-      voltarOu('/programacoes')
+      voltarOu('/agenda')
     },
   })
 
   async function pedir() {
     const d = data ? lerDataDigitada(data) : null
     const novos = {
-      ...(d ? {} : { data: 'Escolha o dia a partir do qual a série acaba.' }),
+      ...(d ? {} : { data: 'Escolha o dia a partir do qual a repetição acaba.' }),
       ...(motivo.trim().length >= 3 ? {} : { motivo: 'Explique o motivo.' }),
     }
     setErros(novos)
     if (!d || Object.keys(novos).length) return
     const ok = await confirmar({
-      titulo: 'Encerrar a série?',
+      titulo: 'Encerrar a repetição?',
       mensagem: `Nenhuma data a partir de ${formatarDataLocal(d)} vai acontecer. Não dá para desfazer.`,
-      confirmar: 'Encerrar a série',
+      confirmar: 'Encerrar a repetição',
       destrutivo: true,
     })
     if (ok) encerrar.mutate({ aPartirDe: d, motivo: motivo.trim() })
   }
 
   return (
-    <FolhaNaTela aberta={aberta} titulo="Encerrar a série" aoFechar={aoFechar}>
+    <FolhaNaTela aberta={aberta} titulo="Encerrar a repetição" aoFechar={aoFechar}>
       <Aviso tipo="alerta" titulo="Quem participa é avisado">
-        A partir do dia escolhido, rascunhos somem e eventos publicados são cancelados com o motivo,
-        que vai para quem está escalado e inscrito.
+        A partir do dia escolhido, rascunhos somem e encontros publicados são cancelados com o
+        motivo, que vai para quem está escalado e inscrito.
       </Aviso>
       <CampoDeData
         rotulo="A partir do dia"
         valor={data}
         aoMudar={setData}
         erro={erros.data ?? null}
-        ajuda="Começa pela próxima data da série."
+        ajuda="Começa pela próxima data da repetição."
       />
       <Campo
         rotulo="Motivo"
@@ -484,7 +488,7 @@ function EncerrarSerie({
         maxLength={500}
       />
       {encerrar.error ? (
-        <AvisoDeFalha erro={encerrar.error} titulo="A série não foi encerrada" />
+        <AvisoDeFalha erro={encerrar.error} titulo="A repetição não foi encerrada" />
       ) : null}
       <Botao
         titulo="Encerrar e avisar"

@@ -22,7 +22,7 @@ export function TelaAjuda() {
         <Lista>
           <LinhaDeLista
             icone="missao"
-            titulo="Mapa da missão"
+            titulo="Primeiros passos"
             descricao="O passeio pelo app, com exemplos que não mudam nada de verdade."
             aoPressionar={() => router.push({ pathname: '/missao', params: { rever: '1' } })}
           />
@@ -59,7 +59,7 @@ export function TelaAjuda() {
           />
         </Lista>
       </CartaoDeVidro>
-      <Secao titulo="Primeiros passos">
+      <Secao titulo="Deixe tudo pronto">
         <CartaoDeVidro>
           <MissoesDeConfiguracao />
         </CartaoDeVidro>

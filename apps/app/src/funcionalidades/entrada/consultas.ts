@@ -107,7 +107,7 @@ export function useDepoisDaEntrada() {
   }
 }
 
-/** Corpo comum da entrada (TC-03.v3, idade quando a API pede, recado opcional). */
+/** Corpo comum da entrada (TC-03.v4, idade quando a API pede, recado opcional). */
 export interface CorpoDaEntrada {
   consentimentoFe: boolean
   responsavelCiente: boolean

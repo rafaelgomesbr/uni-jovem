@@ -58,7 +58,7 @@ export function TelaConfigurarComunidade() {
           icone="seguranca"
           titulo="Só a administração configura a comunidade"
           descricao="Se algo precisa mudar no nome, na cor, na entrada ou no fuso, fale com uma pessoa administradora."
-          acao={{ titulo: 'Voltar para a Equipe', aoPressionar: () => voltarOu('/comunidade') }}
+          acao={{ titulo: 'Voltar para a Comunidade', aoPressionar: () => voltarOu('/comunidade') }}
         />
       </Tela>
     )
@@ -247,7 +247,7 @@ function Formulario({
       </Secao>
       <Secao
         titulo="Fuso horário"
-        rodape="Agenda e programações seguem o fuso do lugar dos encontros."
+        rodape="A agenda e os horários seguem o fuso do lugar dos encontros."
       >
         <CartaoDeVidro opaco intervalo={ESPACO.e8}>
           <ListaDeOpcoes

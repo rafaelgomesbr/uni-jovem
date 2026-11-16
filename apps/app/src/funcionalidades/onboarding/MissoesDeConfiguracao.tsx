@@ -47,7 +47,7 @@ export function MissoesDeConfiguracao() {
           {
             id: 'notificacoes',
             titulo: 'Ativar notificações',
-            descricao: 'Saiba quando for escalado ou quando um evento mudar.',
+            descricao: 'Saiba quando for convocado ou quando um encontro mudar.',
             feita: permissao === 'concedida',
             ir: () => router.push('/notificacoes'),
           },
@@ -55,7 +55,7 @@ export function MissoesDeConfiguracao() {
       : []),
     {
       id: 'evento',
-      titulo: organiza ? 'Preparar o próximo evento' : 'Conferir o próximo encontro',
+      titulo: organiza ? 'Preparar o próximo encontro' : 'Conferir o próximo encontro',
       descricao: proximo
         ? `${proximo.titulo}: confira etapas, equipe e o que falta.`
         : organiza

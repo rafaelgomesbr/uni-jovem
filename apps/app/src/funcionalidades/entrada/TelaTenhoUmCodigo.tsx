@@ -41,7 +41,7 @@ const NAO_RECONHECIDO =
  * "Tenho um código ou convite" (ADR 0007): um campo só aceita o código da
  * comunidade (8 caracteres), o link do código ou o link de um convite. O QR
  * é lido pela câmera aqui mesmo, sem trocar de tela; "Colar" traz o que foi
- * copiado do WhatsApp. Para o código, o TC-03.v3 (fé) vem antes do botão e
+ * copiado do WhatsApp. Para o código, o TC-03.v4 (fé) vem antes do botão e
  * a mensagem para a liderança (TC-17) é opcional.
  */
 export function TelaTenhoUmCodigo() {

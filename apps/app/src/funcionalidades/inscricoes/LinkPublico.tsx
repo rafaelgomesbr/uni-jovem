@@ -55,7 +55,7 @@ export function LinkPublico({ idPublico, titulo }: Props) {
       }
     >
       <Texto variante="corpo" cor="textoSuave">
-        Quem recebe o link vê as informações do evento e se inscreve com nome e WhatsApp, sem
+        Quem recebe o link vê as informações do encontro e se inscreve com nome e WhatsApp, sem
         precisar de conta. A lista de participantes nunca aparece lá.
       </Texto>
       <Texto variante="legenda" selectable numberOfLines={1} ellipsizeMode="middle">

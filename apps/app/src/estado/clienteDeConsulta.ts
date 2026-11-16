@@ -22,6 +22,8 @@ export const CHAVES = {
   modelos: (id: string) => ['c', id, 'modelos'] as const,
   serie: (id: string, serieId: string) => ['c', id, 'serie', serieId] as const,
   minhasEscalas: (id: string) => ['c', id, 'minhas-escalas'] as const,
+  /** Sob o prefixo dos eventos: qualquer mudança num encontro (convocar, publicar) recarrega. */
+  aguardandoResposta: (id: string) => ['c', id, 'eventos', 'aguardando-resposta'] as const,
   substituicoes: (id: string) => ['c', id, 'substituicoes'] as const,
   disponibilidade: (id: string, de: string, ate: string) =>
     ['c', id, 'disponibilidade', de, ate] as const,

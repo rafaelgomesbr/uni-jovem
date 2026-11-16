@@ -114,6 +114,8 @@ const CASOS: Record<string, Record<string, unknown> | undefined> = {
   'DELETE /api/v1/c/:comunidadeId/series/:serieId': undefined,
   // F9: escalas e disponibilidade
   'GET /api/v1/c/:comunidadeId/minhas-escalas': undefined,
+  // D57: o cartão "Aguardando resposta" da aba Escalas.
+  'GET /api/v1/c/:comunidadeId/convocacoes/aguardando-resposta': undefined,
   'POST /api/v1/c/:comunidadeId/atribuicoes/:atribuicaoId/confirmar': undefined,
   'POST /api/v1/c/:comunidadeId/atribuicoes/:atribuicaoId/recusar': undefined,
   'POST /api/v1/c/:comunidadeId/atribuicoes/:atribuicaoId/substituicao': { motivo: 'Invasão' },

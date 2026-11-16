@@ -81,7 +81,7 @@ export function CartaoDoProximoEvento({
       titulo={evento.titulo}
       aoPressionar={abrir}
       rotuloAcessivel={rotuloFaladoDoEvento(evento, fuso)}
-      dica="Abre a programação."
+      dica="Abre o encontro."
       {...(aoVivo
         ? {
             acoes: (

@@ -103,7 +103,10 @@ function usarFonte(fontScale: number) {
 }
 
 describe('agenda', () => {
-  beforeEach(() => jest.clearAllMocks())
+  beforeEach(() => {
+    jest.clearAllMocks()
+    jest.mocked(useLocalSearchParams).mockReturnValue({})
+  })
   afterEach(() => usarFonte(2))
 
   test('com fonte grande, a agenda abre em Lista', async () => {
@@ -113,31 +116,49 @@ describe('agenda', () => {
     })
     expect(await screen.findByRole('radio', { name: 'Lista' })).toBeChecked()
     // Vazio: quem cria tem a ação de criar.
-    expect(await screen.findByText('Nada marcado neste período')).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Nova programação' })).toBeOnTheScreen()
+    expect(await screen.findByText('Nenhum encontro marcado')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Novo Sábado padrão' })).toBeOnTheScreen()
   })
 
-  test('na lista, os eventos aparecem agrupados pelo dia, com rótulo completo', async () => {
+  test('D57: o seletor alterna Calendário e Lista na mesma aba', async () => {
+    usarFonte(1)
     await renderizarTela(<TelaAgenda />, {
       rotas: { [`GET ${BASE}/eventos`]: () => ({ status: 200, corpo: { eventos: [EVENTOS[0]] } }) },
     })
-    await userEvent.setup().press(await screen.findByRole('radio', { name: 'Lista' }))
-    // O dia é uma sobrancelha anunciada como cabeçalho, com a quantidade no rótulo.
-    expect(
-      await screen.findByRole('header', {
-        name: `${formatarDataPorExtenso(DIA_DO_INICIO)}, 1 evento`,
-      }),
-    ).toBeOnTheScreen()
-    await userEvent
-      .setup()
-      .press(screen.getByRole('button', { name: /^Sábado com a juventude, Publicado/ }))
+    const usuario = userEvent.setup()
+    // Com a fonte padrão, abre no calendário (Mês e Semana dentro dele).
+    expect(await screen.findByRole('radio', { name: 'Calendário' })).toBeChecked()
+    expect(await screen.findByRole('button', { name: 'Mês anterior' })).toBeOnTheScreen()
+    expect(screen.getByRole('radio', { name: 'Mês' })).toBeChecked()
+
+    // Lista: a antiga aba Programas, com busca e filtros.
+    await usuario.press(screen.getByRole('radio', { name: 'Lista' }))
+    expect(await screen.findByText('1 encontro')).toBeOnTheScreen()
+    expect(screen.getByLabelText('Buscar por título ou categoria')).toBeOnTheScreen()
+    expect(screen.getByRole('checkbox', { name: 'Rascunhos' })).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: 'Mês anterior' })).toBeNull()
+    await usuario.press(screen.getByRole('button', { name: /^Sábado com a juventude, Publicado/ }))
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/evento/[eventoId]',
       params: { eventoId: EVENTO_ID },
     })
+
+    // E de volta ao calendário.
+    await usuario.press(screen.getByRole('radio', { name: 'Calendário' }))
+    expect(await screen.findByRole('button', { name: 'Mês anterior' })).toBeOnTheScreen()
   })
 
-  test('no mês, escolher o dia mostra os eventos e leva à linha do tempo', async () => {
+  test('o link antigo (`?vista=lista`) abre direto na Lista', async () => {
+    usarFonte(1)
+    jest.mocked(useLocalSearchParams).mockReturnValue({ vista: 'lista' })
+    await renderizarTela(<TelaAgenda />, {
+      rotas: { [`GET ${BASE}/eventos`]: () => ({ status: 200, corpo: { eventos: [EVENTOS[0]] } }) },
+    })
+    expect(await screen.findByRole('radio', { name: 'Lista' })).toBeChecked()
+    expect(await screen.findByText('1 encontro')).toBeOnTheScreen()
+  })
+
+  test('no mês, escolher o dia mostra os encontros e leva à linha do tempo', async () => {
     usarFonte(1)
     await renderizarTela(<TelaAgenda />, {
       rotas: {
@@ -157,12 +178,12 @@ describe('agenda', () => {
     // A quantidade vai em texto no rótulo do dia, não só nos pontos.
     await usuario.press(
       await screen.findByRole('button', {
-        name: `${formatarDataPorExtenso(DIA_DO_INICIO)}, 2 eventos`,
+        name: `${formatarDataPorExtenso(DIA_DO_INICIO)}, 2 encontros`,
       }),
     )
     expect(
       await screen.findByRole('header', {
-        name: `${formatarDataPorExtenso(DIA_DO_INICIO)}, 2 eventos`,
+        name: `${formatarDataPorExtenso(DIA_DO_INICIO)}, 2 encontros`,
       }),
     ).toBeOnTheScreen()
     // O rascunho ganha chip; o publicado, não.
@@ -180,7 +201,7 @@ describe('agenda', () => {
     })
   })
 
-  test('"Nova programação neste dia" abre a folha de modelos com a data do dia', async () => {
+  test('"Novo encontro neste dia" abre a folha de modelos com a data do dia', async () => {
     usarFonte(1)
     await renderizarTela(<TelaAgenda />, {
       rotas: { [`GET ${BASE}/eventos`]: () => ({ status: 200, corpo: { eventos: [] } }) },
@@ -189,10 +210,10 @@ describe('agenda', () => {
     const hoje = hojeNoFuso(FUSO)
     await usuario.press(
       await screen.findByRole('button', {
-        name: `Nova programação em ${formatarDataPorExtenso(hoje)}`,
+        name: `Novo encontro em ${formatarDataPorExtenso(hoje)}`,
       }),
     )
-    // A mesma folha de Programas: o sábado nunca nasce sem as etapas.
+    // A mesma folha do "Novo encontro": o sábado nunca nasce sem as etapas.
     expect(await screen.findByText('Em branco')).toBeOnTheScreen()
     await usuario.press(screen.getByRole('button', { name: /^Sábado padrão/ }))
     await waitFor(() =>
@@ -203,14 +224,16 @@ describe('agenda', () => {
     )
   })
 
-  test('"Minhas escalas" tem lugar fixo no topo da Agenda', async () => {
+  test('"Novo encontro" no topo, para quem cria; o membro não vê', async () => {
     usarFonte(1)
     await renderizarTela(<TelaAgenda />, {
       papel: 'membro',
       rotas: { [`GET ${BASE}/eventos`]: () => ({ status: 200, corpo: { eventos: [] } }) },
     })
-    await userEvent.setup().press(await screen.findByRole('button', { name: 'Minhas escalas' }))
-    expect(router.push).toHaveBeenCalledWith('/escalas')
+    expect(await screen.findByRole('radio', { name: 'Calendário' })).toBeChecked()
+    expect(screen.queryByRole('button', { name: 'Novo encontro' })).toBeNull()
+    // As escalas viraram aba (D57): o atalho antigo saiu da Agenda.
+    expect(screen.queryByRole('button', { name: 'Minhas escalas' })).toBeNull()
   })
 })
 
@@ -260,7 +283,7 @@ describe('linha do tempo do dia', () => {
       papel: 'membro',
       rotas: { [`GET ${BASE}/eventos`]: () => ({ status: 200, corpo: { eventos: [] } }) },
     })
-    expect(await screen.findByText('Nenhum evento neste dia')).toBeOnTheScreen()
+    expect(await screen.findByText('Nenhum encontro neste dia')).toBeOnTheScreen()
     expect(screen.getByRole('button', { name: 'Voltar para a agenda' })).toBeOnTheScreen()
   })
 })

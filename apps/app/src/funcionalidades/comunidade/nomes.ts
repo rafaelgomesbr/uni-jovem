@@ -52,7 +52,7 @@ export const CHIP_DO_ESTADO_DO_VINCULO: Readonly<
 
 export const DESCRICAO_DO_PAPEL: Readonly<Record<Papel, string>> = {
   admin: 'Configura a comunidade, convida pessoas e altera papéis.',
-  organizador: 'Monta eventos, programações, escalas e tarefas.',
+  organizador: 'Monta os encontros, as escalas e as tarefas.',
   membro: 'Participa, vê a agenda, confirma escalas e faz inscrições.',
 }
 

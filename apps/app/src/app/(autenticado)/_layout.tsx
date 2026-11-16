@@ -74,8 +74,8 @@ export default function LayoutAutenticado() {
         <Stack.Screen name="plataforma/index" options={{ title: 'Plataforma' }} />
         <Stack.Screen name="plataforma/nova" options={{ title: 'Nova comunidade' }} />
         <Stack.Screen name="plataforma/[comunidadeId]" options={{ title: 'Comunidade' }} />
-        <Stack.Screen name="evento/novo" options={{ title: 'Nova programação', ...telaCheia }} />
-        <Stack.Screen name="evento/[eventoId]/index" options={{ title: 'Programação' }} />
+        <Stack.Screen name="evento/novo" options={{ title: 'Novo encontro', ...telaCheia }} />
+        <Stack.Screen name="evento/[eventoId]/index" options={{ title: 'Encontro' }} />
         <Stack.Screen name="evento/[eventoId]/editar" options={{ title: 'Editar', ...telaCheia }} />
         <Stack.Screen
           name="evento/[eventoId]/status"
@@ -93,9 +93,8 @@ export default function LayoutAutenticado() {
         <Stack.Screen name="evento/[eventoId]/inscricoes" options={{ title: 'Inscrições' }} />
         <Stack.Screen name="evento/[eventoId]/checkin" options={{ title: 'Check-in' }} />
         <Stack.Screen name="evento/[eventoId]/ler-qr" options={{ title: 'Ler QR', ...telaCheia }} />
-        <Stack.Screen name="serie/[serieId]" options={{ title: 'Série' }} />
+        <Stack.Screen name="serie/[serieId]" options={{ title: 'Repetição' }} />
         <Stack.Screen name="agenda/[data]" options={{ title: 'Linha do tempo do dia' }} />
-        <Stack.Screen name="escalas/index" options={{ title: 'Escalas' }} />
         <Stack.Screen
           name="escalas/substituicao/[atribuicaoId]"
           options={{ title: 'Substituição', presentation: 'modal' }}
@@ -121,13 +120,15 @@ export default function LayoutAutenticado() {
         <Stack.Screen name="locais/[localId]" options={{ title: 'Local' }} />
         <Stack.Screen name="modelos" options={{ title: 'Modelos' }} />
         <Stack.Screen name="denuncias" options={{ title: 'Denúncias' }} />
-        <Stack.Screen name="notificacoes" options={{ title: 'Notificações' }} />
+        <Stack.Screen name="notificacoes" options={{ title: 'Ajustes de notificação' }} />
         <Stack.Screen name="caixa-de-notificacoes" options={{ title: 'Notificações' }} />
         <Stack.Screen name="versiculo/index" options={{ title: 'Versículo do dia' }} />
         <Stack.Screen name="versiculo/traducao" options={{ title: 'Sobre a tradução' }} />
-        <Stack.Screen name="missao" options={{ title: 'Mapa da missão' }} />
+        <Stack.Screen name="missao" options={{ title: 'Primeiros passos' }} />
         <Stack.Screen name="privacidade" options={{ title: 'Privacidade' }} />
-        <Stack.Screen name="pendencias" options={{ title: 'Pendências' }} />
+        <Stack.Screen name="pendencias" options={{ title: 'Uso sem internet' }} />
+        {/* Antiga aba Programas (D57): redireciona para a Agenda no modo Lista. */}
+        <Stack.Screen name="programacoes" options={{ title: 'Agenda' }} />
         <Stack.Screen name="excluir-conta" options={{ title: 'Excluir conta' }} />
       </Stack>
       {/* A barra de abas também nas telas empilhadas de navegação (D56), por cima da pilha. */}

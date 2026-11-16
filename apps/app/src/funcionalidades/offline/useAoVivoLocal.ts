@@ -38,7 +38,7 @@ export function useAoVivoLocal(eventoId: string, retratoOnline: RetratoAoVivo | 
 
   const comandar = useMutation({
     mutationFn: async (controle: ControleDoAoVivo) => {
-      if (!base || !retrato) throw new ErroLocal('Prepare o evento para conduzir sem internet.')
+      if (!base || !retrato) throw new ErroLocal('Baixe o encontro para conduzir sem internet.')
       const agora = new Date()
       // A mesma máquina de estados da API: comando impossível nem entra na fila.
       const teste = aplicarComando(

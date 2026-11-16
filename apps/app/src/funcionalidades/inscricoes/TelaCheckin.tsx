@@ -268,7 +268,7 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
 
       {usarLocal && listaLocal ? (
         <Aviso tipo="alerta" titulo="Sem conexão: lista deste aparelho">
-          {`Lista preparada às ${horaNoAparelho(listaLocal.geradoEm)}. As presenças ficam anotadas aqui e vão para o servidor quando a internet voltar, sem duplicar. Desfazer uma presença exige conexão.`}
+          {`Lista baixada às ${horaNoAparelho(listaLocal.geradoEm)}. As presenças ficam anotadas aqui e vão para o servidor quando a internet voltar, sem duplicar. Desfazer uma presença exige conexão.`}
         </Aviso>
       ) : null}
       {anotada ? (

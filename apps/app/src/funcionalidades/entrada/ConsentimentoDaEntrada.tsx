@@ -14,10 +14,10 @@ import { Texto } from '@/ui/Texto'
 import { MenorDe16, PerguntaDeIdade } from '../convite/Consentimentos'
 import { abrirDocumento } from '../privacidade/TelaPrivacidade'
 
-/** Onde o TC-03.v3 aparece: pedir ou entrar numa comunidade, ou criar a própria. */
+/** Onde o TC-03.v4 aparece: pedir ou entrar numa comunidade, ou criar a própria. */
 export type FormaDaEntrada = 'entrada' | 'criacao'
 
-/** TC-03.v3, recusa (texto do botão desabilitado). */
+/** TC-03.v4, recusa (texto do botão desabilitado). */
 export const MENSAGEM_SEM_CONSENTIMENTO =
   'Sem essa concordância não conseguimos incluir você na comunidade, porque o app usa esses dados para funcionar. Se mudar de ideia, é só tentar de novo.'
 
@@ -25,7 +25,7 @@ export const MENSAGEM_SEM_RESPONSAVEL =
   'Para quem tem 16 ou 17 anos, confirme que seu responsável sabe e concorda.'
 
 /**
- * TC-03.v3 (docs/privacidade/textos-de-consentimento.md), palavra por palavra:
+ * TC-03.v4 (docs/privacidade/textos-de-consentimento.md), palavra por palavra:
  * "Sobre a sua fé", em bloco próprio, separado dos Termos e do Termo do
  * Administrador. Na criação, a primeira frase e a caixa mudam como o texto
  * manda. Para 16 e 17 anos, a caixa do responsável.
@@ -63,7 +63,7 @@ export function ConsentimentoDaEntrada({
       </Texto>
       <Texto variante="corpo">{abertura}</Texto>
       <CaixaDeMarcar
-        rotulo={`Concordo que a ${comunidade} e o ${NOME_DO_APP} tratem meus dados ${finalidade}: eventos, escalas, presença, avisos, sugestões e pedidos de oração. Sei que nome e papel ficam visíveis para os membros desta comunidade, e meu e-mail e WhatsApp só para organizadores e administradores.`}
+        rotulo={`Concordo que a ${comunidade} e o ${NOME_DO_APP} tratem meus dados ${finalidade}: encontros, escalas, presença, avisos, sugestões e pedidos de oração. Sei que nome e papel ficam visíveis para os membros desta comunidade, e meu e-mail e WhatsApp só para organizadores e administradores.`}
         marcada={marcada}
         aoMudar={aoMudar}
       />
@@ -75,7 +75,7 @@ export function ConsentimentoDaEntrada({
         />
       ) : null}
       <Texto variante="meta" cor="textoSuave">
-        {`Você pode desfazer isso quando quiser: cancelando o pedido, saindo da comunidade na aba Equipe ("Sair de ${comunidade}") ou excluindo sua conta.`}
+        {`Você pode desfazer isso quando quiser: cancelando o pedido, saindo da comunidade na aba Comunidade ("Sair de ${comunidade}") ou excluindo sua conta.`}
       </Texto>
       <View style={{ alignItems: 'flex-start' }}>
         <Botao
@@ -102,7 +102,7 @@ export function motivoDaEntrada(
 }
 
 /**
- * Estado do TC-03.v3 numa tela de entrada. A idade só é pedida se a API
+ * Estado do TC-03.v4 numa tela de entrada. A idade só é pedida se a API
  * disser que a conta ainda não declarou (`faixa_etaria_necessaria`); a caixa
  * do responsável aparece de saída para quem declarou 16 ou 17 (U-21) ou
  * quando a API pedir (`responsavel_necessario`).
@@ -148,7 +148,7 @@ export function useConsentimentoDaEntrada() {
   }
 }
 
-/** A pergunta de idade (quando a API pede) e o TC-03.v3, num cartão opaco. */
+/** A pergunta de idade (quando a API pede) e o TC-03.v4, num cartão opaco. */
 export function CamposDoConsentimento({
   consentimento: c,
   comunidade,

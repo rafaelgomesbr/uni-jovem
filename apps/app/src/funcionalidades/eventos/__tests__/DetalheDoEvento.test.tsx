@@ -43,7 +43,7 @@ describe('detalhe do evento', () => {
 
   test('etapas com hora prevista e quem cuida, lidas por inteiro pelo leitor de tela', async () => {
     await montar('organizador')
-    await userEvent.setup().press(await screen.findByRole('radio', { name: 'Programação' }))
+    await userEvent.setup().press(await screen.findByRole('radio', { name: 'Roteiro' }))
     expect(
       await screen.findByLabelText(
         'Etapa 2 de 3: Louvor. Das 16:05 a 16:20, 15 min. Com Bruno Lima (responsável).',
@@ -58,7 +58,7 @@ describe('detalhe do evento', () => {
     })
     const usuario = userEvent.setup()
 
-    await usuario.press(await screen.findByRole('radio', { name: 'Programação' }))
+    await usuario.press(await screen.findByRole('radio', { name: 'Roteiro' }))
     // Fora da edição, a ordem não se mexe por engano; "Editar etapas" mostra Subir e Descer.
     expect(screen.queryByRole('button', { name: 'Descer Boas-vindas' })).toBeNull()
     await usuario.press(screen.getByRole('button', { name: 'Editar etapas' }))
@@ -83,12 +83,14 @@ describe('detalhe do evento', () => {
     expect(screen.getByText('Mais')).toBeOnTheScreen()
     // Fora do dia, o check-in não ocupa a barra.
     expect(screen.queryByRole('button', { name: 'Check-in de presença' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Cancelar evento' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Cancelar encontro' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Duplicar' })).toBeNull()
 
     await usuario.press(screen.getByRole('button', { name: 'Mais ações' }))
     expect(await screen.findByRole('button', { name: /^Duplicar/ })).toBeOnTheScreen()
-    await usuario.press(screen.getByRole('button', { name: 'Cancelar evento' }))
+    // D57: o menu separa o que organiza do que fica neste aparelho.
+    expect(screen.getByRole('header', { name: 'Organizar' })).toBeOnTheScreen()
+    await usuario.press(screen.getByRole('button', { name: 'Cancelar encontro' }))
     await waitFor(() =>
       expect(router.push).toHaveBeenCalledWith({
         pathname: '/evento/[eventoId]/status',
@@ -163,7 +165,7 @@ describe('detalhe do evento', () => {
     const usuario = userEvent.setup()
     await usuario.press(await screen.findByRole('radio', { name: 'Convocados' }))
     expect(screen.queryByText(/^Rascunho: ninguém recebe/)).toBeNull()
-    await usuario.press(screen.getByRole('button', { name: 'Convocar pessoa: evento todo' }))
+    await usuario.press(screen.getByRole('button', { name: 'Convocar pessoa: encontro todo' }))
     await usuario.press(await screen.findByRole('radio', { name: 'Carla Dias' }))
     await usuario.press(screen.getByRole('button', { name: 'Convocar' }))
     await waitFor(() =>
@@ -212,7 +214,7 @@ describe('detalhe do evento', () => {
     expect(screen.queryByRole('button', { name: /^Inscrições/ })).toBeNull()
     expect(screen.queryByRole('button', { name: /^Check-in/ })).toBeNull()
 
-    await usuario.press(screen.getByRole('radio', { name: 'Programação' }))
+    await usuario.press(screen.getByRole('radio', { name: 'Roteiro' }))
     expect(screen.queryByRole('button', { name: 'Editar etapas' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Descer Boas-vindas' })).toBeNull()
 
@@ -312,7 +314,7 @@ describe('detalhe do evento', () => {
     expect(screen.getByRole('button', { name: 'Inscrever-me' })).toBeOnTheScreen()
   })
 
-  test('evento de outra comunidade (404) mostra "não encontrada" com ação', async () => {
+  test('encontro de outra comunidade (404) mostra "não encontrado" com ação', async () => {
     await renderizarTela(<DetalheDoEvento comunidadeId={COMUNIDADE} eventoId={EVENTO_ID} />, {
       rotas: {
         [`GET ${CAMINHO}`]: () => ({
@@ -321,7 +323,7 @@ describe('detalhe do evento', () => {
         }),
       },
     })
-    expect(await screen.findByText('Programação não encontrada')).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Voltar para os programas' })).toBeOnTheScreen()
+    expect(await screen.findByText('Encontro não encontrado')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Voltar para a agenda' })).toBeOnTheScreen()
   })
 })

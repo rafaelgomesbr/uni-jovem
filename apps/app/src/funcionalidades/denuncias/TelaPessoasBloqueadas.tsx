@@ -64,10 +64,10 @@ function ListaDeBloqueios({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
   return (
     <>
       <Texto variante="corpo" cor="textoSuave">
-        {`Em ${comunidade.nome}, você não vê os pedidos de oração nem as sugestões com nome destas pessoas. Avisos e programação continuam aparecendo, e o papel de ninguém muda.`}
+        {`Em ${comunidade.nome}, você não vê os pedidos de oração nem as sugestões com nome destas pessoas. Avisos e encontros continuam aparecendo, e o papel de ninguém muda.`}
       </Texto>
       <CartaoDeVidro lista>
-        {/* O separador começa no texto, depois do avatar de 40, como na Equipe. */}
+        {/* O separador começa no texto, depois do avatar de 40, como na aba Comunidade. */}
         <Lista recuo={RECUO_DA_LISTA.avatar}>
           {lista.data.map((p) => (
             <LinhaDaPessoa key={p.id} comunidadeId={comunidade.id} pessoa={p} />

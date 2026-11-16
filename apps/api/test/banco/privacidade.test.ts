@@ -185,7 +185,7 @@ describe('consentimentos versionados e idade (TC-01 a TC-03)', () => {
       },
       {
         texto_id: 'TC-03',
-        versao: 3,
+        versao: 4,
         forma: 'android',
         faixa_etaria: null,
         confirmacao_adicional: true,

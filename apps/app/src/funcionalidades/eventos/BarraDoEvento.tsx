@@ -58,7 +58,9 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
   const mudarStatus = useMutation({
     mutationFn: (status: 'publicado' | 'encerrado') => api.post(`${base}/status`, { status }),
     onSuccess: async (_r, status) => {
-      mostrarToast({ texto: status === 'publicado' ? 'Evento publicado.' : 'Evento encerrado.' })
+      mostrarToast({
+        texto: status === 'publicado' ? 'Encontro publicado.' : 'Encontro encerrado.',
+      })
       await invalidar(evento.id)
     },
   })
@@ -76,7 +78,7 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
         aPartirDoEvento: evento.id,
         nome: evento.titulo.slice(0, 80),
       }),
-    onSuccess: () => mostrarToast({ texto: `Modelo salvo. Ele aparece ao criar uma programação.` }),
+    onSuccess: () => mostrarToast({ texto: `Modelo salvo. Ele aparece ao criar um encontro.` }),
     // Dois toques não criam dois modelos iguais (M2); depois da resposta, pode salvar de novo.
     onSettled: travaDoModelo.soltar,
   })
@@ -107,8 +109,8 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
     const passou = dataJaPassou(evento.inicio)
     const quemVe =
       evento.visibilidade === 'publica'
-        ? 'Todos da comunidade passam a ver o evento, e a página pública de inscrição fica no ar.'
-        : 'Todos da comunidade passam a ver o evento na agenda.'
+        ? 'Todos da comunidade passam a ver o encontro, e a página pública de inscrição fica no ar.'
+        : 'Todos da comunidade passam a ver o encontro na agenda.'
     const ok = await confirmar(
       passou
         ? {
@@ -117,7 +119,7 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
             confirmar: 'Publicar mesmo assim',
           }
         : {
-            titulo: evento.status === 'adiado' ? 'Publicar de novo?' : 'Publicar este evento?',
+            titulo: evento.status === 'adiado' ? 'Publicar de novo?' : 'Publicar este encontro?',
             mensagem: quemVe,
             confirmar: 'Publicar',
           },
@@ -127,10 +129,10 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
 
   async function encerrar() {
     const ok = await confirmar({
-      titulo: 'Encerrar este evento?',
+      titulo: 'Encerrar este encontro?',
       mensagem:
         'Use quando o encontro já aconteceu. Depois de encerrado, ele não volta a ser publicado.',
-      confirmar: 'Encerrar evento',
+      confirmar: 'Encerrar encontro',
     })
     if (ok) mudarStatus.mutate('encerrado')
   }
@@ -147,7 +149,7 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
 
   async function pedirRemocaoDaCopia() {
     const ok = await confirmar({
-      titulo: 'Remover deste aparelho?',
+      titulo: 'Remover do aparelho?',
       mensagem: `A cópia de "${evento.titulo}" sai do aparelho. Sem internet, ela deixa de abrir.`,
       confirmar: 'Remover',
       destrutivo: true,
@@ -177,7 +179,7 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
 
   const validoAte = guardado ? (offline.validoAte ?? guardado.validoAte) : null
   const deOrganizacao: (AcaoDoMenu | false)[] = organiza
-    ? [
+    ? noGrupo('Organizar', [
         podeEditar &&
           primaria?.titulo !== 'Editar' && {
             titulo: 'Editar',
@@ -201,7 +203,7 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
         },
         !!evento.serieId &&
           podeEditar && {
-            titulo: 'Ver a série',
+            titulo: 'Ver a repetição',
             icone: 'repetir',
             navega: true,
             aoPressionar: () =>
@@ -229,31 +231,33 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
             navega: true,
             aoPressionar: abrirCheckin,
           },
-      ]
+      ])
     : []
-  const doAparelho: (AcaoDoMenu | false)[] = offline.disponivel
-    ? [
-        {
-          titulo: guardado ? 'Atualizar a cópia do aparelho' : 'Preparar para usar sem internet',
-          icone: guardado ? 'sincronizar' : 'baixar',
-          descricao:
-            guardado && validoAte
-              ? textoDoPreparo(guardado.baixadoEm, validoAte)
-              : 'Programação, equipe e tarefas cifradas neste aparelho',
-          motivo: offline.online ? null : 'Preparar exige conexão com a internet.',
-          aoPressionar: () => {
-            if (!preparar.isPending) preparar.mutate()
+  // Baixar e remover a cópia é de quem organiza ou conduz (D57): para os demais, só ruído.
+  const doAparelho: (AcaoDoMenu | false)[] =
+    offline.disponivel && (organiza || conduz)
+      ? noGrupo('Neste aparelho', [
+          {
+            titulo: guardado ? 'Atualizar a cópia do aparelho' : 'Baixar para usar sem internet',
+            icone: guardado ? 'sincronizar' : 'baixar',
+            descricao:
+              guardado && validoAte
+                ? textoDoPreparo(guardado.baixadoEm, validoAte)
+                : 'Roteiro, quem serve e tarefas, cifrados neste aparelho',
+            motivo: offline.online ? null : 'Baixar exige conexão com a internet.',
+            aoPressionar: () => {
+              if (!preparar.isPending) preparar.mutate()
+            },
           },
-        },
-        !!guardado && {
-          titulo: 'Remover deste aparelho',
-          icone: 'excluir',
-          aoPressionar: () => void pedirRemocaoDaCopia(),
-        },
-      ]
-    : []
+          !!guardado && {
+            titulo: 'Remover do aparelho',
+            icone: 'excluir',
+            aoPressionar: () => void pedirRemocaoDaCopia(),
+          },
+        ])
+      : []
   const destrutivas: (AcaoDoMenu | false)[] = organiza
-    ? [
+    ? noGrupo('Organizar', [
         podeCancelarOuAdiar &&
           acoes.adiar && {
             titulo: 'Adiar',
@@ -270,7 +274,7 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
           },
         podeCancelarOuAdiar &&
           acoes.cancelar && {
-            titulo: 'Cancelar evento',
+            titulo: 'Cancelar encontro',
             icone: 'cancelar',
             destrutiva: true,
             aoPressionar: () => irParaStatus('cancelar'),
@@ -281,7 +285,7 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
           destrutiva: true,
           aoPressionar: () => void pedirExclusao(),
         },
-      ]
+      ])
     : []
   const itens = [...deOrganizacao, ...doAparelho, ...destrutivas]
   const temMenu = itens.some(Boolean)
@@ -315,7 +319,12 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
 
 export type AcoesDoEvento = ReturnType<typeof useAcoesDoEvento>
 
-const DICA_DO_MENU = 'Abre a folha com as outras ações da programação.'
+/** Põe as ações (as válidas) num grupo com título do menu "Mais ações". */
+function noGrupo(grupo: string, acoes: (AcaoDoMenu | false)[]): (AcaoDoMenu | false)[] {
+  return acoes.map((a) => a && { ...a, grupo })
+}
+
+const DICA_DO_MENU = 'Abre a folha com as outras ações do encontro.'
 
 /**
  * "… Mais": o "…" sozinho não diz "menu" para todo mundo (U-05). Vai direto

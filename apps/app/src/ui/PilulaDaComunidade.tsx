@@ -78,7 +78,7 @@ export function PilulaDaComunidade({
             justifyContent: 'center',
           }}
         >
-          <Icone nome="abaEquipe" cor={cores.textoSuave} tamanho={14} />
+          <Icone nome="abaComunidade" cor={cores.textoSuave} tamanho={14} />
         </View>
       ) : (
         <Avatar nome={nome} proprio lado={lado} foto={logo} decorativo />

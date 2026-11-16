@@ -21,12 +21,12 @@ import {
 import { PermissaoDoSistema } from './PermissaoDoSistema'
 
 const DESCRICAO_DO_TIPO: Readonly<Record<TipoDeNotificacao, string>> = {
-  eventos: 'Evento novo ou publicado.',
+  eventos: 'Encontro novo ou publicado.',
   escalas: 'Quando convocarem você e, para quem organiza, quando alguém não puder ir.',
   inscricoes: 'Sua inscrição confirmada ou saindo da lista de espera.',
   tarefas: 'Tarefas que forem suas.',
   substituicoes: 'Pedidos de substituição que você pode assumir.',
-  alteracoes_importantes: 'Evento cancelado ou adiado.',
+  alteracoes_importantes: 'Encontro cancelado ou adiado.',
   avisos: 'Aviso novo da organização.',
 }
 
@@ -49,7 +49,7 @@ export function TelaNotificacoes() {
   const versiculo = conta.data?.versiculo
 
   return (
-    <Tela pilha titulo="Notificações">
+    <Tela pilha titulo="Ajustes de notificação">
       <Secao titulo="Neste aparelho">
         <PermissaoDoSistema ligadoNoApp />
       </Secao>

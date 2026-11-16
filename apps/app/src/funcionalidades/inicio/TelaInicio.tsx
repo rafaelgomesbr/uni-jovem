@@ -20,11 +20,7 @@ import { usePode } from '../comunidade/permissoes'
 import { naComunidade } from '../eventos/consultas'
 import { useMudancaNoEvento } from '../eventos/mutacoes'
 import { ComecePorAqui } from '../entrada/ComecePorAqui'
-import {
-  AtalhoDaPlataforma,
-  EscolherComunidade,
-  PrimeirosPassosDoCriador,
-} from '../navegacao/SemComunidade'
+import { PrimeirosPassosDoCriador } from '../navegacao/SemComunidade'
 import { TelaDoApp } from '../navegacao/TelaDoApp'
 import { EventosPreparados } from '../offline/EventosPreparados'
 import { CartaoDaMissao, useMissaoPendente } from '../onboarding/CartaoDaMissao'
@@ -54,10 +50,10 @@ export function useInicio(comunidadeId: string | null) {
 }
 
 /**
- * Início (seção 3.2), nas quatro variações: com dados (fiel ao mockup), sem
- * comunidade para o Criador, sem comunidade para a conta ("Comece por aqui",
- * ADR 0007) e com várias comunidades sem nenhuma escolhida. A saudação é o
- * título, sem "!".
+ * Início (seção 3.2), nas três variações: com dados (fiel ao mockup), sem
+ * comunidade para o Criador e sem comunidade para a conta ("Comece por aqui",
+ * ADR 0007). Com várias comunidades, a sessão já abre na última usada (D57).
+ * A saudação é o título, sem "!".
  */
 export function TelaInicio() {
   const { conta, comunidadeAtiva, comunidades } = useSessao()
@@ -79,16 +75,10 @@ export function TelaInicio() {
       <AvisoDosTermos />
       {comunidadeAtiva ? (
         <Inicio comunidadeId={comunidadeAtiva.id} nomeDaComunidade={comunidadeAtiva.nome} />
-      ) : comunidades.length > 0 ? (
-        <>
-          <EscolherComunidade />
-          <CartaoDoVersiculo />
-        </>
       ) : conta?.criador ? (
         <>
           <PrimeirosPassosDoCriador />
           <CartaoDoVersiculo />
-          <AtalhoDaPlataforma />
         </>
       ) : null}
     </TelaDoApp>
@@ -114,7 +104,7 @@ function Inicio({
     return (
       <>
         <Aviso tipo="alerta" titulo="Sem conexão: o Início volta quando a internet voltar">
-          O que foi preparado neste aparelho continua aqui.
+          O que foi baixado neste aparelho continua aqui.
         </Aviso>
         <CartaoDoVersiculo />
         <EventosPreparados />
@@ -192,7 +182,7 @@ function Inicio({
       {nadaExiste ? (
         <EstadoVazio
           icone="eventos"
-          titulo="Nenhum evento marcado"
+          titulo="Nenhum encontro marcado"
           descricao={
             podeCriar
               ? 'Monte o próximo encontro: o Sábado padrão já vem com as etapas de sempre.'
@@ -210,7 +200,8 @@ function Inicio({
           }
           acaoSecundaria={{
             titulo: 'Informar minha disponibilidade',
-            aoPressionar: () => router.push('/escalas'),
+            aoPressionar: () =>
+              router.push({ pathname: '/escalas', params: { vista: 'disponibilidade' } }),
           }}
         />
       ) : null}

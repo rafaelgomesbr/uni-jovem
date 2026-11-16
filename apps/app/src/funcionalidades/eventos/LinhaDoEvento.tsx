@@ -50,7 +50,7 @@ export function rotuloFaladoDoEvento(evento: EventoDaLinha, fuso: string): strin
     falarQuando(evento.inicio, fuso),
     `duração de ${formatarDuracao(evento.duracaoMin)}`,
     evento.localNome ? `local: ${evento.localNome}` : null,
-    evento.serieId ? 'faz parte de uma série' : null,
+    evento.serieId ? 'faz parte de uma repetição' : null,
   ]
     .filter(Boolean)
     .join(', ')

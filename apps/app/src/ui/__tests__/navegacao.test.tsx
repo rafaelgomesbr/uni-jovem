@@ -102,10 +102,10 @@ describe('toast com "Desfazer" (U-13)', () => {
 
 describe('barra de abas com fonte grande (U-09)', () => {
   test('até 1,3 os rótulos sempre aparecem; acima, só se couberem no item', () => {
-    const rotulos = ['Início', 'Agenda', 'Programas', 'Equipe']
+    const rotulos = ['Início', 'Agenda', 'Escalas', 'Comunidade']
     expect(rotulosCabemNaBarra(rotulos, 5, 360, 1)).toBe(true)
     expect(rotulosCabemNaBarra(rotulos, 5, 360, 1.3)).toBe(true)
-    // "Programas" a 1,6 não cabe num item de 390: a barra fica só com os ícones.
+    // "Comunidade" a 1,6 não cabe num item de 390: a barra fica só com os ícones.
     expect(rotulosCabemNaBarra(rotulos, 5, 390, 1.6)).toBe(false)
     // Numa tela larga, cabe.
     expect(rotulosCabemNaBarra(rotulos, 5, 1024, 1.6)).toBe(true)
@@ -114,11 +114,11 @@ describe('barra de abas com fonte grande (U-09)', () => {
   test('sem rótulo, o item mantém o nome para o leitor de tela', async () => {
     await render(
       <>
-        <ItemDaBarraDeAbas rotulo="Programas" icone="abaProgramas" ativo={false} semRotulo />
+        <ItemDaBarraDeAbas rotulo="Escalas" icone="abaEscalas" ativo={false} semRotulo />
         <Text>fim</Text>
       </>,
     )
-    expect(screen.queryByText('Programas')).toBeNull()
-    expect(screen.getByLabelText('Programas')).toBeOnTheScreen()
+    expect(screen.queryByText('Escalas')).toBeNull()
+    expect(screen.getByLabelText('Escalas')).toBeOnTheScreen()
   })
 })

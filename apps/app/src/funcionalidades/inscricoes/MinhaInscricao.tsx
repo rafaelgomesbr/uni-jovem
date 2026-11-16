@@ -209,7 +209,7 @@ export function MinhaInscricao({ evento, comunidadeId, secundario = false }: Pro
         <>
           {intencao ? (
             <Aviso tipo="alerta" titulo="A inscrição feita sem internet não entrou">
-              {`${intencao.mensagem ?? 'O servidor não confirmou a vaga.'} Veja em Pendências.`}
+              {`${intencao.mensagem ?? 'O servidor não confirmou a vaga.'} Veja em Perfil, Uso sem internet.`}
             </Aviso>
           ) : null}
           {inscrever.error ? <AvisoDeFalha erro={inscrever.error} /> : null}

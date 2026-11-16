@@ -1019,15 +1019,17 @@ Para todos os componentes:
 
 **Abas:**
 
-| Aba       | Ícone                           | Rota            |
-| --------- | ------------------------------- | --------------- |
-| Início    | `house`                         | `/`             |
-| Agenda    | `calendar`                      | `/agenda`       |
-| Programas | `list.bullet`                   | `/programacoes` |
-| Equipe    | `person.2`                      | `/comunidade`   |
-| Perfil    | avatar de 24 com anel (2.12.13) | `/perfil`       |
+Desde 16/11/2026 (D57), as abas são estas, nesta ordem:
 
-As rotas internas podem ficar com o nome atual.
+| Aba        | Ícone                           | Rota          |
+| ---------- | ------------------------------- | ------------- |
+| Início     | `house`                         | `/`           |
+| Agenda     | `calendar`                      | `/agenda`     |
+| Escalas    | `list.bullet` (três linhas)     | `/escalas`    |
+| Comunidade | `person.2`                      | `/comunidade` |
+| Perfil     | avatar de 24 com anel (2.12.13) | `/perfil`     |
+
+A antiga aba Programas (`/programacoes`) virou o modo Lista da Agenda e a rota redireciona para `/agenda?vista=lista`. As rotas internas podem ficar com o nome atual.
 
 **Implementação:**
 
@@ -1360,6 +1362,8 @@ Os atalhos atuais "Minhas escalas" e "Linha do tempo de hoje" saem do topo: as e
 
 ## 3.4 Programas e eventos
 
+> **D57 (16/11/2026):** na interface, evento e programação se chamam **encontro**; o segmento das etapas se chama **Roteiro**; "Série" virou **Repetição**. A lista abaixo é o modo **Lista** da aba Agenda (seletor "Calendário | Lista", `eventos/ListaDeEncontros.tsx`), com o botão "Novo encontro" ao lado do título. As escalas (3.4.5) são a aba **Escalas**, com "Aguardando resposta" para quem convoca.
+
 ### 3.4.1 Programas, lista (`/programacoes`, `eventos/TelaProgramacoes.tsx`)
 
 1. Cabeçalho raiz e `display` "Programas". À direita do título, o botão só ícone "+" (para quem cria), que abre a folha "Nova programação" com linhas "Sábado padrão" (recomendado, chip quente), "Em branco" e "A partir de um modelo".
@@ -1537,6 +1541,8 @@ Os atalhos atuais "Minhas escalas" e "Linha do tempo de hoje" saem do topo: as e
 
 ### 3.6.1 Equipe (`/comunidade`, `comunidade/TelaComunidade.tsx`)
 
+> **D57 (16/11/2026):** a aba se chama **Comunidade**. No topo, os atalhos para Avisos, Pedidos de oração, Sugestões e Conteúdos (e, para a organização, Relatórios, Locais, Modelos e Denúncias); depois Pessoas, Pedidos e Convites. "Configurações da comunidade" aparece uma vez só (no cartão da identidade, com o código). Entrar em outra comunidade, criar e denunciar foram para o Perfil, em "Mais opções"; a Plataforma do Criador fica só no Perfil.
+
 1. Cabeçalho raiz e `display` "Equipe". À direita do título, o botão só ícone "Convidar" (`person.badge.plus`, para quem pode).
 2. **Cartão de vidro de identidade:**
    - avatar de 56 com o nome em `tituloCartao` e a `legenda` "Você é Administrador · 24 pessoas";
@@ -1599,6 +1605,8 @@ Os atalhos atuais "Minhas escalas" e "Linha do tempo de hoje" saem do topo: as e
   - "Mais ações" em folha: Suspender, Reativar, Nomear administrador, Arquivar e, por último, "Agendar exclusão" em vermelho.
 
 ### 3.6.4 Perfil com categorias (`/perfil`; substitui `navegacao/TelaMais.tsx` e `perfil/TelaPerfil.tsx`)
+
+> **D57 (16/11/2026):** o Perfil fica só com a conta: "Sua conta" (Editar perfil, Ajustes de notificação, Segurança, Versículo do dia, Privacidade e dados, Ajuda e sobre), Comunidades (trocar), Criador (Plataforma do Criador, só para o Criador) e "Mais opções" no fim (Pessoas bloqueadas, Uso sem internet, Entrar em outra comunidade, Criar comunidade, Denunciar comunidade). Os grupos "Na comunidade" e "Organização" abaixo foram para a aba Comunidade.
 
 1. Cabeçalho raiz (pílula e status) e `display` "Perfil".
 2. **Cartão de vidro de identidade:**
@@ -1779,6 +1787,8 @@ Os atalhos atuais "Minhas escalas" e "Linha do tempo de hoje" saem do topo: as e
 - **Guardado:** cartão lista "GUARDADO NESTE APARELHO", com os eventos preparados (validade "até 28/11") e a linha destrutiva "Apagar do aparelho".
 
 ### 3.7.7 Mapa da missão (`/missao`, `onboarding/TelaMapaDaMissao.tsx`)
+
+> **D57 (16/11/2026):** na interface, "Primeiros passos" (em Perfil, Ajuda e sobre).
 
 - **Fundo:** Aurora total. Cabeçalho de pilha com "Pular" (terciário) à direita.
 - **Passos:** a sobrancelha "PASSO 2 DE 5" e a barra de passos.

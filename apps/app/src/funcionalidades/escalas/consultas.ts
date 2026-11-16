@@ -2,7 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { api } from '@/servicos/api'
-import type { Disponibilidade, MinhaEscala, Substituicao } from '@/servicos/contratoDosEventos'
+import type {
+  Disponibilidade,
+  EncontroAguardandoResposta,
+  MinhaEscala,
+  Substituicao,
+} from '@/servicos/contratoDosEventos'
 import { mostrarToast } from '@/ui/Toast'
 import { confirmar } from '@/utilidades/confirmar'
 import type { DataLocal } from '@/utilidades/datas'
@@ -17,6 +22,20 @@ export function useMinhasEscalas(comunidadeId: string | null) {
         .get<{ escalas: MinhaEscala[] }>(`${naComunidade(comunidadeId!)}/minhas-escalas`)
         .then((r) => r.escalas),
     enabled: comunidadeId !== null,
+  })
+}
+
+/** Para quem convoca (D57): encontros publicados com convocação sem resposta ou recusada. */
+export function useAguardandoResposta(comunidadeId: string | null, habilitado: boolean) {
+  return useQuery({
+    queryKey: CHAVES.aguardandoResposta(comunidadeId ?? ''),
+    queryFn: () =>
+      api
+        .get<{
+          encontros: EncontroAguardandoResposta[]
+        }>(`${naComunidade(comunidadeId!)}/convocacoes/aguardando-resposta`)
+        .then((r) => r.encontros),
+    enabled: comunidadeId !== null && habilitado,
   })
 }
 
@@ -57,6 +76,7 @@ export function useInvalidarEscalas(comunidadeId: string) {
     await Promise.all([
       consultas.invalidateQueries({ queryKey: CHAVES.minhasEscalas(comunidadeId) }),
       consultas.invalidateQueries({ queryKey: CHAVES.substituicoes(comunidadeId) }),
+      consultas.invalidateQueries({ queryKey: CHAVES.aguardandoResposta(comunidadeId) }),
       consultas.invalidateQueries({ queryKey: CHAVES.inicio(comunidadeId) }),
       consultas.invalidateQueries({ queryKey: ['c', comunidadeId, 'evento'] }),
     ])

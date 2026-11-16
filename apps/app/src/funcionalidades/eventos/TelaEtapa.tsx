@@ -49,7 +49,7 @@ export function TelaEtapa() {
   if (!comunidadeAtiva || !eventoId || !etapaId) {
     return (
       <Tela pilha>
-        <SemComunidade oQue="a programação" />
+        <SemComunidade oQue="o encontro" />
       </Tela>
     )
   }
@@ -79,8 +79,8 @@ export function TelaEtapa() {
           titulo="Etapa não encontrada"
           descricao="Ela pode ter sido removida por outra pessoa."
           acao={{
-            titulo: 'Voltar para a programação',
-            aoPressionar: () => voltarOu('/programacoes'),
+            titulo: 'Voltar para o encontro',
+            aoPressionar: () => voltarOu('/agenda'),
           }}
         />
       </Tela>
@@ -163,7 +163,7 @@ function EtapaEEquipe({
   return (
     <Tela
       pilha
-      titulo={etapa ? etapa.titulo : 'Evento todo'}
+      titulo={etapa ? etapa.titulo : 'Encontro todo'}
       descricao={
         etapa
           ? `${evento.titulo} · das ${formatarHora(etapa.inicioPrevisto, evento.fuso)} às ${formatarHora(etapa.fimPrevisto, evento.fuso)}`

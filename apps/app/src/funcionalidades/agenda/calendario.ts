@@ -88,8 +88,8 @@ export function agruparPorDia(
 }
 
 export function contarEventos(n: number): string {
-  if (n === 0) return 'sem eventos'
-  return n === 1 ? '1 evento' : `${n} eventos`
+  if (n === 0) return 'sem encontros'
+  return n === 1 ? '1 encontro' : `${n} encontros`
 }
 
 /** O dia está dentro do intervalo (fim exclusivo)? */

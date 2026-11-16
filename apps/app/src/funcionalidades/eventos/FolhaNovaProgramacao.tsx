@@ -6,9 +6,9 @@ import type { DataLocal } from '@/utilidades/datas'
 import { usePode } from '../comunidade/permissoes'
 
 /**
- * Folha "Nova programação" (3.4.1): Sábado padrão (recomendado), Em branco e
- * A partir de um modelo. É a mesma em Programas e na Agenda; na Agenda, a
- * data do dia escolhido vai junto, e o sábado nunca nasce sem as etapas
+ * Folha "Novo encontro" (3.4.1): Sábado padrão (recomendado), Em branco e
+ * A partir de um modelo. É a mesma no "Novo encontro" da Agenda e no dia
+ * escolhido do calendário; ali, a data do dia vai junto, e o sábado nunca nasce sem as etapas
  * (auditoria U-07).
  */
 export function FolhaNovaProgramacao({
@@ -26,7 +26,7 @@ export function FolhaNovaProgramacao({
   return (
     <MenuDeAcoes
       aberto={aberta}
-      titulo="Nova programação"
+      titulo="Novo encontro"
       aoFechar={aoFechar}
       acoes={[
         {

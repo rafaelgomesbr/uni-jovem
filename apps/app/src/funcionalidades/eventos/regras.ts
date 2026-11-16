@@ -40,8 +40,8 @@ export function motivoSemInscricao(
 }
 
 export const EXPLICACAO_SEM_INSCRICAO: Readonly<Record<NonNullable<MotivoSemInscricao>, string>> = {
-  nao_publicado: 'As inscrições abrem quando o evento for publicado.',
-  ja_comecou: 'O evento já começou: as inscrições estão encerradas.',
+  nao_publicado: 'As inscrições abrem quando o encontro for publicado.',
+  ja_comecou: 'O encontro já começou: as inscrições estão encerradas.',
   prazo_encerrado: 'O prazo de inscrição terminou.',
 }
 

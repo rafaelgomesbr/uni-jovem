@@ -14,7 +14,7 @@ export function TelaEvento() {
   if (!comunidadeAtiva || !eventoId) {
     return (
       <Tela pilha>
-        <SemComunidade oQue="a programação" />
+        <SemComunidade oQue="o encontro" />
       </Tela>
     )
   }

@@ -121,7 +121,7 @@ function LerQr({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: str
                     }
                   : {
                       texto:
-                        'Código fora da lista preparada. Ficou anotado e o servidor confere depois.',
+                        'Código fora da lista baixada. Ficou anotado e o servidor confere depois.',
                       tipo: 'info',
                     },
             ),
@@ -143,7 +143,7 @@ function LerQr({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: str
           mostrarToast({
             texto:
               ehErroDaApi(erro) && erro.status === 404
-                ? 'Código não encontrado neste evento. Confira se a inscrição é deste encontro.'
+                ? 'Código não encontrado neste encontro. Confira se a inscrição é dele.'
                 : 'Não deu para registrar agora. Tente de novo ou use a busca por nome.',
             tipo: 'erro',
           }),
@@ -270,7 +270,7 @@ function Moldura({
           variante="secundario"
           tamanho="grande"
           larguraTotal
-          aoPressionar={() => voltarOu('/programacoes')}
+          aoPressionar={() => voltarOu('/agenda')}
         />
       </View>
     </View>

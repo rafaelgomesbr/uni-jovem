@@ -150,17 +150,17 @@ Open the app, tap "Entrar" (Sign in), type the e-mail and password, and tap "Ent
 
 WHERE THINGS ARE (tab names in Portuguese)
 - Início (Home): upcoming events, my rosters, announcements, verse of the day.
-- Agenda (Calendar): month, week and day timeline.
-- Programas (Programs): event list. Open "Sábado padrão" to see steps, roster, tasks, checklists and attendance.
-- Equipe (Team): members, roles, invitations, join requests and the community code.
-- Perfil (Profile): personal data, notifications, connected devices, two-factor authentication, "Privacidade e dados" (privacy and data) and "Ajuda e sobre" (help, terms).
+- Agenda (Calendar): "Calendário" (month and week) or "Lista" (all gatherings, with search and filters). Open "Sábado padrão" to see the program ("Roteiro"), who serves, tasks, checklists and attendance.
+- Escalas (Rosters): my assignments (accept, "Não posso ir" / can't go, ask for a substitute) and availability; organizers also see who has not answered yet.
+- Comunidade (Community): announcements, prayer requests, suggestions, content, reports (organizers), members, roles, invitations, join requests and the community code.
+- Perfil (Profile): personal data, notification settings, security (two-factor authentication, connected devices), "Privacidade e dados" (privacy and data), "Ajuda e sobre" (help, terms) and "Mais opções" (more options: blocked people, offline use, join or create a community, report a community).
 Without a community, the app shows "Tenho um código" (I have a code), "Procurar comunidade" (Find a community) and "Criar comunidade" (Create community).
 
 ACCOUNT DELETION (Guideline 5.1.1(v))
 Perfil > "Privacidade e dados" (Privacy and data) > "Excluir conta" (Delete account). Accounts with a password confirm with the password; accounts created with Sign in with Apple confirm by signing in with Apple again. The account and its personal data are deleted; the authorship of shared records becomes "Pessoa removida" (Removed person). The same can be requested on the web at https://unijovem.solerte.com.br/excluir-conta
 
 CAMERA AND PHOTOS
-The camera scans the attendance QR code at the event entrance: Programas > "Sábado padrão" > attendance > "Ler QR com a câmera" (Scan QR with the camera). Without the camera, attendance can also be marked by searching the person's name and tapping "Marcar presença". The camera and the photo library are also used, only when the user chooses, for an optional profile photo or the community logo.
+The camera scans the attendance QR code at the event entrance: Agenda > "Lista" > "Sábado padrão" > "Check-in" > "Ler QR com a câmera" (Scan QR with the camera). Without the camera, attendance can also be marked by searching the person's name and tapping "Marcar presença". The camera and the photo library are also used, only when the user chooses, for an optional profile photo or the community logo.
 
 OFFLINE BY DESIGN
 On the event page, "Preparar para usar sem internet" downloads the program, roster and attendance list. With the device offline, attendance and live steps still work and are sent when the connection returns. Editing, invitations and administration require a connection on purpose.

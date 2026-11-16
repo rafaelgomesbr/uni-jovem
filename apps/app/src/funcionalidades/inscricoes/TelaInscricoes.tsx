@@ -205,15 +205,15 @@ function ListaFiltrada({
           vazioTotal
             ? publica
               ? 'Compartilhe o link da página pública, logo abaixo, para receber inscrições.'
-              : 'Membros se inscrevem pelo app, na página do evento.'
+              : 'Membros se inscrevem pelo app, na página do encontro.'
             : 'Escolha outra opção em Mostrar.'
         }
         acao={
           vazioTotal
             ? {
-                titulo: 'Voltar para a programação',
+                titulo: 'Voltar para o encontro',
                 variante: 'secundario',
-                aoPressionar: () => voltarOu('/programacoes'),
+                aoPressionar: () => voltarOu('/agenda'),
               }
             : { titulo: 'Mostrar todas', variante: 'secundario', aoPressionar: aoMostrarTodas }
         }

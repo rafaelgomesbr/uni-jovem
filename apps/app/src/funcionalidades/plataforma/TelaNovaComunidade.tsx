@@ -218,7 +218,7 @@ export function TelaNovaComunidade() {
       {quem === 'eu' ? (
         <Secao
           titulo="Fuso horário"
-          rodape="Agenda e programações seguem o fuso do lugar dos encontros."
+          rodape="A agenda e os horários seguem o fuso do lugar dos encontros."
         >
           <CartaoDeVidro opaco intervalo={ESPACO.e8}>
             <ListaDeOpcoes rotulo="Fuso" valor={fuso} aoMudar={setFuso} opcoes={opcoesDeFuso()} />
@@ -226,7 +226,7 @@ export function TelaNovaComunidade() {
         </Secao>
       ) : (
         <Texto variante="legenda" cor="textoSuave">
-          {`Fuso: ${nomeDoFuso(FUSO_PADRAO)}. Quem administrar ajusta em Equipe, Configurações.`}
+          {`Fuso: ${nomeDoFuso(FUSO_PADRAO)}. Quem administrar ajusta na aba Comunidade, em Configurações.`}
         </Texto>
       )}
     </Tela>
@@ -327,7 +327,10 @@ function EntrarNaNova({
           descricao={`Você é o administrador de ${pedido.nome}, que já está aberta no app. Convide a liderança para começar.`}
           acoes={
             <ParDeBotoes>
-              <Botao titulo="Abrir a Equipe" aoPressionar={() => router.replace('/comunidade')} />
+              <Botao
+                titulo="Abrir a Comunidade"
+                aoPressionar={() => router.replace('/comunidade')}
+              />
               <Botao
                 titulo="Ir para o início"
                 variante="secundario"
@@ -343,7 +346,7 @@ function EntrarNaNova({
         ) : null}
         {gravarFuso.error ? (
           <Aviso tipo="alerta" titulo="O fuso não foi gravado">
-            {`A comunidade ficou no ${nomeDoFuso(FUSO_PADRAO)}. Ajuste em Equipe, Configurações.`}
+            {`A comunidade ficou no ${nomeDoFuso(FUSO_PADRAO)}. Ajuste na aba Comunidade, em Configurações.`}
           </Aviso>
         ) : null}
       </Tela>

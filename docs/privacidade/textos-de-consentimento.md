@@ -1,7 +1,7 @@
 # Textos de consentimento e avisos de tela
 
 > **Em uso em produção, com revisão jurídica pendente (PH-11).** Versão 0.3 deste arquivo, de 15/11/2026, para o app aberto (ADR 0007).
-> **Versões em uso no código em 15/11/2026** (`VERSAO_DO_TEXTO` em `apps/api/src/privacidade/consentimentos.ts`): TC-01, TC-02 e TC-04 na versão 1; TC-03 na versão 2.
+> **Versões em uso no código em 16/11/2026** (`VERSAO_DO_TEXTO` em `apps/api/src/privacidade/consentimentos.ts`): TC-01 e TC-02 na versão 2; TC-03 na versão 4 (D57: aba Comunidade e "encontros"); TC-04 e TC-16 na versão 1.
 > **Versões novas desta revisão, que entram junto com a API da ADR 0007** (o código ainda não as tem): TC-01.v2 (cadastro sem convite, por e-mail, Google ou Apple), TC-02.v2 (aceite dos Termos 0.3 e da Política 0.3), TC-03.v3 (consentimento sobre a fé também ao pedir entrada, ao entrar por código e ao criar comunidade), TC-12.v2 (sair sem precisar de convite para voltar) e os textos novos TC-16 (Termo do Administrador, registrado), TC-17 (pedido de entrada), TC-18 (aparecer na busca), TC-19 (denúncia de comunidade) e TC-20 (código da comunidade). Até a API mudar, valem as versões anteriores, guardadas no histórico de cada texto.
 > Textos curtos que aparecem nas telas do app e nas páginas públicas. Cada um tem um identificador com versão (`TC-nn.vN`). Mudou o texto de um consentimento, muda a versão (aqui e em `VERSAO_DO_TEXTO`), e quem aceitou a versão anterior continua registrado com ela.
 
@@ -61,7 +61,7 @@ Nenhum dado digitado é gravado no servidor. O convite, se houver, **não** é c
 
 ---
 
-## TC-03.v3: Consentimento sobre a fé, ao pedir para entrar ou entrar numa comunidade
+## TC-03.v4: Consentimento sobre a fé, ao pedir para entrar ou entrar numa comunidade
 
 **Onde aparece (um consentimento por comunidade):**
 
@@ -76,9 +76,9 @@ Nenhum dado digitado é gravado no servidor. O convite, se houver, **não** é c
 >
 > Pedir para entrar ou participar da _{nome da comunidade}_ no Uni Jovem mostra que você tem ligação com uma comunidade de igreja. A lei considera isso um dado sensível.
 >
-> [ ] Concordo que a _{nome da comunidade}_ e o Uni Jovem tratem meus dados para analisar meu pedido de entrada, se eu fizer um, e para organizar a minha participação nesta comunidade: eventos, escalas, presença, avisos, sugestões e pedidos de oração. Sei que nome e papel ficam visíveis para os membros desta comunidade, e meu e-mail e WhatsApp só para organizadores e administradores.
+> [ ] Concordo que a _{nome da comunidade}_ e o Uni Jovem tratem meus dados para analisar meu pedido de entrada, se eu fizer um, e para organizar a minha participação nesta comunidade: encontros, escalas, presença, avisos, sugestões e pedidos de oração. Sei que nome e papel ficam visíveis para os membros desta comunidade, e meu e-mail e WhatsApp só para organizadores e administradores.
 >
-> Você pode desfazer isso quando quiser: cancelando o pedido, saindo da comunidade na aba **Equipe** ("Sair de _{nome da comunidade}_") ou excluindo sua conta. [Saiba mais](/privacidade#fe)
+> Você pode desfazer isso quando quiser: cancelando o pedido, saindo da comunidade na aba **Comunidade** ("Sair de _{nome da comunidade}_") ou excluindo sua conta. [Saiba mais](/privacidade#fe)
 
 Na criação de comunidade, a primeira frase muda para "Criar e participar da _{nome}_ no Uni Jovem mostra que..." e a caixa não cita o pedido de entrada.
 
@@ -90,7 +90,7 @@ Na criação de comunidade, a primeira frase muda para "Criar e participar da _{
 
 > Sem essa concordância não conseguimos incluir você na comunidade, porque o app usa esses dados para funcionar. Se mudar de ideia, é só tentar de novo.
 
-**O que é registrado:** conta, comunidade, `TC-03.v3`, data, forma e, para 16 e 17 anos, a confirmação da ciência do responsável. Na entrada por código direto, convite e criação, a linha vai na hora para `uj.consentimentos`, com o vínculo. No pedido de entrada, a versão, a forma e a ciência ficam na própria linha do pedido (`uj.pedidos_de_entrada`, migração 0022 em construção) e viram a linha do consentimento, com o vínculo, quando o pedido é aceito.
+**O que é registrado:** conta, comunidade, `TC-03.v4`, data, forma e, para 16 e 17 anos, a confirmação da ciência do responsável. Na entrada por código direto, convite e criação, a linha vai na hora para `uj.consentimentos`, com o vínculo. No pedido de entrada, a versão, a forma e a ciência ficam na própria linha do pedido (`uj.pedidos_de_entrada`, migração 0022 em construção) e viram a linha do consentimento, com o vínculo, quando o pedido é aceito.
 
 **Revogação:** cancelar o pedido, ter o pedido recusado ou vencido (o tratamento acaba), sair da comunidade ou excluir a conta revoga este consentimento para aquela comunidade (ver `exclusao-de-conta.md`, caso 2).
 
@@ -98,6 +98,8 @@ Na criação de comunidade, a primeira frase muda para "Criar e participar da _{
 
 - v1 (até 15/11/2026): dizia "em Perfil > Sair da comunidade", mas o botão de sair fica na aba Equipe.
 - v2 (15/11/2026): corrigiu o caminho de sair; o que a pessoa autoriza era o mesmo.
+- v3 (15/11/2026, ADR 0007): também ao pedir entrada, ao entrar por código e ao criar comunidade.
+- v4 (16/11/2026, D57): a aba Equipe passou a se chamar Comunidade (o caminho de sair) e "eventos" virou "encontros", o nome único do app. O que a pessoa autoriza é o mesmo.
 - v3 (15/11/2026, com a ADR 0007): cobre o pedido de entrada e a entrada por código, além do convite, e a criação de comunidade. Muda o que a pessoa autoriza (análise do pedido), por isso a versão sobe. Quem aceitou a v1 ou a v2 continua registrado com elas.
 
 ---
@@ -196,7 +198,7 @@ Na criação de comunidade, a primeira frase muda para "Criar e participar da _{
 > **Quer ser avisado?**
 > Avisamos quando você for escalado, quando um evento mudar ou for cancelado, quando pedirem substituição e quando sair um aviso da sua comunidade.
 > Na tela bloqueada, assuntos pessoais aparecem com texto genérico. Pedidos de oração nunca viram notificação.
-> Você escolhe os tipos e as comunidades em **Perfil > Notificações**.
+> Você escolhe os tipos e as comunidades em **Perfil > Ajustes de notificação**.
 > [Agora não] [Ativar]
 
 **Se recusar ("Agora não" ou negar no sistema):** nada se perde; tudo aparece no Início do app. A tela de preferências mostra os dois estados separados ("Ligado no app, bloqueado no sistema: abrir Ajustes").
@@ -227,7 +229,7 @@ Não é consentimento (não há tratamento de dado pessoal). A notificação loc
 
 ## TC-12.v2: Sair da comunidade
 
-**Onde aparece:** aba Equipe > "Sair de _{comunidade}_" (o Perfil lista as comunidades e leva à mesma tela). Em 15/11/2026 o app usa um texto mais curto (`apps/app/src/funcionalidades/comunidade/sairDaComunidade.ts`): "Você deixa de ver a agenda e as programações desta comunidade. Para voltar, vai precisar de um convite novo.", mais a lista do que não foi enviado. Com a ADR 0007, a última frase muda para "Para voltar, peça para entrar de novo ou use um convite ou o código da comunidade."
+**Onde aparece:** aba Comunidade (antes Equipe, D57) > "Sair de _{comunidade}_" (o Perfil lista as comunidades e leva à mesma tela). Em 15/11/2026 o app usa um texto mais curto (`apps/app/src/funcionalidades/comunidade/sairDaComunidade.ts`): "Você deixa de ver a agenda e as programações desta comunidade. Para voltar, vai precisar de um convite novo.", mais a lista do que não foi enviado. Com a ADR 0007, a última frase muda para "Para voltar, peça para entrar de novo ou use um convite ou o código da comunidade."
 
 > **Sair da _{comunidade}_?**
 >
@@ -271,10 +273,10 @@ Não é consentimento (não há tratamento de dado pessoal). A notificação loc
 
 ## TC-15.v1: Bloquear esta pessoa
 
-**Onde aparece:** junto do **Denunciar**, num pedido de oração, numa sugestão com nome ou num aviso (`apps/app/src/funcionalidades/denuncias/BotaoDenunciar.tsx`). A lista e o desbloqueio ficam em **Perfil > Pessoas bloqueadas** (rota `/bloqueados`). Não é consentimento: é um aviso de tela, sem versão registrada.
+**Onde aparece:** junto do **Denunciar**, num pedido de oração, numa sugestão com nome ou num aviso (`apps/app/src/funcionalidades/denuncias/BotaoDenunciar.tsx`). A lista e o desbloqueio ficam em **Perfil > Mais opções > Pessoas bloqueadas** (rota `/bloqueados`). Não é consentimento: é um aviso de tela, sem versão registrada.
 
 > **Bloquear esta pessoa?**
-> Você deixa de ver os pedidos de oração e as sugestões desta pessoa, só nesta comunidade. Ela não é avisada, continua na comunidade e nada muda no papel de ninguém. Avisos e programação continuam aparecendo. Para desfazer: Perfil, Pessoas bloqueadas.
+> Você deixa de ver os pedidos de oração e as sugestões desta pessoa, só nesta comunidade. Ela não é avisada, continua na comunidade e nada muda no papel de ninguém. Avisos e encontros continuam aparecendo. Para desfazer: Perfil, Mais opções, Pessoas bloqueadas.
 > [Cancelar] [Bloquear]
 
 Depois: "Pessoa bloqueada. Ela não é avisada." [Desfazer]
@@ -291,7 +293,7 @@ Depois: "Pessoa bloqueada. Ela não é avisada." [Desfazer]
 
 ## TC-16.v1: Termo do Administrador da Comunidade (criar comunidade)
 
-**Onde aparece:** tela de criar comunidade (`POST /api/v1/comunidades`, campo `aceiteDoTermoDoAdmin: true`), depois de nome, cor e cidade, acima do botão "Criar comunidade". Na mesma tela, em bloco separado, vai o TC-03.v3 na forma de criação. Texto completo em [`termo-do-administrador.md`](termo-do-administrador.md), publicado em `/termos#administrador`.
+**Onde aparece:** tela de criar comunidade (`POST /api/v1/comunidades`, campo `aceiteDoTermoDoAdmin: true`), depois de nome, cor e cidade, acima do botão "Criar comunidade". Na mesma tela, em bloco separado, vai o TC-03.v4 na forma de criação. Texto completo em [`termo-do-administrador.md`](termo-do-administrador.md), publicado em `/termos#administrador`.
 
 **Texto (o resumo do termo, em texto corrido, mais a caixa):**
 
@@ -319,7 +321,7 @@ Depois: "Pessoa bloqueada. Ela não é avisada." [Desfazer]
 
 ## TC-17.v1: Pedido de entrada (aviso, sem versão registrada)
 
-**Onde aparece:** tela "Pedir para entrar em _{comunidade}_" (pela busca ou por código com aprovação), junto do campo de mensagem. O consentimento é o TC-03.v3, na mesma tela.
+**Onde aparece:** tela "Pedir para entrar em _{comunidade}_" (pela busca ou por código com aprovação), junto do campo de mensagem. O consentimento é o TC-03.v4, na mesma tela.
 
 > **Mensagem para a liderança (opcional)**
 > Conte quem você é, por exemplo "Sou a Ana, do grupo de sábado". A liderança da _{comunidade}_ vai ver seu nome e esta mensagem. Não escreva dados de saúde, documentos nem detalhes de outras pessoas.

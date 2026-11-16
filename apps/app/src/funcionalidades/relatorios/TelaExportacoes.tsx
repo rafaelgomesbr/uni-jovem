@@ -49,8 +49,8 @@ export const NOME_DA_EXPORTACAO: Readonly<Record<TipoDeExportacao, string>> = {
 }
 
 const DESCRICAO: Readonly<Record<TipoDeExportacao, string>> = {
-  presenca: 'Quem esteve em cada evento do período.',
-  inscricoes: 'Inscrições por evento, com situação e presença.',
+  presenca: 'Quem esteve em cada encontro do período.',
+  inscricoes: 'Inscrições por encontro, com situação e presença.',
   escalas: 'Quem foi escalado, a situação e as substituições.',
   membros: 'Pessoas da comunidade, papel e desde quando participam.',
 }

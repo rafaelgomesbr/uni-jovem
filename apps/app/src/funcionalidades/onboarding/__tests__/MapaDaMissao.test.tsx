@@ -38,11 +38,11 @@ async function usarAsDemonstracoes() {
   for (const c of screen.queryAllByRole('checkbox')) await fireEvent.press(c)
 }
 
-describe('mapa da missão', () => {
+describe('primeiros passos (antes "mapa da missão")', () => {
   beforeEach(() => jest.clearAllMocks())
 
   test.each<Papel>(['membro', 'organizador', 'admin'])(
-    '%s percorre o mapa inteiro sem nenhuma escrita na API',
+    '%s percorre os primeiros passos inteiros sem nenhuma escrita na API',
     async (papel) => {
       const { servidor } = await renderizarTela(<TelaMapaDaMissao />, {
         papel,
@@ -57,11 +57,11 @@ describe('mapa da missão', () => {
         await usarAsDemonstracoes()
         await fireEvent.press(
           screen.getByRole('button', {
-            name: i + 1 < etapas.length ? 'Próxima etapa' : 'Concluir o mapa',
+            name: i + 1 < etapas.length ? 'Próxima etapa' : 'Concluir',
           }),
         )
       }
-      expect(await screen.findByText('Mapa concluído')).toBeOnTheScreen()
+      expect(await screen.findByText('Primeiros passos concluídos')).toBeOnTheScreen()
       // Celebração sem pontos nem ranking.
       expect(screen.queryByText(/pontos|ranking|posição/i)).toBeNull()
       await waitFor(() => expect(screen.getByText('Completar o perfil')).toBeOnTheScreen())

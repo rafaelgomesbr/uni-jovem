@@ -20,6 +20,7 @@ import { Secao } from '@/ui/Secao'
 import { Segmentos } from '@/ui/Segmentos'
 import { parametro } from '@/utilidades/parametros'
 
+import { useGruposDoMais, type ItemDoMais } from '../navegacao/mais'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { TelaDoApp } from '../navegacao/TelaDoApp'
 import { logoDaComunidade } from '../perfil/imagens'
@@ -44,28 +45,31 @@ function semAcento(texto: string): string {
 }
 
 /**
- * Aba Equipe (rota `/comunidade`, 3.6.1 e quadro 08): o papel e quantas
- * pessoas no subtítulo, a identidade da comunidade (para o admin, o caminho
- * das Configurações), o destaque "Convidar pessoas" para quem convida, os
- * segmentos Pessoas, Pedidos (admin e organizador, ADR 0007) e Convites e,
- * no fim, "Sair". Cada bloco só aparece para quem pode usá-lo (mesma matriz
- * da API, que decide de verdade).
+ * Aba Comunidade (rota `/comunidade`, D57, 3.6.1 e quadro 08): o papel e
+ * quantas pessoas no subtítulo; no topo, os atalhos da comunidade (avisos,
+ * pedidos de oração, sugestões, conteúdos e, para a organização, relatórios,
+ * locais, modelos e denúncias); a identidade da comunidade (para o admin, as
+ * Configurações e o código); o destaque "Convidar pessoas" para quem
+ * convida; os segmentos Pessoas, Pedidos (admin e organizador, ADR 0007) e
+ * Convites e, no fim, "Sair". Cada bloco só aparece para quem pode usá-lo
+ * (mesma matriz da API, que decide de verdade). Entrar em outra comunidade,
+ * criar e denunciar ficam no Perfil, em "Mais opções".
  */
 export function TelaComunidade() {
   const { comunidadeAtiva } = useSessao()
   if (!comunidadeAtiva) {
     return (
-      <TelaDoApp titulo="Equipe">
+      <TelaDoApp titulo="Comunidade">
         <SemComunidade />
       </TelaDoApp>
     )
   }
-  return <Equipe comunidade={comunidadeAtiva} />
+  return <Comunidade comunidade={comunidadeAtiva} />
 }
 
-function Equipe({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
+function Comunidade({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
   const pode = usePode()
-  const { conta } = useSessao()
+  const grupos = useGruposDoMais()
   const membros = useMembros(comunidade.id)
   const verConvites = pode('convite', 'listar')
   const convites = useConvites(comunidade.id, verConvites)
@@ -85,6 +89,10 @@ function Equipe({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
   const ativa = comunidade.estado === 'ativa'
   const podeConvidar = pode('convite', 'criar')
   const sair = useSairDaComunidade(comunidade)
+  const [naComunidade, organizacao] = [
+    grupos.find((g) => g.titulo === 'Comunidade'),
+    grupos.find((g) => g.titulo === 'Organização'),
+  ]
   const oracao = comunidade.designacoes.includes('equipe_oracao')
 
   const ativos = membros.data?.filter((m) => m.estado === 'ativo').length
@@ -108,7 +116,7 @@ function Equipe({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
     (aba === 'pedidos' && !verPedidos) || (aba === 'convites' && !verConvites) ? 'pessoas' : aba
 
   return (
-    <TelaDoApp titulo="Equipe" descricao={descricao}>
+    <TelaDoApp titulo="Comunidade" descricao={descricao}>
       {!ativa || oracao ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
           {!ativa ? (
@@ -121,19 +129,34 @@ function Equipe({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
         </View>
       ) : null}
 
+      {naComunidade?.itens.length ? (
+        <Atalhos titulo="Na comunidade" itens={naComunidade.itens} />
+      ) : null}
+      {organizacao?.itens.length ? (
+        <Atalhos titulo="Organização" itens={organizacao.itens} />
+      ) : null}
+
       {configurar && ativa ? (
         <CartaoDeVidro lista>
-          <LinhaDeLista
-            avatar={{
-              nome: comunidade.nome,
-              cor: comunidade.cor,
-              dados: { foto: logoDaComunidade(comunidade) },
-            }}
-            titulo={comunidade.nome}
-            descricao="Configurações, código e quem pode entrar"
-            rotuloAcessivel={`Configurações da comunidade ${comunidade.nome}`}
-            aoPressionar={() => router.push('/configurar-comunidade')}
-          />
+          <Lista>
+            <LinhaDeLista
+              avatar={{
+                nome: comunidade.nome,
+                cor: comunidade.cor,
+                dados: { foto: logoDaComunidade(comunidade) },
+              }}
+              titulo={comunidade.nome}
+              descricao="Nome, cor, logotipo, cidade e quem pode entrar"
+              rotuloAcessivel={`Configurações da comunidade ${comunidade.nome}`}
+              aoPressionar={() => router.push('/configurar-comunidade')}
+            />
+            <LinhaDeLista
+              icone="qr"
+              titulo="Código da comunidade"
+              descricao="Código, QR e envio pelo WhatsApp"
+              aoPressionar={() => router.push('/codigo-da-comunidade')}
+            />
+          </Lista>
         </CartaoDeVidro>
       ) : null}
 
@@ -164,7 +187,12 @@ function Equipe({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
       ) : null}
 
       {segmentos.length > 1 ? (
-        <Segmentos rotulo="Equipe" valor={abaVisivel} aoMudar={setAba} segmentos={segmentos} />
+        <Segmentos
+          rotulo="Quem está na comunidade"
+          valor={abaVisivel}
+          aoMudar={setAba}
+          segmentos={segmentos}
+        />
       ) : null}
 
       {abaVisivel === 'convites' ? (
@@ -174,64 +202,6 @@ function Equipe({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
       ) : (
         <Pessoas comunidadeId={comunidade.id} podeAlterar={ativa} membros={membros} />
       )}
-
-      <Secao titulo="Comunidade">
-        <CartaoDeVidro lista>
-          <Lista>
-            {configurar && ativa ? (
-              <LinhaDeLista
-                icone="ajustes"
-                titulo="Configurações da comunidade"
-                descricao="Nome, cor, logotipo, cidade e quem pode entrar"
-                aoPressionar={() => router.push('/configurar-comunidade')}
-              />
-            ) : null}
-            {configurar && ativa ? (
-              <LinhaDeLista
-                icone="qr"
-                titulo="Código da comunidade"
-                descricao="Código, QR e envio pelo WhatsApp"
-                aoPressionar={() => router.push('/codigo-da-comunidade')}
-              />
-            ) : null}
-            <LinhaDeLista
-              icone="link"
-              titulo="Entrar em outra comunidade"
-              descricao="Código, convite ou busca"
-              aoPressionar={() => router.push('/comece-por-aqui')}
-            />
-            {conta?.criador ? (
-              <LinhaDeLista
-                icone="plataforma"
-                titulo="Plataforma do Criador"
-                descricao="Criar e cuidar das comunidades"
-                aoPressionar={() => router.push('/plataforma')}
-              />
-            ) : null}
-            <LinhaDeLista
-              icone="adicionar"
-              titulo="Criar comunidade"
-              rotuloAcessivel="Criar comunidade"
-              aoPressionar={() =>
-                router.push(conta?.criador ? '/plataforma/nova' : '/criar-comunidade')
-              }
-            />
-            {detalhe.data?.idPublico ? (
-              <LinhaDeLista
-                icone="denuncia"
-                titulo="Denunciar comunidade"
-                descricao="Algo errado aqui? A equipe do app olha"
-                aoPressionar={() =>
-                  router.push({
-                    pathname: '/denunciar-comunidade',
-                    params: { idPublico: detalhe.data?.idPublico ?? '', nome: comunidade.nome },
-                  })
-                }
-              />
-            ) : null}
-          </Lista>
-        </CartaoDeVidro>
-      </Secao>
 
       {sair.erro ? <AvisoDeFalha erro={sair.erro} titulo="Você continua na comunidade" /> : null}
       <CartaoDeVidro lista opaco>
@@ -245,6 +215,27 @@ function Equipe({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
         />
       </CartaoDeVidro>
     </TelaDoApp>
+  )
+}
+
+/** Atalhos de um grupo: sobrancelha fora do cartão e um cartão lista. */
+function Atalhos({ titulo, itens }: { titulo: string; itens: readonly ItemDoMais[] }) {
+  return (
+    <Secao titulo={titulo}>
+      <CartaoDeVidro lista>
+        <Lista>
+          {itens.map((i) => (
+            <LinhaDeLista
+              key={i.rotulo}
+              icone={i.icone}
+              titulo={i.rotulo}
+              descricao={i.descricao}
+              aoPressionar={() => router.push(i.href)}
+            />
+          ))}
+        </Lista>
+      </CartaoDeVidro>
+    </Secao>
   )
 }
 

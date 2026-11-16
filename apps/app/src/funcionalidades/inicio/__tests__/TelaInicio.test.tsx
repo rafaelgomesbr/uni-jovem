@@ -179,7 +179,7 @@ describe('tela Início', () => {
       rotas: { [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: INICIO_VAZIO }) },
     })
 
-    expect(await screen.findByText('Nenhum evento marcado')).toBeOnTheScreen()
+    expect(await screen.findByText('Nenhum encontro marcado')).toBeOnTheScreen()
     await userEvent.setup().press(screen.getByRole('button', { name: 'Novo Sábado padrão' }))
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/evento/novo',
@@ -194,7 +194,7 @@ describe('tela Início', () => {
       rotas: { [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: INICIO_VAZIO }) },
     })
 
-    expect(await screen.findByText('Nenhum evento marcado')).toBeOnTheScreen()
+    expect(await screen.findByText('Nenhum encontro marcado')).toBeOnTheScreen()
     expect(screen.queryByRole('button', { name: 'Novo Sábado padrão' })).toBeNull()
     expect(screen.getAllByRole('button', { name: 'Ver a agenda' }).length).toBeGreaterThan(0)
   })
@@ -268,15 +268,15 @@ describe('Início sem comunidade', () => {
     })
   }
 
-  test('Criador: o destaque "Primeiros passos" cria a primeira comunidade e a Plataforma fica a um toque', async () => {
+  test('Criador: o destaque "Para começar" cria a primeira comunidade (a Plataforma fica no Perfil)', async () => {
     await renderizarTela(<TelaInicio />, { rotas: { 'GET /api/v1/eu': eu(true) } })
 
     expect(await screen.findByText('Crie sua primeira comunidade')).toBeOnTheScreen()
     const usuario = userEvent.setup()
     await usuario.press(screen.getByRole('button', { name: 'Criar comunidade' }))
     expect(router.push).toHaveBeenCalledWith('/plataforma/nova')
-    await usuario.press(screen.getByRole('button', { name: /^Plataforma/ }))
-    expect(router.push).toHaveBeenCalledWith('/plataforma')
+    // D57: a Plataforma não se repete no Início; mora só no Perfil.
+    expect(screen.queryByRole('button', { name: /^Plataforma/ })).toBeNull()
     // O versículo continua; não há status de sincronização sem comunidade.
     expect(screen.getByText('Versículo do dia')).toBeOnTheScreen()
   })
@@ -300,7 +300,7 @@ describe('Início sem comunidade', () => {
     expect(screen.getByText('Versículo do dia')).toBeOnTheScreen()
   })
 
-  test('várias comunidades e nenhuma escolhida: a lista escolhe direto', async () => {
+  describe('várias comunidades (D57: nunca abre com as abas vazias)', () => {
     const outra = '33333333-3333-4333-8333-333333333333'
     const comunidades = [
       {
@@ -320,13 +320,34 @@ describe('Início sem comunidade', () => {
         designacoes: [],
       },
     ]
-    await renderizarTela(<TelaInicio />, { rotas: { 'GET /api/v1/eu': eu(false, comunidades) } })
+    const cofre = (jest.requireMock('expo-secure-store') as { __cofre: Map<string, string> })
+      .__cofre
+    afterEach(() => cofre.delete('uj.comunidadeAtiva.conta-eu'))
 
-    expect(
-      await screen.findByRole('button', { name: /^Jovens Vila Nova, .*Escolher esta comunidade/ }),
-    ).toBeOnTheScreen()
-    expect(
-      screen.getByRole('button', { name: /^Jovens Centro, .*Escolher esta comunidade/ }),
-    ).toBeOnTheScreen()
+    test('nenhuma escolhida: entra direto na primeira, sem a lista de escolha', async () => {
+      await renderizarTela(<TelaInicio />, {
+        rotas: {
+          'GET /api/v1/eu': eu(false, comunidades),
+          [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: INICIO_VAZIO }),
+        },
+      })
+      expect(
+        await screen.findByRole('button', { name: /^Comunidade Jovens Centro, Membro/ }),
+      ).toBeOnTheScreen()
+      expect(screen.queryByText('Suas comunidades')).toBeNull()
+    })
+
+    test('com a última usada guardada, abre nela', async () => {
+      cofre.set('uj.comunidadeAtiva.conta-eu', outra)
+      await renderizarTela(<TelaInicio />, {
+        rotas: {
+          'GET /api/v1/eu': eu(false, comunidades),
+          [`GET /api/v1/c/${outra}/inicio`]: () => ({ status: 200, corpo: INICIO_VAZIO }),
+        },
+      })
+      expect(
+        await screen.findByRole('button', { name: /^Comunidade Jovens Vila Nova, Administrador/ }),
+      ).toBeOnTheScreen()
+    })
   })
 })

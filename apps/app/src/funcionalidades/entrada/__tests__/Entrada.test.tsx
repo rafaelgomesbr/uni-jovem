@@ -133,7 +133,7 @@ describe('Tenho um código', () => {
     expect(pedidosPara(servidor, 'POST', '/api/v1/entrada')).toHaveLength(0)
   })
 
-  test('sem o consentimento sobre a fé (TC-03.v3), o botão fica desabilitado com o motivo', async () => {
+  test('sem o consentimento sobre a fé (TC-03.v4), o botão fica desabilitado com o motivo', async () => {
     await renderizarTela(<TelaTenhoUmCodigo />, { rotas: { 'GET /api/v1/eu': semComunidade() } })
     await fireEvent.changeText(await screen.findByLabelText('Código ou link'), 'ABCD2345')
     expect(screen.getByText('Sobre a sua fé')).toBeOnTheScreen()

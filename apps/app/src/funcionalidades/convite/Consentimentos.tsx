@@ -154,7 +154,7 @@ export function ConsentimentoDeFe({
         igreja. A lei considera isso um dado sensível.
       </Texto>
       <CaixaDeMarcar
-        rotulo={`Concordo que a ${comunidade} e o ${NOME_DO_APP} tratem meus dados para organizar a minha participação nesta comunidade: eventos, escalas, presença, avisos, sugestões e pedidos de oração. Sei que nome e papel ficam visíveis para os membros desta comunidade, e meu e-mail e WhatsApp só para organizadores e administradores.`}
+        rotulo={`Concordo que a ${comunidade} e o ${NOME_DO_APP} tratem meus dados para organizar a minha participação nesta comunidade: encontros, escalas, presença, avisos, sugestões e pedidos de oração. Sei que nome e papel ficam visíveis para os membros desta comunidade, e meu e-mail e WhatsApp só para organizadores e administradores.`}
         marcada={marcada}
         aoMudar={aoMudar}
         erro={erro ?? null}
@@ -170,8 +170,8 @@ export function ConsentimentoDeFe({
         />
       ) : null}
       <Texto variante="legenda" cor="textoSuave">
-        Você pode desfazer isso quando quiser: na aba Equipe, em Sair de {comunidade}, ou excluindo
-        sua conta.
+        Você pode desfazer isso quando quiser: na aba Comunidade, em Sair de {comunidade}, ou
+        excluindo sua conta.
       </Texto>
       <Botao
         titulo="Saiba mais sobre a fé e seus dados"

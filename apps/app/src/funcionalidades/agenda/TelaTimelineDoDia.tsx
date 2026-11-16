@@ -154,8 +154,8 @@ function Timeline({
       ) : visiveis.length === 0 ? (
         <EstadoVazio
           icone="agenda"
-          titulo="Nenhum evento neste dia"
-          descricao="Escolha outro dia na agenda para ver a programação dele."
+          titulo="Nenhum encontro neste dia"
+          descricao="Escolha outro dia na agenda para ver os encontros dele."
           acao={{ titulo: 'Voltar para a agenda', aoPressionar: voltarParaAAgenda }}
         />
       ) : (
@@ -234,10 +234,10 @@ function EventoNaLinhaDoTempo({
   const acoes = (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: ESPACO.e24 }}>
       <Botao
-        titulo="Abrir a programação"
+        titulo="Abrir o encontro"
         variante="terciario"
         alinhado
-        rotuloAcessivel={`Abrir a programação de ${resumo.titulo}`}
+        rotuloAcessivel={`Abrir o encontro ${resumo.titulo}`}
         aoPressionar={() =>
           router.push({ pathname: '/evento/[eventoId]', params: { eventoId: resumo.id } })
         }
@@ -282,7 +282,7 @@ function Etapas({ evento, retrato }: { evento: DetalheDoEvento; retrato: Retrato
   if (evento.etapas.length === 0) {
     return (
       <Texto variante="legenda" cor="textoSuave">
-        A programação deste evento ainda não tem etapas.
+        O roteiro deste encontro ainda não tem etapas.
       </Texto>
     )
   }
@@ -295,7 +295,7 @@ function Etapas({ evento, retrato }: { evento: DetalheDoEvento; retrato: Retrato
   const resumo = !comecou
     ? 'Horários previstos. O progresso aparece quando o ao vivo começar.'
     : retrato.situacao === 'encerrado'
-      ? `Evento encerrado. ${concluidas} de ${total} etapas concluídas.`
+      ? `Encontro encerrado. ${concluidas} de ${total} etapas concluídas.`
       : `${concluidas} de ${total} etapas${retrato.situacao === 'pausado' ? ' · pausado' : ''}`
 
   return (

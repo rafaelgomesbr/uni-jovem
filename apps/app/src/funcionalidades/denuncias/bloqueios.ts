@@ -84,4 +84,4 @@ export function useDesbloquear(comunidadeId: string) {
 
 /** O que a confirmação explica antes de bloquear (sem jargão, com o caminho de volta). */
 export const EXPLICACAO_DO_BLOQUEIO =
-  'Você deixa de ver os pedidos de oração e as sugestões desta pessoa, só nesta comunidade. Ela não é avisada, continua na comunidade e nada muda no papel de ninguém. Avisos e programação continuam aparecendo. Para desfazer: Perfil, Pessoas bloqueadas.'
+  'Você deixa de ver os pedidos de oração e as sugestões desta pessoa, só nesta comunidade. Ela não é avisada, continua na comunidade e nada muda no papel de ninguém. Avisos e encontros continuam aparecendo. Para desfazer: Perfil, Mais opções, Pessoas bloqueadas.'

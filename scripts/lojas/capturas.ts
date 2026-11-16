@@ -204,7 +204,7 @@ async function encerrarODiaDoEvento(page: Page, copia: string) {
   await page.getByRole('button', { name: 'Mais ações', exact: true }).last().click()
   // O item da folha é lido como "Encerrar. O encontro já aconteceu".
   await page.getByRole('button', { name: /^Encerrar\. / }).click()
-  await confirmarNoDialogo(page, 'Encerrar evento')
+  await confirmarNoDialogo(page, 'Encerrar encontro')
 }
 
 /**
@@ -243,7 +243,7 @@ export const TELAS: Tela[] = [
     arquivo: '02-programacao',
     abrir: async (p, c) => {
       await abrirSabadoJovem(p, c.sabado)
-      await p.getByRole('radio', { name: 'Etapas', exact: true }).click()
+      await p.getByRole('radio', { name: 'Roteiro', exact: true }).click()
       await assentar(p)
     },
   },

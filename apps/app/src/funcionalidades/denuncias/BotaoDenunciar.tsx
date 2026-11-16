@@ -162,7 +162,7 @@ function BloquearPessoa({
       mostrarToast({ texto: 'Bloqueio desfeito.', tipo: 'info' })
     } catch {
       mostrarToast({
-        texto: 'Não deu para desfazer agora. Tente em Perfil, Pessoas bloqueadas.',
+        texto: 'Não deu para desfazer agora. Tente em Perfil, Mais opções, Pessoas bloqueadas.',
         tipo: 'erro',
       })
     }

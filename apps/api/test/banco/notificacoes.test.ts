@@ -306,7 +306,7 @@ describe('eventos, escalas, substituições e inscrições', () => {
       )
     ).rows
     expect(titulos.map((t) => t.titulo)).toEqual(
-      expect.arrayContaining(['Nova convocação', 'Evento cancelado']),
+      expect.arrayContaining(['Nova convocação', 'Encontro cancelado']),
     )
     const carla = await b.su.query<{ titulo: string; corpo: string }>(
       `select titulo, corpo from uj.notificacoes where conta_id = $1 and recurso_id = $2`,

@@ -1,11 +1,9 @@
 import { ESPACO } from '@uj/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { View } from 'react-native'
 
-import { useSessao } from '@/estado/sessao'
 import type { ResumoDoEvento } from '@/servicos/contratoDosEventos'
-import { Botao } from '@/ui/Botao'
 import { CampoDeBusca } from '@/ui/Campo'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
@@ -27,11 +25,9 @@ import { parametro } from '@/utilidades/parametros'
 
 import { useFusoDaComunidade } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
-import { SemComunidade } from '../navegacao/SemComunidade'
 import { TelaDoApp } from '../navegacao/TelaDoApp'
 import { useEventosNoPeriodo } from './consultas'
 import { DetalheDoEvento } from './DetalheDoEvento'
-import { FolhaNovaProgramacao } from './FolhaNovaProgramacao'
 import { linhaDoEventoNaLista } from './LinhaDoEvento'
 
 export type Periodo = 'proximos' | 'passados'
@@ -88,19 +84,30 @@ export function agruparPorMes(eventos: readonly ResumoDoEvento[], anoAtual: stri
   return grupos
 }
 
-export function TelaProgramacoes() {
-  const { comunidadeAtiva } = useSessao()
-  if (!comunidadeAtiva) {
-    return (
-      <TelaDoApp titulo="Programas">
-        <SemComunidade oQue="as programações" />
-      </TelaDoApp>
-    )
-  }
-  return <Programacoes comunidadeId={comunidadeAtiva.id} />
+interface PropsDaLista {
+  comunidadeId: string
+  /** O seletor "Calendário | Lista", no topo, igual nos dois modos. */
+  seletor: ReactNode
+  /** "Novo encontro", ao lado do título (só para quem cria). */
+  acao?: ReactNode
+  /** Abre a folha "Novo encontro" (Sábado padrão, Em branco, A partir de modelo). */
+  aoCriar: () => void
+  /** Volta ao modo Calendário (o estado vazio de quem não cria). */
+  aoVerCalendario: () => void
 }
 
-function Programacoes({ comunidadeId }: { comunidadeId: string }) {
+/**
+ * Agenda no modo Lista (D57, antiga aba Programas, 3.4.1): busca, filtros
+ * Próximos e Passados, Rascunhos, Publicados e Cancelados, e os encontros
+ * agrupados por mês. Na web larga, o encontro escolhido abre ao lado.
+ */
+export function ListaDeEncontros({
+  comunidadeId,
+  seletor,
+  acao,
+  aoCriar,
+  aoVerCalendario,
+}: PropsDaLista) {
   const pode = usePode()
   const fuso = useFusoDaComunidade()
   const largo = useLayoutLargo()
@@ -109,7 +116,6 @@ function Programacoes({ comunidadeId }: { comunidadeId: string }) {
   const [periodo, setPeriodo] = useState<Periodo>('proximos')
   const [status, setStatus] = useState<FiltroDeStatus>('todos')
   const [busca, setBusca] = useState('')
-  const [novaAberta, setNovaAberta] = useState(false)
 
   const hoje = hojeNoFuso(fuso)
   const inicioDeHoje = instanteDeDataEHora(hoje, '00:00', fuso)
@@ -136,6 +142,7 @@ function Programacoes({ comunidadeId }: { comunidadeId: string }) {
 
   const lista = (
     <>
+      {seletor}
       <CampoDeBusca rotulo="Buscar por título ou categoria" valor={busca} aoMudar={setBusca} />
       <Filtros
         periodo={periodo}
@@ -145,14 +152,14 @@ function Programacoes({ comunidadeId }: { comunidadeId: string }) {
         aoMudarStatus={setStatus}
       />
       {eventos.isPending ? (
-        <Esqueleto rotulo="Carregando as programações">
+        <Esqueleto rotulo="Carregando os encontros">
           <CartaoDeEsqueleto titulo />
           <CartaoDeEsqueleto />
         </Esqueleto>
       ) : eventos.error ? (
         <ErroDaTela
           erro={eventos.error}
-          titulo="As programações não abriram"
+          titulo="Os encontros não abriram"
           aoTentarDeNovo={() => void eventos.refetch()}
         />
       ) : filtrados.length === 0 ? (
@@ -160,7 +167,7 @@ function Programacoes({ comunidadeId }: { comunidadeId: string }) {
           <EstadoVazio
             icone="programacoes"
             titulo="Nada com esses filtros"
-            descricao="Mude a situação ou a busca para ver outras programações."
+            descricao="Mude a situação ou a busca para ver outros encontros."
             acao={{
               titulo: 'Limpar filtros',
               variante: 'secundario',
@@ -173,9 +180,7 @@ function Programacoes({ comunidadeId }: { comunidadeId: string }) {
         ) : (
           <EstadoVazio
             icone="programacoes"
-            titulo={
-              periodo === 'proximos' ? 'Nenhuma programação marcada' : 'Nada nos últimos meses'
-            }
+            titulo={periodo === 'proximos' ? 'Nenhum encontro marcado' : 'Nada nos últimos meses'}
             descricao={
               podeCriar
                 ? 'Comece pelo Sábado padrão: as etapas de sempre já vêm prontas e você ajusta depois.'
@@ -184,14 +189,17 @@ function Programacoes({ comunidadeId }: { comunidadeId: string }) {
             acao={
               podeCriar
                 ? { titulo: 'Novo Sábado padrão', icone: 'adicionar', aoPressionar: novoSabado }
-                : { titulo: 'Ver a agenda', aoPressionar: () => router.push('/agenda') }
+                : {
+                    titulo: 'Ver o calendário',
+                    aoPressionar: aoVerCalendario,
+                  }
             }
           />
         )
       ) : (
         <>
           <TextoAnunciado soMudancas variante="legenda" cor="textoSuave">
-            {filtrados.length === 1 ? '1 programação' : `${filtrados.length} programações`}
+            {filtrados.length === 1 ? '1 encontro' : `${filtrados.length} encontros`}
           </TextoAnunciado>
           {grupos.map((g, i) => (
             <View key={g.chave} style={i === 0 ? { marginTop: -ESPACO.e16 } : null}>
@@ -213,33 +221,21 @@ function Programacoes({ comunidadeId }: { comunidadeId: string }) {
           ))}
         </>
       )}
-      <FolhaNovaProgramacao aberta={novaAberta} aoFechar={() => setNovaAberta(false)} />
     </>
   )
 
-  // Criar é a ação principal desta aba: "Nova" escrito, não só um "+" (auditoria U-06).
-  const mais = podeCriar ? (
-    <Botao
-      titulo="Nova"
-      icone="adicionar"
-      variante="secundario"
-      rotuloAcessivel="Nova programação"
-      aoPressionar={() => setNovaAberta(true)}
-    />
-  ) : undefined
-
   if (!largo) {
     return (
-      <TelaDoApp titulo="Programas" {...(mais ? { acaoComTexto: mais } : {})}>
+      <TelaDoApp titulo="Agenda" {...(acao ? { acaoComTexto: acao } : {})}>
         {lista}
       </TelaDoApp>
     )
   }
 
   return (
-    <TelaDoApp titulo="Programas" rolar={false} larga {...(mais ? { acaoComTexto: mais } : {})}>
+    <TelaDoApp titulo="Agenda" rolar={false} larga {...(acao ? { acaoComTexto: acao } : {})}>
       <LayoutDividido
-        rotuloDoDetalhe="Programação escolhida"
+        rotuloDoDetalhe="Encontro escolhido"
         lista={lista}
         detalhe={
           selecionado ? (
@@ -253,15 +249,15 @@ function Programacoes({ comunidadeId }: { comunidadeId: string }) {
           ) : (
             <EstadoVazio
               icone="programacoes"
-              titulo="Escolha uma programação"
-              descricao="Ela abre aqui ao lado, com etapas, equipe, preparação e inscrições."
+              titulo="Escolha um encontro"
+              descricao="Ele abre aqui ao lado, com o roteiro, quem serve, a preparação e as inscrições."
               {...(podeCriar
                 ? {
                     acao: {
-                      titulo: 'Novo Sábado padrão',
+                      titulo: 'Novo encontro',
                       icone: 'adicionar' as const,
                       variante: 'secundario' as const,
-                      aoPressionar: novoSabado,
+                      aoPressionar: aoCriar,
                     },
                   }
                 : {})}

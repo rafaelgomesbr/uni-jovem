@@ -66,6 +66,31 @@ export function registrarRotasDeEscalas(app: FastifyInstance, api: pg.Pool): voi
     }))
   })
 
+  // Para a organização (D57): encontros publicados que ainda não acabaram e têm convocação
+  // sem resposta ou recusada. Só contagens: o nome de quem não respondeu fica no encontro.
+  app.get(`${base}/convocacoes/aguardando-resposta`, naCom, async (pedido) => {
+    exigir(pedido, 'escala', 'atribuir')
+    return tx(pedido, async (c) => ({
+      encontros: (
+        await c.query(
+          `select e.id, e.titulo, e.inicio, e.fuso,
+                  count(*) filter (where a.estado = 'pendente')::int as pendentes,
+                  count(*) filter (where a.estado = 'recusada')::int as recusadas
+             from uj.eventos e
+             join uj.atribuicoes a on a.evento_id = e.id and a.comunidade_id = e.comunidade_id
+            where e.comunidade_id = $1
+              and e.status = 'publicado'
+              and e.inicio + make_interval(mins => e.duracao_min) > now()
+            group by e.id
+           having count(*) filter (where a.estado in ('pendente', 'recusada')) > 0
+            order by e.inicio
+            limit 20`,
+          [pedido.comunidade!.id],
+        )
+      ).rows,
+    }))
+  })
+
   for (const [acao, resposta] of [
     ['confirmar', 'confirmada'],
     ['recusar', 'recusada'],

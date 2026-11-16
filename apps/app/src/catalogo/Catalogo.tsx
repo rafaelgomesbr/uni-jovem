@@ -198,7 +198,7 @@ function Campos() {
 }
 
 function Selecao() {
-  const [modo, setModo] = useState<'mes' | 'semana' | 'lista'>('mes')
+  const [modo, setModo] = useState<'calendario' | 'lista'>('calendario')
   const [filtros, setFiltros] = useState<string[]>(['proximos'])
   const [opcao, setOpcao] = useState<'salao' | 'praca'>('salao')
   const [marcada, setMarcada] = useState(true)
@@ -207,12 +207,11 @@ function Selecao() {
     <>
       <Grupo titulo="Segmentos e pílulas de filtro">
         <Segmentos
-          rotulo="Modo"
+          rotulo="Como ver a agenda"
           valor={modo}
           aoMudar={setModo}
           segmentos={[
-            { valor: 'mes', rotulo: 'Mês' },
-            { valor: 'semana', rotulo: 'Semana' },
+            { valor: 'calendario', rotulo: 'Calendário' },
             { valor: 'lista', rotulo: 'Lista' },
           ]}
         />
@@ -309,7 +308,7 @@ function ListasECartoes() {
             <LinhaDeLista
               icone="sino"
               titulo="Notificações"
-              descricao="Eventos, escalas e avisos"
+              descricao="Encontros, escalas e avisos"
               aoPressionar={nada}
             />
             <LinhaDeLista
@@ -426,7 +425,7 @@ function ListasECartoes() {
         </CartaoDeVidro>
         <EstadoVazio
           icone="agenda"
-          titulo="Nenhuma programação ainda"
+          titulo="Nenhum encontro ainda"
           descricao="Comece pelo Sábado padrão: as 7 etapas já vêm prontas e você ajusta depois."
           acao={{ titulo: 'Novo Sábado padrão', aoPressionar: nada }}
         />
@@ -443,7 +442,7 @@ function ListasECartoes() {
           Você está no Louvor, sábado às 16:05.
         </Aviso>
         <Aviso tipo="alerta" titulo="Sem conexão: o Início volta quando a internet voltar">
-          O que foi preparado neste aparelho continua aqui.
+          O que foi baixado neste aparelho continua aqui.
         </Aviso>
         <Aviso
           tipo="erro"
@@ -474,10 +473,10 @@ function ListasECartoes() {
         </Linha>
         <Linha>
           <StatusDoCabecalho
-            icone="check"
-            cor="sucesso"
-            texto="Sincronizado 14:32"
-            rotulo="Sincronizado"
+            icone="semConexao"
+            cor="alerta"
+            texto="Sem conexão"
+            rotulo="Sem conexão"
           />
           <StatusDoCabecalho
             icone="relogio"
@@ -515,7 +514,7 @@ function ListasECartoes() {
           <CabecalhoDeTela
             tipo="pilha"
             modal
-            titulo="Nova programação"
+            titulo="Novo encontro"
             abaixoDoTitulo={<Chip texto="Rascunho" tom="neutro" />}
           />
         </CartaoDeVidro>

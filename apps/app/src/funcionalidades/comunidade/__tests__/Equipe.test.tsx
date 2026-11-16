@@ -49,24 +49,52 @@ beforeEach(() => {
   jest.mocked(useLocalSearchParams).mockReturnValue({})
 })
 
-describe('aba Equipe', () => {
-  test('o Criador vê "Criar comunidade"', async () => {
-    await renderizarTela(<TelaComunidade />, {
-      papel: 'membro',
-      rotas: { 'GET /api/v1/eu': euComoCriador(true) },
-    })
-    expect((await screen.findAllByRole('button', { name: 'Criar comunidade' })).length).toBe(1)
-  })
-
-  test('o membro não vê convites; "Criar comunidade" abre a criação aberta (ADR 0007)', async () => {
+describe('aba Comunidade (D57)', () => {
+  test('membro: atalhos da comunidade no topo, sem os da organização nem os da conta', async () => {
     await renderizarTela(<TelaComunidade />, { papel: 'membro' })
     expect(await screen.findByText('Você é Membro · 3 pessoas')).toBeOnTheScreen()
+    const usuario = userEvent.setup()
+    for (const [nome, rota] of [
+      ['Avisos', '/avisos'],
+      ['Pedidos de oração', '/oracao'],
+      ['Sugestões', '/sugestoes'],
+      ['Conteúdos', '/conteudos'],
+    ] as const) {
+      await usuario.press(screen.getByRole('button', { name: new RegExp(`^${nome}[.]`) }))
+      expect(router.push).toHaveBeenLastCalledWith(rota)
+    }
     expect(screen.getByText('Bruno Lima')).toBeOnTheScreen()
-    await userEvent.setup().press(screen.getByRole('button', { name: 'Criar comunidade' }))
-    expect(router.push).toHaveBeenCalledWith('/criar-comunidade')
+    // Organização é só para quem organiza.
+    expect(screen.queryByRole('button', { name: /^Relatórios\./ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Locais\./ })).toBeNull()
+    // Criar, entrar em outra e denunciar moram no Perfil, em "Mais opções".
+    expect(screen.queryByRole('button', { name: 'Criar comunidade' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Entrar em outra comunidade/ })).toBeNull()
     // Membro não convida nem vê a lista de convites.
     expect(screen.queryByRole('button', { name: /^Criar convite/ })).toBeNull()
     expect(screen.queryByRole('radio', { name: /^Convites/ })).toBeNull()
+  })
+
+  test('admin: atalhos da organização, Configurações uma vez só e sem a Plataforma', async () => {
+    await renderizarTela(<TelaComunidade />, {
+      papel: 'admin',
+      rotas: {
+        // Admin e Criador ao mesmo tempo: mesmo assim, a Plataforma não aparece aqui.
+        'GET /api/v1/eu': () => {
+          const base = respostaEu('admin')
+          return { status: 200, corpo: { ...base, conta: { ...base.conta, criador: true } } }
+        },
+        [`GET ${BASE}/convites`]: () => ({ status: 200, corpo: { convites: [] } }),
+      },
+    })
+    expect(await screen.findByRole('button', { name: /^Relatórios\./ })).toBeOnTheScreen()
+    for (const nome of ['Locais', 'Modelos', 'Denúncias']) {
+      expect(screen.getByRole('button', { name: new RegExp(`^${nome}[.]`) })).toBeOnTheScreen()
+    }
+    expect(screen.getAllByRole('button', { name: /^Configurações da comunidade/ })).toHaveLength(1)
+    expect(screen.getByRole('button', { name: /^Código da comunidade/ })).toBeOnTheScreen()
+    // A Plataforma do Criador fica só no Perfil.
+    expect(screen.queryByRole('button', { name: /^Plataforma/ })).toBeNull()
   })
 
   test('o Criador sem comunidade vê como criar a primeira e entrar com convite', async () => {

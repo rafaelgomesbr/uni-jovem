@@ -77,7 +77,7 @@ export function MetaDoEvento({ evento, extra }: { evento: DetalheDoEvento; extra
           texto={NOME_DA_VISIBILIDADE[evento.visibilidade]}
           tom={evento.visibilidade === 'publica' ? 'info' : 'neutro'}
         />
-        {evento.serieId ? <Chip texto="Série" tom="neutro" icone="repetir" /> : null}
+        {evento.serieId ? <Chip texto="Repetição" tom="neutro" icone="repetir" /> : null}
         {extra ? <Chip texto={extra} tom="alerta" /> : null}
       </View>
     </View>
@@ -188,7 +188,7 @@ export function VisaoGeralDoEvento({
             <LinhaDeLista
               icone="aoVivo"
               titulo={conduz ? 'Conduzir ao vivo' : 'Acompanhar ao vivo'}
-              descricao="O andamento da programação, etapa por etapa"
+              descricao="O andamento do roteiro, etapa por etapa"
               aoPressionar={() => router.push({ pathname: '/evento/[eventoId]/ao-vivo', params })}
             />
           ) : null}

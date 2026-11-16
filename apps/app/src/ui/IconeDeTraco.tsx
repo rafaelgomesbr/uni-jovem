@@ -17,8 +17,9 @@ export const TRACOS = {
       <Path d="M3 10h18M8 3v4M16 3v4" stroke={c} />
     </>
   ),
-  abaProgramas: (c: ColorValue) => <Path d="M4 6h16M4 12h16M4 18h10" stroke={c} />,
-  abaEquipe: (c: ColorValue) => (
+  // Escalas: a lista das minhas convocações (o traço da antiga aba Programas).
+  abaEscalas: (c: ColorValue) => <Path d="M4 6h16M4 12h16M4 18h10" stroke={c} />,
+  abaComunidade: (c: ColorValue) => (
     <>
       <Circle cx={9} cy={8} r={3} stroke={c} />
       <Path

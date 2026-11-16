@@ -12,7 +12,7 @@ import { MENSAGEM_DA_WEB } from './mensagens'
 import { useOffline, usePacoteDoEvento } from './ProvedorOffline'
 
 /**
- * "Preparar para usar sem internet": baixa o pacote do evento (programação,
+ * "Baixar para usar sem internet": baixa o pacote do encontro (roteiro,
  * equipe, tarefas, checklists e, para a organização, a lista de entrada com
  * telefone mascarado) para o banco cifrado deste aparelho.
  */
@@ -44,7 +44,7 @@ export function CartaoOfflineDoEvento({ eventoId, titulo }: { eventoId: string; 
 
   async function pedirRemocao() {
     const ok = await confirmar({
-      titulo: 'Remover deste aparelho?',
+      titulo: 'Remover do aparelho?',
       mensagem: `A cópia de "${titulo}" sai do aparelho. Sem internet, ela deixa de abrir.`,
       confirmar: 'Remover',
       destrutivo: true,
@@ -59,17 +59,17 @@ export function CartaoOfflineDoEvento({ eventoId, titulo }: { eventoId: string; 
       acoes={
         <ParDeBotoes>
           <Botao
-            titulo={guardado ? 'Atualizar agora' : 'Preparar para usar sem internet'}
+            titulo={guardado ? 'Atualizar agora' : 'Baixar para usar sem internet'}
             icone={guardado ? 'sincronizar' : 'baixar'}
             variante="secundario"
             carregando={preparar.isPending}
             desabilitado={!offline.online}
-            motivo="Preparar exige conexão com a internet."
+            motivo="Baixar exige conexão com a internet."
             aoPressionar={() => preparar.mutate()}
           />
           {guardado ? (
             <Botao
-              titulo="Remover deste aparelho"
+              titulo="Remover do aparelho"
               icone="excluir"
               variante="destrutivo"
               carregando={remover.isPending}
@@ -88,8 +88,8 @@ export function CartaoOfflineDoEvento({ eventoId, titulo }: { eventoId: string; 
         </>
       ) : (
         <Texto variante="corpo" cor="textoSuave">
-          Baixe a programação, a equipe, as tarefas e os checklists para consultar e marcar o que
-          foi feito mesmo sem conexão. Fica cifrado neste aparelho.
+          Baixe o roteiro, quem serve, as tarefas e os checklists para consultar e marcar o que foi
+          feito mesmo sem conexão. Fica cifrado neste aparelho.
         </Texto>
       )}
       {erro ? (

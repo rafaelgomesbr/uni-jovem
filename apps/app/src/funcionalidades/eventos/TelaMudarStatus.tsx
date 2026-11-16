@@ -60,31 +60,29 @@ export function TelaMudarStatus() {
   const [data, setData] = useState<string | null>(null)
   const [hora, setHora] = useState<string | null>(null)
   const [erros, setErros] = useState<{ motivo?: string; data?: string; hora?: string }>({})
-  const titulo = acao === 'adiar' ? 'Adiar evento' : 'Cancelar evento'
+  const titulo = acao === 'adiar' ? 'Adiar encontro' : 'Cancelar encontro'
 
   const enviar = useMutation({
     mutationFn: (corpo: object) =>
       api.post(`${naComunidade(comunidadeAtiva!.id)}/eventos/${eventoId}/status`, corpo),
     onSuccess: async () => {
       await invalidar(eventoId ?? undefined)
-      mostrarToast({ texto: acao === 'adiar' ? 'Evento adiado.' : 'Evento cancelado.' })
-      voltarOu(
-        eventoId ? { pathname: '/evento/[eventoId]', params: { eventoId } } : '/programacoes',
-      )
+      mostrarToast({ texto: acao === 'adiar' ? 'Encontro adiado.' : 'Encontro cancelado.' })
+      voltarOu(eventoId ? { pathname: '/evento/[eventoId]', params: { eventoId } } : '/agenda')
     },
   })
 
   if (!comunidadeAtiva || !eventoId) {
     return (
       <Tela pilha modal>
-        <SemComunidade oQue="a programação" />
+        <SemComunidade oQue="o encontro" />
       </Tela>
     )
   }
   if (evento.isPending) {
     return (
       <Tela pilha modal titulo={titulo}>
-        <Esqueleto rotulo="Carregando a programação">
+        <Esqueleto rotulo="Carregando o encontro">
           <CartaoDeEsqueleto />
         </Esqueleto>
       </Tela>
@@ -107,7 +105,7 @@ export function TelaMudarStatus() {
       <Tela pilha modal titulo={titulo}>
         <Aviso tipo="info" titulo="Não dá para fazer isso agora">
           {pode('evento', 'cancelar_ou_adiar')
-            ? 'A situação atual do evento não permite esta mudança.'
+            ? 'A situação atual do encontro não permite esta mudança.'
             : 'Só a organização cancela ou adia eventos.'}
         </Aviso>
       </Tela>
@@ -158,13 +156,13 @@ export function TelaMudarStatus() {
         titulo={acao === 'adiar' ? 'Quem participa é avisado' : 'Isto não se desfaz'}
       >
         {acao === 'adiar'
-          ? `O evento fica como adiado até ser publicado de novo. ${consequencia(e)}`
-          : `Um evento cancelado não volta a ser publicado. ${consequencia(e)}`}
+          ? `O encontro fica como adiado até ser publicado de novo. ${consequencia(e)}`
+          : `Um encontro cancelado não volta a ser publicado. ${consequencia(e)}`}
       </Aviso>
       {enviar.error ? (
         <AvisoDeFalha
           erro={enviar.error}
-          titulo={acao === 'adiar' ? 'O evento não foi adiado' : 'O evento não foi cancelado'}
+          titulo={acao === 'adiar' ? 'O encontro não foi adiado' : 'O encontro não foi cancelado'}
         />
       ) : null}
       <CartaoDeVidro opaco intervalo={ESPACO.e16}>

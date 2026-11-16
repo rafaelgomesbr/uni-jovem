@@ -30,7 +30,7 @@ export function useRemocaoNoEvento(comunidadeId: string, eventoId: string) {
   async function pedir(caminho: string, oQue: string) {
     const ok = await confirmar({
       titulo: `Remover ${oQue}?`,
-      mensagem: 'Isto sai do evento para todos. Não dá para desfazer.',
+      mensagem: 'Isto sai do encontro para todos. Não dá para desfazer.',
       confirmar: 'Remover',
       destrutivo: true,
     })

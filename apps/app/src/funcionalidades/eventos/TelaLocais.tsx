@@ -53,7 +53,7 @@ export function TelaLocais() {
     <Tela
       pilha
       titulo="Locais"
-      descricao="Onde os encontros acontecem. Arquivar tira o local da escolha sem mexer nos eventos antigos."
+      descricao="Onde os encontros acontecem. Arquivar tira o local da escolha sem mexer nos encontros antigos."
       {...(comunidadeAtiva && podeCuidar
         ? {
             acoes: (
@@ -97,7 +97,7 @@ function ListaDeLocais({ comunidadeId }: { comunidadeId: string }) {
       <EstadoVazio
         icone="local"
         titulo="Nenhum local cadastrado"
-        descricao="Cadastre o salão da igreja e os lugares que vocês usam: eles aparecem ao montar uma programação."
+        descricao="Cadastre o salão da igreja e os lugares que vocês usam: eles aparecem ao montar um encontro."
         acao={{
           titulo: 'Cadastrar local',
           icone: 'adicionar',
@@ -244,7 +244,7 @@ function Formulario({ comunidadeId, local }: { comunidadeId: string; local: Loca
       const ok = await confirmar({
         titulo: `Arquivar ${local.nome}?`,
         mensagem:
-          'Ele deixa de aparecer na escolha de local de novas programações. As que já usam continuam iguais.',
+          'Ele deixa de aparecer na escolha de local de novos encontros. Os que já usam continuam iguais.',
         confirmar: 'Arquivar',
       })
       if (!ok) return
@@ -283,7 +283,7 @@ function Formulario({ comunidadeId, local }: { comunidadeId: string; local: Loca
     >
       {local?.arquivado ? (
         <Aviso tipo="info" titulo="Local arquivado">
-          Ele não aparece na escolha de novas programações. Para voltar, use Mais ações.
+          Ele não aparece na escolha de novos encontros. Para voltar, use Mais ações.
         </Aviso>
       ) : null}
       {salvar.error ? <AvisoDeFalha erro={salvar.error} titulo="O local não foi salvo" /> : null}
@@ -336,7 +336,7 @@ function Formulario({ comunidadeId, local }: { comunidadeId: string; local: Loca
               icone: local.arquivado ? 'confirmado' : 'material',
               descricao: local.arquivado
                 ? 'Volta a aparecer na escolha de local'
-                : 'Sai da escolha de local; os eventos antigos não mudam',
+                : 'Sai da escolha de local; os encontros antigos não mudam',
               aoPressionar: () => void alternarArquivo(),
             },
           ]}

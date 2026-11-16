@@ -53,7 +53,7 @@ export function TelaComunidadeEncontrada() {
 /**
  * A comunidade encontrada (ADR 0007): logotipo, nome, cidade, o selo e, se
  * ela aceita pedidos, "Pedir para entrar" com a mensagem opcional (TC-17) e
- * o consentimento sobre a fé (TC-03.v3) acima do botão. Só por convite:
+ * o consentimento sobre a fé (TC-03.v4) acima do botão. Só por convite:
  * explica e não oferece o pedido. "Denunciar comunidade" fica no fim.
  */
 function Detalhe({ comunidade }: { comunidade: ComunidadeEncontrada }) {

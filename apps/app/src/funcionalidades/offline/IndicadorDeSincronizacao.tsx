@@ -32,7 +32,8 @@ type Entrada = Pick<
 
 /**
  * O que o status diz, em ordem de urgência (tabela da 2.12.15). Sempre texto
- * e ícone: a cor só reforça. `null` quando não há nada guardado nem pendente.
+ * e ícone: a cor só reforça. Só aparece com pendência, conflito, falha ou sem
+ * conexão (D57); com tudo enviado, `null`.
  */
 export function sinalDaSincronizacao(o: Entrada): SinalDaSincronizacao | null {
   const pendentes = contar(o.pendentes, 'alteração pendente', 'alterações pendentes')
@@ -49,7 +50,8 @@ export function sinalDaSincronizacao(o: Entrada): SinalDaSincronizacao | null {
       tentarDeNovo: false,
     }
   }
-  if (o.fase === 'sincronizando') {
+  // Sincronizando só aparece quando há o que enviar: a atualização de rotina fica quieta.
+  if (o.fase === 'sincronizando' && o.pendentes) {
     return {
       texto: 'Sincronizando',
       falado: 'Sincronizando',
@@ -95,22 +97,13 @@ export function sinalDaSincronizacao(o: Entrada): SinalDaSincronizacao | null {
       tentarDeNovo: false,
     }
   }
-  if (o.temParticao && o.ultimaSincronizacao) {
-    const hora = horaNoAparelho(o.ultimaSincronizacao)
-    return {
-      texto: `Sincronizado ${hora}`,
-      falado: `Sincronizado às ${hora}`,
-      icone: 'check',
-      cor: 'sucesso',
-      tentarDeNovo: false,
-    }
-  }
+  // Tudo enviado: nada a dizer (D57). "Sincronizado" não diz nada a quem não sabe o que é.
   return null
 }
 
 /**
  * Status da sincronização na linha da pílula (sem conexão, pendentes,
- * sincronizando, sincronizado, falha e conflitos). O toque abre Pendências;
+ * enviando, falha e conflitos). O toque abre Uso sem internet;
  * na falha, tenta de novo. Na web (sem modo offline), só o "Sem conexão".
  */
 export function IndicadorDeSincronizacao() {
@@ -131,9 +124,7 @@ export function IndicadorDeSincronizacao() {
       icone={sinal.icone}
       cor={sinal.cor}
       texto={sinal.texto}
-      rotulo={
-        sinal.tentarDeNovo ? sinal.falado : `${sinal.falado}. Abrir pendências e sincronização.`
-      }
+      rotulo={sinal.tentarDeNovo ? sinal.falado : `${sinal.falado}. Abrir Uso sem internet.`}
       aoPressionar={
         sinal.tentarDeNovo
           ? () => void offline.sincronizarAgora()

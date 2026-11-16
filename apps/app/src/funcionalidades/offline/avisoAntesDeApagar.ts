@@ -19,5 +19,5 @@ export function mensagemDePendencias(operacoes: readonly OperacaoNaFila[]): stri
     'alteração feita sem internet ainda não foi enviada',
     'alterações feitas sem internet ainda não foram enviadas',
   )
-  return `${cabeca}:\n${lista}${mais}\n\nSe continuar, elas são apagadas deste aparelho. Para não perder, conecte-se e toque em Sincronizar agora, em Pendências, antes de sair.`
+  return `${cabeca}:\n${lista}${mais}\n\nSe continuar, elas são apagadas deste aparelho. Para não perder, conecte-se e toque em Sincronizar agora, em Perfil, Uso sem internet, antes de sair.`
 }

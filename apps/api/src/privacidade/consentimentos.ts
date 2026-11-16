@@ -10,9 +10,10 @@ export const VERSAO_DO_TEXTO = {
   'TC-01': 2,
   // v2 (15/11/2026): aceite dos Termos 0.3 e da Política 0.3.
   'TC-02': 2,
-  // v3 (15/11/2026, ADR 0007): também ao pedir entrada, entrar por código e
-  // criar comunidade. (A v2 trocou o caminho para desfazer para a aba Equipe.)
-  'TC-03': 3,
+  // v4 (16/11/2026, D57): a aba Equipe virou Comunidade (o caminho para desfazer)
+  // e "eventos" virou "encontros"; o que a pessoa autoriza é o mesmo. A v3
+  // (15/11/2026, ADR 0007) valeu também ao pedir entrada, entrar por código e criar.
+  'TC-03': 4,
   'TC-04': 1,
   // Termo do administrador da comunidade (ADR 0007), aceito ao criar uma comunidade.
   'TC-16': 1,
