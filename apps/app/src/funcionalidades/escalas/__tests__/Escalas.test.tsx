@@ -98,7 +98,7 @@ describe('escalas', () => {
     )
   })
 
-  test('"Não posso ir" fica em Mais ações e recusa com confirmação', async () => {
+  test('"Não posso ir" fica à vista e recusa com confirmação', async () => {
     const dialogo = confirmarDialogos()
     const { servidor } = await renderizarTela(<TelaEscalas />, {
       papel: 'membro',
@@ -109,24 +109,24 @@ describe('escalas', () => {
     })
     const usuario = userEvent.setup()
 
-    // Confirmar e Pedir substituição na linha; "Não posso ir" à vista logo abaixo, sem menu.
+    // Aceitar e Pedir substituição na linha; "Não posso ir" à vista logo abaixo, sem menu.
     expect(
       await screen.findByRole('button', {
-        name: 'Confirmar a escala em Sábado com a juventude, Louvor · responsável',
+        name: 'Aceitar a convocação em Sábado com a juventude, Louvor · responsável',
       }),
     ).toBeOnTheScreen()
     expect(screen.getByText('Não posso ir')).toBeOnTheScreen()
     expect(screen.queryByRole('button', { name: /^Mais ações/ })).toBeNull()
     await usuario.press(
       screen.getByRole('button', {
-        name: 'Não posso ir: recusar a escala em Sábado com a juventude, Louvor · responsável',
+        name: 'Não posso ir: avisar a organização sobre Sábado com a juventude, Louvor · responsável',
       }),
     )
 
     await waitFor(() =>
       expect(pedidosPara(servidor, 'POST', `${BASE}/atribuicoes/a1/recusar`)).toHaveLength(1),
     )
-    expect(dialogo.mock.calls[0]![0]).toBe('Recusar esta escala?')
+    expect(dialogo.mock.calls[0]![0]).toBe('Avisar que você não pode ir?')
   })
 
   test('informar disponibilidade numa data manda PUT para aquele dia', async () => {

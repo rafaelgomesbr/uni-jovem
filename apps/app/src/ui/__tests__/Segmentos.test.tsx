@@ -46,7 +46,7 @@ describe('disposição dos segmentos (nenhum rótulo cortado)', () => {
   })
 
   test('as quatro partes do evento em 360: grade de duas linhas, no tipo normal', () => {
-    const partes = ['Visão geral', 'Programação', 'Quem serve', 'Preparação']
+    const partes = ['Visão geral', 'Programação', 'Convocados', 'Preparação']
     expect(escolherDisposicao(partes, 320)).toEqual({
       nivel: 'normal',
       proporcional: false,
@@ -55,7 +55,7 @@ describe('disposição dos segmentos (nenhum rótulo cortado)', () => {
   })
 
   test('fonte grande com quatro opções: a grade, se couber; senão, pílulas', () => {
-    const partes = ['Visão geral', 'Programação', 'Quem serve', 'Preparação']
+    const partes = ['Visão geral', 'Programação', 'Convocados', 'Preparação']
     expect(escolherDisposicao(partes, 350, 1.35, 0, true)).toEqual({
       nivel: 'normal',
       proporcional: false,

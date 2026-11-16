@@ -159,7 +159,7 @@ function ConteudoDaCaixa() {
       <EstadoVazio
         icone="sino"
         titulo="Nada por aqui ainda"
-        descricao="Quando sair uma escala, um aviso ou uma mudança num evento, ela aparece aqui."
+        descricao="Quando sair uma convocação, um aviso ou uma mudança num evento, ela aparece aqui."
         acao={{
           titulo: 'Preferências de notificação',
           icone: 'ajustes',

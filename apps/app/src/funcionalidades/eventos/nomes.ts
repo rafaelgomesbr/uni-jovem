@@ -34,14 +34,17 @@ export const TOM_DO_STATUS: Readonly<Record<StatusDoEvento, TomDoChip | null>> =
   encerrado: 'neutro',
 }
 
-/** Chip da escala, em uma ou duas palavras (2.12.12). */
+/**
+ * Chip da convocação (2.12.12; vocabulário da D54). O texto sempre vai junto
+ * da cor: a cor nunca é o único sinal.
+ */
 export const CHIP_DO_ESTADO_DA_ATRIBUICAO: Readonly<
   Record<EstadoDaAtribuicao, { texto: string; tom: TomDoChip }>
 > = {
-  pendente: { texto: 'Pendente', tom: 'alerta' },
-  confirmada: { texto: 'Confirmada', tom: 'sucesso' },
-  recusada: { texto: 'Recusada', tom: 'erro' },
-  substituicao_pedida: { texto: 'Substituição pedida', tom: 'info' },
+  pendente: { texto: 'Aguardando resposta', tom: 'alerta' },
+  confirmada: { texto: 'Aceitou', tom: 'sucesso' },
+  recusada: { texto: 'Não pode ir', tom: 'erro' },
+  substituicao_pedida: { texto: 'Pediu troca', tom: 'info' },
 }
 
 export const NOME_DA_VISIBILIDADE: Readonly<Record<Visibilidade, string>> = {
@@ -55,10 +58,10 @@ export const DESCRICAO_DA_VISIBILIDADE: Readonly<Record<Visibilidade, string>> =
 }
 
 export const NOME_DO_ESTADO_DA_ATRIBUICAO: Readonly<Record<EstadoDaAtribuicao, string>> = {
-  pendente: 'Aguardando resposta',
-  confirmada: 'Confirmada',
-  recusada: 'Recusada',
-  substituicao_pedida: 'Substituição pedida',
+  pendente: CHIP_DO_ESTADO_DA_ATRIBUICAO.pendente.texto,
+  confirmada: CHIP_DO_ESTADO_DA_ATRIBUICAO.confirmada.texto,
+  recusada: CHIP_DO_ESTADO_DA_ATRIBUICAO.recusada.texto,
+  substituicao_pedida: CHIP_DO_ESTADO_DA_ATRIBUICAO.substituicao_pedida.texto,
 }
 
 export const COR_DO_ESTADO_DA_ATRIBUICAO: Readonly<Record<EstadoDaAtribuicao, keyof Paleta>> = {

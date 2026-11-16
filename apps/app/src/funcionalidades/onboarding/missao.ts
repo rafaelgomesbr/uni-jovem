@@ -38,9 +38,9 @@ const AGENDA: Etapa = {
 
 const ESCALA: Etapa = {
   id: 'escala',
-  titulo: 'Sua escala',
+  titulo: 'Convocações',
   texto:
-    'Quando escalarem você, confirme ou recuse. Se não puder ir, peça substituição: alguém da equipe assume.',
+    'Quando a organização convocar você, aceite ou avise que não pode ir. Já aceitou e surgiu um imprevisto? Peça substituição: alguém da equipe assume.',
   demo: 'escala',
 }
 

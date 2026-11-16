@@ -155,7 +155,7 @@ function Conteudo({
   const [visao, setVisao] = useState<Visao>('geral')
 
   // Membro: Visão geral e Programação; a Preparação aparece quando há o que marcar.
-  // "Programação" e "Quem serve", não "Etapas" e "Equipe": essas palavras já
+  // "Programação" e "Convocados", não "Etapas" e "Equipe": essas palavras já
   // querem dizer outra coisa no app (verificação em duas etapas, aba Equipe; U-08).
   const temPreparacao =
     acoes.organiza ||
@@ -163,7 +163,7 @@ function Conteudo({
   const visoes: Segmento<Visao>[] = [
     { valor: 'geral', rotulo: 'Visão geral' },
     { valor: 'etapas', rotulo: 'Programação' },
-    ...(acoes.organiza ? [{ valor: 'equipe' as const, rotulo: 'Quem serve' }] : []),
+    ...(acoes.organiza ? [{ valor: 'equipe' as const, rotulo: 'Convocados' }] : []),
     ...(temPreparacao ? [{ valor: 'preparacao' as const, rotulo: 'Preparação' }] : []),
   ]
   const atual = visoes.some((v) => v.valor === visao) ? visao : 'geral'
@@ -232,7 +232,7 @@ function Conteudo({
           aoVerVisaoGeral={() => setVisao('geral')}
         />
       ) : atual === 'equipe' ? (
-        <SecaoEquipe evento={e} />
+        <SecaoEquipe evento={e} comunidadeId={comunidadeId} />
       ) : (
         <>
           <SecaoTarefas evento={e} comunidadeId={comunidadeId} />

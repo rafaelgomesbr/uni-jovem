@@ -160,8 +160,8 @@ function SuaParticipacao({
               acoes: (
                 <ParDeBotoes>
                   <Botao
-                    titulo="Confirmar"
-                    rotuloAcessivel={`Confirmar: ${funcao} em ${onde}`}
+                    titulo="Aceitar"
+                    rotuloAcessivel={`Aceitar: ${funcao} em ${onde}`}
                     carregando={responder.isPending}
                     aoPressionar={() =>
                       responder.mutate({ atribuicaoId: atribuicao.id, resposta: 'confirmar' })

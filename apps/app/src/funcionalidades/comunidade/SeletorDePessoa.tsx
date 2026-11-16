@@ -28,6 +28,11 @@ interface PropsDoSeletor {
   excluir?: readonly string[]
   /** Observação por pessoa (ex.: "Indisponível neste dia"). */
   observacao?: (pessoa: Membro) => string | undefined
+  /**
+   * Motivo para a pessoa aparecer desabilitada (ex.: "Já convocado"). Ela
+   * continua na lista, para ninguém achar que sumiu, mas não pode ser escolhida.
+   */
+  motivoDesabilitada?: (pessoa: Membro) => string | undefined
 }
 
 /**
@@ -43,6 +48,7 @@ export function SeletorDePessoa({
   permitirNinguem = false,
   excluir = [],
   observacao,
+  motivoDesabilitada,
 }: PropsDoSeletor) {
   const [busca, setBusca] = useState('')
   const { pessoas, isPending, error, refetch } = usePessoasAtivas(comunidadeId)
@@ -77,8 +83,14 @@ export function SeletorDePessoa({
   const opcoes = [
     ...(permitirNinguem ? [{ valor: '', rotulo: 'Ninguém por enquanto' }] : []),
     ...visiveis.map((p) => {
-      const obs = observacao?.(p)
-      return { valor: p.vinculoId, rotulo: p.nome, ...(obs ? { descricao: obs } : {}) }
+      const motivo = motivoDesabilitada?.(p)
+      const obs = motivo ?? observacao?.(p)
+      return {
+        valor: p.vinculoId,
+        rotulo: p.nome,
+        ...(obs ? { descricao: obs } : {}),
+        ...(motivo ? { desabilitada: true } : {}),
+      }
     }),
   ]
 

@@ -408,12 +408,12 @@ function ListasECartoes() {
           </ListaDeHorarios>
         </CartaoDeDestaque>
         <CartaoDeVidro
-          sobrancelha="Sua escala"
+          sobrancelha="Você foi convocado"
           comecaComTitulo
           acoes={
             <ParDeBotoes>
-              <Botao titulo="Confirmar" aoPressionar={nada} />
-              <Botao titulo="Pedir substituição" variante="secundario" aoPressionar={nada} />
+              <Botao titulo="Aceitar" aoPressionar={nada} />
+              <Botao titulo="Não posso ir" variante="secundario" aoPressionar={nada} />
             </ParDeBotoes>
           }
         >

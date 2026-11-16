@@ -7,26 +7,17 @@ import { View } from 'react-native'
 import { api } from '@/servicos/api'
 import type { EscalaDoInicio, MinhaEscala } from '@/servicos/contratoDosEventos'
 import { AvisoDeFalha } from '@/ui/Falha'
-import { confirmar } from '@/utilidades/confirmar'
 import { dataDoInstante, falarQuando, formatarHora } from '@/utilidades/datas'
 import { Botao, ParDeBotoes } from '@/ui/Botao'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
-import { Chip, type TomDoChip } from '@/ui/Chip'
+import { Chip } from '@/ui/Chip'
 import { focar, type NoDeView } from '@/ui/foco'
 import { Texto } from '@/ui/Texto'
 import { soNaWeb } from '@/ui/web'
 
 import { naComunidade } from '../eventos/consultas'
-import { NOME_DO_ESTADO_DA_ATRIBUICAO } from '../eventos/nomes'
-import { useInvalidarEscalas, useResponderEscala } from './consultas'
-
-/** Chip de cada estado da escala (mapa da 2.12.12). */
-const CHIP: Readonly<Record<EscalaDoInicio['estado'], { texto: string; tom: TomDoChip }>> = {
-  pendente: { texto: 'Pendente', tom: 'alerta' },
-  confirmada: { texto: 'Confirmada', tom: 'sucesso' },
-  recusada: { texto: 'Recusada', tom: 'erro' },
-  substituicao_pedida: { texto: 'Substituição pedida', tom: 'info' },
-}
+import { CHIP_DO_ESTADO_DA_ATRIBUICAO, NOME_DO_ESTADO_DA_ATRIBUICAO } from '../eventos/nomes'
+import { confirmarQueNaoPodeIr, useInvalidarEscalas, useResponderEscala } from './consultas'
 
 /** "Sábado, 21/11 · 16:00": a sobrancelha da data (maiúsculas por estilo). */
 export function quandoDaEscala(iso: string, fuso: string): string {
@@ -43,16 +34,16 @@ interface Props {
   comunidadeId: string
   fuso: string
   /**
-   * "Confirmar" é o primário só na escala mais urgente da tela (a primeira
+   * "Aceitar" é o primário só na convocação mais urgente da tela (a primeira
    * pendente): um primário visível por tela. Nas outras, é secundário.
    */
   primario?: boolean
 }
 
 /**
- * Uma escala da própria pessoa (3.4.5), no formato do "Sua escala" do
+ * Uma convocação da própria pessoa (3.4.5), no formato do "Você foi convocado" do
  * Início: a data na sobrancelha com o chip da situação à direita, 4, a
- * função em `tituloItem`, o evento em `meta` e, embaixo, "Confirmar" e
+ * função em `tituloItem`, o evento em `meta` e, embaixo, "Aceitar" e
  * "Pedir substituição" lado a lado. "Não posso ir" (recusar) fica à vista,
  * em terciário logo abaixo: atrás de um "…" sem texto, ninguém achava (U-05).
  * Com substituição pedida, a ação é cancelar o pedido.
@@ -69,20 +60,14 @@ export function CartaoDaEscala({ escala, comunidadeId, fuso, primario = false }:
   const onde = escala.etapaTitulo ? `${escala.etapaTitulo} · ${escala.funcao}` : escala.funcao
   const comSubstituicao = escala.estado === 'substituicao_pedida'
   const podeRecusar = !comSubstituicao && escala.estado !== 'recusada'
-  const chip = CHIP[escala.estado]
+  const chip = CHIP_DO_ESTADO_DA_ATRIBUICAO[escala.estado]
   // Depois de responder, o botão tocado some: o foco vai para o resumo, que já diz a situação nova.
   const resumo = useRef<NoDeView>(null)
   const depoisDeResponder = { onSuccess: () => focar(resumo) }
   const erro = responder.error ?? cancelarPedido.error
 
   async function recusar() {
-    const ok = await confirmar({
-      titulo: 'Recusar esta escala?',
-      mensagem:
-        'A organização fica sabendo que você não pode. Se preferir que alguém fique no seu lugar, peça substituição.',
-      confirmar: 'Recusar',
-      destrutivo: true,
-    })
+    const ok = await confirmarQueNaoPodeIr()
     if (ok) responder.mutate({ atribuicaoId: escala.id, resposta: 'recusar' }, depoisDeResponder)
   }
 
@@ -115,9 +100,9 @@ export function CartaoDaEscala({ escala, comunidadeId, fuso, primario = false }:
   ) : (
     <ParDeBotoes>
       <Botao
-        titulo="Confirmar"
+        titulo="Aceitar"
         variante={primario ? 'primario' : 'secundario'}
-        rotuloAcessivel={`Confirmar a escala em ${escala.eventoTitulo}, ${onde}`}
+        rotuloAcessivel={`Aceitar a convocação em ${escala.eventoTitulo}, ${onde}`}
         carregando={responder.isPending && responder.variables?.resposta === 'confirmar'}
         aoPressionar={() =>
           responder.mutate({ atribuicaoId: escala.id, resposta: 'confirmar' }, depoisDeResponder)
@@ -142,7 +127,7 @@ export function CartaoDaEscala({ escala, comunidadeId, fuso, primario = false }:
                     titulo="Não posso ir"
                     variante="terciario"
                     alinhado
-                    rotuloAcessivel={`Não posso ir: recusar a escala em ${escala.eventoTitulo}, ${onde}`}
+                    rotuloAcessivel={`Não posso ir: avisar a organização sobre ${escala.eventoTitulo}, ${onde}`}
                     carregando={responder.isPending && responder.variables?.resposta === 'recusar'}
                     aoPressionar={() => void recusar()}
                   />

@@ -22,7 +22,7 @@ import { PermissaoDoSistema } from './PermissaoDoSistema'
 
 const DESCRICAO_DO_TIPO: Readonly<Record<TipoDeNotificacao, string>> = {
   eventos: 'Evento novo ou publicado.',
-  escalas: 'Quando escalarem você.',
+  escalas: 'Quando convocarem você e, para quem organiza, quando alguém não puder ir.',
   inscricoes: 'Sua inscrição confirmada ou saindo da lista de espera.',
   tarefas: 'Tarefas que forem suas.',
   substituicoes: 'Pedidos de substituição que você pode assumir.',

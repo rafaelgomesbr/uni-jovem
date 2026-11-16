@@ -8,20 +8,13 @@ import { AvisoDeFalha } from '@/ui/Falha'
 import { dataDoInstante, falarQuando, formatarHora } from '@/utilidades/datas'
 import { Botao, ParDeBotoes } from '@/ui/Botao'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
-import { Chip, type TomDoChip } from '@/ui/Chip'
+import { Chip } from '@/ui/Chip'
 import { focar, type NoDeView } from '@/ui/foco'
 import { Texto } from '@/ui/Texto'
 import { soNaWeb } from '@/ui/web'
 
-import { NOME_DO_ESTADO_DA_ATRIBUICAO } from '../eventos/nomes'
-import { useResponderEscala } from '../escalas/consultas'
-
-/** Chip de cada estado da escala (mapa da 2.12.12). "Pendente" não ganha chip: os botões dizem. */
-const CHIP: Partial<Record<EscalaDoInicio['estado'], { texto: string; tom: TomDoChip }>> = {
-  confirmada: { texto: 'Confirmada', tom: 'sucesso' },
-  recusada: { texto: 'Recusada', tom: 'erro' },
-  substituicao_pedida: { texto: 'Substituição pedida', tom: 'info' },
-}
+import { confirmarQueNaoPodeIr, useResponderEscala } from '../escalas/consultas'
+import { CHIP_DO_ESTADO_DA_ATRIBUICAO, NOME_DO_ESTADO_DA_ATRIBUICAO } from '../eventos/nomes'
 
 function quandoCurto(iso: string, fuso: string): string {
   const nome = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', timeZone: fuso }).format(
@@ -41,21 +34,32 @@ interface Props {
 }
 
 /**
- * "SUA ESCALA" (mockup): sobrancelha, 4, a função em `tituloItem`, a data em
- * legenda e os botões médios "Confirmar" e "Pedir substituição" lado a lado.
- * Já confirmada: o chip à direita da sobrancelha e só "Pedir substituição".
+ * "VOCÊ FOI CONVOCADO" (mockup; vocabulário da D54): sobrancelha, 4, a função
+ * em `tituloItem`, a data em legenda e, enquanto espera resposta, os botões
+ * médios "Aceitar" e "Não posso ir" lado a lado (o "Não posso ir" pede
+ * confirmação). Já aceita: o chip à direita da sobrancelha e só "Pedir
+ * substituição". A API manda primeiro a convocação que espera resposta.
  */
 export function CartaoSuaEscala({ escala, total, comunidadeId, fuso }: Props) {
   const responder = useResponderEscala(comunidadeId)
   const resumo = useRef<NoDeView>(null)
   const onde = escala.etapaTitulo ? `${escala.etapaTitulo} · ${escala.funcao}` : escala.funcao
-  const chip = CHIP[escala.estado]
-  const podeResponder = escala.estado === 'pendente' || escala.estado === 'confirmada'
+  // Esperando resposta não ganha chip: os botões já dizem.
+  const chip = escala.estado === 'pendente' ? null : CHIP_DO_ESTADO_DA_ATRIBUICAO[escala.estado]
+  const podeTrocar = escala.estado === 'confirmada'
+  const depoisDeResponder = { onSuccess: () => focar(resumo) }
+
+  async function naoPossoIr() {
+    if (await confirmarQueNaoPodeIr()) {
+      responder.mutate({ atribuicaoId: escala.id, resposta: 'recusar' }, depoisDeResponder)
+    }
+  }
+
   const pedirSubstituicao = (
     <Botao
       titulo="Pedir substituição"
       variante="secundario"
-      rotuloAcessivel={`Pedir substituição na escala de ${escala.eventoTitulo}, ${onde}`}
+      rotuloAcessivel={`Pedir substituição em ${escala.eventoTitulo}, ${onde}`}
       aoPressionar={() =>
         router.push({
           pathname: '/escalas/substituicao/[atribuicaoId]',
@@ -70,14 +74,14 @@ export function CartaoSuaEscala({ escala, total, comunidadeId, fuso }: Props) {
         titulo={`Ver todas (${total})`}
         variante="terciario"
         alinhado
-        rotuloAcessivel={`Ver todas as escalas (${total})`}
+        rotuloAcessivel={`Ver todas as suas convocações (${total})`}
         aoPressionar={() => router.push('/escalas')}
       />
     ) : null
 
   return (
     <CartaoDeVidro
-      sobrancelha="Sua escala"
+      sobrancelha="Você foi convocado"
       comecaComTitulo
       {...(chip ? { extra: <Chip texto={chip.texto} tom={chip.tom} /> } : {})}
       acoes={
@@ -85,23 +89,29 @@ export function CartaoSuaEscala({ escala, total, comunidadeId, fuso }: Props) {
           {escala.estado === 'pendente' ? (
             <ParDeBotoes>
               <Botao
-                titulo="Confirmar"
-                rotuloAcessivel={`Confirmar a escala em ${escala.eventoTitulo}, ${onde}`}
-                carregando={responder.isPending}
+                titulo="Aceitar"
+                rotuloAcessivel={`Aceitar a convocação em ${escala.eventoTitulo}, ${onde}`}
+                carregando={responder.isPending && responder.variables?.resposta === 'confirmar'}
                 aoPressionar={() =>
                   responder.mutate(
                     { atribuicaoId: escala.id, resposta: 'confirmar' },
-                    { onSuccess: () => focar(resumo) },
+                    depoisDeResponder,
                   )
                 }
               />
-              {pedirSubstituicao}
+              <Botao
+                titulo="Não posso ir"
+                variante="secundario"
+                rotuloAcessivel={`Não posso ir: avisar a organização sobre ${escala.eventoTitulo}, ${onde}`}
+                carregando={responder.isPending && responder.variables?.resposta === 'recusar'}
+                aoPressionar={() => void naoPossoIr()}
+              />
             </ParDeBotoes>
-          ) : podeResponder ? (
+          ) : podeTrocar ? (
             pedirSubstituicao
           ) : (
             <Botao
-              titulo="Ver minhas escalas"
+              titulo="Ver minhas convocações"
               variante="secundario"
               aoPressionar={() => router.push('/escalas')}
             />

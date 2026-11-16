@@ -83,16 +83,16 @@ function DemoEscala() {
         {resposta === 'pendente'
           ? 'Aguardando a sua resposta.'
           : resposta === 'confirmada'
-            ? 'Confirmada. Na vida real, a organização vê na hora.'
-            : 'Recusada. Na vida real, a organização procura outra pessoa.'}
+            ? 'Você aceitou. Na vida real, a organização vê na hora.'
+            : 'Você avisou que não pode ir. Na vida real, a organização recebe o aviso para chamar outra pessoa.'}
       </TextoAnunciado>
       <Botao
-        titulo="Confirmar a escala de exemplo"
+        titulo="Aceitar a convocação de exemplo"
         variante="secundario"
         aoPressionar={() => setResposta('confirmada')}
       />
       <Botao
-        titulo="Recusar a escala de exemplo"
+        titulo="Não posso ir (exemplo)"
         variante="terciario"
         aoPressionar={() => setResposta('recusada')}
       />

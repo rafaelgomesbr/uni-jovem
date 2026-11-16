@@ -115,7 +115,7 @@ function Dialogo({ aberta }: { aberta: ConfirmacaoAberta }) {
             <ParDeBotoes>
               <Botao
                 ref={cancelar}
-                titulo="Cancelar"
+                titulo={pedido.cancelar ?? 'Cancelar'}
                 variante="secundario"
                 tamanho="grande"
                 aoPressionar={() => responder(false)}

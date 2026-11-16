@@ -22,6 +22,7 @@ export function registrarRotaDeInicio(app: FastifyInstance, api: pg.Pool): void 
           [pedido.comunidade!.id],
         )
       ).rows
+      // A convocação que espera resposta vem primeiro: é ela que o cartão do Início mostra.
       const minhasEscalas = (
         await c.query(
           `select a.id, a.funcao, a.estado, e.id as "eventoId", e.titulo as "eventoTitulo",
@@ -31,7 +32,7 @@ export function registrarRotaDeInicio(app: FastifyInstance, api: pg.Pool): void 
              left join uj.etapas t on t.id = a.etapa_id
             where a.vinculo_id = (select uj.vinculo_da_conta_no_contexto())
               and e.inicio >= now() - interval '3 hours' and e.status <> 'cancelado'
-            order by e.inicio limit 5`,
+            order by (a.estado = 'pendente') desc, e.inicio, t.ordem nulls first limit 5`,
         )
       ).rows
       const minhasTarefas = (

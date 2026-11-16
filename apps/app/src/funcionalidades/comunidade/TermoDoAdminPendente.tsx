@@ -53,8 +53,7 @@ function Folha({
   const consultas = useQueryClient()
   const [aceite, setAceite] = useState(false)
   const aceitar = useMutation({
-    mutationFn: () =>
-      api.post(`/api/v1/c/${comunidadeId}/termo-do-admin`, { aceite: true }),
+    mutationFn: () => api.post(`/api/v1/c/${comunidadeId}/termo-do-admin`, { aceite: true }),
     onSuccess: async () => {
       mostrarToast({ texto: 'Termo aceito. Obrigado.' })
       await Promise.all([
