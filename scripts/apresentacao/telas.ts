@@ -183,12 +183,18 @@ async function main() {
     ['/perfil', '20-perfil'],
     ['/procurar-comunidade', '21-procurar-comunidade'],
     ['/tenho-um-codigo', '22-tenho-um-codigo'],
+    ['/escalas', '26-escalas-organizacao'],
   ] as const) {
     await tentar(nome, async () => {
       await irPara(admin, caminho)
       await foto(admin, nome)
     })
   }
+
+  await tentar('oracao-anonima', async () => {
+    await irPara(admin, '/oracao/novo')
+    await fotoEm(admin, /Publicar como anônimo/, '27-oracao-anonima')
+  })
 
   const membro = await novaPagina(navegador)
   await entrar(membro, 'demo.membro@unijovem.invalid')
