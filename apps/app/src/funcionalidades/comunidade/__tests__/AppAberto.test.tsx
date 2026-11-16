@@ -332,8 +332,9 @@ describe('Termo do Administrador pendente', () => {
     )
     await fireEvent.press(aceitar)
     await waitFor(() =>
+      // Mesmo contrato da API (`abertura.ts`, rota termo-do-admin): `{ aceite: true }`.
       expect(pedidosPara(servidor, 'POST', `${BASE}/termo-do-admin`)[0]?.corpo).toEqual({
-        aceiteDoTermoDoAdmin: true,
+        aceite: true,
       }),
     )
   })

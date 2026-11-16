@@ -3,8 +3,10 @@ import { ESPACO } from '@uj/tokens'
 import { useId, useState } from 'react'
 import { Platform, Pressable, View } from 'react-native'
 
+import { Botao } from './Botao'
 import { BlocoDoCampo, useEstiloDaCaixa, type EstadoDaCaixa } from './Campo'
 import { ALFA_DESABILITADO, comOpacidade } from './cor'
+import { FolhaNaTela } from './FolhaNaTela'
 import { Icone } from './Icone'
 import { Texto } from './Texto'
 import { useTema } from './tema'
@@ -23,8 +25,8 @@ export type { PropsDoCampoDeMomento, TipoDeMomento }
 /**
  * Campo de data ou hora (seção 2.12.3): a caixa do Campo, tocável, com o valor
  * formatado e o ícone à direita. O toque abre o seletor nativo do `@expo/ui`:
- * no iOS, o calendário (data) ou a roda (hora) logo abaixo da caixa, como no
- * app Calendário; no Android, o diálogo do Material 3. Nada é digitado.
+ * no iOS, o calendário (data) ou a roda (hora) numa folha da largura da tela,
+ * com "Pronto"; no Android, o diálogo do Material 3. Nada é digitado.
  */
 export function CampoDeMomento({
   tipo,
@@ -109,8 +111,15 @@ export function CampoDeMomento({
           />
         </View>
       </Pressable>
-      {aberto && ios ? (
-        <View style={{ marginTop: ESPACO.e8, alignItems: tipo === 'hora' ? 'center' : 'stretch' }}>
+      {ios ? (
+        // O seletor nativo do iOS só mede a altura; a largura vem do pai. Dentro de
+        // uma meia coluna ("Data | Hora") o calendário saía cortado e a roda sumia
+        // (largura 0, expo/expo#46904). Na folha, ele tem a largura da tela.
+        <FolhaNaTela
+          aberta={aberto}
+          titulo={tipo === 'data' ? 'Escolher a data' : 'Escolher o horário'}
+          aoFechar={() => setAberto(false)}
+        >
           <DateTimePicker
             value={paraDate(tipo, valor)}
             mode={tipo === 'data' ? 'date' : 'time'}
@@ -119,9 +128,11 @@ export function CampoDeMomento({
             accentColor={cores.primaria}
             themeVariant={escuro ? 'dark' : 'light'}
             onValueChange={(_, d) => escolher(d)}
+            style={{ alignSelf: 'stretch' }}
             {...limites}
           />
-        </View>
+          <Botao titulo="Pronto" aoPressionar={() => setAberto(false)} />
+        </FolhaNaTela>
       ) : null}
       {aberto && Platform.OS === 'android' ? (
         <DateTimePicker

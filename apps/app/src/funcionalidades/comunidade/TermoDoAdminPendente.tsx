@@ -54,7 +54,7 @@ function Folha({
   const [aceite, setAceite] = useState(false)
   const aceitar = useMutation({
     mutationFn: () =>
-      api.post(`/api/v1/c/${comunidadeId}/termo-do-admin`, { aceiteDoTermoDoAdmin: true }),
+      api.post(`/api/v1/c/${comunidadeId}/termo-do-admin`, { aceite: true }),
     onSuccess: async () => {
       mostrarToast({ texto: 'Termo aceito. Obrigado.' })
       await Promise.all([
