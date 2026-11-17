@@ -245,6 +245,44 @@ describe('entrar com Google', () => {
 })
 
 describe('entrar com a Apple', () => {
+  it('conta nova com e-mail privado: conclui o cadastro e abre a sessão sem depender de envio de e-mail', async () => {
+    const nonce = randomBytes(16).toString('hex')
+    const email = `${sub()}@privaterelay.appleid.com`
+    const entrada = await app.inject({
+      method: 'POST',
+      url: '/api/auth/provedor/apple',
+      payload: {
+        identityToken: await tokenApple({
+          email,
+          is_private_email: 'true',
+          nonceHash: hashDoNonce(nonce),
+        }),
+        nonce,
+        plataforma: 'ios',
+      },
+    })
+    expect(entrada.statusCode).toBe(200)
+    expect(entrada.json().cadastroPendente).toBe(true)
+    const fim = await app.inject({
+      method: 'POST',
+      url: '/api/auth/provedor/concluir-cadastro',
+      payload: {
+        tokenDeCadastro: entrada.json().tokenDeCadastro,
+        faixaEtaria: '18_mais',
+        aceites: { termos: true },
+      },
+    })
+    expect(fim.statusCode).toBe(200)
+    const eu = await app.inject({
+      method: 'GET',
+      url: '/api/v1/eu',
+      headers: { authorization: `Bearer ${fim.json().acesso}` },
+    })
+    expect(eu.statusCode).toBe(200)
+    expect(eu.json().conta.email).toBe(email)
+    expect(eu.json().conta.nome).toBe('Participante')
+  })
+
   it('nonce certo entra; nonce errado ou ausente é recusado', async () => {
     const p = await pessoaComSessao(b, app, config, 'Ana Apple')
     const nonce = randomBytes(16).toString('hex')

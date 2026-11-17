@@ -3,7 +3,12 @@ import { gerarToken, hashDeToken, hmacDeToken } from '../../src/autenticacao/cri
 import { verificarAcesso } from '../../src/autenticacao/jwt.ts'
 import { codigoTotp, contadorAtual } from '../../src/autenticacao/totp.ts'
 import { carregarConfig } from '../../src/config.ts'
-import type { Correio, Mensagem } from '../../src/correio/correio.ts'
+import {
+  correioDesligado,
+  FalhaNoEnvio,
+  type Correio,
+  type Mensagem,
+} from '../../src/correio/correio.ts'
 import { CABECALHO_CSRF, nomeDoCookieDeRefresh } from '../../src/rotas/autenticacao.ts'
 const COOKIE_REFRESH = nomeDoCookieDeRefresh(false)
 import { criarServidor } from '../../src/servidor.ts'
@@ -92,6 +97,62 @@ async function cadastrar(
 }
 
 describe('cadastro por convite', () => {
+  it('e-mail desligado: 503 antes de gravar verificação ou gastar a cota do convite', async () => {
+    const token = await convite('membro')
+    const outro = criarServidor(config, { api: b.api, auth: b.auth, correio: correioDesligado() })
+    try {
+      const antes = await b.su.query('select count(*)::int as n from uj.verificacoes_email')
+      const r = await outro.inject({
+        method: 'POST',
+        url: '/api/auth/convite/iniciar',
+        payload: { token, nome: 'Sem Envio', email: 'sem.envio@exemplo.test' },
+      })
+      expect(r.statusCode).toBe(503)
+      expect(r.json().erro).toBe('cadastro_indisponivel')
+      const depois = await b.su.query('select count(*)::int as n from uj.verificacoes_email')
+      expect(depois.rows).toEqual(antes.rows)
+    } finally {
+      await outro.close()
+    }
+  })
+
+  it.each(['/api/auth/convite/iniciar', '/api/auth/cadastro/iniciar'])(
+    'falha do transporte em %s: 503 sem expor erro técnico',
+    async (url) => {
+      const token = await convite('membro')
+      const outro = criarServidor(config, {
+        api: b.api,
+        auth: b.auth,
+        correio: {
+          modo: 'smtp',
+          async enviar() {
+            throw new FalhaNoEnvio(535, 'SMTP EAUTH')
+          },
+        },
+      })
+      try {
+        const r = await outro.inject({
+          method: 'POST',
+          url,
+          payload: {
+            token,
+            nome: 'Falha Envio',
+            email: 'falha.envio@exemplo.test',
+            faixaEtaria: '18_mais',
+            aceites: { termos: true },
+          },
+        })
+        expect(r.statusCode).toBe(503)
+        expect(r.json()).toEqual({
+          erro: 'email_indisponivel',
+          mensagem: 'Não conseguimos enviar o e-mail agora. Tente de novo em instantes.',
+        })
+      } finally {
+        await outro.close()
+      }
+    },
+  )
+
   it('fluxo completo: consulta, código por e-mail, conta e vínculo com o papel do convite', async () => {
     const token = await convite('organizador')
     const consulta = await post('/api/auth/convite/consultar', { token })

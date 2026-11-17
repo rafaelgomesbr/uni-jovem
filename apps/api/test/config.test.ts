@@ -71,6 +71,20 @@ describe('carregarConfig', () => {
     expect(problemas({ ...base, EMAIL_MODO: 'resend' }).join()).toMatch(/RESEND_CHAVE/)
   })
 
+  it('SMTP exige conta e remetente sem expor senha na validação', () => {
+    expect(problemas({ ...base, EMAIL_MODO: 'smtp' }).join()).toMatch(/SMTP_HOST/)
+    const c = carregarConfig({
+      ...base,
+      EMAIL_MODO: 'smtp',
+      SMTP_HOST: 'smtp.exemplo.test',
+      SMTP_USUARIO: 'envio@exemplo.test',
+      SMTP_SENHA: 'senha-ficticia',
+      EMAIL_REMETENTE: 'Uni Jovem <envio@exemplo.test>',
+    })
+    expect(c.SMTP_PORTA).toBe(587)
+    expect(c.EMAIL_MODO).toBe('smtp')
+  })
+
   it('aceita produção completa', () => {
     expect(
       problemas({

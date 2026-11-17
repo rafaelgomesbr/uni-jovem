@@ -25,12 +25,13 @@ export function useTemProvedor(): boolean {
  * vai para "Falta pouco" (idade e aceites); quem tem o código extra vai para
  * a verificação.
  */
-export function EntradaComProvedores() {
+export function EntradaComProvedores({ aoComecar }: { aoComecar?: () => void } = {}) {
   const sessao = useSessao()
   const [falhaDoProvedor, setFalhaDoProvedor] = useState<string | null>(null)
   const entrar = useMutation({
     mutationFn: async (pedido: Pedido): Promise<ResultadoDeEntrar | null> => {
       setFalhaDoProvedor(null)
+      aoComecar?.()
       if (pedido.tipo === 'google') {
         return sessao.entrarComProvedor('google', { idToken: pedido.idToken })
       }

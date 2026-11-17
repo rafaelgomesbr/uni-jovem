@@ -15,7 +15,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import http from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { chromium } from 'playwright'
+import { chromium, type Browser } from 'playwright'
 import { iniciarServidor } from './previa/servidor.ts'
 
 const RAIZ = join(import.meta.dirname, '..')
@@ -65,6 +65,59 @@ function exportar(destino: string) {
   }
 }
 
+/** Percorre o cadastro web com um desafio controlado, sem rede ou e-mail real. */
+async function conferirCadastro(navegador: Browser) {
+  const page = await navegador.newPage({ viewport: { width: 390, height: 844 } })
+  const envios: Record<string, unknown>[] = []
+  let desafios = 0
+  try {
+    await page.route('**/api/auth/cadastro/configuracao', (rota) =>
+      rota.fulfill({ json: { turnstileChaveDoSite: 'chave-publica-ficticia' } }),
+    )
+    await page.route('https://challenges.cloudflare.com/turnstile/v0/api.js*', (rota) =>
+      rota.fulfill({
+        contentType: 'application/javascript',
+        body: `
+        window.turnstile = {
+          ready: (fn) => fn(),
+          render: (el, options) => { window.desafio = options; options.callback('desafio-inicial'); return 'widget'; },
+          reset: () => window.desafio.callback('desafio-renovado'),
+          remove: () => {}
+        };
+      `,
+      }),
+    )
+    await page.route('**/api/auth/cadastro/iniciar', async (rota) => {
+      envios.push(rota.request().postDataJSON() as Record<string, unknown>)
+      desafios++
+      await rota.fulfill({ json: { ok: true } })
+    })
+    await page.goto(`http://127.0.0.1:${PORTA}/app/criar-conta`)
+    await page.getByLabel('Nome', { exact: true }).fill('Pessoa de Teste')
+    await page.getByLabel('E-mail', { exact: true }).fill('web@exemplo.test')
+    await page.getByRole('radio', { name: 'Tenho 18 anos ou mais.' }).click()
+    await page.getByRole('checkbox').click()
+    await page.waitForFunction(() => Boolean((window as unknown as { desafio?: unknown }).desafio))
+    await page.getByRole('button', { name: 'Enviar código', exact: true }).click()
+    await page.getByLabel('Código de 6 números', { exact: true }).waitFor()
+    const reenviado = page.waitForResponse((r) => r.url().endsWith('/api/auth/cadastro/iniciar'))
+    await page.getByRole('button', { name: 'Mandar outro código', exact: true }).click()
+    // O reenvio precisa carregar um desafio novo, pois o anterior já foi usado.
+    await reenviado
+    if (
+      desafios !== 2 ||
+      envios[0]?.plataforma !== 'web' ||
+      envios[0]?.turnstile !== 'desafio-inicial' ||
+      envios[1]?.turnstile !== 'desafio-renovado'
+    ) {
+      throw new Error('O cadastro web não enviou a plataforma e um desafio novo por código.')
+    }
+    console.log('ok cadastro web: dados, desafio e reenvio de código')
+  } finally {
+    await page.close()
+  }
+}
+
 async function principal() {
   const pasta = mkdtempSync(join(tmpdir(), 'uj-fumaca-web-'))
   let falhas = 0
@@ -102,6 +155,7 @@ async function principal() {
         }
         await page.close()
       }
+      await conferirCadastro(navegador)
     } finally {
       await navegador.close()
       await servidor.parar()

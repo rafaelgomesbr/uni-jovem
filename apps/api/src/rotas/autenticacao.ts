@@ -560,6 +560,10 @@ export function registrarRotasDeAutenticacao(
 
   // ---------------------------------------------------------------- cadastro aberto (ADR 0007)
 
+  app.get('/api/auth/cadastro/configuracao', async () => ({
+    turnstileChaveDoSite: d.config.TURNSTILE_CHAVE_DO_SITE ?? null,
+  }))
+
   app.post('/api/auth/cadastro/iniciar', async (pedido, resposta) => {
     if (!cadastroSemConviteHabilitado(POLITICAS.conta)) throw CADASTRO_NAO_HABILITADO()
     const corpo = validar(

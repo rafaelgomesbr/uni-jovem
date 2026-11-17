@@ -22,6 +22,10 @@ import { Texto } from '@/ui/Texto'
 import { problemaDaSenha } from '../autenticacao/politicaDeSenha'
 import { RegrasDaSenha } from '../autenticacao/RegrasDaSenha'
 import {
+  EntradaComProvedores,
+  useTemProvedor,
+} from '../autenticacao/provedores/EntradaComProvedores'
+import {
   AceiteDosTermos,
   CadastroTravado,
   ConsentimentoDeFe,
@@ -94,6 +98,7 @@ export function CadastroPorConvite({
   const [responsavel, setResponsavel] = useState(false)
   const adolescente = faixa === '16_17'
   const travado = useCadastroTravado()
+  const temProvedor = useTemProvedor()
 
   const whatsappNormalizado = normalizarWhatsApp(whatsapp)
 
@@ -207,6 +212,9 @@ export function CadastroPorConvite({
       ),
       <>
         {cartaoDoConvite}
+        {!menor && temProvedor ? (
+          <EntradaComProvedores aoComecar={() => guardarConviteEmEspera(token)} />
+        ) : null}
         <CartaoDeVidro intervalo={ESPACO.e16}>
           <Campo
             rotulo="Nome"

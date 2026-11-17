@@ -34,6 +34,7 @@ import {
   PerguntaDeIdade,
 } from '../convite/Consentimentos'
 import { useCadastroTravado } from '../convite/travaDeIdade'
+import { useVerificacaoHumana } from './verificacaoHumana'
 
 type Passo = 'dados' | 'codigo'
 
@@ -88,6 +89,7 @@ export function TelaCriarConta() {
   const trava = useTravaDeEnvio()
   const temProvedor = useTemProvedor()
   const travado = useCadastroTravado()
+  const verificacao = useVerificacaoHumana()
 
   const sujo = !!(nome.trim() || email.trim() || codigo.trim() || senha)
   const liberarSaida = useConfirmarDescarte(sujo)
@@ -100,6 +102,8 @@ export function TelaCriarConta() {
           nome: nome.trim(),
           email: email.trim(),
           faixaEtaria: faixa,
+          plataforma: plataformaAtual(),
+          turnstile: verificacao.obterToken(),
           // A opção de 16 ou 17 anos já declara que o responsável sabe e concorda (TC-01.v2).
           aceites: { termos, ...(faixa === '16_17' ? { responsavelCiente: true } : {}) },
         },
@@ -110,7 +114,10 @@ export function TelaCriarConta() {
       setErros({})
       setPasso('codigo')
     },
-    onSettled: () => trava.soltar(),
+    onSettled: () => {
+      verificacao.reiniciar()
+      trava.soltar()
+    },
   })
 
   const concluir = useMutation({
@@ -147,6 +154,7 @@ export function TelaCriarConta() {
       {...(barra ? { barraDeAcao: barra } : {})}
     >
       {conteudo}
+      {verificacao.elemento}
     </Tela>
   )
 
@@ -200,7 +208,7 @@ export function TelaCriarConta() {
               : 'Por enquanto, não dá para criar conta por e-mail. Tente de novo mais tarde.'}
           </Aviso>
         ) : null}
-        {indisponivel && temProvedor ? <EntradaComProvedores /> : null}
+        {!menor && temProvedor ? <EntradaComProvedores aoComecar={liberarSaida} /> : null}
         <CartaoDeVidro opaco intervalo={ESPACO.e16}>
           <Campo
             rotulo="Nome"

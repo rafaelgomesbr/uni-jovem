@@ -63,9 +63,13 @@ const esquema = z
     CONVITE_SEGREDO: segredo('CONVITE_SEGREDO'),
     ORACAO_CHAVE: chave32('ORACAO_CHAVE'),
     TOTP_CHAVE: chave32('TOTP_CHAVE'),
-    EMAIL_MODO: z.enum(['desligado', 'arquivo', 'resend']).default('desligado'),
+    EMAIL_MODO: z.enum(['desligado', 'arquivo', 'resend', 'smtp']).default('desligado'),
     EMAIL_REMETENTE: z.string().optional(),
     RESEND_CHAVE: z.string().optional(),
+    SMTP_HOST: z.string().optional(),
+    SMTP_PORTA: z.coerce.number().int().min(1).max(65535).default(587),
+    SMTP_USUARIO: z.string().optional(),
+    SMTP_SENHA: z.string().optional(),
     NOTIFICADOR_ARQUIVO: z.string().optional(),
     TURNSTILE_SEGREDO: z.string().optional(),
     // Chave PÚBLICA do widget (vai no HTML); a secreta é TURNSTILE_SEGREDO.
@@ -130,6 +134,12 @@ const esquema = z
     }
     if (c.EMAIL_MODO === 'resend' && (!c.RESEND_CHAVE || !c.EMAIL_REMETENTE)) {
       falha('EMAIL_MODO=resend exige RESEND_CHAVE e EMAIL_REMETENTE')
+    }
+    if (
+      c.EMAIL_MODO === 'smtp' &&
+      (!c.SMTP_HOST || !c.SMTP_USUARIO || !c.SMTP_SENHA || !c.EMAIL_REMETENTE)
+    ) {
+      falha('EMAIL_MODO=smtp exige SMTP_HOST, SMTP_USUARIO, SMTP_SENHA e EMAIL_REMETENTE')
     }
     if (c.EMAIL_MODO === 'arquivo' && !c.NOTIFICADOR_ARQUIVO) {
       falha('EMAIL_MODO=arquivo exige NOTIFICADOR_ARQUIVO')

@@ -11,7 +11,7 @@
 #   ~/srv/builds/saida-loja/<Esquema>.xcarchive  (archive sem assinatura)
 #   ~/srv/builds/assinatura/loja.mobileprovision (perfil IOS_APP_STORE)
 #   ~/.appstoreconnect/private_keys/AuthKey_<id>.p8 e ~/srv/builds/asc/issuer
-set -eu
+set -euo pipefail
 if [ "${UJ_CONFIRMO_TESTFLIGHT:-}" != "sim" ]; then
   echo "TestFlight: rode com UJ_CONFIRMO_TESTFLIGHT=sim, só com aprovação do dono." >&2
   exit 1
@@ -24,7 +24,7 @@ A=~/srv/builds/assinatura
 KC=$A/uj-build.keychain-db
 PERFIL=$A/loja.mobileprovision
 APP_DIR=~/srv/builds/uni-jovem-loja/apps/app
-SAIDA=~/srv/builds/saida-loja
+SAIDA="${UJ_SAIDA_IOS:-$HOME/srv/builds/saida-loja}"
 LOG=~/srv/builds/assinar-ios-loja.log
 : > "$LOG"
 

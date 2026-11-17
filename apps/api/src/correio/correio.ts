@@ -1,5 +1,6 @@
 import { appendFile, mkdir } from 'node:fs/promises'
 import { dirname } from 'node:path'
+import nodemailer from 'nodemailer'
 
 /**
  * Envio de e-mail transacional. Três modos (`EMAIL_MODO`):
@@ -22,7 +23,7 @@ export interface Mensagem {
 }
 
 export interface Correio {
-  readonly modo: 'desligado' | 'arquivo' | 'resend'
+  readonly modo: 'desligado' | 'arquivo' | 'resend' | 'smtp'
   enviar(m: Mensagem): Promise<void>
 }
 
@@ -71,6 +72,48 @@ export function correioEmArquivo(caminho: string): Correio {
 }
 
 export const URL_DO_RESEND = 'https://api.resend.com/emails'
+
+/** Envio pelo SMTP existente, com TLS obrigatório e sem registrar credenciais. */
+export function correioSmtp(opcoes: {
+  host: string
+  porta: number
+  usuario: string
+  senha: string
+  remetente: string
+}): Correio {
+  const transporte = nodemailer.createTransport({
+    host: opcoes.host,
+    port: opcoes.porta,
+    secure: opcoes.porta === 465,
+    requireTLS: true,
+    auth: { user: opcoes.usuario, pass: opcoes.senha },
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 15_000,
+    logger: false,
+    debug: false,
+  })
+  return {
+    modo: 'smtp',
+    async enviar(m) {
+      try {
+        await transporte.sendMail({
+          from: opcoes.remetente,
+          to: m.para,
+          subject: m.assunto,
+          text: m.corpo,
+          disableFileAccess: true,
+          disableUrlAccess: true,
+        })
+      } catch (erro) {
+        // O servidor SMTP pode ecoar destinatário, credenciais ou corpo no erro.
+        // Conserva só o código técnico e o status numérico.
+        const e = erro as { code?: string; responseCode?: number }
+        throw new FalhaNoEnvio(e.responseCode ?? null, `SMTP ${e.code ?? 'indisponivel'}`)
+      }
+    },
+  }
+}
 
 /** Tira endereços de e-mail de um texto que vai para log. */
 export function semEnderecos(texto: string): string {

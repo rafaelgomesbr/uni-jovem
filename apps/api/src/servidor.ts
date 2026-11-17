@@ -7,7 +7,7 @@ import { ErroHttp } from './http.ts'
 import { CSP_PUBLICA, html, pagina } from './publico/html.ts'
 import { opcoesDoLog } from './log.ts'
 import type { Config } from './config.ts'
-import type { Correio } from './correio/correio.ts'
+import { EmailDesligado, FalhaNoEnvio, type Correio } from './correio/correio.ts'
 import {
   criarVerificadorDeProvedores,
   type ChavesDosProvedores,
@@ -126,6 +126,13 @@ export function criarServidor(
       return resposta
         .code((erro as FastifyError).statusCode!)
         .send({ erro: 'pedido_invalido', mensagem: 'Não entendemos este pedido.' })
+    }
+    if (erro instanceof FalhaNoEnvio || erro instanceof EmailDesligado) {
+      app.log.error({ erro: erro.message }, 'falha no envio de e-mail')
+      return resposta.code(503).send({
+        erro: 'email_indisponivel',
+        mensagem: 'Não conseguimos enviar o e-mail agora. Tente de novo em instantes.',
+      })
     }
     app.log.error({ erro: erro.message }, 'erro interno')
     return resposta.code(500).send({

@@ -4,6 +4,7 @@ import {
   correioDesligado,
   correioEmArquivo,
   correioResend,
+  correioSmtp,
   type Correio,
 } from './correio/correio.ts'
 import { criarServidor } from './servidor.ts'
@@ -14,6 +15,14 @@ import { TrabalhadorDePush } from './notificacoes/trabalhador.ts'
 
 function criarCorreio(c: Config): Correio {
   switch (c.EMAIL_MODO) {
+    case 'smtp':
+      return correioSmtp({
+        host: c.SMTP_HOST!,
+        porta: c.SMTP_PORTA,
+        usuario: c.SMTP_USUARIO!,
+        senha: c.SMTP_SENHA!,
+        remetente: c.EMAIL_REMETENTE!,
+      })
     case 'resend':
       return correioResend({ chave: c.RESEND_CHAVE!, remetente: c.EMAIL_REMETENTE! })
     case 'arquivo':

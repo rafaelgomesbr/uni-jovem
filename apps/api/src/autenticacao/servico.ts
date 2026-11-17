@@ -735,6 +735,13 @@ export async function iniciarCadastroPorConvite(
 ): Promise<{ verificacaoId: string }> {
   // TC-01: menor de 16 para aqui, sem gravar nada e sem consumir o convite.
   if (pedido.faixaEtaria === 'menos_16') throw MENOR_DE_16()
+  if (d.correio.modo === 'desligado') {
+    throw new ErroDeAuth(
+      'cadastro_indisponivel',
+      503,
+      'O envio de códigos por e-mail está indisponível agora. Tente de novo mais tarde.',
+    )
+  }
   const email = normalizarEmail(pedido.email)
   const primeiroNome = pedido.nome.trim().split(/\s+/)[0]
   const { rows } = await d.auth.query<{

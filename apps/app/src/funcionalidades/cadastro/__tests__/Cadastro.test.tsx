@@ -99,6 +99,8 @@ describe('Criar conta (ADR 0007)', () => {
       email: 'ana@exemplo.com',
       faixaEtaria: '16_17',
       aceites: { termos: true, responsavelCiente: true },
+      plataforma: 'ios',
+      turnstile: undefined,
     })
 
     await fireEvent.changeText(screen.getByLabelText('Código de 6 números'), '123456')
