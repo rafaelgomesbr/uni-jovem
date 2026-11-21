@@ -32,6 +32,26 @@ export const RECUO_DA_LISTA = {
   texto: 18,
 } as const
 
+/**
+ * Subtítulo de um grupo de linhas dentro de um cartão lista ("Para você", "Da
+ * organização"): em texto, alinhado ao texto das linhas, e anunciado como cabeçalho.
+ */
+export function SubtituloDaLista({ texto }: { texto: string }) {
+  return (
+    <Texto
+      variante="sobrancelha"
+      cor="textoSuave"
+      style={{
+        paddingHorizontal: RECUO_DA_LISTA.texto,
+        paddingTop: ESPACO.e8,
+        paddingBottom: ESPACO.e4,
+      }}
+    >
+      {texto}
+    </Texto>
+  )
+}
+
 export interface DataDaLinha {
   /** "15". */
   dia: string

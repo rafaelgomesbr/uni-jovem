@@ -140,6 +140,9 @@ describe('lista e pedido', () => {
     expect(screen.queryByRole('button', { name: 'Denunciar' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Editar ou mudar quem vê' })).toBeNull()
 
+    // "Mais" tem a palavra à vista: o botão de reticências sozinho não dizia nada (D62).
+    expect(screen.getAllByText('Mais').length).toBeGreaterThan(0)
+
     // Só o pedido da comunidade, de outra pessoa, pode ser denunciado.
     await usuario.press(screen.getByRole('button', { name: 'Mais ações do pedido de bruno lima' }))
     expect(await screen.findAllByRole('button', { name: 'Denunciar' })).toHaveLength(1)

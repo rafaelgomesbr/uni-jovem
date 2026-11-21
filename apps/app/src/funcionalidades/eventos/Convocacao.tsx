@@ -152,9 +152,9 @@ export function FolhaDeConvocar({
           valor={funcao}
           aoMudar={setFuncao}
           segmentos={[
-            { valor: 'responsável', rotulo: 'Responsável' },
-            { valor: 'integrante', rotulo: 'Integrante' },
-            { valor: 'outra', rotulo: 'Outra' },
+            { valor: 'responsável', rotulo: 'Quem conduz' },
+            { valor: 'integrante', rotulo: 'Quem ajuda' },
+            { valor: 'outra', rotulo: 'Outra função' },
           ]}
         />
       )}
@@ -179,7 +179,7 @@ export function FolhaDeConvocar({
       ) : null}
       <SeletorDePessoa
         comunidadeId={comunidadeId}
-        rotulo="Pessoa"
+        rotulo="Escolha a pessoa"
         valor={pessoa}
         aoMudar={setPessoa}
         motivoDesabilitada={(p) => (jaConvocados.has(p.vinculoId) ? 'Já convocado' : undefined)}

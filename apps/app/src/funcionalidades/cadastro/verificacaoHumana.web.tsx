@@ -45,7 +45,9 @@ function carregar(): Promise<Turnstile> {
 
 /** Um token novo por envio, inclusive ao reenviar o código ou corrigir os dados. */
 export function useVerificacaoHumana() {
-  const recipiente = useRef<HTMLDivElement>(null)
+  // O recipiente é estado, não ref: o desafio aparece só na tela "Falta pouco" (D63), depois da
+  // configuração já ter chegado, e o efeito precisa rodar quando o elemento nasce.
+  const [recipiente, setRecipiente] = useState<HTMLDivElement | null>(null)
   const widget = useRef<{ api: Turnstile; id: string } | null>(null)
   const token = useRef<string | undefined>(undefined)
   const [configuracao, setConfiguracao] = useState<{ turnstileChaveDoSite: string | null }>()
@@ -67,13 +69,13 @@ export function useVerificacaoHumana() {
 
   useEffect(() => {
     const chave = configuracao?.turnstileChaveDoSite
-    if (!chave) return
+    if (!chave || !recipiente) return
     let ativo = true
     void carregar()
       .then((turnstile) => {
         turnstile.ready(() => {
-          if (!ativo || !recipiente.current) return
-          const id = turnstile.render(recipiente.current, {
+          if (!ativo) return
+          const id = turnstile.render(recipiente, {
             sitekey: chave,
             language: 'pt-br',
             theme: 'auto',
@@ -101,12 +103,12 @@ export function useVerificacaoHumana() {
       widget.current = null
       token.current = undefined
     }
-  }, [configuracao])
+  }, [configuracao, recipiente])
 
   return {
     elemento: (
       <>
-        {createElement('div', { ref: recipiente, 'aria-label': 'Verificação de segurança' })}
+        {createElement('div', { ref: setRecipiente, 'aria-label': 'Verificação de segurança' })}
         {falha ? (
           <Texto variante="corpo">
             Não foi possível carregar a verificação de segurança. Recarregue a página.

@@ -1,6 +1,5 @@
 import type { ReactElement } from 'react'
 
-import { Chip } from '@/ui/Chip'
 import type { NomeDoIcone } from '@/ui/Icone'
 import { LinhaDeLista } from '@/ui/LinhaDeLista'
 
@@ -11,45 +10,25 @@ export function plural(n: number, singular: string, mais: string): string {
 
 interface Props {
   icone: NomeDoIcone
-  /** O que o número conta ("Convocações para responder"). */
+  /** O que o toque faz, começando pelo verbo ("Responder 2 convocações"). */
   titulo: string
-  /** O número, ou o texto que o resume ("2 de 3"). */
-  valor: string
-  descricao?: string
-  /** Pede atenção: ganha o chip "Resolver", que diz com texto o que a cor sozinha não diria. */
-  atencao?: boolean
-  /** Sem destino, a linha só informa. */
-  aoPressionar?: () => void
   /** Aonde o toque leva, para o leitor de tela ("Escalas"). */
-  destino?: string
+  destino: string
+  aoPressionar: () => void
 }
 
 /**
- * Uma linha da visão geral (D59): o número à direita, o que ele conta à
- * esquerda e, quando há destino, o toque abre a tela certa. O leitor de tela
- * ouve tudo de uma vez ("Convocações para responder: 2. Abrir Escalas").
+ * Uma linha do "Seu resumo" (D62): o verbo do que o toque faz e o destino.
+ * Nunca é linha morta: se não leva a lugar nenhum, não entra no resumo. O
+ * leitor de tela ouve tudo de uma vez ("Responder 2 convocações. Abrir Escalas").
  */
-export function LinhaDeNumero({
-  icone,
-  titulo,
-  valor,
-  descricao,
-  atencao = false,
-  aoPressionar,
-  destino,
-}: Props): ReactElement {
-  const rotulo = [`${titulo}: ${valor}`, descricao, destino ? `Abrir ${destino}` : null]
-    .filter(Boolean)
-    .join('. ')
+export function LinhaDeNumero({ icone, titulo, destino, aoPressionar }: Props): ReactElement {
   return (
     <LinhaDeLista
       icone={icone}
       titulo={titulo}
-      {...(descricao ? { descricao } : {})}
-      valor={valor}
-      {...(atencao ? { extra: <Chip texto="Resolver" tom="alerta" icone="avisoAlerta" /> } : {})}
-      rotuloAcessivel={rotulo}
-      {...(aoPressionar ? { aoPressionar } : {})}
+      rotuloAcessivel={`${titulo}. Abrir ${destino}`}
+      aoPressionar={aoPressionar}
     />
   )
 }

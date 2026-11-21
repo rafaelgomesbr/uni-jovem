@@ -4,6 +4,7 @@ import { router } from 'expo-router'
 import { INICIO } from '@/testes/fixturas'
 import { BASE, renderizarTela } from '@/testes/telas'
 
+import { escalaDeLouvor } from '../../repertorio/souDoLouvor'
 import { TelaInicio } from '../TelaInicio'
 
 jest.mock('expo-router', () => ({
@@ -19,7 +20,7 @@ jest.mock('expo-router', () => ({
 }))
 
 const VISAO = {
-  [`GET ${BASE}/visao-geral`]: () => ({
+  [`GET ${BASE}/visao-geral?escopo=minha`]: () => ({
     status: 200,
     corpo: {
       escopo: 'minha',
@@ -64,80 +65,86 @@ function inicioCom(escala: object | null) {
   }
 }
 
-describe('cartão "Meu repertório" no Início (D61)', () => {
+const rotasCom = (escala: object | null) => ({
+  ...VISAO,
+  [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: inicioCom(escala) }),
+})
+
+const ABRIR = { name: 'Abrir o meu repertório de Sábado com a juventude' }
+
+describe('modo músico no Início (D61, D62): sem cartão, só o botão do cartão do encontro', () => {
   beforeEach(() => jest.clearAllMocks())
 
-  test('convocado ao louvor (pela etapa): o cartão aparece e abre o Meu repertório', async () => {
+  test('convocado ao louvor (pela etapa): "Abrir o repertório" no cartão do encontro leva ao Meu repertório', async () => {
     await renderizarTela(<TelaInicio />, {
       papel: 'membro',
-      rotas: {
-        ...VISAO,
-        [`GET ${BASE}/inicio`]: () => ({
-          status: 200,
-          corpo: inicioCom({ funcao: 'integrante', etapaTitulo: 'Louvor' }),
-        }),
-      },
+      rotas: rotasCom({ funcao: 'integrante', etapaTitulo: 'Louvor' }),
     })
-    const abrir = await screen.findByRole('button', {
-      name: 'Abrir o meu repertório de Sábado com a juventude',
-    })
+    const abrir = await screen.findByRole('button', ABRIR)
     await userEvent.setup().press(abrir)
     expect(router.push).toHaveBeenCalledWith('/meu-repertorio')
-  })
-
-  test('função de banda (violão) no encontro todo também conta', async () => {
-    await renderizarTela(<TelaInicio />, {
-      papel: 'membro',
-      rotas: {
-        ...VISAO,
-        [`GET ${BASE}/inicio`]: () => ({
-          status: 200,
-          corpo: inicioCom({ funcao: 'violão', etapaTitulo: null }),
-        }),
-      },
-    })
-    expect(await screen.findByText('Meu repertório')).toBeOnTheScreen()
-  })
-
-  test('quem não toca (recepção) e quem recusou não vê o cartão', async () => {
-    await renderizarTela(<TelaInicio />, {
-      papel: 'membro',
-      rotas: {
-        ...VISAO,
-        [`GET ${BASE}/inicio`]: () => ({
-          status: 200,
-          corpo: inicioCom({ funcao: 'recepção', etapaTitulo: 'Palavra' }),
-        }),
-      },
-    })
-    await screen.findAllByText('Sábado com a juventude', { exact: false })
+    // O cartão "Meu repertório" não existe mais no Início.
     expect(screen.queryByText('Meu repertório')).toBeNull()
   })
 
-  test('convocação de louvor recusada não mostra o cartão', async () => {
+  test('função de banda (violão) no encontro inteiro também conta', async () => {
     await renderizarTela(<TelaInicio />, {
       papel: 'membro',
-      rotas: {
-        ...VISAO,
-        [`GET ${BASE}/inicio`]: () => ({
-          status: 200,
-          corpo: inicioCom({ funcao: 'Bateria', etapaTitulo: 'Louvor', estado: 'recusada' }),
-        }),
-      },
+      rotas: rotasCom({ funcao: 'violão', etapaTitulo: null }),
     })
-    await screen.findAllByText('Sábado com a juventude', { exact: false })
-    expect(screen.queryByText('Meu repertório')).toBeNull()
+    expect(await screen.findByRole('button', ABRIR)).toBeOnTheScreen()
   })
 
-  test('sem nenhuma convocação, nada de cartão', async () => {
+  test('quem não toca (recepção) não vê o botão', async () => {
     await renderizarTela(<TelaInicio />, {
       papel: 'membro',
-      rotas: {
-        ...VISAO,
-        [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: inicioCom(null) }),
-      },
+      rotas: rotasCom({ funcao: 'recepção', etapaTitulo: 'Palavra' }),
     })
-    await screen.findAllByText('Sábado com a juventude', { exact: false })
-    expect(screen.queryByText('Meu repertório')).toBeNull()
+    await screen.findByText('Você: Palavra · recepção')
+    expect(screen.queryByRole('button', ABRIR)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Ver o encontro' })).toBeOnTheScreen()
+  })
+
+  test('convocação de louvor recusada não mostra o botão nem a linha "Você:"', async () => {
+    await renderizarTela(<TelaInicio />, {
+      papel: 'membro',
+      rotas: rotasCom({ funcao: 'Bateria', etapaTitulo: 'Louvor', estado: 'recusada' }),
+    })
+    await screen.findByRole('button', { name: 'Ver o encontro' })
+    expect(screen.queryByRole('button', ABRIR)).toBeNull()
+    expect(screen.queryByText(/^Você:/)).toBeNull()
+  })
+
+  test('convocação de louvor ainda pendente: primeiro responder; o repertório só depois de aceitar', async () => {
+    await renderizarTela(<TelaInicio />, {
+      papel: 'membro',
+      rotas: rotasCom({ funcao: 'Vocal', etapaTitulo: 'Louvor', estado: 'pendente' }),
+    })
+    expect(await screen.findByRole('button', { name: /^Aceitar a convocação/ })).toBeOnTheScreen()
+    expect(screen.queryByRole('button', ABRIR)).toBeNull()
+  })
+
+  test('sem nenhuma convocação, nada de botão', async () => {
+    await renderizarTela(<TelaInicio />, { papel: 'membro', rotas: rotasCom(null) })
+    await screen.findByRole('button', { name: 'Ver o encontro' })
+    expect(screen.queryByRole('button', ABRIR)).toBeNull()
+  })
+})
+
+describe('escalaDeLouvor', () => {
+  const base = {
+    id: 'a1',
+    estado: 'confirmada',
+    eventoId: 'e1',
+    eventoTitulo: 'Sábado',
+    eventoInicio: INICIO,
+    funcao: 'Vocal',
+    etapaTitulo: null,
+  } as const
+
+  test('acha a convocação de banda e ignora a recusada e a de outra função', () => {
+    expect(escalaDeLouvor([{ ...base, funcao: 'Recepção' }])).toBeNull()
+    expect(escalaDeLouvor([{ ...base, estado: 'recusada' }])).toBeNull()
+    expect(escalaDeLouvor([{ ...base, funcao: 'Recepção' }, base])).toBe(base)
   })
 })

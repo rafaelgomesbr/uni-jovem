@@ -5,7 +5,12 @@ import { router } from 'expo-router'
 import { INICIO } from '@/testes/fixturas'
 import { BASE, pedidosPara, renderizarTela } from '@/testes/telas'
 
-import { reiniciarVersiculoDaSessao } from '../../versiculo/CartaoDoVersiculo'
+import {
+  comecoDoVersiculo,
+  reiniciarVersiculoDaSessao,
+  semColchetes,
+} from '../../versiculo/CartaoDoVersiculo'
+import { tituloDoResumo } from '../MinhaVisaoGeral'
 import { TelaInicio } from '../TelaInicio'
 
 jest.mock('expo-router', () => ({
@@ -27,6 +32,15 @@ const INICIO_VAZIO = {
   substituicoesAbertas: 0,
 }
 
+/** Uma tarefa aberta no encontro e1: é para lá que "Concluir tarefas" leva. */
+const TAREFA = {
+  id: 't1',
+  titulo: 'Comprar o brinde',
+  prazo: null,
+  eventoId: 'e1',
+  eventoTitulo: 'Sábado',
+}
+
 const MINHA = {
   escopo: 'minha',
   convocacoesParaResponder: 2,
@@ -35,6 +49,16 @@ const MINHA = {
   inscricoes: 1,
   presenca30dias: { presentes: 2, encontros: 3 },
   oracoesAtivas: 1,
+}
+
+const TUDO_ZERADO = {
+  ...MINHA,
+  convocacoesParaResponder: 0,
+  convocacoesProximas: 0,
+  tarefasAbertas: 0,
+  inscricoes: 0,
+  presenca30dias: { presentes: 0, encontros: 0 },
+  oracoesAtivas: 0,
 }
 
 const DA_COMUNIDADE = {
@@ -50,15 +74,6 @@ const DA_COMUNIDADE = {
       semResposta: 3,
       recusadas: 1,
     },
-    {
-      id: 'e2',
-      titulo: 'Luau',
-      inicio: INICIO,
-      fuso: 'America/Sao_Paulo',
-      convocados: 2,
-      semResposta: 0,
-      recusadas: 0,
-    },
   ],
   convocacoes: { semResposta: 3, recusadas: 1 },
   pedidosDeEntrada: 2,
@@ -67,50 +82,84 @@ const DA_COMUNIDADE = {
   tarefasAtrasadas: 2,
 }
 
+const SEM_PENDENCIAS = {
+  ...DA_COMUNIDADE,
+  proximosEncontros: [],
+  convocacoes: { semResposta: 0, recusadas: 0 },
+  pedidosDeEntrada: 0,
+  denunciasAbertas: 0,
+  tarefasAtrasadas: 0,
+}
+
 const ok = (corpo: unknown) => () => ({ status: 200, corpo })
 const rotasDeBase = (minha: unknown = MINHA, inicio: unknown = INICIO_VAZIO) => ({
   [`GET ${BASE}/inicio`]: ok(inicio),
   [`GET ${BASE}/visao-geral?escopo=minha`]: ok(minha),
 })
+const comTarefa = { ...INICIO_VAZIO, minhasTarefas: [TAREFA] }
+
+const RESUMO_FECHADO = /^Seu resumo: .*Recolhido, toque para ver\.$/
+const RESUMO_ABERTO = /^Seu resumo: .*Aberto, toque para recolher\.$/
 
 beforeEach(() => {
   jest.clearAllMocks()
   reiniciarVersiculoDaSessao()
 })
 
+describe('texto do versículo na exibição (Q7)', () => {
+  test('os colchetes do tradutor saem, as palavras ficam', () => {
+    expect(semColchetes('Não [fostes] vós [que] me escolhestes')).toBe(
+      'Não fostes vós que me escolhestes',
+    )
+    expect(semColchetes('Sem colchete nenhum')).toBe('Sem colchete nenhum')
+  })
+
+  test('o começo traz as primeiras palavras entre aspas e reticências, sem pontuação solta', () => {
+    expect(
+      comecoDoVersiculo('Não [fostes] vós que me escolhestes, mas eu vos escolhi e vos nomeei'),
+    ).toBe('“Não fostes vós que me escolhestes, mas…”')
+    // Curto demais para cortar: inteiro, sem reticências.
+    expect(comecoDoVersiculo('Deus é amor.')).toBe('“Deus é amor”')
+  })
+})
+
 describe('versículo do dia no Início', () => {
-  test('aparece recolhido; tocar mostra o texto e a tradução, tocar de novo recolhe', async () => {
+  test('uma linha recolhida com o começo do texto; tocar abre o texto inteiro, a tradução e a atribuição', async () => {
     const v = versiculoDoDia(new Date())
     await renderizarTela(<TelaInicio />, { rotas: rotasDeBase() })
 
     const botao = await screen.findByRole('button', {
-      name: `Versículo do dia, ${v.referencia}. Mostrar texto`,
+      name: `Versículo do dia, ${v.referencia}. Recolhido. Toque para ler.`,
     })
     expect(botao).toBeCollapsed()
     await screen.findByText('Seu resumo')
-    // Minimizado: o rótulo e a referência, sem o texto nem a tradução.
-    expect(screen.getByText('Versículo do dia')).toBeOnTheScreen()
-    expect(screen.getByText(v.referencia)).toBeOnTheScreen()
-    expect(screen.queryByText(v.texto)).toBeNull()
+    // Recolhido: o começo do texto entre aspas, sem o texto inteiro, sem a tradução e sem colchetes.
+    expect(screen.getByText(comecoDoVersiculo(v.texto))).toBeOnTheScreen()
+    expect(screen.queryByText(semColchetes(v.texto))).toBeNull()
     expect(screen.queryByText(/BLIVRE/)).toBeNull()
+    expect(screen.queryByText(/[[\]]/)).toBeNull()
 
     const usuario = userEvent.setup()
     await usuario.press(botao)
 
-    expect(screen.getByText(v.texto)).toBeOnTheScreen()
+    expect(screen.getByText(semColchetes(v.texto))).toBeOnTheScreen()
     expect(screen.getByText(`${v.referencia} · BLIVRE`)).toBeOnTheScreen()
     // A atribuição da licença segue ao alcance enquanto o texto está aberto.
     await usuario.press(screen.getByRole('button', { name: /^Sobre a tradução: Bíblia Livre/ }))
     expect(router.push).toHaveBeenCalledWith('/versiculo/traducao')
+    // "Horário e notificação" saiu do cartão: mora no Perfil e na tela cheia.
+    expect(screen.queryByRole('button', { name: /^Horário e notificação/ })).toBeNull()
     const aberto = screen.getByRole('button', {
-      name: `Versículo do dia, ${v.referencia}. Recolher texto`,
+      name: `Versículo do dia, ${v.referencia}. Aberto. Toque para recolher.`,
     })
     expect(aberto).toBeExpanded()
 
     await usuario.press(aberto)
-    expect(screen.queryByText(v.texto)).toBeNull()
+    expect(screen.queryByText(semColchetes(v.texto))).toBeNull()
     expect(
-      screen.getByRole('button', { name: `Versículo do dia, ${v.referencia}. Mostrar texto` }),
+      screen.getByRole('button', {
+        name: `Versículo do dia, ${v.referencia}. Recolhido. Toque para ler.`,
+      }),
     ).toBeCollapsed()
   })
 
@@ -118,7 +167,7 @@ describe('versículo do dia no Início', () => {
     const v = versiculoDoDia(new Date())
     await renderizarTela(<TelaInicio />, { rotas: rotasDeBase() })
     const botao = await screen.findByRole('button', {
-      name: `Versículo do dia, ${v.referencia}. Mostrar texto`,
+      name: `Versículo do dia, ${v.referencia}. Recolhido. Toque para ler.`,
     })
     await screen.findByText('Seu resumo')
     const estilo = (Array.isArray(botao.props.style) ? botao.props.style : [botao.props.style])
@@ -131,53 +180,114 @@ describe('versículo do dia no Início', () => {
   })
 })
 
-describe('Minha visão', () => {
-  test('mostra os números da pessoa, cada um com o rótulo e o destino certos', async () => {
-    await renderizarTela(<TelaInicio />, { rotas: rotasDeBase() })
-    const usuario = userEvent.setup()
+describe('título do resumo', () => {
+  test('diz a única coisa que importa: tudo em dia, 1 coisa ou N coisas', () => {
+    expect(tituloDoResumo(0)).toBe('Tudo em dia')
+    expect(tituloDoResumo(1)).toBe('1 coisa esperando você')
+    expect(tituloDoResumo(2)).toBe('2 coisas esperando você')
+    expect(tituloDoResumo(7)).toBe('7 coisas esperando você')
+  })
+})
 
-    const responder = await screen.findByRole('button', {
-      name: 'Convocações para responder: 2. Abrir Escalas',
+describe('Seu resumo (acordeão)', () => {
+  test('nasce fechado, com o título que conta as linhas, e sem nenhuma linha à mostra', async () => {
+    await renderizarTela(<TelaInicio />, {
+      papel: 'membro',
+      rotas: rotasDeBase(MINHA, comTarefa),
     })
-    await usuario.press(responder)
-    expect(router.push).toHaveBeenCalledWith('/escalas')
-
-    expect(
-      screen.getByRole('button', {
-        name: 'Convocações aceitas: 1. Próximos encontros. Abrir Escalas',
-      }),
-    ).toBeOnTheScreen()
-    expect(screen.getByLabelText('Tarefas abertas: 3')).toBeOnTheScreen()
-    expect(screen.getByLabelText('Inscrições em encontros: 1')).toBeOnTheScreen()
-    expect(
-      screen.getByLabelText('Presença nos últimos 30 dias: 2 de 3. 3 encontros'),
-    ).toBeOnTheScreen()
-    // Pedido de oração: só a contagem, nunca texto.
-    await usuario.press(
-      screen.getByRole('button', { name: 'Pedidos de oração ativos: 1. Abrir Oração' }),
-    )
-    expect(router.push).toHaveBeenCalledWith('/oracao')
+    const resumo = await screen.findByRole('button', {
+      name: 'Seu resumo: 2 coisas esperando você. Recolhido, toque para ver.',
+    })
+    expect(resumo).toBeCollapsed()
+    expect(screen.getByText('2 coisas esperando você')).toBeOnTheScreen()
+    expect(screen.queryByText('Responder 2 convocações')).toBeNull()
+    expect(screen.queryByText('Concluir 3 tarefas')).toBeNull()
   })
 
-  test('tudo zerado: o resumo some e fala o estado vazio, com ação', async () => {
+  test('aberto: só linhas com valor, com verbo, e cada uma leva a um lugar', async () => {
     await renderizarTela(<TelaInicio />, {
-      rotas: rotasDeBase({
-        ...MINHA,
-        convocacoesParaResponder: 0,
-        convocacoesProximas: 0,
-        tarefasAbertas: 0,
-        inscricoes: 0,
-        presenca30dias: { presentes: 0, encontros: 0 },
-        oracoesAtivas: 0,
-      }),
+      papel: 'membro',
+      rotas: rotasDeBase(MINHA, { ...comTarefa, substituicoesAbertas: 1 }),
     })
-    expect(await screen.findByText('Nenhum encontro marcado')).toBeOnTheScreen()
-    expect(screen.queryByText('Seu resumo')).toBeNull()
+    const usuario = userEvent.setup()
+    await usuario.press(await screen.findByRole('button', { name: RESUMO_FECHADO }))
+    expect(screen.getByRole('button', { name: RESUMO_ABERTO })).toBeExpanded()
+
+    await usuario.press(
+      screen.getByRole('button', { name: 'Responder 2 convocações. Abrir Escalas' }),
+    )
+    expect(router.push).toHaveBeenLastCalledWith('/escalas')
+
+    await usuario.press(
+      screen.getByRole('button', { name: 'Concluir 3 tarefas. Abrir o encontro' }),
+    )
+    expect(router.push).toHaveBeenLastCalledWith({
+      pathname: '/evento/[eventoId]',
+      params: { eventoId: 'e1' },
+    })
+
+    await usuario.press(
+      screen.getByRole('button', { name: 'Ver 1 pedido de substituição. Abrir Escalas' }),
+    )
+    expect(router.push).toHaveBeenLastCalledWith('/escalas')
+  })
+
+  test('o título conta exatamente as linhas listadas', async () => {
+    await renderizarTela(<TelaInicio />, {
+      papel: 'membro',
+      rotas: rotasDeBase(MINHA, { ...comTarefa, substituicoesAbertas: 1 }),
+    })
+    await userEvent.setup().press(
+      await screen.findByRole('button', {
+        name: 'Seu resumo: 3 coisas esperando você. Recolhido, toque para ver.',
+      }),
+    )
+    expect(screen.getAllByRole('button', { name: /\. Abrir / })).toHaveLength(3)
+  })
+
+  test('nada de zero: linha sem valor não entra (1 coisa, no singular)', async () => {
+    await renderizarTela(<TelaInicio />, {
+      papel: 'membro',
+      rotas: rotasDeBase({ ...TUDO_ZERADO, convocacoesParaResponder: 1 }),
+    })
+    const usuario = userEvent.setup()
+    await usuario.press(
+      await screen.findByRole('button', {
+        name: 'Seu resumo: 1 coisa esperando você. Recolhido, toque para ver.',
+      }),
+    )
+    expect(
+      screen.getByRole('button', { name: 'Responder 1 convocação. Abrir Escalas' }),
+    ).toBeOnTheScreen()
+    expect(screen.queryByText(/Concluir/)).toBeNull()
+    expect(screen.queryByText(/substituição/)).toBeNull()
+    expect(screen.queryByText(/\b0\b/)).toBeNull()
+  })
+
+  test('saíram do resumo: convocações aceitas, inscrições, presença de 30 dias e oração ativa', async () => {
+    await renderizarTela(<TelaInicio />, { papel: 'membro', rotas: rotasDeBase() })
+    await userEvent.setup().press(await screen.findByRole('button', { name: RESUMO_FECHADO }))
+    expect(screen.queryByText(/Convocações aceitas/)).toBeNull()
+    expect(screen.queryByText(/Inscrições em encontros/)).toBeNull()
+    expect(screen.queryByText(/Presença nos últimos 30 dias/)).toBeNull()
+    expect(screen.queryByText(/Pedidos de oração ativos/)).toBeNull()
+  })
+
+  test('"Tudo em dia": sem linha, sem seta, sem botão que abre', async () => {
+    await renderizarTela(<TelaInicio />, {
+      papel: 'membro',
+      rotas: rotasDeBase(TUDO_ZERADO),
+    })
+    expect(await screen.findByText('Tudo em dia')).toBeOnTheScreen()
+    expect(screen.getByLabelText('Seu resumo: Tudo em dia')).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: RESUMO_FECHADO })).toBeNull()
+    expect(screen.queryByRole('button', { name: RESUMO_ABERTO })).toBeNull()
   })
 
   test('falha só nos números: o resto do Início segue e dá para tentar de novo', async () => {
     let tentativas = 0
     const { servidor } = await renderizarTela(<TelaInicio />, {
+      papel: 'membro',
       rotas: {
         ...rotasDeBase(),
         [`GET ${BASE}/visao-geral?escopo=minha`]: () => {
@@ -198,16 +308,15 @@ describe('Minha visão', () => {
     expect(await screen.findByText('Não deu para carregar o seu resumo')).toBeOnTheScreen()
     expect(screen.getByText('Nenhum encontro marcado')).toBeOnTheScreen()
     await userEvent.setup().press(screen.getByRole('button', { name: 'Tentar de novo' }))
-    expect(
-      await screen.findByRole('button', { name: 'Convocações para responder: 2. Abrir Escalas' }),
-    ).toBeOnTheScreen()
+    expect(await screen.findByRole('button', { name: RESUMO_FECHADO })).toBeOnTheScreen()
     expect(pedidosPara(servidor, 'GET', `${BASE}/visao-geral`)).toHaveLength(2)
   })
 
-  test('carregando: esqueleto com rótulo para o leitor de tela, depois os números', async () => {
+  test('carregando: esqueleto com rótulo para o leitor de tela, depois o título', async () => {
     let liberar: (r: { status: number; corpo: unknown }) => void = () => {}
     const demorada = new Promise<{ status: number; corpo: unknown }>((r) => (liberar = r))
     await renderizarTela(<TelaInicio />, {
+      papel: 'membro',
       rotas: { ...rotasDeBase(), [`GET ${BASE}/visao-geral?escopo=minha`]: () => demorada },
     })
     expect(await screen.findByLabelText('Carregando o seu resumo')).toBeOnTheScreen()
@@ -218,34 +327,43 @@ describe('Minha visão', () => {
   })
 })
 
-describe('seletor "Minha visão | Da comunidade"', () => {
-  test('organizador e administrador veem o seletor; começa na Minha visão', async () => {
-    await renderizarTela(<TelaInicio />, { papel: 'organizador', rotas: rotasDeBase() })
-    const minha = await screen.findByRole('radio', { name: 'Minha visão' })
-    expect(minha).toBeChecked()
-    expect(screen.getByRole('radio', { name: 'Da comunidade' })).not.toBeChecked()
+describe('Início de quem organiza (D62, Q1): o mesmo do membro, sem seletor', () => {
+  test('não há "Minha visão | Da comunidade" para organizador nem para administrador', async () => {
+    for (const papel of ['organizador', 'admin'] as const) {
+      const { unmount } = await renderizarTela(<TelaInicio />, {
+        papel,
+        rotas: {
+          ...rotasDeBase(),
+          [`GET ${BASE}/visao-geral?escopo=comunidade`]: ok(DA_COMUNIDADE),
+        },
+      })
+      await screen.findByRole('button', { name: RESUMO_FECHADO })
+      expect(screen.queryByRole('radio', { name: 'Minha visão' })).toBeNull()
+      expect(screen.queryByRole('radio', { name: 'Da comunidade' })).toBeNull()
+      expect(screen.queryByRole('radiogroup', { name: 'Visão geral' })).toBeNull()
+      await unmount()
+    }
   })
 
-  test('administrador também vê o seletor', async () => {
-    await renderizarTela(<TelaInicio />, { papel: 'admin', rotas: rotasDeBase() })
-    expect(await screen.findByRole('radio', { name: 'Da comunidade' })).toBeOnTheScreen()
-  })
-
-  test('membro não vê o seletor nem pede a visão da comunidade', async () => {
-    const { servidor } = await renderizarTela(<TelaInicio />, {
-      papel: 'membro',
-      rotas: rotasDeBase(),
+  test('o título soma "Para você" e "Da organização"; aberto, os dois grupos têm subtítulo em texto', async () => {
+    await renderizarTela(<TelaInicio />, {
+      papel: 'admin',
+      rotas: {
+        ...rotasDeBase(MINHA, comTarefa),
+        [`GET ${BASE}/visao-geral?escopo=comunidade`]: ok(DA_COMUNIDADE),
+      },
     })
-    expect(
-      await screen.findByRole('button', { name: 'Convocações para responder: 2. Abrir Escalas' }),
-    ).toBeOnTheScreen()
-    expect(screen.queryByRole('radio', { name: 'Da comunidade' })).toBeNull()
-    expect(screen.queryByRole('radiogroup', { name: 'Visão geral' })).toBeNull()
-    expect(servidor.pedidos.filter((p) => p.url.includes('escopo=comunidade'))).toHaveLength(0)
+    // 2 pessoais (convocações e tarefas) + 5 da organização (sem resposta, recusadas, entrada, denúncias, atrasadas).
+    const resumo = await screen.findByRole('button', {
+      name: 'Seu resumo: 7 coisas esperando você. Recolhido, toque para ver.',
+    })
+    await userEvent.setup().press(resumo)
+    expect(screen.getByText('Para você')).toBeOnTheScreen()
+    expect(screen.getByText('Da organização')).toBeOnTheScreen()
   })
 
-  test('"Da comunidade": os números e os atalhos de cada um', async () => {
-    const { servidor } = await renderizarTela(<TelaInicio />, {
+  test('"Da organização": cada linha tem verbo e leva à tela certa; os números ficam sempre à mão', async () => {
+    await renderizarTela(<TelaInicio />, {
       papel: 'admin',
       rotas: {
         ...rotasDeBase(),
@@ -253,68 +371,49 @@ describe('seletor "Minha visão | Da comunidade"', () => {
       },
     })
     const usuario = userEvent.setup()
-    await usuario.press(await screen.findByRole('radio', { name: 'Da comunidade' }))
+    await usuario.press(await screen.findByRole('button', { name: RESUMO_FECHADO }))
 
-    // Cada número leva à tela certa.
     await usuario.press(
-      await screen.findByRole('button', { name: 'Convocações sem resposta: 3. Abrir Escalas' }),
+      await screen.findByRole('button', { name: 'Ver 3 convocações sem resposta. Abrir Escalas' }),
     )
     expect(router.push).toHaveBeenLastCalledWith('/escalas')
     await usuario.press(
-      screen.getByRole('button', {
-        name: 'Convocações recusadas: 1. Chame outra pessoa. Abrir Escalas',
-      }),
+      screen.getByRole('button', { name: 'Ver 1 convocação recusada. Abrir Escalas' }),
     )
     expect(router.push).toHaveBeenLastCalledWith('/escalas')
     await usuario.press(
-      screen.getByRole('button', { name: 'Pedidos de entrada: 2. Abrir Comunidade' }),
+      screen.getByRole('button', { name: 'Ver 2 pedidos de entrada. Abrir Comunidade' }),
     )
     expect(router.push).toHaveBeenLastCalledWith('/comunidade')
     await usuario.press(
-      screen.getByRole('button', { name: 'Denúncias abertas: 4. Abrir Denúncias' }),
+      screen.getByRole('button', { name: 'Ver 4 denúncias abertas. Abrir Denúncias' }),
     )
     expect(router.push).toHaveBeenLastCalledWith('/denuncias')
-    await usuario.press(screen.getByRole('button', { name: 'Tarefas atrasadas: 2. Abrir Agenda' }))
+    await usuario.press(
+      screen.getByRole('button', { name: 'Ver 2 tarefas atrasadas. Abrir Agenda' }),
+    )
     expect(router.push).toHaveBeenLastCalledWith({
       pathname: '/agenda',
       params: { vista: 'lista' },
     })
     await usuario.press(
-      screen.getByRole('button', { name: 'Pessoas ativas: 12. Abrir Comunidade' }),
-    )
-    expect(router.push).toHaveBeenLastCalledWith('/comunidade')
-    await usuario.press(
-      screen.getByRole('button', {
-        name: 'Presença média: 18,5. Por encontro, nos últimos 5 encontros. Abrir Relatórios',
-      }),
+      screen.getByRole('button', { name: 'Ver os números e relatórios. Abrir Relatórios' }),
     )
     expect(router.push).toHaveBeenLastCalledWith('/relatorios')
-
-    // Os atalhos dizem em texto o que pede atenção (cor nunca é o único sinal).
-    expect(screen.getAllByText('Resolver').length).toBeGreaterThan(0)
-    expect(pedidosPara(servidor, 'GET', `${BASE}/visao-geral`)).toHaveLength(2)
   })
 
-  test('próximos 14 dias: a situação das convocações em texto e o toque abre o encontro', async () => {
+  test('"Próximos 14 dias" e "Números da comunidade" saíram do Início', async () => {
     await renderizarTela(<TelaInicio />, {
-      papel: 'organizador',
+      papel: 'admin',
       rotas: {
         ...rotasDeBase(),
         [`GET ${BASE}/visao-geral?escopo=comunidade`]: ok(DA_COMUNIDADE),
       },
     })
-    const usuario = userEvent.setup()
-    await usuario.press(await screen.findByRole('radio', { name: 'Da comunidade' }))
-
-    expect(await screen.findByText('3 sem resposta')).toBeOnTheScreen()
-    expect(screen.getByText('Todos responderam')).toBeOnTheScreen()
-    await usuario.press(
-      screen.getByRole('button', { name: /^Sábado com a juventude, .*3 sem resposta/ }),
-    )
-    expect(router.push).toHaveBeenLastCalledWith({
-      pathname: '/evento/[eventoId]',
-      params: { eventoId: 'e1' },
-    })
+    await userEvent.setup().press(await screen.findByRole('button', { name: RESUMO_FECHADO }))
+    expect(screen.queryByText('Próximos 14 dias')).toBeNull()
+    expect(screen.queryByText('Números da comunidade')).toBeNull()
+    expect(screen.queryByText('Pessoas ativas')).toBeNull()
   })
 
   test('organizador não recebe denúncias (nulas): a linha não aparece', async () => {
@@ -328,35 +427,33 @@ describe('seletor "Minha visão | Da comunidade"', () => {
         }),
       },
     })
-    await userEvent.setup().press(await screen.findByRole('radio', { name: 'Da comunidade' }))
-    expect(await screen.findByText('Pedidos de entrada')).toBeOnTheScreen()
-    expect(screen.queryByText('Denúncias abertas')).toBeNull()
+    await userEvent.setup().press(await screen.findByRole('button', { name: RESUMO_FECHADO }))
+    expect(await screen.findByText('Ver 2 pedidos de entrada')).toBeOnTheScreen()
+    expect(screen.queryByText(/denúncia/)).toBeNull()
   })
 
-  test('sem encontros nos próximos 14 dias: texto claro e a ação de criar', async () => {
+  test('sem pendências: "Tudo em dia", e ainda dá para abrir e ir aos números e relatórios', async () => {
     await renderizarTela(<TelaInicio />, {
       papel: 'organizador',
       rotas: {
-        ...rotasDeBase(),
-        [`GET ${BASE}/visao-geral?escopo=comunidade`]: ok({
-          ...DA_COMUNIDADE,
-          proximosEncontros: [],
-          presencaMedia: { encontros: 0, media: null },
-        }),
+        ...rotasDeBase(TUDO_ZERADO),
+        [`GET ${BASE}/visao-geral?escopo=comunidade`]: ok(SEM_PENDENCIAS),
       },
     })
     const usuario = userEvent.setup()
-    await usuario.press(await screen.findByRole('radio', { name: 'Da comunidade' }))
-
-    expect(
-      await screen.findByText('Nenhum encontro publicado para os próximos 14 dias.'),
-    ).toBeOnTheScreen()
-    expect(screen.getByText('Nenhum encontro recente com presença registrada')).toBeOnTheScreen()
-    await usuario.press(screen.getByRole('button', { name: 'Novo encontro' }))
-    expect(router.push).toHaveBeenLastCalledWith('/evento/novo')
+    await usuario.press(
+      await screen.findByRole('button', {
+        name: 'Seu resumo: Tudo em dia. Recolhido, toque para ver.',
+      }),
+    )
+    expect(screen.queryByText('Para você')).toBeNull()
+    await usuario.press(
+      screen.getByRole('button', { name: 'Ver os números e relatórios. Abrir Relatórios' }),
+    )
+    expect(router.push).toHaveBeenLastCalledWith('/relatorios')
   })
 
-  test('erro da API: mensagem humana e "Tentar de novo"; carregando tem esqueleto', async () => {
+  test('erro só na visão da organização: o pessoal segue e dá para tentar de novo', async () => {
     let tentativas = 0
     await renderizarTela(<TelaInicio />, {
       papel: 'organizador',
@@ -377,31 +474,31 @@ describe('seletor "Minha visão | Da comunidade"', () => {
       },
     })
     const usuario = userEvent.setup()
-    await usuario.press(await screen.findByRole('radio', { name: 'Da comunidade' }))
-
-    expect(await screen.findByText('Não deu para carregar a visão da comunidade')).toBeOnTheScreen()
-    expect(screen.getByText('Algo deu errado do nosso lado. Tente de novo.')).toBeOnTheScreen()
+    await usuario.press(await screen.findByRole('button', { name: RESUMO_FECHADO }))
+    expect(
+      await screen.findByText('Não deu para carregar a visão da organização'),
+    ).toBeOnTheScreen()
+    expect(
+      screen.getByRole('button', { name: 'Responder 2 convocações. Abrir Escalas' }),
+    ).toBeOnTheScreen()
     await usuario.press(screen.getByRole('button', { name: 'Tentar de novo' }))
     expect(
-      await screen.findByRole('button', { name: 'Convocações sem resposta: 3. Abrir Escalas' }),
+      await screen.findByRole('button', { name: 'Ver 3 convocações sem resposta. Abrir Escalas' }),
     ).toBeOnTheScreen()
   })
 
-  test('voltar para "Minha visão" mostra o Início pessoal de novo', async () => {
-    await renderizarTela(<TelaInicio />, {
-      papel: 'organizador',
-      rotas: {
-        ...rotasDeBase(),
-        [`GET ${BASE}/visao-geral?escopo=comunidade`]: ok(DA_COMUNIDADE),
-      },
+  test('membro não vê os grupos nem pede a visão da comunidade', async () => {
+    const { servidor } = await renderizarTela(<TelaInicio />, {
+      papel: 'membro',
+      rotas: rotasDeBase(),
     })
-    const usuario = userEvent.setup()
-    await usuario.press(await screen.findByRole('radio', { name: 'Da comunidade' }))
-    expect(await screen.findByText('Para resolver')).toBeOnTheScreen()
-    expect(screen.queryByText('Seu resumo')).toBeNull()
-
-    await usuario.press(screen.getByRole('radio', { name: 'Minha visão' }))
-    expect(await screen.findByText('Seu resumo')).toBeOnTheScreen()
-    expect(screen.queryByText('Para resolver')).toBeNull()
+    await userEvent.setup().press(await screen.findByRole('button', { name: RESUMO_FECHADO }))
+    expect(
+      screen.getByRole('button', { name: 'Responder 2 convocações. Abrir Escalas' }),
+    ).toBeOnTheScreen()
+    expect(screen.queryByText('Para você')).toBeNull()
+    expect(screen.queryByText('Da organização')).toBeNull()
+    expect(screen.queryByText(/números e relatórios/)).toBeNull()
+    expect(servidor.pedidos.filter((p) => p.url.includes('escopo=comunidade'))).toHaveLength(0)
   })
 })

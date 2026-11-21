@@ -1,5 +1,4 @@
 import { useMutation } from '@tanstack/react-query'
-import { ESPACO } from '@uj/tokens'
 import { router } from 'expo-router'
 import { useRef } from 'react'
 import { View } from 'react-native'
@@ -43,10 +42,11 @@ interface Props {
 /**
  * Uma convocação da própria pessoa (3.4.5), no formato do "Você foi convocado" do
  * Início: a data na sobrancelha com o chip da situação à direita, 4, a
- * função em `tituloItem`, o evento em `meta` e, embaixo, "Aceitar" e
- * "Pedir substituição" lado a lado. "Não posso ir" (recusar) fica à vista,
- * em terciário logo abaixo: atrás de um "…" sem texto, ninguém achava (U-05).
- * Com substituição pedida, a ação é cancelar o pedido.
+ * função em `tituloItem`, o evento em `meta` e, embaixo, a pergunta de uma
+ * vez só: pendente tem "Aceitar" e "Não posso ir" lado a lado (D62; antes
+ * eram três botões e ninguém sabia a diferença entre recusar e pedir
+ * substituição). "Pedir substituição" só aparece depois de aceitar. Com
+ * substituição pedida, a ação é cancelar o pedido.
  */
 export function CartaoDaEscala({ escala, comunidadeId, fuso, primario = false }: Props) {
   const responder = useResponderEscala(comunidadeId)
@@ -59,7 +59,6 @@ export function CartaoDaEscala({ escala, comunidadeId, fuso, primario = false }:
   })
   const onde = escala.etapaTitulo ? `${escala.etapaTitulo} · ${escala.funcao}` : escala.funcao
   const comSubstituicao = escala.estado === 'substituicao_pedida'
-  const podeRecusar = !comSubstituicao && escala.estado !== 'recusada'
   const chip = CHIP_DO_ESTADO_DA_ATRIBUICAO[escala.estado]
   // Depois de responder, o botão tocado some: o foco vai para o resumo, que já diz a situação nova.
   const resumo = useRef<NoDeView>(null)
@@ -85,6 +84,7 @@ export function CartaoDaEscala({ escala, comunidadeId, fuso, primario = false }:
     />
   )
 
+  // Pendente: só "Aceitar" e "Não posso ir" (D62). "Pedir substituição" só existe depois de aceitar.
   const botoes = comSubstituicao ? (
     pedidoAberto ? (
       <Botao
@@ -97,7 +97,7 @@ export function CartaoDaEscala({ escala, comunidadeId, fuso, primario = false }:
     ) : null
   ) : escala.estado === 'confirmada' ? (
     pedirSubstituicao
-  ) : (
+  ) : escala.estado === 'pendente' ? (
     <ParDeBotoes>
       <Botao
         titulo="Aceitar"
@@ -108,34 +108,22 @@ export function CartaoDaEscala({ escala, comunidadeId, fuso, primario = false }:
           responder.mutate({ atribuicaoId: escala.id, resposta: 'confirmar' }, depoisDeResponder)
         }
       />
-      {pedirSubstituicao}
+      <Botao
+        titulo="Não posso ir"
+        variante="secundario"
+        rotuloAcessivel={`Não posso ir: avisar a organização sobre ${escala.eventoTitulo}, ${onde}`}
+        carregando={responder.isPending && responder.variables?.resposta === 'recusar'}
+        aoPressionar={() => void recusar()}
+      />
     </ParDeBotoes>
-  )
+  ) : null
 
   return (
     <CartaoDeVidro
       sobrancelha={quandoDaEscala(escala.eventoInicio, fuso)}
       extra={<Chip texto={chip.texto} tom={chip.tom} />}
       comecaComTitulo
-      {...(botoes || podeRecusar
-        ? {
-            acoes: (
-              <View style={{ gap: ESPACO.e8 }}>
-                {botoes}
-                {podeRecusar ? (
-                  <Botao
-                    titulo="Não posso ir"
-                    variante="terciario"
-                    alinhado
-                    rotuloAcessivel={`Não posso ir: avisar a organização sobre ${escala.eventoTitulo}, ${onde}`}
-                    carregando={responder.isPending && responder.variables?.resposta === 'recusar'}
-                    aoPressionar={() => void recusar()}
-                  />
-                ) : null}
-              </View>
-            ),
-          }
-        : {})}
+      {...(botoes ? { acoes: botoes } : {})}
     >
       <View
         ref={resumo}

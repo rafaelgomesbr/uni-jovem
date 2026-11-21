@@ -17,6 +17,7 @@ import { BotaoDeAcessoRapido } from '@/ui/BotaoDeAcessoRapido'
 import { Botao, BotaoIcone, ParDeBotoes, type VarianteDoBotao } from '@/ui/Botao'
 import { CabecalhoDeTela } from '@/ui/CabecalhoDeTela'
 import { CaixaDeMarcar } from '@/ui/CaixaDeMarcar'
+import { Acordeao } from '@/ui/Acordeao'
 import { Campo, CampoDeBusca } from '@/ui/Campo'
 import { CampoDeData, CampoDeHora } from '@/ui/CampoDeMomento'
 import { CartaoDeDestaque, LinhaDeHorario, ListaDeHorarios } from '@/ui/CartaoDeDestaque'
@@ -225,6 +226,34 @@ function Selecao() {
   const [ligado, setLigado] = useState(true)
   return (
     <>
+      <Grupo titulo="Acordeão (D62)">
+        <CartaoDeVidro lista>
+          <Acordeao
+            recuo={RECUO_DA_LISTA.texto}
+            rotuloRecolhido="Seu resumo: 2 coisas esperando você. Recolhido, toque para ver."
+            rotuloAberto="Seu resumo: 2 coisas esperando você. Aberto, toque para recolher."
+            cabecalho={() => (
+              <>
+                <Texto variante="sobrancelha" accessibilityRole="text">
+                  Seu resumo
+                </Texto>
+                <Texto variante="tituloItem" accessibilityRole="text">
+                  2 coisas esperando você
+                </Texto>
+              </>
+            )}
+          >
+            <Lista>
+              <LinhaDeLista
+                icone="abaEscalas"
+                titulo="Responder 1 convocação"
+                aoPressionar={nada}
+              />
+              <LinhaDeLista icone="tarefas" titulo="Concluir 1 tarefa" aoPressionar={nada} />
+            </Lista>
+          </Acordeao>
+        </CartaoDeVidro>
+      </Grupo>
       <Grupo titulo="Segmentos e pílulas de filtro">
         <Segmentos
           rotulo="Como ver a agenda"

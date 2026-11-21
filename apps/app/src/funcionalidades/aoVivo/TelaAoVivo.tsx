@@ -145,7 +145,7 @@ interface PropsDoPainel {
 }
 
 const CHIP_DA_CONEXAO = {
-  ao_vivo: { texto: 'Ao vivo', tom: 'sucesso' },
+  ao_vivo: { texto: 'Conectado', tom: 'sucesso' },
   reconectando: { texto: 'Reconectando', tom: 'alerta' },
   so_neste_aparelho: { texto: 'Só neste aparelho', tom: 'alerta' },
 } as const

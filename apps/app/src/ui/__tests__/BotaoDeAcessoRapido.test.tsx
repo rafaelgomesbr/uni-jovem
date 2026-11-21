@@ -1,10 +1,10 @@
 /**
- * D60: os acessos rápidos (Apple e Google) são botões grandes, com nome
+ * D60 e D63: os acessos rápidos (Apple e Google) são botões grandes, com nome
  * acessível igual ao texto visível, alvo de pelo menos 44, cores fixas da marca
  * (a Apple troca entre o claro e o escuro) e estados carregando e inativo.
  */
 import { fireEvent, render, screen } from '@testing-library/react-native'
-import { MARCA_DA_APPLE, MARCA_DO_GOOGLE } from '@uj/tokens'
+import { MARCA_DA_APPLE, MARCA_DO_GOOGLE, MARCA_DO_GOOGLE_ESCURO } from '@uj/tokens'
 import { StyleSheet } from 'react-native'
 
 import { BotaoDeAcessoRapido } from '../BotaoDeAcessoRapido'
@@ -48,9 +48,26 @@ describe('BotaoDeAcessoRapido', () => {
     })
   })
 
-  test('Google: fundo branco e borda da marca, nos dois temas', async () => {
-    await render(
+  test('Google: contorno da marca, no tema escuro da marca no escuro e no claro da marca no claro', async () => {
+    const { rerender } = await render(
       <ProvedorDeTemaForcado nome="escuro">
+        <BotaoDeAcessoRapido
+          marca="google"
+          titulo="Continuar com o Google"
+          aoPressionar={() => {}}
+        />
+      </ProvedorDeTemaForcado>,
+    )
+    // Secundário no escuro: nada de segunda laje branca ao lado da Apple.
+    expect(estilo(screen.getByRole('button'))).toMatchObject({
+      backgroundColor: MARCA_DO_GOOGLE_ESCURO.fundo,
+      borderColor: MARCA_DO_GOOGLE_ESCURO.borda,
+    })
+    expect(screen.getByText('Continuar com o Google')).toHaveStyle({
+      color: MARCA_DO_GOOGLE_ESCURO.texto,
+    })
+    await rerender(
+      <ProvedorDeTemaForcado nome="claro">
         <BotaoDeAcessoRapido
           marca="google"
           titulo="Continuar com o Google"

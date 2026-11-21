@@ -5,6 +5,7 @@ import { BASE, pedidosPara, renderizarTela } from '@/testes/telas'
 
 import { TelaNovaSugestao, TEXTO_DO_ANONIMATO } from '../TelaNovaSugestao'
 import { TelaSugestao } from '../TelaSugestao'
+import { TelaSugestoes } from '../TelaSugestoes'
 
 jest.mock('expo-router', () => ({
   router: {
@@ -35,6 +36,17 @@ const SUGESTAO = {
 }
 
 describe('sugestões', () => {
+  test('a lista traz o botão "Nova sugestão" com a palavra à vista, não só um "+" (D62)', async () => {
+    await renderizarTela(<TelaSugestoes />, {
+      papel: 'membro',
+      rotas: { [`GET ${BASE}/sugestoes`]: () => ({ status: 200, corpo: { sugestoes: [] } }) },
+    })
+    expect(
+      (await screen.findAllByRole('button', { name: 'Nova sugestão' })).length,
+    ).toBeGreaterThan(0)
+    expect(screen.getByText('Nova')).toBeOnTheScreen()
+  })
+
   test('anônima explica que ninguém vê, nem a liderança, e envia anonima: true', async () => {
     const { servidor } = await renderizarTela(<TelaNovaSugestao />, {
       papel: 'membro',

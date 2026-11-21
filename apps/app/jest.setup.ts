@@ -247,3 +247,107 @@ jest.mock('@expo/ui/community/datetime-picker', () => {
     require('react').createElement(View, { ...props, testID: 'seletor-de-data' })
   return { __esModule: true, default: DateTimePicker, DateTimePicker }
 })
+
+/**
+ * Reanimated e worklets (a entrada, D63): o mock oficial importa o módulo
+ * nativo e não carrega no Jest. Este dublê executa as animações no mesmo
+ * instante, indo direto ao valor final, e faz o valor compartilhado atualizar
+ * a tela (o oficial não atualiza): o teste lê o estado final (opacidade,
+ * posição), nunca o meio do caminho. As curvas e os atrasos ficam em
+ * `MOVIMENTO_DE_ACESSO` e têm teste de soma.
+ */
+jest.mock('react-native-worklets', () => ({
+  scheduleOnRN: (fun: (...args: unknown[]) => unknown, ...args: unknown[]) => {
+    queueMicrotask(() => fun(...args))
+  },
+  scheduleOnUI: (fun: (...args: unknown[]) => unknown, ...args: unknown[]) => fun(...args),
+  runOnJS: (fun: unknown) => fun,
+  runOnUI: (fun: unknown) => fun,
+}))
+
+jest.mock('react-native-reanimated', () => {
+  const React = require('react')
+  const { View, Text } = require('react-native')
+
+  // Os nomes dos tipos e dos parâmetros ficam sem identificadores soltos: o Babel do Jest só aceita,
+  // dentro da fábrica do mock, o que ela mesma declara ou o que começa com "mock".
+  function useSharedValue(inicial: unknown) {
+    const [, atualizar] = React.useState(0)
+    const ref = React.useRef(null) as { current: unknown }
+    if (!ref.current) {
+      let valor = inicial
+      const definir = (novo: unknown) => {
+        const proximo =
+          typeof novo === 'function' ? (novo as (mockAnterior: unknown) => unknown)(valor) : novo
+        if (Object.is(proximo, valor)) return
+        valor = proximo
+        atualizar((n: number) => n + 1)
+      }
+      ref.current = {
+        _isReanimatedSharedValue: true,
+        get value() {
+          return valor
+        },
+        set value(novo: unknown) {
+          definir(novo)
+        },
+        get: () => valor,
+        set: definir,
+      }
+    }
+    return ref.current
+  }
+
+  const imediata = (para: unknown, _config?: unknown, retorno?: (fim: boolean) => void) => {
+    retorno?.(true)
+    return para
+  }
+  const identidade = <T>(x: T) => x
+  const easing = () => ({ factory: () => identidade })
+  const Easing = new Proxy(
+    { bezier: easing, bezierFn: () => identidade },
+    { get: (alvo: Record<string, unknown>, nome: string) => alvo[nome] ?? identidade },
+  )
+
+  function interpolate(x: number, entrada: number[], saida: number[]) {
+    const primeiro = entrada[0] as number
+    if (x <= primeiro) return saida[0]
+    for (let i = 1; i < entrada.length; i++) {
+      const fim = entrada[i] as number
+      if (x <= fim) {
+        const inicio = entrada[i - 1] as number
+        const de = saida[i - 1] as number
+        const ate = saida[i] as number
+        return de + ((x - inicio) / (fim - inicio)) * (ate - de)
+      }
+    }
+    return saida[saida.length - 1]
+  }
+
+  const Animated = {
+    View,
+    Text,
+    createAnimatedComponent: identidade,
+  }
+
+  return {
+    __esModule: true,
+    default: Animated,
+    ...Animated,
+    useSharedValue,
+    useAnimatedStyle: (fabrica: () => unknown) => fabrica(),
+    useDerivedValue: (fabrica: () => unknown) => ({ value: fabrica(), get: () => fabrica() }),
+    // jest.fn: o teste confere duração e atraso pedidos (por exemplo, só dissolve de 120 ms com Reduzir movimento).
+    withTiming: jest.fn(imediata),
+    withSpring: jest.fn(imediata),
+    withDelay: jest.fn((_atraso: number, animacao: unknown) => animacao),
+    withSequence: jest.fn((...animacoes: unknown[]) => animacoes[animacoes.length - 1]),
+    withRepeat: jest.fn((animacao: unknown) => animacao),
+    cancelAnimation: () => undefined,
+    interpolate,
+    Easing,
+    Extrapolation: { CLAMP: 'clamp', EXTEND: 'extend', IDENTITY: 'identity' },
+    ReduceMotion: { System: 'system', Always: 'always', Never: 'never' },
+    useReducedMotion: () => false,
+  }
+})

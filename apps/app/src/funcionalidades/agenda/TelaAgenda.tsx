@@ -33,7 +33,6 @@ import {
 } from './calendario'
 import { CartaoDoDia, SobrancelhaDoDia } from './ListaDoDia'
 import { ESQUELETO_DA_GRADE } from './medidas'
-import { VistaDaSemana } from './VistaDaSemana'
 import { ESCALA_DA_LISTA, VistaDoMes } from './VistaDoMes'
 
 export type VistaDaAgenda = 'calendario' | 'lista'
@@ -56,19 +55,18 @@ export function TelaAgenda() {
 }
 
 /**
- * Aba Agenda (D57): junta o calendário (3.3) e a lista dos encontros (a
- * antiga aba Programas, 3.4.1), com o seletor "Calendário | Lista" no topo e
+ * Aba Agenda (D57, D62): junta a lista dos encontros (a antiga aba Programas,
+ * 3.4.1) e o calendário (3.3), com o seletor "Lista | Calendário" no topo e
  * "Novo encontro" ao lado do título para quem cria (Sábado padrão, Em branco
- * ou A partir de modelo). Com fonte grande, abre na Lista.
+ * ou A partir de modelo). Abre sempre na Lista; o Calendário é a opção
+ * secundária, para achar um dia distante, e só tem o mês (sem "Semana").
  */
 function AgendaDaComunidade({ comunidadeId }: { comunidadeId: string }) {
   const pode = usePode()
   const podeCriar = pode('evento', 'criar')
-  const { fontScale } = useWindowDimensions()
   const pedida = vistaDoParametro(parametro(useLocalSearchParams<{ vista?: string }>().vista))
-  const [vista, setVista] = useState<VistaDaAgenda>(
-    () => pedida ?? (fontScale >= ESCALA_DA_LISTA ? 'lista' : 'calendario'),
-  )
+  // Abre na Lista (D62): quem abre a agenda quer ver o próximo encontro, não 7 pontinhos num mês.
+  const [vista, setVista] = useState<VistaDaAgenda>(() => pedida ?? 'lista')
   // A aba fica montada: um link novo (`?vista=`) troca o modo já aberto.
   const [ultimaPedida, setUltimaPedida] = useState(pedida)
   if (pedida !== ultimaPedida) {
@@ -84,8 +82,8 @@ function AgendaDaComunidade({ comunidadeId }: { comunidadeId: string }) {
       valor={vista}
       aoMudar={setVista}
       segmentos={[
-        { valor: 'calendario', rotulo: 'Calendário' },
         { valor: 'lista', rotulo: 'Lista' },
+        { valor: 'calendario', rotulo: 'Calendário' },
       ]}
     />
   )
@@ -119,10 +117,11 @@ function AgendaDaComunidade({ comunidadeId }: { comunidadeId: string }) {
   )
 }
 
-type ModoDoCalendario = Exclude<ModoDaAgenda, 'lista'>
+/** Só o mês (D62): para 1 a 3 encontros por semana, a Lista e o mês bastam; "Semana" saiu. */
+type ModoDoCalendario = Extract<ModoDaAgenda, 'mes'>
 
 /**
- * Calendário (3.3 e quadro 06): segmentos Mês e Semana; a linha do período
+ * Calendário (3.3 e quadro 06): só o mês; a linha do período
  * com o título em `tituloCartao`, o terciário "Hoje" (fora do período atual)
  * e os botões só ícone de anterior e próximo; a grade num cartão de vidro e,
  * abaixo, o dia escolhido.
@@ -141,7 +140,7 @@ function Calendario({
   const podeCriar = pode('evento', 'criar')
   const largo = useLayoutLargo()
   const hoje = hojeNoFuso(fuso)
-  const [modo, setModo] = useState<ModoDoCalendario>('mes')
+  const modo: ModoDoCalendario = 'mes'
   const [referencia, setReferencia] = useState<DataLocal>(hoje)
   const [selecionado, setSelecionado] = useState<DataLocal>(hoje)
   const intervalo = intervaloDoModo(modo, referencia)
@@ -153,7 +152,7 @@ function Calendario({
   function mover(sentido: 1 | -1) {
     const nova = passo(modo, referencia, sentido)
     setReferencia(nova)
-    setSelecionado(modo === 'mes' ? nova : intervaloDoModo(modo, nova).inicio)
+    setSelecionado(nova)
   }
 
   function irParaHoje() {
@@ -164,18 +163,6 @@ function Calendario({
   const controles = (
     <>
       {seletor}
-      <Segmentos
-        rotulo="Mês ou semana"
-        valor={modo}
-        aoMudar={(m) => {
-          setModo(m)
-          setReferencia(selecionado)
-        }}
-        segmentos={[
-          { valor: 'mes', rotulo: 'Mês' },
-          { valor: 'semana', rotulo: 'Semana' },
-        ]}
-      />
       <LinhaDoPeriodo
         titulo={descreverPeriodo(modo, referencia)}
         nomes={NOMES_DOS_PASSOS[modo]}
@@ -192,7 +179,7 @@ function Calendario({
         O que foi baixado neste aparelho continua no Início.
       </Aviso>
     ) : (
-      <EsqueletoDaAgenda modo={modo} />
+      <EsqueletoDaAgenda />
     )
   ) : eventos.error ? (
     <ErroDaTela
@@ -200,17 +187,9 @@ function Calendario({
       oQue="a agenda"
       aoTentarDeNovo={() => void eventos.refetch()}
     />
-  ) : modo === 'mes' ? (
+  ) : (
     <VistaDoMes
       referencia={referencia}
-      hoje={hoje}
-      selecionado={selecionado}
-      porDia={porDia}
-      aoEscolher={setSelecionado}
-    />
-  ) : (
-    <VistaDaSemana
-      inicio={intervalo.inicio}
       hoje={hoje}
       selecionado={selecionado}
       porDia={porDia}
@@ -307,14 +286,11 @@ function LinhaDoPeriodo({
 }
 
 /** Esqueleto da grade, com a altura do que vai chegar. */
-function EsqueletoDaAgenda({ modo }: { modo: ModoDoCalendario }) {
+function EsqueletoDaAgenda() {
   const sobrancelha = Math.round(TIPO.sobrancelha.altura * 0.6)
   return (
     <Esqueleto rotulo="Carregando a agenda">
-      <BlocoDeEsqueleto
-        altura={modo === 'mes' ? ESQUELETO_DA_GRADE.mes : ESQUELETO_DA_GRADE.semana}
-        raio={RAIO.cartao}
-      />
+      <BlocoDeEsqueleto altura={ESQUELETO_DA_GRADE.mes} raio={RAIO.cartao} />
       <BlocoDeEsqueleto largura="48%" altura={sobrancelha} />
       <CartaoDeEsqueleto />
     </Esqueleto>

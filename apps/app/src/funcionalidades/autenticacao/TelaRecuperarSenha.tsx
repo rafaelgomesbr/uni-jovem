@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 
 import { api } from '@/servicos/api'
@@ -10,6 +10,7 @@ import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { AvisoDeFalha } from '@/ui/Falha'
 import { Tela } from '@/ui/Tela'
+import { parametro } from '@/utilidades/parametros'
 
 /**
  * Recuperar a senha (3.1.4): pilha, cartão com o e-mail e a barra de ação.
@@ -17,7 +18,9 @@ import { Tela } from '@/ui/Tela'
  * (que traz o e-mail mascarado e não diz se a conta existe).
  */
 export function TelaRecuperarSenha() {
-  const [email, setEmail] = useState('')
+  // A entrada manda o e-mail que a pessoa já digitou (D63): ela não digita de novo.
+  const parametros = useLocalSearchParams<{ email?: string | string[] }>()
+  const [email, setEmail] = useState(() => parametro(parametros.email) ?? '')
   const [erro, setErro] = useState<string | null>(null)
 
   const recuperar = useMutation({

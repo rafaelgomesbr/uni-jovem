@@ -6,7 +6,7 @@ import { Alert } from 'react-native'
 import { BASE, pedidosPara, renderizarTela } from '@/testes/telas'
 
 import { MARCA_DO_ANONIMO } from '../CartaoDoPedido'
-import { TelaNovoPedido, TEXTO_DO_ANONIMATO_DA_ORACAO } from '../TelaNovoPedido'
+import { AVISO_DO_TEXTO, TelaNovoPedido } from '../TelaNovoPedido'
 import { TelaOracao } from '../TelaOracao'
 import { TelaPedidoDeOracao } from '../TelaPedidoDeOracao'
 
@@ -56,31 +56,74 @@ function responderDialogos(confirmar = true) {
 describe('novo pedido: publicar como anônimo', () => {
   afterEach(() => jest.restoreAllMocks())
 
-  test('o interruptor vem desligado, explica o anonimato e envia `anonimo: true`', async () => {
+  test('o interruptor só aparece quando mais alguém pode ler, vem desligado e diz UMA frase do estado atual', async () => {
+    const dialogo = responderDialogos()
     const { servidor } = await renderizarTela(<TelaNovoPedido />, {
       papel: 'membro',
       rotas: { [`POST ${BASE}/oracao`]: () => ({ status: 200, corpo: { id: 'p1' } }) },
     })
 
+    // "Somente eu" (o padrão): anonimato não faz sentido, o interruptor nem aparece.
+    await screen.findByRole('radio', { name: 'Somente eu (padrão)' })
+    expect(screen.queryByRole('switch', { name: 'Publicar como anônimo' })).toBeNull()
+
+    await fireEvent.press(screen.getByRole('radio', { name: 'Comunidade' }))
     const interruptor = await screen.findByRole('switch', { name: 'Publicar como anônimo' })
     expect(interruptor).not.toBeChecked()
-    expect(screen.getByText(TEXTO_DO_ANONIMATO_DA_ORACAO)).toBeOnTheScreen()
-    // O estado também em texto, não só na cor do interruptor.
+    // O estado em texto, não só na cor do interruptor, e sem a frase que contradiz.
     expect(screen.getByText(/^Desligado: seu nome aparece/)).toBeOnTheScreen()
+    expect(screen.queryByText(/^Ligado:/)).toBeNull()
+    expect(
+      screen.queryByText('Seu nome não aparece para ninguém da comunidade, nem para a liderança.'),
+    ).toBeNull()
 
     await fireEvent.press(interruptor)
     expect(screen.getByRole('switch', { name: 'Publicar como anônimo' })).toBeChecked()
-    expect(screen.getByText(/^Ligado: o pedido aparece como "Anônimo"/)).toBeOnTheScreen()
+    expect(screen.getByText(/^Ligado: o pedido sai como "Anônimo"\./)).toBeOnTheScreen()
+    expect(screen.queryByText(/^Desligado:/)).toBeNull()
 
     await fireEvent.changeText(screen.getByLabelText('Seu pedido'), 'Pela minha ansiedade')
     await fireEvent.press(screen.getByRole('button', { name: 'Publicar pedido' }))
 
     await waitFor(() => expect(pedidosPara(servidor, 'POST', `${BASE}/oracao`)).toHaveLength(1))
+    expect(dialogo).toHaveBeenCalled()
     expect(pedidosPara(servidor, 'POST', `${BASE}/oracao`)[0]!.corpo).toEqual({
       texto: 'Pela minha ansiedade',
-      visibilidade: 'somente_eu',
+      visibilidade: 'comunidade',
       anonimo: true,
     })
+  })
+
+  test('ligar o anonimato e voltar para "Somente eu": o pedido vai sem anonimato', async () => {
+    const { servidor } = await renderizarTela(<TelaNovoPedido />, {
+      papel: 'membro',
+      rotas: { [`POST ${BASE}/oracao`]: () => ({ status: 200, corpo: { id: 'p1' } }) },
+    })
+    await fireEvent.press(await screen.findByRole('radio', { name: 'Comunidade' }))
+    await fireEvent.press(screen.getByRole('switch', { name: 'Publicar como anônimo' }))
+    await fireEvent.press(screen.getByRole('radio', { name: 'Somente eu (padrão)' }))
+    expect(screen.queryByRole('switch', { name: 'Publicar como anônimo' })).toBeNull()
+
+    await fireEvent.changeText(screen.getByLabelText('Seu pedido'), 'Só para mim')
+    await fireEvent.press(screen.getByRole('button', { name: 'Publicar pedido' }))
+    await waitFor(() => expect(pedidosPara(servidor, 'POST', `${BASE}/oracao`)).toHaveLength(1))
+    expect(pedidosPara(servidor, 'POST', `${BASE}/oracao`)[0]!.corpo).toMatchObject({
+      visibilidade: 'somente_eu',
+      anonimo: false,
+    })
+  })
+
+  test('o aviso de privacidade fala em palavras comuns e continua dizendo a verdade (D62, Q4)', async () => {
+    await renderizarTela(<TelaNovoPedido />, { papel: 'membro' })
+    expect(await screen.findByText(AVISO_DO_TEXTO)).toBeOnTheScreen()
+    // A substância legal: guardado cifrado ("em código"), e quem cuida do servidor consegue ler.
+    expect(AVISO_DO_TEXTO).toMatch(/guardado em código/)
+    expect(AVISO_DO_TEXTO).toMatch(/quem cuida do servidor consegue lê-lo, se precisar/)
+    expect(AVISO_DO_TEXTO).toMatch(/Evite nomes e doenças de outras pessoas/)
+    // Sem o jargão antigo.
+    expect(AVISO_DO_TEXTO).not.toMatch(/criptografia|cifrado|capacidade técnica/)
+    // O detalhe completo continua a um toque.
+    expect(screen.getByRole('button', { name: 'Entenda como é guardado' })).toBeOnTheScreen()
   })
 
   test('anônimo para a comunidade: a confirmação lembra que o nome não aparece', async () => {

@@ -81,6 +81,7 @@ export function TelaRelatorios() {
         <BotaoIcone
           icone="baixar"
           rotulo="Exportar CSV"
+          texto="Exportar"
           circular
           aoPressionar={() => router.push('/relatorios/exportacoes')}
         />

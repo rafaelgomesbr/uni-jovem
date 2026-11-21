@@ -58,13 +58,14 @@ describe('aba Comunidade (D57)', () => {
       ['Avisos', '/avisos'],
       ['Pedidos de oração', '/oracao'],
       ['Sugestões', '/sugestoes'],
-      ['Louvor', '/louvor'],
       ['Conteúdos', '/conteudos'],
     ] as const) {
       await usuario.press(screen.getByRole('button', { name: new RegExp(`^${nome}[.]`) }))
       expect(router.push).toHaveBeenLastCalledWith(rota)
     }
     expect(screen.getByText('Bruno Lima')).toBeOnTheScreen()
+    // "Louvor" é só de quem toca ou organiza (D62): este membro não foi convocado ao louvor.
+    expect(screen.queryByRole('button', { name: /^Louvor[.]/ })).toBeNull()
     // Organização é só para quem organiza.
     expect(screen.queryByRole('button', { name: /^Relatórios\./ })).toBeNull()
     expect(screen.queryByRole('button', { name: /^Locais\./ })).toBeNull()
@@ -74,6 +75,72 @@ describe('aba Comunidade (D57)', () => {
     // Membro não convida nem vê a lista de convites.
     expect(screen.queryByRole('button', { name: /^Criar convite/ })).toBeNull()
     expect(screen.queryByRole('radio', { name: /^Convites/ })).toBeNull()
+  })
+
+  test('"Louvor" aparece para o membro convocado ao louvor, com a descrição nova (D62)', async () => {
+    await renderizarTela(<TelaComunidade />, {
+      papel: 'membro',
+      rotas: {
+        [`GET ${BASE}/minhas-escalas`]: () => ({
+          status: 200,
+          corpo: {
+            escalas: [
+              {
+                id: 'a1',
+                funcao: 'Violão',
+                estado: 'confirmada',
+                eventoId: 'e1',
+                eventoTitulo: 'Sábado',
+                eventoInicio: '2026-11-28T19:00:00.000Z',
+                eventoStatus: 'publicado',
+                etapaTitulo: 'Louvor',
+                substituicaoAberta: null,
+              },
+            ],
+          },
+        }),
+      },
+    })
+    const louvor = await screen.findByRole('button', { name: /^Louvor[.]/ })
+    expect(louvor).toBeOnTheScreen()
+    expect(screen.getByText('Repertório e cifras do encontro.')).toBeOnTheScreen()
+    // "Conteúdos" é a biblioteca; o vocabulário musical não vaza para cá.
+    expect(screen.getByText('Biblioteca da comunidade.')).toBeOnTheScreen()
+    await userEvent.setup().press(louvor)
+    expect(router.push).toHaveBeenLastCalledWith('/louvor')
+  })
+
+  test('"Louvor" não aparece para quem só foi convocado a outra função', async () => {
+    await renderizarTela(<TelaComunidade />, {
+      papel: 'membro',
+      rotas: {
+        [`GET ${BASE}/minhas-escalas`]: () => ({
+          status: 200,
+          corpo: {
+            escalas: [
+              {
+                id: 'a1',
+                funcao: 'Recepção',
+                estado: 'confirmada',
+                eventoId: 'e1',
+                eventoTitulo: 'Sábado',
+                eventoInicio: '2026-11-28T19:00:00.000Z',
+                eventoStatus: 'publicado',
+                etapaTitulo: 'Boas-vindas',
+                substituicaoAberta: null,
+              },
+            ],
+          },
+        }),
+      },
+    })
+    await screen.findByRole('button', { name: /^Avisos[.]/ })
+    expect(screen.queryByRole('button', { name: /^Louvor[.]/ })).toBeNull()
+  })
+
+  test('"Louvor" aparece para quem organiza, sem precisar de convocação', async () => {
+    await renderizarTela(<TelaComunidade />, { papel: 'organizador' })
+    expect(await screen.findByRole('button', { name: /^Louvor[.]/ })).toBeOnTheScreen()
   })
 
   test('admin: atalhos da organização, Configurações uma vez só e sem a Plataforma', async () => {

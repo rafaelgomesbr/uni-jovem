@@ -39,7 +39,7 @@ describe('ao vivo', () => {
     expect(await screen.findByRole('header', { name: 'Louvor' })).toBeOnTheScreen()
     expect(screen.getByText('A seguir')).toBeOnTheScreen()
     // A conexão aparece em chip, com texto (não só a cor).
-    expect(screen.getByText('Ao vivo')).toBeOnTheScreen()
+    expect(screen.getByText('Conectado')).toBeOnTheScreen()
     expect(screen.getAllByText('Encerramento').length).toBeGreaterThan(0)
     expect(screen.getByText(/Atraso acumulado: \d+ min de atraso/)).toBeOnTheScreen()
     expect(screen.getByText('1 de 3 etapas concluídas')).toBeOnTheScreen()

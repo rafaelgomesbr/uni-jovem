@@ -109,6 +109,19 @@ describe('agenda', () => {
   })
   afterEach(() => usarFonte(2))
 
+  test('abre em Lista, com a fonte padrão também (D62)', async () => {
+    usarFonte(1)
+    await renderizarTela(<TelaAgenda />, {
+      rotas: { [`GET ${BASE}/eventos`]: () => ({ status: 200, corpo: { eventos: [EVENTOS[0]] } }) },
+    })
+    expect(await screen.findByRole('radio', { name: 'Lista' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Calendário' })).not.toBeChecked()
+    expect(await screen.findByText('1 encontro')).toBeOnTheScreen()
+    // Uma barra de escolha só: "Semana" foi cortada, e o calendário é só o mês.
+    expect(screen.queryByRole('radio', { name: 'Semana' })).toBeNull()
+    expect(screen.queryByRole('radio', { name: 'Mês' })).toBeNull()
+  })
+
   test('com fonte grande, a agenda abre em Lista', async () => {
     usarFonte(2)
     await renderizarTela(<TelaAgenda />, {
@@ -120,19 +133,14 @@ describe('agenda', () => {
     expect(screen.getByRole('button', { name: 'Novo Sábado padrão' })).toBeOnTheScreen()
   })
 
-  test('D57: o seletor alterna Calendário e Lista na mesma aba', async () => {
+  test('D57, D62: o seletor alterna Lista e Calendário na mesma aba, e o calendário só tem o mês', async () => {
     usarFonte(1)
     await renderizarTela(<TelaAgenda />, {
       rotas: { [`GET ${BASE}/eventos`]: () => ({ status: 200, corpo: { eventos: [EVENTOS[0]] } }) },
     })
     const usuario = userEvent.setup()
-    // Com a fonte padrão, abre no calendário (Mês e Semana dentro dele).
-    expect(await screen.findByRole('radio', { name: 'Calendário' })).toBeChecked()
-    expect(await screen.findByRole('button', { name: 'Mês anterior' })).toBeOnTheScreen()
-    expect(screen.getByRole('radio', { name: 'Mês' })).toBeChecked()
-
-    // Lista: a antiga aba Programas, com busca e filtros.
-    await usuario.press(screen.getByRole('radio', { name: 'Lista' }))
+    // Abre na Lista: a antiga aba Programas, com busca e filtros.
+    expect(await screen.findByRole('radio', { name: 'Lista' })).toBeChecked()
     expect(await screen.findByText('1 encontro')).toBeOnTheScreen()
     expect(screen.getByLabelText('Buscar por título ou categoria')).toBeOnTheScreen()
     expect(screen.getByRole('checkbox', { name: 'Rascunhos' })).toBeOnTheScreen()
@@ -143,9 +151,25 @@ describe('agenda', () => {
       params: { eventoId: EVENTO_ID },
     })
 
-    // E de volta ao calendário.
+    // O Calendário é a opção secundária: só o mês, sem "Mês | Semana".
     await usuario.press(screen.getByRole('radio', { name: 'Calendário' }))
     expect(await screen.findByRole('button', { name: 'Mês anterior' })).toBeOnTheScreen()
+    expect(screen.queryByRole('radio', { name: 'Semana' })).toBeNull()
+    expect(screen.queryByRole('radio', { name: 'Mês' })).toBeNull()
+
+    // E de volta à lista.
+    await usuario.press(screen.getByRole('radio', { name: 'Lista' }))
+    expect(await screen.findByText('1 encontro')).toBeOnTheScreen()
+  })
+
+  test('o link `?vista=calendario` abre direto no calendário', async () => {
+    usarFonte(1)
+    jest.mocked(useLocalSearchParams).mockReturnValue({ vista: 'calendario' })
+    await renderizarTela(<TelaAgenda />, {
+      rotas: { [`GET ${BASE}/eventos`]: () => ({ status: 200, corpo: { eventos: [EVENTOS[0]] } }) },
+    })
+    expect(await screen.findByRole('radio', { name: 'Calendário' })).toBeChecked()
+    expect(await screen.findByRole('button', { name: 'Próximo mês' })).toBeOnTheScreen()
   })
 
   test('o link antigo (`?vista=lista`) abre direto na Lista', async () => {
@@ -166,6 +190,8 @@ describe('agenda', () => {
       },
     })
     const usuario = userEvent.setup()
+    // A agenda abre na Lista; o calendário é a opção secundária.
+    await usuario.press(await screen.findByRole('radio', { name: 'Calendário' }))
     // Os botões de período começam pelo texto que se vê (revisão M5).
     const proximo = await screen.findByRole('button', { name: 'Próximo mês' })
     expect(screen.getByRole('button', { name: 'Mês anterior' })).toBeOnTheScreen()
@@ -207,6 +233,7 @@ describe('agenda', () => {
       rotas: { [`GET ${BASE}/eventos`]: () => ({ status: 200, corpo: { eventos: [] } }) },
     })
     const usuario = userEvent.setup()
+    await usuario.press(await screen.findByRole('radio', { name: 'Calendário' }))
     const hoje = hojeNoFuso(FUSO)
     await usuario.press(
       await screen.findByRole('button', {
@@ -230,7 +257,7 @@ describe('agenda', () => {
       papel: 'membro',
       rotas: { [`GET ${BASE}/eventos`]: () => ({ status: 200, corpo: { eventos: [] } }) },
     })
-    expect(await screen.findByRole('radio', { name: 'Calendário' })).toBeChecked()
+    expect(await screen.findByRole('radio', { name: 'Lista' })).toBeChecked()
     expect(screen.queryByRole('button', { name: 'Novo encontro' })).toBeNull()
     // As escalas viraram aba (D57): o atalho antigo saiu da Agenda.
     expect(screen.queryByRole('button', { name: 'Minhas escalas' })).toBeNull()

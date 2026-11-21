@@ -31,7 +31,7 @@ import { SecaoEtapas } from './SecaoEtapas'
 import { SecaoMateriais, SecaoTarefas } from './SecaoTarefas'
 import { MetaDoEvento, VisaoGeralDoEvento } from './VisaoGeralDoEvento'
 
-type Visao = 'geral' | 'etapas' | 'equipe' | 'preparacao'
+export type Visao = 'geral' | 'etapas' | 'equipe' | 'preparacao'
 
 interface Props {
   comunidadeId: string
@@ -40,6 +40,8 @@ interface Props {
   aoSair?: () => void
   /** No painel da direita (web larga): sem tela própria nem barra fixa. */
   painel?: boolean
+  /** A parte que abre primeiro ("Ver quem falta responder" do Início abre os Convocados). */
+  abaInicial?: Visao | undefined
 }
 
 /**
@@ -52,6 +54,7 @@ export function DetalheDoEvento({
   eventoId,
   aoSair = () => voltarOu('/agenda'),
   painel = false,
+  abaInicial,
 }: Props) {
   const pode = usePode()
   // Baixar para usar sem internet é coisa de quem organiza ou conduz (D57).
@@ -112,7 +115,13 @@ export function DetalheDoEvento({
     )
   }
   return (
-    <Conteudo evento={evento.data} comunidadeId={comunidadeId} aoSair={aoSair} painel={painel} />
+    <Conteudo
+      evento={evento.data}
+      comunidadeId={comunidadeId}
+      aoSair={aoSair}
+      painel={painel}
+      abaInicial={abaInicial}
+    />
   )
 }
 
@@ -150,15 +159,17 @@ function Conteudo({
   comunidadeId,
   aoSair,
   painel,
+  abaInicial,
 }: {
   evento: Evento
   comunidadeId: string
   aoSair: () => void
   painel: boolean
+  abaInicial: Visao | undefined
 }) {
   const { comunidadeAtiva } = useSessao()
   const acoes = useAcoesDoEvento({ evento: e, comunidadeId, aoSair })
-  const [visao, setVisao] = useState<Visao>('geral')
+  const [visao, setVisao] = useState<Visao>(abaInicial ?? 'geral')
 
   // Membro: Visão geral e Roteiro; a Preparação aparece quando há o que marcar.
   // "Roteiro" e "Convocados", não "Etapas" e "Equipe": essas palavras já querem

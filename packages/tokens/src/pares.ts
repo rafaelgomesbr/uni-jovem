@@ -1,6 +1,15 @@
+import { CAMADA_DE_TOQUE_DO_ACESSO, MARCA_DO_GOOGLE_ESCURO } from './acesso.ts'
 import { corDaAuroraNoPonto, PONTOS_CRITICOS_DA_AURORA } from './aurora.ts'
 import { comporCamadas, MINIMO } from './contraste.ts'
-import { CORES_DA_COMUNIDADE, INICIAIS_SOBRE_COR, TEMAS, VIDRO, type NomeDoTema } from './cores.ts'
+import {
+  CORES_DA_COMUNIDADE,
+  INICIAIS_SOBRE_COR,
+  MARCA_DA_APPLE,
+  MARCA_DO_GOOGLE,
+  TEMAS,
+  VIDRO,
+  type NomeDoTema,
+} from './cores.ts'
 
 /**
  * Um par da tabela de contraste (seção 2.11). As camadas vão de baixo para
@@ -360,6 +369,8 @@ function camadasDoTema(tema: NomeDoTema): readonly DefinicaoDePar[] {
       sobre: ['superficie', 'tonal'],
       tipo: 'interface',
     },
+    // Tela de acesso (D63): botões de marca, estados e textos sobre o pior ponto da Aurora.
+    ...paresDoAcesso(tema, sobAVioleta),
     // Iniciais brancas sobre as cores de comunidade.
     ...CORES_DA_COMUNIDADE.map((c) => ({
       nome: `iniciais sobre ${c.rotulo}`,
@@ -391,6 +402,104 @@ function camadasDoTema(tema: NomeDoTema): readonly DefinicaoDePar[] {
         })
       }
     }
+  }
+  return pares
+}
+
+/**
+ * Pares da tela de acesso (Entrar, Criar conta e convite). Os botões de marca
+ * têm cores fixas: a Apple troca com o tema, o Google escuro só é o secundário
+ * do tema escuro, e o Google claro é o secundário do claro e o primário do
+ * Android. O texto vai a 4,5:1; o botão e o contorno contra o fundo, a 3:1.
+ */
+function paresDoAcesso(tema: NomeDoTema, sobAVioleta: string): DefinicaoDePar[] {
+  const apple = tema === 'escuro' ? MARCA_DA_APPLE.escuro : MARCA_DA_APPLE.claro
+  const camadaDaApple =
+    tema === 'escuro' ? CAMADA_DE_TOQUE_DO_ACESSO.appleEscuro : CAMADA_DE_TOQUE_DO_ACESSO.appleClaro
+  const pares: DefinicaoDePar[] = [
+    {
+      nome: 'acesso: Apple, texto sobre o botão',
+      frente: apple.texto,
+      sobre: [apple.fundo],
+      tipo: 'texto',
+    },
+    {
+      nome: 'acesso: Apple pressionado, texto sobre o botão',
+      frente: apple.texto,
+      sobre: [apple.fundo, camadaDaApple],
+      tipo: 'texto',
+    },
+    {
+      nome: 'acesso: Apple, botão contra o fundo da tela',
+      frente: apple.fundo,
+      sobre: ['fundo'],
+      tipo: 'interface',
+    },
+    {
+      nome: 'acesso: Google claro, texto sobre o botão',
+      frente: MARCA_DO_GOOGLE.texto,
+      sobre: [MARCA_DO_GOOGLE.fundo],
+      tipo: 'texto',
+    },
+    {
+      nome: 'acesso: Google claro pressionado, texto sobre o botão',
+      frente: MARCA_DO_GOOGLE.texto,
+      sobre: [MARCA_DO_GOOGLE.fundo, CAMADA_DE_TOQUE_DO_ACESSO.googleClaro],
+      tipo: 'texto',
+    },
+    {
+      nome: 'acesso: Google claro, contorno contra o fundo da tela',
+      frente: MARCA_DO_GOOGLE.borda,
+      sobre: ['fundo'],
+      tipo: 'interface',
+    },
+    {
+      nome: 'acesso: ícone de erro sobre o pico do violeta',
+      frente: 'erro',
+      sobre: ['fundo', sobAVioleta],
+      tipo: 'interface',
+    },
+    {
+      nome: 'acesso: texto do erro sobre o pico do violeta',
+      frente: 'texto',
+      sobre: ['fundo', sobAVioleta],
+      tipo: 'texto',
+    },
+    {
+      nome: 'acesso: texto do Entrar (coral) pressionado',
+      frente: 'sobrePrimaria',
+      sobre: ['primariaPressionada'],
+      tipo: 'texto',
+    },
+  ]
+  if (tema === 'escuro') {
+    pares.push(
+      {
+        // No Android o Google claro é o primário: no escuro, o fundo branco já separa o botão.
+        nome: 'acesso: Google claro, botão contra o fundo da tela (primário)',
+        frente: MARCA_DO_GOOGLE.fundo,
+        sobre: ['fundo'],
+        tipo: 'interface',
+      },
+      {
+        nome: 'acesso: Google escuro, texto sobre o botão',
+        frente: MARCA_DO_GOOGLE_ESCURO.texto,
+        sobre: [MARCA_DO_GOOGLE_ESCURO.fundo],
+        tipo: 'texto',
+      },
+      {
+        nome: 'acesso: Google escuro pressionado, texto sobre o botão',
+        frente: MARCA_DO_GOOGLE_ESCURO.texto,
+        sobre: [MARCA_DO_GOOGLE_ESCURO.fundo, CAMADA_DE_TOQUE_DO_ACESSO.googleEscuro],
+        tipo: 'texto',
+      },
+      {
+        nome: 'acesso: Google escuro, contorno contra o fundo da tela',
+        frente: MARCA_DO_GOOGLE_ESCURO.borda,
+        sobre: ['fundo'],
+        tipo: 'interface',
+      },
+    )
   }
   return pares
 }

@@ -163,7 +163,7 @@ function EtapaEEquipe({
   return (
     <Tela
       pilha
-      titulo={etapa ? etapa.titulo : 'Encontro todo'}
+      titulo={etapa ? etapa.titulo : 'Para o encontro inteiro'}
       descricao={
         etapa
           ? `${evento.titulo} · das ${formatarHora(etapa.inicioPrevisto, evento.fuso)} às ${formatarHora(etapa.fimPrevisto, evento.fuso)}`

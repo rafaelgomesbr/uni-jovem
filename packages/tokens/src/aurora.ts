@@ -35,6 +35,18 @@ export const AURORA = {
     escuro: 'rgba(124,108,255,0.45)',
     claro: 'rgba(124,108,255,0.22)',
   },
+  /**
+   * Deriva lenta, só na tela de acesso (D63: exceção limitada à 2.9, que diz
+   * que não há animação decorativa contínua). Cada brilho vai e volta até a
+   * posição de repouso (a medida do contraste) e para sozinho depois de
+   * `meiasVoltas` (84 s o coral, 108 s o violeta). Só `transform` e `opacity`.
+   */
+  deriva: {
+    coral: { x: -14, y: 12, escala: 1.06, opacidade: 0.9, meioCiclo: 14_000, meiasVoltas: 6 },
+    violeta: { x: 16, y: -10, escala: 1.05, opacidade: 0.92, meioCiclo: 18_000, meiasVoltas: 6 },
+    /** O coral esquenta na abertura: o "nascer do sol". */
+    abertura: { duracao: 800, opacidadeInicial: 0.55, escalaInicial: 0.94 },
+  },
 } as const
 
 export type BrilhoDaAurora = 'coral' | 'violeta'

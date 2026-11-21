@@ -210,7 +210,7 @@ describe('escalas', () => {
     })
     const usuario = userEvent.setup()
 
-    // Aceitar e Pedir substituição na linha; "Não posso ir" à vista logo abaixo, sem menu.
+    // Pendente: só "Aceitar" e "Não posso ir" (D62), os dois à vista, sem menu.
     expect(
       await screen.findByRole('button', {
         name: 'Aceitar a convocação em Sábado com a juventude, Louvor · responsável',
@@ -218,6 +218,8 @@ describe('escalas', () => {
     ).toBeOnTheScreen()
     expect(screen.getByText('Não posso ir')).toBeOnTheScreen()
     expect(screen.queryByRole('button', { name: /^Mais ações/ })).toBeNull()
+    // "Pedir substituição" só existe depois de aceitar.
+    expect(screen.queryByRole('button', { name: /^Pedir substituição/ })).toBeNull()
     await usuario.press(
       screen.getByRole('button', {
         name: 'Não posso ir: avisar a organização sobre Sábado com a juventude, Louvor · responsável',
@@ -228,6 +230,38 @@ describe('escalas', () => {
       expect(pedidosPara(servidor, 'POST', `${BASE}/atribuicoes/a1/recusar`)).toHaveLength(1),
     )
     expect(dialogo.mock.calls[0]![0]).toBe('Avisar que você não pode ir?')
+  })
+
+  test('convocação pendente tem exatamente dois botões: Aceitar e Não posso ir (D62)', async () => {
+    await renderizarTela(<TelaEscalas />, { papel: 'membro', rotas: ROTAS })
+    await screen.findByRole('button', { name: /^Aceitar a convocação/ })
+    const botoes = screen
+      .getAllByRole('button')
+      .map((b) => b.props.accessibilityLabel as string | undefined)
+      .filter((nome) => /^(Aceitar|Não posso ir|Pedir substituição)/.test(nome ?? ''))
+    expect(botoes).toHaveLength(2)
+    expect(botoes.some((nome) => nome?.startsWith('Aceitar'))).toBe(true)
+    expect(botoes.some((nome) => nome?.startsWith('Não posso ir'))).toBe(true)
+  })
+
+  test('depois de aceitar, aparece "Pedir substituição" e saem "Aceitar" e "Não posso ir"', async () => {
+    await renderizarTela(<TelaEscalas />, {
+      papel: 'membro',
+      rotas: {
+        ...ROTAS,
+        [`GET ${BASE}/minhas-escalas`]: () => ({
+          status: 200,
+          corpo: { escalas: [{ ...ESCALA, estado: 'confirmada' }] },
+        }),
+      },
+    })
+    expect(
+      await screen.findByRole('button', {
+        name: 'Pedir substituição na escala de Sábado com a juventude, Louvor · responsável',
+      }),
+    ).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: /^Aceitar a convocação/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Não posso ir/ })).toBeNull()
   })
 
   test('informar disponibilidade numa data manda PUT para aquele dia', async () => {

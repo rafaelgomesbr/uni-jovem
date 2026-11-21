@@ -20,6 +20,8 @@ export function EstilosDaWeb() {
     estilo.textContent = [
       `:focus-visible { outline: 2px solid ${cores.foco} !important; outline-offset: 2px !important; }`,
       ':focus:not(:focus-visible) { outline: none; }',
+      // Campo da tela de acesso (D63): o anel é a camada arredondada do próprio campo; sem o contorno reto por fora.
+      '[data-campo-de-acesso]:focus-visible { outline: none !important; }',
       `body { background-color: ${cores.fundo}; }`,
       // "Pular para o conteúdo": fora da vista até receber o foco do teclado.
       '#uj-pular:not(:focus) { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }',

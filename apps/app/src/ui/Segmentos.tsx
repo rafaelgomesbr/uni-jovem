@@ -6,6 +6,7 @@ import { LARGURA_MAXIMA_DO_CONTEUDO } from '@/constantes'
 
 import { usePreferenciasDeAcessibilidade } from './acessibilidade'
 import type { NomeDoIcone } from './Icone'
+import { ALVO } from './medidas'
 import { PilulasDeFiltro } from './PilulasDeFiltro'
 import { useSetasDoGrupo } from './setasDoGrupo'
 import { Texto } from './Texto'
@@ -35,7 +36,7 @@ const INTERVALO = ESPACO.e4
 
 /**
  * Tipo e padding do segmento. Quando o rótulo não cabe no normal, o
- * compacto: 13 (a `legenda`, com o peso do segmento) e padding de 4. Em 360
+ * compacto: 14 (a `legenda`, com o peso do segmento) e padding de 4. Em 360
  * pt, 4 segmentos iguais deixam 59 para o texto, e "Preparação" no `botao`
  * pede 83.
  */
@@ -60,6 +61,12 @@ export interface Disposicao {
    * da direita só se alcança por gesto (auditoria U-18).
    */
   grade?: true
+  /**
+   * Uma opção embaixo da outra, cada uma com a largura toda: com fonte grande,
+   * dois ou três rótulos não dividem a linha, e pílula rolável esconde a
+   * segunda opção atrás de um gesto (D62; auditoria 21/11/2026, A1).
+   */
+  pilha?: true
 }
 
 /**
@@ -104,6 +111,8 @@ export function escolherDisposicao(
     if (Math.max(...medidas) * n <= util) return { nivel, proporcional: false }
     if (medidas.reduce((a, b) => a + b, 0) <= util) return { nivel, proporcional: true }
   }
+  // Fonte grande: nunca pílulas roláveis; as opções empilham (a grade só vale para quatro).
+  if (soGrade && n !== 4) return { nivel: 'normal', proporcional: false, pilha: true }
   if (n !== 4) return null
   const celula = (largura - 2 * (PADDING_DO_TRILHO + borda) - INTERVALO) / 2
   for (const nivel of ['normal', 'compacto'] as const) {
@@ -111,7 +120,7 @@ export function escolherDisposicao(
       return { nivel, proporcional: false, grade: true }
     }
   }
-  return null
+  return soGrade ? { nivel: 'normal', proporcional: false, pilha: true } : null
 }
 
 /**
@@ -119,8 +128,9 @@ export function escolherDisposicao(
  * segmentos de largura igual (36, raio 10). O escolhido tem polegar em
  * relevo e peso 600: forma e peso além da cor. Papel `radio` para o leitor de
  * tela. Nenhum rótulo é cortado: sem espaço para larguras iguais, o tipo fica
- * compacto e as larguras seguem o conteúdo; com fonte grande, ou se nem assim
- * couber, vira pílulas de filtro roláveis.
+ * compacto e as larguras seguem o conteúdo; se nem assim couber, vira pílulas
+ * de filtro roláveis. Com fonte grande (1,35 ou mais) nunca rola de lado: as
+ * opções empilham, uma por linha (quatro opções ainda tentam a grade antes).
  */
 export function Segmentos<T extends string>({
   rotulo,
@@ -161,7 +171,7 @@ export function Segmentos<T extends string>({
         accessibilityRole="radiogroup"
         aria-label={rotulo}
         style={{
-          flexDirection: 'row',
+          flexDirection: disposicao.pilha ? 'column' : 'row',
           flexWrap: disposicao.grade ? 'wrap' : 'nowrap',
           alignSelf: 'stretch',
           minHeight: ALTURA.iconeSo,
@@ -177,11 +187,13 @@ export function Segmentos<T extends string>({
           const marcado = s.valor === valor
           const { variante, padding } = NIVEIS[disposicao.nivel]
           // Na grade, 45% mais o intervalo: duas por linha, a sobra dividida igual.
-          const medida: ViewStyle = disposicao.grade
-            ? { flexGrow: 1, flexBasis: '45%' }
-            : disposicao.proporcional
-              ? { flexGrow: 1, flexShrink: 1, flexBasis: 'auto' }
-              : { flex: 1 }
+          const medida: ViewStyle = disposicao.pilha
+            ? { alignSelf: 'stretch' }
+            : disposicao.grade
+              ? { flexGrow: 1, flexBasis: '45%' }
+              : disposicao.proporcional
+                ? { flexGrow: 1, flexShrink: 1, flexBasis: 'auto' }
+                : { flex: 1 }
           return (
             <Pressable
               key={s.valor}
@@ -190,10 +202,12 @@ export function Segmentos<T extends string>({
               accessibilityLabel={s.rotulo}
               aria-checked={marcado}
               onPress={() => aoMudar(s.valor)}
+              // O polegar tem 36; os 4 de cima e de baixo completam os 44 de alvo de toque.
+              hitSlop={{ top: PADDING_DO_TRILHO, bottom: PADDING_DO_TRILHO }}
               style={({ pressed }) => [
                 medida,
                 {
-                  minHeight: 36,
+                  minHeight: disposicao.pilha ? ALVO : 36,
                   paddingHorizontal: padding,
                   borderRadius: RAIO.celula,
                   alignItems: 'center',
@@ -222,7 +236,7 @@ export function Segmentos<T extends string>({
                 variante={variante}
                 peso={marcado ? 'forte' : 'medio'}
                 cor={marcado ? 'texto' : 'textoSuave'}
-                numberOfLines={1}
+                {...(disposicao.pilha ? {} : { numberOfLines: 1 })}
               >
                 {s.rotulo}
               </Texto>

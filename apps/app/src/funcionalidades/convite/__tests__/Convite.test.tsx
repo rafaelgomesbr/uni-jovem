@@ -12,7 +12,7 @@ import {
   lerConviteEmEspera,
 } from '../conviteEmEspera'
 import { TelaConvite } from '../TelaConvite'
-import { apagarTravaDeIdade } from '../travaDeIdade'
+import { apagarTravaDeIdade, marcarMenorDe16 } from '../travaDeIdade'
 
 jest.mock('expo-router', () => ({
   router: {
@@ -33,35 +33,54 @@ beforeEach(() => apagarTravaDeIdade())
 
 const TOKEN = 'c'.repeat(43)
 
-async function preencherDados() {
-  await fireEvent.changeText(await screen.findByLabelText('Nome'), 'Lia Rocha')
-  await fireEvent.changeText(screen.getByLabelText('E-mail'), 'lia@exemplo.com')
+async function irParaEmailESenha() {
+  await fireEvent.press(await screen.findByRole('button', { name: 'Criar conta com e-mail' }))
+  await fireEvent.changeText(await screen.findByLabelText('E-mail'), 'lia@exemplo.com')
+  await fireEvent.changeText(screen.getByLabelText('Crie uma senha'), 'umaSenhaBemLonga#2026')
+  await fireEvent.press(screen.getByRole('button', { name: 'Continuar' }))
+}
+
+async function preencherNome() {
+  await fireEvent.changeText(await screen.findByLabelText('Como você se chama?'), 'Lia Rocha')
 }
 
 describe('conta nova por convite', () => {
+  test('começa pelo convite e pelos acessos; "Criar conta com e-mail" é primário sem provedores', async () => {
+    await renderizarTela(<CadastroPorConvite token={TOKEN} comunidade="Jovens Centro" />)
+    expect(await screen.findByRole('header', { name: 'Crie sua conta' })).toBeOnTheScreen()
+    expect(screen.getByText('Crie sua conta para participar da Jovens Centro.')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Criar conta com e-mail' })).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Já tem conta? Entrar' })).toBeOnTheScreen()
+  })
+
+  test('"Já tem conta? Entrar" guarda o convite e abre o e-mail, para voltar a ele depois de entrar', async () => {
+    await renderizarTela(<CadastroPorConvite token={TOKEN} comunidade="Jovens Centro" />)
+    await fireEvent.press(await screen.findByRole('button', { name: 'Já tem conta? Entrar' }))
+    expect(lerConviteEmEspera()).toBe(TOKEN)
+    expect(router.push).toHaveBeenCalledWith({ pathname: '/entrar', params: { modo: 'email' } })
+    descartarConviteEmEspera()
+  })
+
   test('menor de 16 vê a explicação e o fluxo para sem enviar nada', async () => {
     const { servidor } = await renderizarTela(
       <CadastroPorConvite token={TOKEN} comunidade="Jovens Centro" />,
     )
-    await preencherDados()
-    await fireEvent.press(screen.getByRole('radio', { name: 'Tenho menos de 16 anos.' }))
+    await irParaEmailESenha()
+    await preencherNome()
+    await fireEvent.press(await screen.findByRole('radio', { name: 'Tenho menos de 16 anos.' }))
 
     expect(
       await screen.findByText(/Para ter uma conta no Uni Jovem é preciso ter 16 anos ou mais/),
     ).toBeOnTheScreen()
     expect(screen.queryByRole('button', { name: 'Continuar' })).toBeNull()
-    expect(pedidosPara(servidor, 'POST', '/api/auth/convite/iniciar')).toHaveLength(0)
+    expect(pedidosPara(servidor, 'POST', '/api/auth/convite/criar')).toHaveLength(0)
   })
 
-  test('idade e Termos antes do código; consentimento sobre a fé antes de criar a conta', async () => {
+  test('e-mail e senha, depois "Falta pouco" (idade e Termos) e, por fim, a fé; sem WhatsApp e sem código', async () => {
     const { servidor } = await renderizarTela(
       <CadastroPorConvite token={TOKEN} comunidade="Jovens Centro" />,
       {
         rotas: {
-          'POST /api/auth/convite/iniciar': () => ({
-            status: 200,
-            corpo: { verificacaoId: '66666666-6666-4666-8666-000000000001' },
-          }),
           'POST /api/auth/convite/criar': () => ({
             status: 422,
             corpo: { erro: 'parar_aqui', mensagem: 'Fim do teste.' },
@@ -69,10 +88,15 @@ describe('conta nova por convite', () => {
         },
       },
     )
-    await preencherDados()
-    const enviar = screen.getByRole('button', { name: 'Continuar' })
+    await irParaEmailESenha()
+    expect(await screen.findByRole('header', { name: 'Falta pouco' })).toBeOnTheScreen()
+    // Nem WhatsApp opcional, nem código por e-mail.
+    expect(screen.queryByLabelText(/WhatsApp/)).toBeNull()
+    expect(screen.queryByLabelText('Código de 6 números')).toBeNull()
+    await preencherNome()
+    const continuar = screen.getByRole('button', { name: 'Continuar' })
     // Nenhuma opção vem marcada e o botão explica o que falta.
-    expect(enviar).toBeDisabled()
+    expect(continuar).toBeDisabled()
     expect(screen.getByText('Responda quantos anos você tem.')).toBeOnTheScreen()
     await fireEvent.press(screen.getByRole('radio', { name: /^Tenho 16 ou 17 anos/ }))
     expect(
@@ -84,12 +108,10 @@ describe('conta nova por convite', () => {
       }),
     )
     await fireEvent.press(screen.getByRole('button', { name: 'Continuar' }))
-    expect(pedidosPara(servidor, 'POST', '/api/auth/convite/iniciar')).toHaveLength(0)
-    expect(screen.queryByLabelText('Código de 6 números')).toBeNull()
-    await fireEvent.changeText(await screen.findByLabelText('Senha'), 'umaSenhaBemLonga#2026')
-    await fireEvent.changeText(screen.getByLabelText('Repita a senha'), 'umaSenhaBemLonga#2026')
 
-    const criar = screen.getByRole('button', { name: 'Criar conta e entrar em Jovens Centro' })
+    const criar = await screen.findByRole('button', {
+      name: 'Criar conta e participar da Jovens Centro',
+    })
     expect(criar).toBeDisabled()
     expect(await screen.findByText('Sobre a sua fé')).toBeOnTheScreen()
     await fireEvent.press(screen.getByRole('checkbox', { name: /^Concordo que a Jovens Centro/ }))
@@ -105,12 +127,38 @@ describe('conta nova por convite', () => {
     await waitFor(() =>
       expect(pedidosPara(servidor, 'POST', '/api/auth/convite/criar')).toHaveLength(1),
     )
-    expect(pedidosPara(servidor, 'POST', '/api/auth/convite/criar')[0]!.corpo).toMatchObject({
+    const corpo = pedidosPara(servidor, 'POST', '/api/auth/convite/criar')[0]!.corpo as object
+    expect(corpo).toMatchObject({
+      token: TOKEN,
+      email: 'lia@exemplo.com',
+      nome: 'Lia Rocha',
+      senha: 'umaSenhaBemLonga#2026',
       faixaEtaria: '16_17',
       aceiteTermos: true,
       consentimentoFe: true,
       responsavelCiente: true,
     })
+    expect(corpo).not.toHaveProperty('whatsapp')
+  })
+
+  test('senha curta: diz quantos caracteres faltam, sem pedir a senha duas vezes', async () => {
+    await renderizarTela(<CadastroPorConvite token={TOKEN} comunidade="Jovens Centro" />)
+    await fireEvent.press(await screen.findByRole('button', { name: 'Criar conta com e-mail' }))
+    await fireEvent.changeText(await screen.findByLabelText('E-mail'), 'lia@exemplo.com')
+    await fireEvent.changeText(screen.getByLabelText('Crie uma senha'), 'curta123')
+    expect(screen.getByText('8 de 10 caracteres')).toBeOnTheScreen()
+    await fireEvent.press(screen.getByRole('button', { name: 'Continuar' }))
+    expect(
+      await screen.findByText('Faltam 2 caracteres. Use pelo menos 10; uma frase curta funciona.'),
+    ).toBeOnTheScreen()
+    expect(screen.queryByLabelText('Repita a senha')).toBeNull()
+  })
+
+  test('o aparelho travado por menos de 16 não abre o cadastro', async () => {
+    await marcarMenorDe16()
+    await renderizarTela(<CadastroPorConvite token={TOKEN} comunidade="Jovens Centro" />)
+    expect(await screen.findByText('Ainda não dá para criar a conta')).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: 'Criar conta com e-mail' })).toBeNull()
   })
 })
 
@@ -119,32 +167,18 @@ describe('conta nova por convite: acessos rápidos e sem confirmação de e-mail
     delete process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID
   })
 
-  test('Google antes do formulário, "ou crie com e-mail", e nada de código por e-mail', async () => {
+  test('com o Google: ele vem antes do e-mail, que fica em contorno; nada de código por e-mail', async () => {
     process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID = 'ios-123.apps.googleusercontent.com'
     await renderizarTela(<CadastroPorConvite token={TOKEN} comunidade="Jovens Centro" />)
 
     const google = await screen.findByRole('button', { name: 'Continuar com o Google' })
     expect(google).toBeOnTheScreen()
-    expect(screen.getByText('ou crie com e-mail')).toBeOnTheScreen()
-    expect(screen.getByText(/Não precisa confirmar o e-mail/)).toBeOnTheScreen()
+    const nomes = screen.getAllByRole('button').map((b) => b.props.accessibilityLabel as string)
+    expect(nomes.indexOf('Continuar com o Google')).toBeLessThan(
+      nomes.indexOf('Criar conta com e-mail'),
+    )
     expect(screen.queryByText(/código de 6 números/i)).toBeNull()
-    expect(screen.queryByLabelText('Código de 6 números')).toBeNull()
-    // Os campos e os aceites continuam todos ali.
-    expect(screen.getByLabelText('Nome')).toBeOnTheScreen()
-    expect(screen.getByLabelText('E-mail')).toBeOnTheScreen()
-    expect(screen.getByRole('radio', { name: 'Tenho 18 anos ou mais.' })).toBeOnTheScreen()
-    expect(
-      screen.getByRole('checkbox', {
-        name: 'Li e concordo com os Termos de Uso e a Política de Privacidade.',
-      }),
-    ).toBeOnTheScreen()
-  })
-
-  test('menor de 16 não vê os acessos rápidos', async () => {
-    process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID = 'ios-123.apps.googleusercontent.com'
-    await renderizarTela(<CadastroPorConvite token={TOKEN} comunidade="Jovens Centro" />)
-    await fireEvent.press(await screen.findByRole('radio', { name: 'Tenho menos de 16 anos.' }))
-    expect(screen.queryByRole('button', { name: 'Continuar com o Google' })).toBeNull()
+    expect(screen.queryByText(/confirmar o e-mail/i)).toBeNull()
   })
 })
 

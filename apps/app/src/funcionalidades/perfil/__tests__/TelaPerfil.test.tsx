@@ -112,4 +112,49 @@ describe('Perfil só com a conta (D57)', () => {
     await fireEvent.press(await screen.findByRole('button', { name: /^Ajustes de notificação/ }))
     expect(router.push).toHaveBeenLastCalledWith('/notificacoes')
   })
+
+  test('"Editar perfil" é o único caminho para os dados: o cartão não repete "Editar dados" (D62)', async () => {
+    await renderizarTela(<TelaPerfil />, { papel: 'membro' })
+    await screen.findByRole('button', { name: /^Editar perfil/ })
+    expect(screen.queryByRole('button', { name: 'Editar dados' })).toBeNull()
+    expect(screen.queryByText('Editar dados')).toBeNull()
+    // O avatar continua tocável, com rótulo.
+    expect(screen.getByRole('button', { name: 'Trocar avatar' })).toBeOnTheScreen()
+  })
+
+  test('o chip âmbar "Desligado" da Segurança é só de quem administra', async () => {
+    const semDoisFatores = (papel: 'membro' | 'organizador' | 'admin') => () => {
+      const base = respostaEu(papel)
+      return { status: 200, corpo: { ...base, conta: { ...base.conta, doisFatores: false } } }
+    }
+    const membro = await renderizarTela(<TelaPerfil />, {
+      papel: 'membro',
+      rotas: { 'GET /api/v1/eu': semDoisFatores('membro') },
+    })
+    expect(await screen.findByRole('button', { name: 'Segurança.' })).toBeOnTheScreen()
+    expect(screen.queryByText('Desligado')).toBeNull()
+    await membro.unmount()
+
+    await renderizarTela(<TelaPerfil />, {
+      papel: 'admin',
+      rotas: { 'GET /api/v1/eu': semDoisFatores('admin') },
+    })
+    expect(await screen.findByText('Desligado')).toBeOnTheScreen()
+    expect(
+      screen.getByRole('button', { name: 'Segurança. Código extra ao entrar desligado.' }),
+    ).toBeOnTheScreen()
+  })
+
+  test('com o código extra ligado, todos veem "Ligado", com texto', async () => {
+    await renderizarTela(<TelaPerfil />, {
+      papel: 'membro',
+      rotas: {
+        'GET /api/v1/eu': () => {
+          const base = respostaEu('membro')
+          return { status: 200, corpo: { ...base, conta: { ...base.conta, doisFatores: true } } }
+        },
+      },
+    })
+    expect(await screen.findByText('Ligado')).toBeOnTheScreen()
+  })
 })

@@ -67,9 +67,9 @@ const INICIO_VAZIO = {
   substituicoesAbertas: 0,
 }
 
-// O "Seu resumo" da Minha visão (D59) tem a própria rota; estes testes são do resto do Início.
+// O "Seu resumo" tem a própria rota; estes testes são do resto do Início.
 const VISAO_PADRAO = {
-  [`GET ${BASE}/visao-geral`]: () => ({
+  [`GET ${BASE}/visao-geral?escopo=minha`]: () => ({
     status: 200,
     corpo: {
       escopo: 'minha',
@@ -83,44 +83,123 @@ const VISAO_PADRAO = {
   }),
 }
 
+/** A convocação pendente é de OUTRO encontro (e2), não do que está no cartão de cima. */
+const INICIO_COM_PENDENTE_DE_OUTRO = {
+  ...INICIO_CHEIO,
+  minhasEscalas: [
+    {
+      id: 'a2',
+      funcao: 'recepção',
+      estado: 'pendente',
+      eventoId: 'e2',
+      eventoTitulo: 'Luau',
+      eventoInicio: SABADO,
+      etapaTitulo: null,
+    },
+  ],
+}
+
+const ok = (corpo: unknown) => () => ({ status: 200, corpo })
+
 describe('tela Início', () => {
   beforeEach(() => jest.clearAllMocks())
 
-  test('mostra eventos, escalas e tarefas reais, no horário da comunidade', async () => {
+  test('o próximo encontro mostra proximidade, data completa, horário, local e a linha "Você:"', async () => {
     await renderizarTela(<TelaInicio />, {
-      rotas: {
-        ...VISAO_PADRAO,
-        [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: INICIO_CHEIO }),
-      },
+      rotas: { ...VISAO_PADRAO, [`GET ${BASE}/inicio`]: ok(INICIO_CHEIO) },
     })
 
+    const cartao = await screen.findByRole('button', {
+      name: new RegExp(
+        `^Em \\d+ dias\\. Sábado com a juventude, Publicado, ${formatarDataPorExtenso(DIA_DO_INICIO)}, às 16:00, duração de 1 h, local: Salão\\. Você: Louvor · responsável\\. Aguardando sua resposta`,
+      ),
+    })
+    expect(cartao).toBeOnTheScreen()
+    expect(screen.getByText(/^Em \d+ dias$/)).toBeOnTheScreen()
+    expect(screen.getByText(/^Sábado, \d+ de [a-z]{3}\. · 16:00 às 17:00$/)).toBeOnTheScreen()
+    expect(screen.getByText('Salão')).toBeOnTheScreen()
+    expect(screen.getByText('Você: Louvor · responsável')).toBeOnTheScreen()
+    // Sem a lista de etapas e sem o cartão "Meu repertório": o roteiro está a um toque.
+    expect(screen.queryByText('Meu repertório')).toBeNull()
+    // A tarefa não é mais uma caixa de marcar no Início: é uma linha do resumo.
+    expect(screen.queryByRole('checkbox', { name: 'Comprar o brinde' })).toBeNull()
+    expect(screen.queryByText('Alguém precisa de substituição')).toBeNull()
+  })
+
+  test('a ordem: saudação, versículo, próximo encontro, resumo', async () => {
+    await renderizarTela(<TelaInicio />, {
+      rotas: { ...VISAO_PADRAO, [`GET ${BASE}/inicio`]: ok(INICIO_CHEIO) },
+    })
+    await screen.findByText('Seu resumo')
+    const arvore = JSON.stringify(screen.toJSON())
+    const posicao = (trecho: string) => arvore.indexOf(trecho)
+    expect(posicao('Versículo do dia, ')).toBeGreaterThan(-1)
+    expect(posicao('Versículo do dia, ')).toBeLessThan(posicao('Sábado com a juventude'))
+    expect(posicao('Sábado com a juventude')).toBeLessThan(posicao('Seu resumo'))
+  })
+
+  test('convocação pendente do mesmo encontro: Aceitar e Não posso ir moram dentro do cartão dele', async () => {
+    await renderizarTela(<TelaInicio />, {
+      rotas: { ...VISAO_PADRAO, [`GET ${BASE}/inicio`]: ok(INICIO_CHEIO) },
+    })
     expect(
       await screen.findByRole('button', {
-        name: `Sábado com a juventude, Publicado, ${formatarDataPorExtenso(DIA_DO_INICIO)}, às 16:00, duração de 1 h, local: Salão`,
+        name: 'Aceitar a convocação em Sábado com a juventude, Louvor · responsável',
       }),
     ).toBeOnTheScreen()
-    expect(screen.getByText('Louvor · responsável')).toBeOnTheScreen()
-    expect(screen.getByRole('checkbox', { name: 'Comprar o brinde' })).toBeOnTheScreen()
     expect(
-      screen.getByText('Há 2 pedidos de substituição que você pode assumir.'),
+      screen.getByRole('button', { name: /^Não posso ir: avisar a organização/ }),
     ).toBeOnTheScreen()
+    // Nenhum cartão "Você foi convocado" separado.
+    expect(screen.queryByText('Você foi convocado')).toBeNull()
+  })
+
+  test('convocação pendente de outro encontro: ganha o cartão "Você foi convocado", depois do encontro', async () => {
+    await renderizarTela(<TelaInicio />, {
+      rotas: { ...VISAO_PADRAO, [`GET ${BASE}/inicio`]: ok(INICIO_COM_PENDENTE_DE_OUTRO) },
+    })
+    expect(await screen.findByText('Você foi convocado')).toBeOnTheScreen()
+    expect(
+      screen.getByRole('button', { name: 'Aceitar a convocação em Luau, recepção' }),
+    ).toBeOnTheScreen()
+    // O cartão do encontro de cima não tem botões de convocação (não é dele): só "Ver o encontro".
+    expect(screen.getByRole('button', { name: 'Ver o encontro' })).toBeOnTheScreen()
+    const arvore = JSON.stringify(screen.toJSON())
+    expect(arvore.indexOf('Sábado com a juventude')).toBeLessThan(
+      arvore.indexOf('Você foi convocado'),
+    )
+  })
+
+  test('depois de aceitar, a convocação vira a linha "Você:" e não sobra cartão', async () => {
+    const aceita = {
+      ...INICIO_CHEIO,
+      minhasEscalas: [{ ...INICIO_CHEIO.minhasEscalas[0]!, estado: 'confirmada', funcao: 'Vocal' }],
+    }
+    await renderizarTela(<TelaInicio />, {
+      rotas: { ...VISAO_PADRAO, [`GET ${BASE}/inicio`]: ok(aceita) },
+    })
+    expect(await screen.findByText('Você: Louvor · Vocal')).toBeOnTheScreen()
+    expect(screen.getByText('Confirmado')).toBeOnTheScreen()
+    expect(screen.queryByText('Você foi convocado')).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Aceitar/ })).toBeNull()
+    // Quem toca no louvor ganha "Abrir o repertório" no próprio cartão, e nenhum cartão à parte.
+    expect(
+      screen.getByRole('button', { name: 'Abrir o meu repertório de Sábado com a juventude' }),
+    ).toBeOnTheScreen()
+    expect(screen.queryByText('Meu repertório')).toBeNull()
   })
 
   test('"Você foi convocado": aceitar chama a API da própria atribuição e avisa', async () => {
     const { servidor } = await renderizarTela(<TelaInicio />, {
       rotas: {
         ...VISAO_PADRAO,
-        [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: INICIO_CHEIO }),
-        [`POST ${BASE}/atribuicoes/a1/confirmar`]: () => ({
-          status: 200,
-          corpo: { estado: 'confirmada' },
-        }),
+        [`GET ${BASE}/inicio`]: ok(INICIO_CHEIO),
+        [`POST ${BASE}/atribuicoes/a1/confirmar`]: ok({ estado: 'confirmada' }),
       },
     })
 
-    expect(await screen.findByText('Você foi convocado')).toBeOnTheScreen()
     await userEvent.setup().press(
-      screen.getByRole('button', {
+      await screen.findByRole('button', {
         name: 'Aceitar a convocação em Sábado com a juventude, Louvor · responsável',
       }),
     )
@@ -137,11 +216,8 @@ describe('tela Início', () => {
     const { servidor } = await renderizarTela(<TelaInicio />, {
       rotas: {
         ...VISAO_PADRAO,
-        [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: INICIO_CHEIO }),
-        [`POST ${BASE}/atribuicoes/a1/recusar`]: () => ({
-          status: 200,
-          corpo: { estado: 'recusada' },
-        }),
+        [`GET ${BASE}/inicio`]: ok(INICIO_CHEIO),
+        [`POST ${BASE}/atribuicoes/a1/recusar`]: ok({ estado: 'recusada' }),
       },
     })
 
@@ -167,10 +243,7 @@ describe('tela Início', () => {
   test('"Voltar" no diálogo não recusa nada', async () => {
     jest.mocked(confirmar).mockResolvedValueOnce(false)
     const { servidor } = await renderizarTela(<TelaInicio />, {
-      rotas: {
-        ...VISAO_PADRAO,
-        [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: INICIO_CHEIO }),
-      },
+      rotas: { ...VISAO_PADRAO, [`GET ${BASE}/inicio`]: ok(INICIO_CHEIO) },
     })
 
     await userEvent
@@ -181,53 +254,40 @@ describe('tela Início', () => {
     expect(pedidosPara(servidor, 'POST', `${BASE}/atribuicoes/a1/recusar`)).toHaveLength(0)
   })
 
-  test('concluir a própria tarefa manda só "concluida"', async () => {
-    const { servidor } = await renderizarTela(<TelaInicio />, {
-      rotas: {
-        ...VISAO_PADRAO,
-        [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: INICIO_CHEIO }),
-        [`PATCH ${BASE}/eventos/e1/tarefas/t1`]: () => ({ status: 200, corpo: { id: 't1' } }),
-      },
-    })
-
-    await userEvent.setup().press(await screen.findByRole('checkbox', { name: 'Comprar o brinde' }))
-
-    await waitFor(() =>
-      expect(pedidosPara(servidor, 'PATCH', `${BASE}/eventos/e1/tarefas/t1`)[0]?.corpo).toEqual({
-        concluida: true,
-      }),
-    )
-  })
-
-  test('vazio, para organizador: oferece o Sábado padrão', async () => {
+  test('vazio, para organizador: oferece o encontro do sábado, sem a segunda ação', async () => {
     await renderizarTela(<TelaInicio />, {
-      rotas: {
-        ...VISAO_PADRAO,
-        [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: INICIO_VAZIO }),
-      },
+      rotas: { ...VISAO_PADRAO, [`GET ${BASE}/inicio`]: ok(INICIO_VAZIO) },
     })
 
     expect(await screen.findByText('Nenhum encontro marcado')).toBeOnTheScreen()
-    await userEvent.setup().press(screen.getByRole('button', { name: 'Novo Sábado padrão' }))
+    expect(
+      screen.getByText('Monte o próximo: o Sábado padrão já vem com o roteiro de sempre.'),
+    ).toBeOnTheScreen()
+    await userEvent
+      .setup()
+      .press(screen.getByRole('button', { name: 'Criar o encontro do sábado' }))
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/evento/novo',
       params: { modelo: 'sabado_padrao' },
     })
-    expect(screen.getByRole('button', { name: 'Informar minha disponibilidade' })).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: 'Informar minha disponibilidade' })).toBeNull()
   })
 
-  test('vazio, para membro: leva à agenda, sem criar', async () => {
+  test('vazio, para membro: diz que o aviso chega, sem criar e sem dois botões', async () => {
     await renderizarTela(<TelaInicio />, {
       papel: 'membro',
-      rotas: {
-        ...VISAO_PADRAO,
-        [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: INICIO_VAZIO }),
-      },
+      rotas: { ...VISAO_PADRAO, [`GET ${BASE}/inicio`]: ok(INICIO_VAZIO) },
     })
 
     expect(await screen.findByText('Nenhum encontro marcado')).toBeOnTheScreen()
-    expect(screen.queryByRole('button', { name: 'Novo Sábado padrão' })).toBeNull()
-    expect(screen.getAllByRole('button', { name: 'Ver a agenda' }).length).toBeGreaterThan(0)
+    expect(
+      screen.getByText(
+        'Ainda não há encontro marcado. Quando a liderança marcar o próximo, ele aparece aqui e você recebe um aviso.',
+      ),
+    ).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: 'Criar o encontro do sábado' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Ver a agenda' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Informar minha disponibilidade' })).toBeNull()
   })
 
   test('erro da API vira mensagem humana com "Tentar de novo"', async () => {
@@ -247,38 +307,31 @@ describe('tela Início', () => {
     expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeOnTheScreen()
   })
 
-  test('com inscrição próxima, mostra "Minhas inscrições" e abre o evento', async () => {
-    // Uma convocação que não é de louvor: o cartão "Meu repertório" (D61) não entra na conta dos 5.
-    const semLouvor = {
-      ...INICIO_CHEIO,
-      minhasEscalas: [{ ...INICIO_CHEIO.minhasEscalas[0]!, etapaTitulo: 'Palavra' }],
-    }
+  test('com inscrição em outro encontro, mostra "Minhas inscrições" e abre o evento', async () => {
+    const semConvocacao = { ...INICIO_CHEIO, minhasEscalas: [] }
     await renderizarTela(<TelaInicio />, {
       rotas: {
         ...VISAO_PADRAO,
-        [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: semLouvor }),
-        [`GET ${BASE}/inscricoes/eu`]: () => ({
-          status: 200,
-          corpo: {
-            inscricoes: [
-              {
-                inscricaoId: 'i1',
-                estado: 'confirmada',
-                codigoCheckin: 'A1B2C3D4E5',
-                criadaEm: '2026-11-10T12:00:00.000Z',
-                presente: false,
-                evento: {
-                  id: 'e9',
-                  titulo: 'Retiro de verão',
-                  inicio: SABADO,
-                  duracaoMin: 120,
-                  fuso: 'America/Sao_Paulo',
-                  status: 'publicado',
-                  localNome: 'Sítio',
-                },
+        [`GET ${BASE}/inicio`]: ok(semConvocacao),
+        [`GET ${BASE}/inscricoes/eu`]: ok({
+          inscricoes: [
+            {
+              inscricaoId: 'i1',
+              estado: 'confirmada',
+              codigoCheckin: 'A1B2C3D4E5',
+              criadaEm: '2026-11-10T12:00:00.000Z',
+              presente: false,
+              evento: {
+                id: 'e9',
+                titulo: 'Retiro de verão',
+                inicio: SABADO,
+                duracaoMin: 120,
+                fuso: 'America/Sao_Paulo',
+                status: 'publicado',
+                localNome: 'Sítio',
               },
-            ],
-          },
+            },
+          ],
         }),
       },
     })
@@ -292,6 +345,74 @@ describe('tela Início', () => {
       pathname: '/evento/[eventoId]',
       params: { eventoId: 'e9' },
     })
+  })
+
+  test('inscrita no próximo encontro: vira a linha "Você: inscrito", sem cartão à parte', async () => {
+    await renderizarTela(<TelaInicio />, {
+      papel: 'membro',
+      rotas: {
+        ...VISAO_PADRAO,
+        [`GET ${BASE}/inicio`]: ok({ ...INICIO_CHEIO, minhasEscalas: [] }),
+        [`GET ${BASE}/inscricoes/eu`]: ok({
+          inscricoes: [
+            {
+              inscricaoId: 'i1',
+              estado: 'confirmada',
+              codigoCheckin: 'A1B2C3D4E5',
+              criadaEm: '2026-11-10T12:00:00.000Z',
+              presente: false,
+              evento: {
+                id: 'e1',
+                titulo: 'Sábado com a juventude',
+                inicio: SABADO,
+                duracaoMin: 60,
+                fuso: 'America/Sao_Paulo',
+                status: 'publicado',
+                localNome: 'Salão',
+              },
+            },
+          ],
+        }),
+      },
+    })
+    expect(await screen.findByText('Você: inscrito')).toBeOnTheScreen()
+    expect(screen.queryByText('Minhas inscrições')).toBeNull()
+  })
+})
+
+describe('"Primeiros passos" no Início (D62)', () => {
+  beforeEach(() => jest.clearAllMocks())
+
+  test('para quem organiza, depois de existir o primeiro encontro', async () => {
+    await renderizarTela(<TelaInicio />, {
+      papel: 'organizador',
+      rotas: {
+        ...VISAO_PADRAO,
+        [`GET ${BASE}/inicio`]: ok({ ...INICIO_CHEIO, minhasEscalas: [] }),
+      },
+    })
+    expect(await screen.findByText('Primeiros passos')).toBeOnTheScreen()
+  })
+
+  test('organizador sem nenhum encontro criado ainda: sem o cartão', async () => {
+    await renderizarTela(<TelaInicio />, {
+      papel: 'organizador',
+      rotas: { ...VISAO_PADRAO, [`GET ${BASE}/inicio`]: ok(INICIO_VAZIO) },
+    })
+    await screen.findByText('Nenhum encontro marcado')
+    expect(screen.queryByText('Primeiros passos')).toBeNull()
+  })
+
+  test('membro nunca vê o cartão', async () => {
+    await renderizarTela(<TelaInicio />, {
+      papel: 'membro',
+      rotas: {
+        ...VISAO_PADRAO,
+        [`GET ${BASE}/inicio`]: ok({ ...INICIO_CHEIO, minhasEscalas: [] }),
+      },
+    })
+    await screen.findByText('Seu resumo')
+    expect(screen.queryByText('Primeiros passos')).toBeNull()
   })
 })
 
@@ -315,8 +436,8 @@ describe('Início sem comunidade', () => {
     expect(router.push).toHaveBeenCalledWith('/plataforma/nova')
     // D57: a Plataforma não se repete no Início; mora só no Perfil.
     expect(screen.queryByRole('button', { name: /^Plataforma/ })).toBeNull()
-    // O versículo continua; não há status de sincronização sem comunidade.
-    expect(screen.getByText('Versículo do dia')).toBeOnTheScreen()
+    // O versículo continua (agora em uma linha); não há status de sincronização sem comunidade.
+    expect(screen.getByRole('button', { name: /^Versículo do dia, / })).toBeOnTheScreen()
   })
 
   test('conta sem comunidade: "Comece por aqui" com os três caminhos (ADR 0007)', async () => {
@@ -335,7 +456,7 @@ describe('Início sem comunidade', () => {
     expect(router.push).toHaveBeenCalledWith('/criar-comunidade')
     // Sem pedidos, a seção "Meus pedidos" não aparece.
     expect(screen.queryByText('Meus pedidos')).toBeNull()
-    expect(screen.getByText('Versículo do dia')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: /^Versículo do dia, / })).toBeOnTheScreen()
   })
 
   describe('várias comunidades (D57: nunca abre com as abas vazias)', () => {
@@ -366,7 +487,7 @@ describe('Início sem comunidade', () => {
       await renderizarTela(<TelaInicio />, {
         rotas: {
           'GET /api/v1/eu': eu(false, comunidades),
-          [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: INICIO_VAZIO }),
+          [`GET ${BASE}/inicio`]: ok(INICIO_VAZIO),
         },
       })
       expect(
@@ -380,7 +501,7 @@ describe('Início sem comunidade', () => {
       await renderizarTela(<TelaInicio />, {
         rotas: {
           'GET /api/v1/eu': eu(false, comunidades),
-          [`GET /api/v1/c/${outra}/inicio`]: () => ({ status: 200, corpo: INICIO_VAZIO }),
+          [`GET /api/v1/c/${outra}/inicio`]: ok(INICIO_VAZIO),
         },
       })
       expect(

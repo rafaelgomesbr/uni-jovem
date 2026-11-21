@@ -1,5 +1,6 @@
-import { render, screen, userEvent } from '@testing-library/react-native'
+import { act, render, screen, userEvent } from '@testing-library/react-native'
 import { useState } from 'react'
+import { Dimensions } from 'react-native'
 
 import { BotoesDeOrdem } from '../BotoesDeOrdem'
 import { escolherDisposicao, Segmentos } from '../Segmentos'
@@ -54,14 +55,26 @@ describe('disposição dos segmentos (nenhum rótulo cortado)', () => {
     })
   })
 
-  test('fonte grande com quatro opções: a grade, se couber; senão, pílulas', () => {
+  test('fonte grande com quatro opções: a grade, se couber; senão, empilha', () => {
     const partes = ['Visão geral', 'Programação', 'Convocados', 'Preparação']
     expect(escolherDisposicao(partes, 350, 1.35, 0, true)).toEqual({
       nivel: 'normal',
       proporcional: false,
       grade: true,
     })
-    expect(escolherDisposicao(partes, 320, 2, 0, true)).toBeNull()
+    expect(escolherDisposicao(partes, 320, 2, 0, true)).toEqual({
+      nivel: 'normal',
+      proporcional: false,
+      pilha: true,
+    })
+  })
+
+  test('fonte grande com duas ou três opções: empilham, nunca pílulas roláveis', () => {
+    const pilha = { nivel: 'normal', proporcional: false, pilha: true }
+    expect(escolherDisposicao(['Calendário', 'Lista'], 320, 1.64, 0, true)).toEqual(pilha)
+    expect(escolherDisposicao(['Pessoas', 'Pedidos', 'Convites'], 320, 2.35, 0, true)).toEqual(
+      pilha,
+    )
   })
 
   test('três rótulos longos descem para o compacto antes de virar pílulas', () => {
@@ -87,5 +100,71 @@ describe('BotoesDeOrdem', () => {
     await userEvent.setup().press(screen.getByRole('button', { name: 'Descer Louvor' }))
     expect(aoDescer).toHaveBeenCalledTimes(1)
     expect(aoSubir).not.toHaveBeenCalled()
+  })
+})
+
+describe('Segmentos com fonte grande (D62, auditoria A1)', () => {
+  const janelaOriginal = Dimensions.get('window')
+  afterEach(async () => {
+    await act(async () => Dimensions.set({ window: janelaOriginal, screen: janelaOriginal }))
+  })
+
+  function comFonte(fontScale: number) {
+    const janela = { width: 390, height: 844, scale: 3, fontScale }
+    Dimensions.set({ window: janela, screen: janela })
+  }
+
+  function Dois() {
+    const [valor, setValor] = useState<'calendario' | 'lista'>('lista')
+    return (
+      <Segmentos
+        rotulo="Como ver a agenda"
+        valor={valor}
+        aoMudar={setValor}
+        segmentos={[
+          { valor: 'lista', rotulo: 'Lista' },
+          { valor: 'calendario', rotulo: 'Calendário' },
+        ]}
+      />
+    )
+  }
+
+  test.each([1.64, 2.35])(
+    'com escala %s, duas opções empilham: nada de faixa rolável',
+    async (escala) => {
+      comFonte(escala)
+      await render(<Dois />)
+      const grupo = screen.getByLabelText('Como ver a agenda')
+      expect(
+        [grupo.props.style]
+          .flat(3)
+          .some((e: { flexDirection?: string } | null) => e?.flexDirection === 'column'),
+      ).toBe(true)
+      // As duas opções estão no mesmo grupo, ao alcance do toque, e nenhuma está dentro de uma rolagem lateral.
+      expect(screen.queryByRole('checkbox')).toBeNull()
+      expect(JSON.stringify(screen.toJSON())).not.toContain('RCTScrollView')
+      expect(screen.getByRole('radio', { name: 'Lista' })).toBeChecked()
+      await userEvent.setup().press(screen.getByRole('radio', { name: 'Calendário' }))
+      expect(screen.getByRole('radio', { name: 'Calendário' })).toBeChecked()
+    },
+  )
+
+  test('cada opção tem pelo menos 44 pt de alvo, empilhada ou em linha', async () => {
+    comFonte(1)
+    await render(<Dois />)
+    const opcao = screen.getByRole('radio', { name: 'Lista' })
+    // O polegar tem 36; os 4 de cima e de baixo (hitSlop) completam os 44.
+    expect(opcao.props.hitSlop).toEqual({ top: 4, bottom: 4 })
+  })
+
+  test('com a fonte normal, duas opções continuam em linha', async () => {
+    comFonte(1)
+    await render(<Dois />)
+    const grupo = screen.getByLabelText('Como ver a agenda')
+    expect(
+      [grupo.props.style]
+        .flat(3)
+        .some((e: { flexDirection?: string } | null) => e?.flexDirection === 'row'),
+    ).toBe(true)
   })
 })

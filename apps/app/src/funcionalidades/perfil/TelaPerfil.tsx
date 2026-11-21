@@ -13,7 +13,6 @@ import { api } from '@/servicos/api'
 import type { Conta } from '@/servicos/contrato'
 import { confirmar } from '@/utilidades/confirmar'
 import { Avatar } from '@/ui/Avatar'
-import { Botao } from '@/ui/Botao'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Chip } from '@/ui/Chip'
 import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
@@ -60,7 +59,7 @@ function useTransferenciaPendente(ligado: boolean): boolean {
 
 /**
  * Perfil (3.6.4, quadro 04 e D57): só a conta. Cartão de identidade (avatar
- * de 72 com anel, nome, e-mail e "Editar dados"), "Sua conta", as
+ * de 72 com anel, nome e e-mail; "Editar perfil" mora só na lista, D62), "Sua conta", as
  * comunidades (trocar), o grupo do Criador e "Mais opções" no fim, cada um
  * com a sobrancelha fora do cartão e um cartão lista. Os módulos da
  * comunidade (avisos, oração, relatórios...) moram na aba Comunidade.
@@ -72,6 +71,8 @@ export function TelaPerfil({ naPilha = false }: { naPilha?: boolean }) {
   const idPublico = useDetalheDaComunidade(comunidadeAtiva?.id ?? null).data?.idPublico ?? null
   const transferenciaPendente = useTransferenciaPendente(conta !== null)
   const [saindo, setSaindo] = useState(false)
+  // O alerta "Desligado" é de quem administra: para o membro, o código extra é opcional e o aviso só incomoda (D62).
+  const administra = comunidadeAtiva?.papel === 'admin' || conta?.criador === true
 
   if (!conta) return null
 
@@ -119,13 +120,18 @@ export function TelaPerfil({ naPilha = false }: { naPilha?: boolean }) {
           icone="seguranca"
           titulo="Segurança"
           descricao="Código extra ao entrar, Face ID e aparelhos"
-          extra={
-            <Chip
-              texto={conta.doisFatores ? 'Ligado' : 'Desligado'}
-              tom={conta.doisFatores ? 'sucesso' : 'alerta'}
-            />
-          }
-          rotuloAcessivel={`Segurança. Código extra ao entrar ${conta.doisFatores ? 'ligado' : 'desligado'}.`}
+          {...(conta.doisFatores
+            ? { extra: <Chip texto="Ligado" tom="sucesso" /> }
+            : administra
+              ? { extra: <Chip texto="Desligado" tom="alerta" /> }
+              : {})}
+          rotuloAcessivel={`Segurança.${
+            conta.doisFatores
+              ? ' Código extra ao entrar ligado.'
+              : administra
+                ? ' Código extra ao entrar desligado.'
+                : ''
+          }`}
           aoPressionar={() => router.push(ROTA_DA_SEGURANCA)}
         />
         <LinhaDeLista
@@ -289,7 +295,8 @@ function Grupo({ titulo, children }: { titulo: string; children: ReactNode }) {
 
 /**
  * Identidade (quadro 04): avatar de 72 com anel (a foto, quando há; o toque
- * troca o avatar), nome, e-mail e "Editar dados".
+ * troca o avatar), nome e e-mail. Quem edita os dados usa "Editar perfil" na
+ * lista: antes havia dois caminhos para a mesma tela.
  */
 function Identidade({ conta }: { conta: Conta }) {
   return (
@@ -317,12 +324,6 @@ function Identidade({ conta }: { conta: Conta }) {
           <Texto variante="legenda" cor="textoSuave" selectable>
             {conta.email}
           </Texto>
-          <Botao
-            titulo="Editar dados"
-            variante="terciario"
-            alinhado
-            aoPressionar={() => router.push('/editar-perfil')}
-          />
         </View>
       </View>
     </CartaoDeVidro>

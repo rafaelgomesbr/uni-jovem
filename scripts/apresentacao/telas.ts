@@ -60,7 +60,8 @@ async function tentar(nome: string, passo: () => Promise<void>) {
 }
 
 async function entrar(page: Page, email: string) {
-  await page.goto(`${BASE}/app/entrar`)
+  // D63: `?modo=email` abre o painel de e-mail e senha direto (o estado vive na rota).
+  await page.goto(`${BASE}/app/entrar?modo=email`)
   await page.getByLabel('E-mail', { exact: true }).fill(email)
   await page.getByLabel('Senha', { exact: true }).fill(senhaDe(email))
   await page.getByRole('button', { name: 'Entrar', exact: true }).click()
@@ -119,6 +120,10 @@ async function main() {
   const visitante = await novaPagina(navegador)
   await irPara(visitante, '/entrar')
   await foto(visitante, '01-entrar')
+  await tentar('entrar-com-e-mail', async () => {
+    await irPara(visitante, '/entrar?modo=email')
+    await foto(visitante, '01b-entrar-com-e-mail')
+  })
   await tentar('criar-conta', async () => {
     await irPara(visitante, '/criar-conta')
     await foto(visitante, '02-criar-conta')

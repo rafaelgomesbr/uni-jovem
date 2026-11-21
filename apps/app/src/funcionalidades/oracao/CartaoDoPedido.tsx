@@ -252,6 +252,7 @@ export function CartaoDoPedido({
                 {temMaisAcoes ? (
                   <BotaoIcone
                     icone="maisAcoes"
+                    texto="Mais"
                     rotulo={`Mais ações do ${autor.toLowerCase()}`}
                     aoPressionar={() => setFolhaAberta(true)}
                   />

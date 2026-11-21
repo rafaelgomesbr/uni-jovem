@@ -9,7 +9,7 @@ import { StyleSheet } from 'react-native'
 
 import { Botao } from '../Botao'
 import { Campo } from '../Campo'
-import { comOpacidade } from '../cor'
+import { ALFA_DESABILITADO, comOpacidade } from '../cor'
 
 const C = TEMAS.claro.base
 
@@ -66,7 +66,7 @@ describe('Botão: estados desenhados (2.12.1)', () => {
     expect(e.backgroundColor).toBe(C.tonal)
     expect(e.opacity).toBeUndefined()
     expect(screen.getByText('Enviar código')).toHaveStyle({
-      color: comOpacidade(C.texto, 0.4),
+      color: comOpacidade(C.texto, ALFA_DESABILITADO),
     })
     expect(screen.getByText('Aceite os termos para continuar.')).toBeOnTheScreen()
     await fireEvent.press(botao)

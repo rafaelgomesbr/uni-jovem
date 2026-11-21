@@ -7,26 +7,38 @@ import {
 import { useRef, useState } from 'react'
 import { Platform } from 'react-native'
 
-import { BotaoDeAcessoRapido } from '@/ui/BotaoDeAcessoRapido'
+import { BotaoDeAcesso, type NivelDoAcesso } from '@/ui/BotaoDeAcesso'
 import { googleConfigurado, idsDoGoogle } from './configuracao'
 
 interface PropsDoBotaoGoogle {
   titulo?: string
+  nivel?: NivelDoAcesso
+  selo?: string
   carregando?: boolean
+  /** Depois de entrar: o indicador vira um check. */
+  sucesso?: boolean
   desabilitado?: boolean
   motivo?: string
+  disparoDeErro?: number
   aoObterToken: (idToken: string) => void
   aoFalhar: (mensagem: string) => void
+  /** A pessoa fechou a folha do Google: não é erro, mas a tela conta (2 vezes seguidas vira dica). */
+  aoCancelar?: () => void
 }
 
 /** No celular, usa o SDK nativo; na web, o módulo .web mantém o fluxo do navegador. */
 export function BotaoGoogle({
   titulo = 'Continuar com o Google',
+  nivel = 'secundario',
+  selo,
   carregando = false,
+  sucesso = false,
   desabilitado = false,
   motivo,
+  disparoDeErro = 0,
   aoObterToken,
   aoFalhar,
+  aoCancelar,
 }: PropsDoBotaoGoogle) {
   const [pedindo, setPedindo] = useState(false)
   const ocupado = useRef(false)
@@ -49,11 +61,11 @@ export function BotaoGoogle({
       if (isSuccessResponse(resposta)) {
         if (resposta.data.idToken) aoObterToken(resposta.data.idToken)
         else aoFalhar('O Google não confirmou a entrada. Tente de novo.')
-      }
+      } else aoCancelar?.()
     } catch (erro) {
       if (!isErrorWithCode(erro) || erro.code !== statusCodes.SIGN_IN_CANCELLED) {
         aoFalhar('Não foi possível entrar com o Google. Confira sua conexão e tente de novo.')
-      }
+      } else aoCancelar?.()
     } finally {
       ocupado.current = false
       setPedindo(false)
@@ -61,12 +73,16 @@ export function BotaoGoogle({
   }
 
   return (
-    <BotaoDeAcessoRapido
+    <BotaoDeAcesso
       marca="google"
+      nivel={nivel}
       titulo={titulo}
+      {...(selo ? { selo } : {})}
       carregando={carregando || pedindo}
+      sucesso={sucesso}
       inativo={desabilitado || carregando || pedindo}
       {...(motivo ? { motivo } : {})}
+      disparoDeErro={disparoDeErro}
       aoPressionar={() => void entrar()}
     />
   )

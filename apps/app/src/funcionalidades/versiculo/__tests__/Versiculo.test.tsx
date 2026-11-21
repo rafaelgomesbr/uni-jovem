@@ -6,6 +6,7 @@ import { agendarVersiculos } from '@/servicos/notificacoesDoSistema'
 import { pedidosPara, renderizarTela } from '@/testes/telas'
 
 import { reiniciarPermissaoParaTestes } from '../../notificacoes/permissao'
+import { semColchetes } from '../CartaoDoVersiculo'
 import { DIAS_AGENDADOS, planejarVersiculos, PREFIXO } from '../plano'
 import { TelaSobreATraducao, TelaVersiculo } from '../TelaVersiculo'
 
@@ -97,9 +98,10 @@ describe('tela do versículo', () => {
     await renderizarTela(<TelaVersiculo />, {
       rotas: { 'GET /api/v1/eu/notificacoes': () => ({ status: 200, corpo: PREFERENCIAS }) },
     })
-    expect(await screen.findByText(v.texto)).toBeOnTheScreen()
+    // Sem os colchetes do tradutor na exibição (Q7); "Sobre a tradução" explica.
+    expect(await screen.findByText(semColchetes(v.texto))).toBeOnTheScreen()
     expect(screen.getByText(`${v.referencia} · BLIVRE`)).toBeOnTheScreen()
-    expect(screen.queryByRole('button', { name: /Mostrar texto|Recolher texto/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Recolhido|Toque para recolher/ })).toBeNull()
     await screen.findByRole('switch', { name: 'Receber todo dia' })
   })
 

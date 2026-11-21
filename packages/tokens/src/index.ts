@@ -1,3 +1,4 @@
+export * from './acesso.ts'
 export * from './aurora.ts'
 export * from './avatar.ts'
 export * from './contraste.ts'
@@ -217,8 +218,12 @@ export const TIPO = {
    * Mínimo de 15, como o rótulo (U-09); a `legenda` fica para o dispensável.
    */
   meta: papel('texto', '400', 15, 20),
-  /** Ajuda, contador, referência, status de sincronização: o que dá para pular. */
-  legenda: papel('texto', '400', 13, 18),
+  /**
+   * Ajuda, contador, referência, status de sincronização. 14, não 13 (D62,
+   * auditoria de 21/11/2026, A2): a referência do versículo e a ajuda de campo
+   * também informam, e 13 pt cansa quem tem 45 anos ou mais.
+   */
+  legenda: papel('texto', '400', 14, 20),
   /** Etiqueta de seção no cartão e acima de grupos (13, não 12: U-09). */
   sobrancelha: papel('texto', '600', 13, 18, {
     espacamento: 1,
@@ -226,8 +231,8 @@ export const TIPO = {
     teto: 1.6,
     nivel: 3,
   }),
-  /** Chip de estado. */
-  chip: papel('texto', '600', 12, 16, { teto: 1.6 }),
+  /** Chip de estado: 13, não 12 (D62). A altura de 24 comporta: 16 de linha e 4 de padding em cima e embaixo. */
+  chip: papel('texto', '600', 13, 16, { teto: 1.6 }),
   /**
    * Rótulos da barra de abas: 600 na ativa, 500 nas outras. Teto de 1,6 (era
    * 1,3): quando o rótulo não cabe no item, a barra mostra só os ícones, com o

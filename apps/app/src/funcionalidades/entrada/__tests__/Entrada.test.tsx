@@ -96,7 +96,7 @@ describe('Comece por aqui (conta sem comunidade)', () => {
     expect(screen.getByText('Tenho um código ou convite')).toBeOnTheScreen()
     expect(screen.getByText('Procurar minha comunidade')).toBeOnTheScreen()
     expect(screen.getByText('Criar uma comunidade')).toBeOnTheScreen()
-    expect(screen.getByText('Versículo do dia')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: /^Versículo do dia, / })).toBeOnTheScreen()
 
     await fireEvent.press(screen.getByRole('button', { name: 'Usar código ou convite' }))
     expect(router.push).toHaveBeenCalledWith('/tenho-um-codigo')

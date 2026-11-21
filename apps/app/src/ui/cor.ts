@@ -1,7 +1,7 @@
 import { compor, ehTranslucida } from '@uj/tokens'
 
 /**
- * A mesma cor com `alfa` de opacidade (texto desabilitado a 40%, seção
+ * A mesma cor com `alfa` de opacidade (texto desabilitado a 50%, seção
  * 2.12.1). É cor, não `opacity`: o estado fica desenhado no próprio token.
  */
 export function comOpacidade(cor: string, alfa: number): string {
@@ -22,4 +22,4 @@ export function escurecer(hex: string, fracao: number): string {
 }
 
 /** Alfa do texto e do ícone de um controle desabilitado. */
-export const ALFA_DESABILITADO = 0.4
+export const ALFA_DESABILITADO = 0.5

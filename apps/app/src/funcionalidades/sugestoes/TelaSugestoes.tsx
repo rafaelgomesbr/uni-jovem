@@ -48,6 +48,7 @@ export function TelaSugestoes() {
               <BotaoIcone
                 icone="adicionar"
                 rotulo="Nova sugestão"
+                texto="Nova"
                 circular
                 aoPressionar={novaSugestao}
               />

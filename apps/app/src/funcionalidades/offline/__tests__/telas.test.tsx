@@ -236,7 +236,7 @@ describe('sem conexão', () => {
     )
     expect(await screen.findByText('Sem conexão: lista deste aparelho')).toBeOnTheScreen()
     const usuario = userEvent.setup()
-    await usuario.press(screen.getByRole('button', { name: 'Marcar presença: Davi Rocha' }))
+    await usuario.press(screen.getByRole('button', { name: 'Chegou: Davi Rocha. Marcar presença' }))
     expect(await screen.findByText(/Presença de Davi Rocha anotada neste aparelho/)).toBeTruthy()
 
     const p = await deposito.abrir(CONTA, COMUNIDADE)

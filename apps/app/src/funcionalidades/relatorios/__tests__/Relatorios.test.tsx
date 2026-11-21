@@ -58,6 +58,9 @@ describe('relatórios', () => {
       rotas: { [`GET ${BASE}/relatorios/presenca`]: () => ({ status: 200, corpo: PRESENCA }) },
     })
     expect(await screen.findByLabelText('presenças: 30')).toBeOnTheScreen()
+    // Exportar não é mais um ícone sozinho no canto: a palavra vem à vista (D62).
+    expect(screen.getByRole('button', { name: 'Exportar CSV' })).toBeOnTheScreen()
+    expect(screen.getByText('Exportar')).toBeOnTheScreen()
     expect(screen.getByLabelText('out/2026 (1 encontro): 14')).toBeOnTheScreen()
     const pedido = pedidosPara(servidor, 'GET', `${BASE}/relatorios/presenca`)[0]!
     expect(pedido.url).toContain('agrupar=mes')

@@ -188,7 +188,9 @@ async function prepararODiaDoEvento(page: Page, origem: string): Promise<string>
 
   await irPara(page, `/evento/${copia}/checkin`)
   for (const nome of ['Beatriz Moraes', 'Camila Nunes', 'Davi Monteiro']) {
-    await page.getByRole('button', { name: `Marcar presença: ${nome}`, exact: true }).click()
+    await page
+      .getByRole('button', { name: `Chegou: ${nome}. Marcar presença`, exact: true })
+      .click()
     await page.waitForTimeout(900)
   }
   return copia

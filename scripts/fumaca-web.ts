@@ -43,9 +43,11 @@ function apiSemSessao(): Promise<http.Server> {
 
 /** Telas públicas e o que precisa aparecer em cada uma. */
 const TELAS = [
+  // D63: sem Google na web da fumaça, o e-mail já nasce aberto; `?modo=email` é o estado da rota.
   { caminho: '/app/entrar', seletor: 'input', minimo: 2 },
+  { caminho: '/app/entrar?modo=email', seletor: 'input', minimo: 2 },
   { caminho: '/app/recuperar-senha', seletor: 'input', minimo: 1 },
-  // ADR 0007: cadastro aberto (nome e e-mail no primeiro passo).
+  // ADR 0007 e D63: cadastro aberto (e-mail e senha no primeiro passo).
   { caminho: '/app/criar-conta', seletor: 'input', minimo: 2 },
 ]
 
@@ -96,13 +98,14 @@ async function conferirCadastro(navegador: Browser) {
       })
     })
     await page.goto(`http://127.0.0.1:${PORTA}/app/criar-conta`)
-    await page.getByLabel('Nome', { exact: true }).fill('Pessoa de Teste')
+    // D63: criar.dados (e-mail e senha) e depois criar.idade ("Falta pouco": nome, idade e Termos).
     await page.getByLabel('E-mail', { exact: true }).fill('web@exemplo.test')
+    await page.getByLabel('Crie uma senha', { exact: true }).fill('uma frase comprida e boa 2026')
+    await page.getByRole('button', { name: 'Continuar', exact: true }).click()
+    await page.getByLabel('Como você se chama?', { exact: true }).fill('Pessoa de Teste')
     await page.getByRole('radio', { name: 'Tenho 18 anos ou mais.' }).click()
     await page.getByRole('checkbox').click()
     await page.waitForFunction(() => Boolean((window as unknown as { desafio?: unknown }).desafio))
-    await page.getByRole('button', { name: 'Continuar', exact: true }).click()
-    await page.getByLabel('Crie uma senha', { exact: true }).fill('uma frase comprida e boa 2026')
     const criado = page.waitForResponse((r) => r.url().endsWith('/api/auth/cadastro/criar'))
     await page.getByRole('button', { name: 'Criar conta', exact: true }).click()
     await criado

@@ -11,7 +11,8 @@ import { Texto } from '@/ui/Texto'
 
 import { usePessoasAtivas } from './consultas'
 
-const MAXIMO_VISIVEL = 8
+/** Até 50 pessoas aparecem de uma vez (D62): "Mostrando 8 de 15" fazia parecer que 7 tinham sumido. */
+const MAXIMO_VISIVEL = 50
 
 function semAcento(texto: string): string {
   return texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
@@ -97,14 +98,14 @@ export function SeletorDePessoa({
   return (
     <View style={{ gap: ESPACO.e8 }}>
       <CampoDeBusca
-        rotulo={`Buscar pessoa (${rotulo.toLowerCase()})`}
+        rotulo="Buscar pelo nome"
         valor={busca}
         aoMudar={setBusca}
         autoCapitalize="words"
       />
       {candidatas.length > MAXIMO_VISIVEL ? (
         <Texto variante="legenda" cor="textoSuave">
-          {`Mostrando ${MAXIMO_VISIVEL} de ${candidatas.length}. Digite parte do nome para achar outras pessoas.`}
+          Há muitas pessoas: digite parte do nome para achar quem você procura.
         </Texto>
       ) : null}
       {opcoes.length === 0 ? (

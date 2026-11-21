@@ -156,7 +156,7 @@ Coerente com o app (Encontro, Roteiro, Convocar, Aceitar):
 
 "Modo músico" e "Modo regente" são nomes de conversa. Na interface não aparecem como modos que a pessoa liga e desliga: a tela se ajusta ao que a pessoa é naquele encontro (convocada como músico vê Meu repertório; organizador vê também os botões de editar).
 
-Onde fica: atalho **Louvor** na aba Comunidade (junto aos módulos), o Repertório do encontro dentro do detalhe do Encontro (na etapa Louvor do Roteiro), e **Meu repertório** como cartão no Início e na aba Escalas quando a pessoa tem convocação de louvor.
+Onde fica (D62, 21/11/2026): atalho **Louvor** na aba Comunidade, **só para quem foi convocado ao louvor ou organiza** (não para todo membro); o Repertório do encontro dentro do detalhe do Encontro (na etapa Louvor do Roteiro); e **Meu repertório** como o botão "Abrir o repertório" do cartão do próximo encontro, no Início, para quem tem convocação de louvor aceita. O cartão "Meu repertório" do Início saiu: era mais um cartão para todos, e a maioria da comunidade não toca.
 
 ## 6. Telas
 

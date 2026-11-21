@@ -1,1 +1,1 @@
-export { TelaColarConvite as default } from '@/funcionalidades/convite/TelaColarConvite'
+export { FolhaDeConvite as default } from '@/funcionalidades/autenticacao/FolhaDeConvite'

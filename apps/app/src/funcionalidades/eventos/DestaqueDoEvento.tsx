@@ -10,7 +10,7 @@ import { dataDoInstante, formatarDuracao, formatarHora, hojeNoFuso } from '@/uti
 
 import { useMeuVinculo } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
-import { useResponderEscala } from '../escalas/consultas'
+import { confirmarQueNaoPodeIr, useResponderEscala } from '../escalas/consultas'
 import { MinhaInscricao } from '../inscricoes/MinhaInscricao'
 import { CHIP_DO_ESTADO_DA_ATRIBUICAO } from './nomes'
 import { podeIrAoVivo } from './regras'
@@ -127,9 +127,16 @@ function SuaParticipacao({
   const etapa = evento.etapas.find((e) => e.id === atribuicao.etapaId) ?? null
   const inicio = etapa?.inicioPrevisto ?? evento.inicio
   const duracao = etapa?.duracaoMin ?? evento.duracaoMin
-  const onde = etapa ? etapa.titulo : 'Encontro todo'
+  const onde = etapa ? etapa.titulo : 'Para o encontro inteiro'
   const chip = CHIP_DO_ESTADO_DA_ATRIBUICAO[atribuicao.estado]
   const funcao = primeiraMaiuscula(atribuicao.funcao)
+
+  // Pendente tem só duas saídas, "Aceitar" e "Não posso ir" (D62); "Pedir substituição" é de quem já aceitou.
+  async function naoPossoIr() {
+    if (await confirmarQueNaoPodeIr()) {
+      responder.mutate({ atribuicaoId: atribuicao.id, resposta: 'recusar' })
+    }
+  }
 
   const pedirSubstituicao = (
     <Botao
@@ -167,7 +174,13 @@ function SuaParticipacao({
                       responder.mutate({ atribuicaoId: atribuicao.id, resposta: 'confirmar' })
                     }
                   />
-                  {pedirSubstituicao}
+                  <Botao
+                    titulo="Não posso ir"
+                    variante="secundario"
+                    rotuloAcessivel={`Não posso ir: avisar a organização sobre ${funcao} em ${onde}`}
+                    carregando={responder.isPending}
+                    aoPressionar={() => void naoPossoIr()}
+                  />
                 </ParDeBotoes>
               ),
             }

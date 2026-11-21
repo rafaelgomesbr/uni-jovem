@@ -2,13 +2,12 @@ import { ATRIBUICAO, versiculoDoDia } from '@uj/conteudo'
 import { ESPACO } from '@uj/tokens'
 import { router } from 'expo-router'
 import { useEffect, useState } from 'react'
-import { AppState, Pressable, View } from 'react-native'
+import { AppState, useWindowDimensions, View } from 'react-native'
 
-import { Aparecer } from '@/ui/Aparecer'
+import { Acordeao, reiniciarAcordeoesDaSessao } from '@/ui/Acordeao'
 import { Botao } from '@/ui/Botao'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Icone } from '@/ui/Icone'
-import { ALVO } from '@/ui/medidas'
 import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
 
@@ -30,19 +29,30 @@ export function useHoje(): Date {
 const SIGLA = /\(([^)]+)\)/.exec(ATRIBUICAO.traducao)?.[1] ?? ATRIBUICAO.traducao
 
 /**
- * A escolha da pessoa vale só enquanto o app está aberto (D59): nada vai para
- * o aparelho nem para o servidor. Sem isso, trocar de visão no Início
- * recolheria o versículo de novo.
+ * Os colchetes da Bíblia Livre marcam palavras que o tradutor acrescentou;
+ * para quem lê parecem erro de digitação (D62, Q7). A explicação continua em
+ * "Sobre a tradução".
  */
-let abertoNestaSessao = false
+export function semColchetes(texto: string): string {
+  return texto.replace(/\[([^\]]*)\]/g, '$1')
+}
 
-/** Só para os testes: cada teste começa com o versículo recolhido, como numa sessão nova. */
+/** As primeiras palavras do texto, para a linha recolhida: `“Não fostes vós que me escolhestes…”`. */
+export function comecoDoVersiculo(texto: string, palavras = 7): string {
+  const todas = semColchetes(texto).split(/\s+/).filter(Boolean)
+  const inicio = todas
+    .slice(0, palavras)
+    .join(' ')
+    .replace(/[\s,;:.!?]+$/, '')
+  return `“${inicio}${todas.length > palavras ? '…' : ''}”`
+}
+
+/** Para os testes: o versículo recolhido na sessão nova (a escolha mora no `Acordeao`). */
 export function reiniciarVersiculoDaSessao(): void {
-  abertoNestaSessao = false
+  reiniciarAcordeoesDaSessao()
 }
 
 interface Props {
-  comAtalho?: boolean
   /**
    * Sempre aberto, sem a linha que recolhe: a tela cheia do versículo, onde a
    * pessoa foi justamente para ler.
@@ -52,27 +62,24 @@ interface Props {
 
 /**
  * Versículo do dia (o mesmo para todos na mesma data, sem depender de
- * comunidade). Nas telas de navegação aparece RECOLHIDO (D59): uma linha com
- * o rótulo, a referência e o chevron; tocar abre o texto e a tradução, tocar
- * de novo recolhe. Aberto, segue o mockup: texto de leitura 17/26
- * selecionável, 8, referência com a sigla da tradução. Com "Reduzir
- * movimento", abre sem animação.
+ * comunidade). Nas telas de navegação é uma linha fina de 44 pt sob a
+ * saudação (D62): ícone, o começo do texto entre aspas e o chevron; tocar abre
+ * o texto inteiro e a tradução, tocar de novo recolhe. Aberto, segue o
+ * mockup: texto de leitura 17/26 selecionável, referência com a sigla da
+ * tradução e "Sobre a tradução". Com fonte grande (1,35 ou mais) o começo vai
+ * a 2 linhas e a referência desce.
  */
-export function CartaoDoVersiculo({ comAtalho = false, fixoAberto = false }: Props) {
+export function CartaoDoVersiculo({ fixoAberto = false }: Props) {
   const v = versiculoDoDia(useHoje())
   const { cores } = useTema()
-  const [aberto, setAberto] = useState(abertoNestaSessao)
-  const mostrar = fixoAberto || aberto
-
-  function alternar() {
-    abertoNestaSessao = !aberto
-    setAberto(!aberto)
-  }
+  const { fontScale } = useWindowDimensions()
+  const fonteGrande = fontScale >= 1.35
+  const texto = semColchetes(v.texto)
 
   const conteudo = (
     <>
       <Texto variante="leitura" selectable>
-        {v.texto}
+        {texto}
       </Texto>
       <Texto variante="legenda" cor="textoSuave">
         {v.referencia} · {SIGLA}
@@ -86,15 +93,6 @@ export function CartaoDoVersiculo({ comAtalho = false, fixoAberto = false }: Pro
           aoPressionar={() => router.push('/versiculo/traducao')}
         />
       )}
-      {comAtalho ? (
-        <Botao
-          titulo="Horário e notificação"
-          variante="terciario"
-          alinhado
-          rotuloAcessivel={`Horário e notificação do versículo. Tradução: ${ATRIBUICAO.traducao}`}
-          aoPressionar={() => router.push('/versiculo')}
-        />
-      ) : null}
     </>
   )
 
@@ -107,32 +105,40 @@ export function CartaoDoVersiculo({ comAtalho = false, fixoAberto = false }: Pro
   }
 
   return (
-    <CartaoDeVidro intervalo={ESPACO.e8}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Versículo do dia, ${v.referencia}. ${mostrar ? 'Recolher texto' : 'Mostrar texto'}`}
-        aria-expanded={mostrar}
-        onPress={alternar}
-        style={{
-          minHeight: ALVO,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: ESPACO.e8,
-        }}
-      >
-        <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', columnGap: ESPACO.e8 }}>
-          <Texto variante="sobrancelha" accessibilityRole="text">
-            Versículo do dia
-          </Texto>
-          <Texto variante="legenda" cor="textoSuave" accessibilityRole="text">
-            {v.referencia}
-          </Texto>
+    <Acordeao
+      chave="versiculo"
+      rotuloRecolhido={`Versículo do dia, ${v.referencia}. Recolhido. Toque para ler.`}
+      rotuloAberto={`Versículo do dia, ${v.referencia}. Aberto. Toque para recolher.`}
+      cabecalho={(aberto) => (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e12 }}>
+          <Icone nome="versiculo" cor={cores.textoSuave} tamanho={18} />
+          <View style={{ flex: 1 }}>
+            {aberto ? (
+              <Texto variante="rotulo" cor="textoSuave" accessibilityRole="text">
+                Versículo do dia
+              </Texto>
+            ) : (
+              <>
+                <Texto
+                  variante="corpo"
+                  cor="textoSuave"
+                  numberOfLines={fonteGrande ? 2 : 1}
+                  accessibilityRole="text"
+                >
+                  {comecoDoVersiculo(v.texto)}
+                </Texto>
+                {fonteGrande ? (
+                  <Texto variante="legenda" cor="textoSuave" accessibilityRole="text">
+                    {v.referencia}
+                  </Texto>
+                ) : null}
+              </>
+            )}
+          </View>
         </View>
-        <View style={{ transform: [{ rotate: mostrar ? '180deg' : '0deg' }] }}>
-          <Icone nome="abrirLista" cor={cores.textoSuave} tamanho={14} peso="semibold" />
-        </View>
-      </Pressable>
-      {mostrar ? <Aparecer style={{ gap: ESPACO.e8 }}>{conteudo}</Aparecer> : null}
-    </CartaoDeVidro>
+      )}
+    >
+      <CartaoDeVidro intervalo={ESPACO.e8}>{conteudo}</CartaoDeVidro>
+    </Acordeao>
   )
 }

@@ -9,6 +9,7 @@ import type { ListaDeCheckin, Presenca } from '@/servicos/contratoDosEventos'
 import { SemConexao } from '@/servicos/erros'
 import { Aviso } from '@/ui/Aviso'
 import { Botao, BotaoIcone } from '@/ui/Botao'
+import { BotaoDeLinha } from '@/ui/BotaoDeLinha'
 import { Campo, CampoDeBusca } from '@/ui/Campo'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Chip } from '@/ui/Chip'
@@ -59,7 +60,7 @@ export function montarListaDeCheckin(lista: ListaDeCheckin): PessoaDoCheckin[] {
   const inscritos: PessoaDoCheckin[] = lista.inscritos.map((i) => ({
     chave: `i-${i.inscricaoId}`,
     nome: i.nome,
-    detalhe: [i.estado === 'espera' ? 'Lista de espera' : 'Inscrição confirmada', i.telefone]
+    detalhe: [i.estado === 'espera' ? 'Lista de espera' : 'Inscrito', i.telefone]
       .filter(Boolean)
       .join(' · '),
     presente: i.presente,
@@ -73,7 +74,8 @@ export function montarListaDeCheckin(lista: ListaDeCheckin): PessoaDoCheckin[] {
     .map((m) => ({
       chave: `m-${m.vinculoId}`,
       nome: m.nome,
-      detalhe: 'Membro sem inscrição',
+      // Só a exceção ganha texto: "Membro sem inscrição" em 15 linhas seguidas era ruído (D62).
+      detalhe: '',
       presente: m.presente,
       alvo: { vinculoId: m.vinculoId },
       inscricaoId: null,
@@ -101,7 +103,7 @@ const MAXIMO_SEM_BUSCA = 40
 
 /**
  * Rota `/evento/[eventoId]/checkin`. O caminho principal não depende de
- * câmera: buscar o nome e tocar em "Marcar". O QR é um atalho.
+ * câmera: buscar o nome e tocar na linha de quem chegou. O QR é um atalho.
  */
 export function TelaCheckin() {
   const { comunidadeAtiva } = useSessao()
@@ -128,7 +130,7 @@ export function TelaCheckin() {
 
 /**
  * Check-in (3.5.2): o contador, a busca com o "Ler QR" ao lado, o cartão
- * lista de pessoas ("Marcar" ou o chip "Presente") e os cartões "PELO
+ * lista de pessoas (a linha toda marca "Chegou"; depois vira o chip "Presente") e os cartões "PELO
  * CÓDIGO" e "CHEGOU SEM INSCRIÇÃO", cada um com campo e botão de 48 na mesma
  * linha. Confirmações em toast, com "Desfazer"; sem conexão, a presença fica
  * anotada no aparelho e a confirmação aparece na tela.
@@ -209,6 +211,9 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
     )
   }
 
+  const marcando = (nome: string) =>
+    (marcar.isPending && marcar.variables?.nome === nome) ||
+    (marcarLocal.isPending && marcarLocal.variables?.nome === nome)
   const dadosDaLista = usarLocal ? listaLocal : lista.data
   const pessoas = dadosDaLista ? montarListaDeCheckin(dadosDaLista) : []
   const filtradas = filtrarPorNome(pessoas, busca)
@@ -352,7 +357,8 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
                     key={p.chave}
                     avatar={{ nome: p.nome }}
                     titulo={p.nome}
-                    descricao={p.detalhe}
+                    {...(p.detalhe ? { descricao: p.detalhe } : {})}
+                    semSeta
                     {...(p.presente
                       ? {
                           extra: (
@@ -361,23 +367,14 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
                               {local ? <Chip texto="Neste aparelho" tom="alerta" /> : null}
                             </View>
                           ),
-                          semSeta: true,
-                          rotuloAcessivel: `${p.nome}. ${p.detalhe}. Presente${local ? ', anotada neste aparelho' : ''}. Abrir opções`,
+                          rotuloAcessivel: `${[p.nome, p.detalhe].filter(Boolean).join('. ')}. Presente${local ? ', anotada neste aparelho' : ''}. Abrir opções`,
                           aoPressionar: () => setEscolhida(p),
                         }
                       : {
-                          extra: (
-                            <Botao
-                              titulo="Marcar"
-                              variante="secundario"
-                              rotuloAcessivel={`Marcar presença: ${p.nome}`}
-                              carregando={
-                                (marcar.isPending && marcar.variables?.nome === p.nome) ||
-                                (marcarLocal.isPending && marcarLocal.variables?.nome === p.nome)
-                              }
-                              aoPressionar={() => registrar(p.alvo, p.nome)}
-                            />
-                          ),
+                          // A linha inteira é o alvo; o "Chegou" é só o desenho do botão.
+                          extra: <BotaoDeLinha texto={marcando(p.nome) ? 'Marcando…' : 'Chegou'} />,
+                          rotuloAcessivel: `Chegou: ${p.nome}. Marcar presença`,
+                          aoPressionar: () => registrar(p.alvo, p.nome),
                         })}
                   />
                 )

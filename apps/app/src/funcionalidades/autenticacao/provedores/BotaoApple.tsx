@@ -2,7 +2,7 @@ import * as AppleAuthentication from 'expo-apple-authentication'
 import * as Crypto from 'expo-crypto'
 import { useEffect, useState } from 'react'
 
-import { BotaoDeAcessoRapido } from '@/ui/BotaoDeAcessoRapido'
+import { BotaoDeAcesso, type NivelDoAcesso } from '@/ui/BotaoDeAcesso'
 
 import { appleNaPlataforma } from './configuracao'
 
@@ -47,29 +47,47 @@ export async function pedirCredencialDaApple({
   }
 }
 
-/** A Apple só oferece o pedido no iOS 13+ e com conta Apple no aparelho. */
-export function useAppleDisponivel(): boolean {
-  const [disponivel, setDisponivel] = useState(false)
+export type EstadoDaApple = 'consultando' | 'sim' | 'nao'
+
+/**
+ * A Apple só oferece o pedido no iOS 13+ e com conta Apple no aparelho. A
+ * resposta é assíncrona: `consultando` deixa a tela esperar, para não trocar o
+ * botão principal (Apple ou Google) depois de desenhado.
+ */
+export function useEstadoDaApple(): EstadoDaApple {
+  const [estado, setEstado] = useState<EstadoDaApple>(appleNaPlataforma() ? 'consultando' : 'nao')
   useEffect(() => {
     if (!appleNaPlataforma()) return
     let vivo = true
     AppleAuthentication.isAvailableAsync()
       .then((sim) => {
-        if (vivo) setDisponivel(sim)
+        if (vivo) setEstado(sim ? 'sim' : 'nao')
       })
-      .catch(() => undefined)
+      .catch(() => {
+        if (vivo) setEstado('nao')
+      })
     return () => {
       vivo = false
     }
   }, [])
-  return disponivel
+  return estado
+}
+
+/** A Apple está disponível neste aparelho? */
+export function useAppleDisponivel(): boolean {
+  return useEstadoDaApple() === 'sim'
 }
 
 interface PropsDoBotaoApple {
   /** `continuar` ("Continuar com a Apple", o padrão) ou `entrar` ("Entrar com a Apple"). */
   tipo?: 'entrar' | 'continuar'
+  nivel?: NivelDoAcesso
+  selo?: string
   carregando?: boolean
+  /** Depois de entrar: o indicador vira um check. */
+  sucesso?: boolean
   desabilitado?: boolean
+  disparoDeErro?: number
   aoPressionar: () => void
 }
 
@@ -82,18 +100,26 @@ interface PropsDoBotaoApple {
  */
 export function BotaoApple({
   tipo = 'continuar',
+  nivel = 'primario',
+  selo,
   carregando = false,
+  sucesso = false,
   desabilitado = false,
+  disparoDeErro = 0,
   aoPressionar,
 }: PropsDoBotaoApple) {
   const disponivel = useAppleDisponivel()
   if (!disponivel) return null
   return (
-    <BotaoDeAcessoRapido
+    <BotaoDeAcesso
       marca="apple"
+      nivel={nivel}
       titulo={tipo === 'continuar' ? 'Continuar com a Apple' : 'Entrar com a Apple'}
+      {...(selo ? { selo } : {})}
       carregando={carregando}
+      sucesso={sucesso}
       inativo={desabilitado}
+      disparoDeErro={disparoDeErro}
       aoPressionar={aoPressionar}
     />
   )

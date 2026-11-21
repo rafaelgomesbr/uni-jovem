@@ -169,7 +169,9 @@ describe('detalhe do evento', () => {
     const usuario = userEvent.setup()
     await usuario.press(await screen.findByRole('radio', { name: 'Convocados' }))
     expect(screen.queryByText(/^Rascunho: ninguém recebe/)).toBeNull()
-    await usuario.press(screen.getByRole('button', { name: 'Convocar pessoa: encontro todo' }))
+    await usuario.press(
+      screen.getByRole('button', { name: 'Convocar pessoa: para o encontro inteiro' }),
+    )
     await usuario.press(await screen.findByRole('radio', { name: 'Carla Dias' }))
     await usuario.press(screen.getByRole('button', { name: 'Convocar' }))
     await waitFor(() =>
@@ -177,6 +179,42 @@ describe('detalhe do evento', () => {
         texto: 'Convocação enviada. A resposta aparece aqui.',
       }),
     )
+  })
+
+  test('a folha de convocar fala em palavras de gente (D62): Quem conduz, Quem ajuda, Outra função', async () => {
+    const quinze = Array.from({ length: 15 }, (_, i) => ({
+      vinculoId: `22222222-2222-4222-8222-0000000001${String(i).padStart(2, '0')}`,
+      contaId: `conta-${i + 10}`,
+      nome: `Pessoa ${String(i + 1).padStart(2, '0')}`,
+      papel: 'membro',
+      estado: 'ativo',
+      designacoes: [],
+      email: null,
+      whatsapp: null,
+      criador: false,
+      desde: '2026-01-01T00:00:00.000Z',
+    }))
+    await montar(
+      'organizador',
+      { [`GET ${BASE}/membros`]: () => ({ status: 200, corpo: { membros: quinze } }) },
+      eventoDeTeste({ atribuicoes: [] }),
+    )
+    const usuario = userEvent.setup()
+    await usuario.press(await screen.findByRole('radio', { name: 'Convocados' }))
+    await usuario.press(screen.getByRole('button', { name: 'Convocar pessoa' }))
+
+    expect(await screen.findByRole('radio', { name: 'Quem ajuda' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Quem conduz' })).toBeOnTheScreen()
+    expect(screen.getByRole('radio', { name: 'Outra função' })).toBeOnTheScreen()
+    expect(screen.queryByRole('radio', { name: 'Responsável' })).toBeNull()
+    expect(screen.queryByRole('radio', { name: 'Integrante' })).toBeNull()
+
+    // Busca com rótulo simples, sem "(pessoa)" repetido, e todos os 15 de uma vez, sem "Mostrando 8 de 15".
+    expect(screen.getByLabelText('Buscar pelo nome')).toBeOnTheScreen()
+    expect(screen.queryByLabelText(/^Buscar pessoa/)).toBeNull()
+    expect(await screen.findByRole('radio', { name: 'Pessoa 15' })).toBeOnTheScreen()
+    expect(screen.getAllByRole('radio', { name: /^Pessoa \d\d$/ })).toHaveLength(15)
+    expect(screen.queryByText(/Mostrando/)).toBeNull()
   })
 
   test('ninguém convocado: o estado vazio convida a convocar e abre a folha', async () => {
@@ -314,6 +352,13 @@ describe('detalhe do evento', () => {
     )
     expect(await screen.findByText('Sua participação')).toBeOnTheScreen()
     expect(screen.getByRole('button', { name: 'Aceitar: Violão em Louvor' })).toBeOnTheScreen()
+    // Pendente: "Aceitar" e "Não posso ir"; "Pedir substituição" só depois de aceitar (D62).
+    expect(
+      screen.getByRole('button', {
+        name: 'Não posso ir: avisar a organização sobre Violão em Louvor',
+      }),
+    ).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: /^Pedir substituição/ })).toBeNull()
     // A inscrição continua a um toque, mas fora do cartão de destaque.
     expect(screen.getByRole('button', { name: 'Inscrever-me' })).toBeOnTheScreen()
   })

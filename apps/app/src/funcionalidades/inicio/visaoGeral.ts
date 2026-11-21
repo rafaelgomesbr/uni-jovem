@@ -15,9 +15,13 @@ export function useMinhaVisaoGeral(comunidadeId: string) {
   })
 }
 
-/** Os números da comunidade inteira: só organizador e administrador (membro recebe 403). */
-export function useVisaoGeralDaComunidade(comunidadeId: string) {
+/**
+ * Os números da comunidade inteira: só organizador e administrador (membro
+ * recebe 403, por isso nem pede: `habilitada` fica falso).
+ */
+export function useVisaoGeralDaComunidade(comunidadeId: string, habilitada = true) {
   return useQuery({
+    enabled: habilitada,
     queryKey: CHAVES.visaoGeral(comunidadeId, 'comunidade'),
     queryFn: () =>
       api.get<VisaoGeralDaComunidade>(

@@ -62,3 +62,46 @@ export function problemaDaSenha(
   if (senha !== confirmacao) return 'As duas senhas não são iguais.'
   return null
 }
+
+/**
+ * Status vivo da senha nova (D63), numa linha só, em texto: sem lista longa de
+ * regras. Vazio, a ajuda; abaixo do mínimo, quanto já foi; no mínimo, "Senha boa."
+ */
+export function statusDaSenha(senha: string): { texto: string; ok: boolean } {
+  const tamanho = [...senha].length
+  if (tamanho === 0) {
+    return {
+      texto: `Pelo menos ${SENHA_MINIMO} caracteres. Uma frase curta funciona bem.`,
+      ok: false,
+    }
+  }
+  if (tamanho < SENHA_MINIMO)
+    return { texto: `${tamanho} de ${SENHA_MINIMO} caracteres`, ok: false }
+  return { texto: 'Senha boa.', ok: true }
+}
+
+/**
+ * O erro da senha nova ao continuar (D63), em linguagem humana e sem pedir a
+ * senha duas vezes (o botão Mostrar substitui a confirmação). Espelha a API:
+ * comprimento, repetição e senha que lembra o e-mail ou o nome.
+ */
+export function erroDaSenhaNova(
+  senha: string,
+  dados: { nome?: string | undefined; email?: string | undefined } = {},
+): string | null {
+  if (!senha) return 'Crie uma senha.'
+  const tamanho = [...senha].length
+  if (tamanho < SENHA_MINIMO) {
+    const falta = SENHA_MINIMO - tamanho
+    return `Faltam ${falta} ${falta === 1 ? 'caractere' : 'caracteres'}. Use pelo menos ${SENHA_MINIMO}; uma frase curta funciona.`
+  }
+  if (tamanho > SENHA_MAXIMO) return `A senha pode ter no máximo ${SENHA_MAXIMO} caracteres.`
+  const regras = avaliarSenha(senha, dados)
+  if (regras.find((r) => r.id === 'repeticao')?.atendida === false) {
+    return 'Misture letras ou palavras. Repetir o mesmo caractere é fácil de adivinhar.'
+  }
+  if (regras.find((r) => r.id === 'pessoal')?.atendida === false) {
+    return 'Essa senha lembra seu e-mail ou seu nome. Escolha uma que só você saiba.'
+  }
+  return null
+}

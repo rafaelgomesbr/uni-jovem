@@ -69,7 +69,7 @@ export function useDisponibilidade(
   })
 }
 
-/** Tudo que mostra escala depende destas três listas, mais o Início e o evento. */
+/** Tudo que mostra escala depende destas três listas, mais o Início, o resumo e o evento. */
 export function useInvalidarEscalas(comunidadeId: string) {
   const consultas = useQueryClient()
   return async () => {
@@ -79,6 +79,8 @@ export function useInvalidarEscalas(comunidadeId: string) {
       consultas.invalidateQueries({ queryKey: CHAVES.aguardandoResposta(comunidadeId) }),
       consultas.invalidateQueries({ queryKey: CHAVES.inicio(comunidadeId) }),
       consultas.invalidateQueries({ queryKey: ['c', comunidadeId, 'evento'] }),
+      // O resumo do Início conta convocações e pedidos de substituição.
+      consultas.invalidateQueries({ queryKey: ['c', comunidadeId, 'eventos', 'visao-geral'] }),
     ])
   }
 }

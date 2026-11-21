@@ -98,6 +98,21 @@ describe('check-in sem câmera', () => {
     expect(screen.getByRole('button', { name: 'Ler QR' })).toBeOnTheScreen()
   })
 
+  test('a linha inteira é o alvo: "Chegou" no desenho do botão, sem "Membro sem inscrição" repetido (D62)', async () => {
+    await montar()
+    // O membro sem inscrição não ganha texto repetido: só a exceção (quem se inscreveu) é dita.
+    expect(
+      await screen.findByRole('button', { name: 'Chegou: Carla Dias. Marcar presença' }),
+    ).toBeOnTheScreen()
+    expect(screen.queryByText('Membro sem inscrição')).toBeNull()
+    expect(screen.getAllByText('Chegou').length).toBeGreaterThan(0)
+    // Quem está presente mostra o chip "Presente", com marca e texto, no lugar do "Chegou".
+    expect(screen.getByText('Presente')).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: /^Chegou: Bruno Lima/ })).toBeNull()
+    // Inscrito ganha a palavra curta "Inscrito".
+    expect(screen.getAllByText('Inscrito').length).toBeGreaterThan(0)
+  })
+
   test('busca pelo nome e marca a presença da inscrição, com chave de idempotência', async () => {
     const { servidor } = await montar({
       [`POST ${CAMINHO}/presencas`]: () => ({
@@ -111,7 +126,7 @@ describe('check-in sem câmera', () => {
     expect(screen.queryByText('Carla Dias')).toBeNull()
     await userEvent
       .setup()
-      .press(screen.getByRole('button', { name: 'Marcar presença: Daniela Prado' }))
+      .press(screen.getByRole('button', { name: 'Chegou: Daniela Prado. Marcar presença' }))
 
     await waitFor(() =>
       expect(pedidosPara(servidor, 'POST', `${CAMINHO}/presencas`)[0]?.corpo).toMatchObject({
@@ -144,7 +159,7 @@ describe('check-in sem câmera', () => {
     expect(await screen.findAllByText('Bruno Lima')).toHaveLength(1)
     await userEvent
       .setup()
-      .press(screen.getByRole('button', { name: 'Marcar presença: Carla Dias' }))
+      .press(screen.getByRole('button', { name: 'Chegou: Carla Dias. Marcar presença' }))
     await waitFor(() =>
       expect(pedidosPara(servidor, 'POST', `${CAMINHO}/presencas`)[0]?.corpo).toMatchObject({
         vinculoId: PESSOAS[2]!.vinculoId,

@@ -40,12 +40,7 @@ import {
   useMudarVisibilidade,
   usePedidoDeOracao,
 } from './consultas'
-import {
-  AVISO_DO_TEXTO,
-  entenderComoEGuardado,
-  estadoDoAnonimato,
-  TEXTO_DO_ANONIMATO_DA_ORACAO,
-} from './TelaNovoPedido'
+import { AVISO_DO_TEXTO, entenderComoEGuardado, estadoDoAnonimato } from './TelaNovoPedido'
 import {
   ampliando,
   explicarVisibilidade,
@@ -296,9 +291,6 @@ function MudarAnonimato({
         descricao={estadoDoAnonimato(pedido.anonimo)}
         desabilitado={mudar.isPending}
       />
-      <Texto variante="legenda" cor="textoSuave">
-        {TEXTO_DO_ANONIMATO_DA_ORACAO}
-      </Texto>
       {ehErroDaApi(mudar.error, 'conflito') ? (
         <AvisoDeFalha erro={mudar.error} titulo="O pedido mudou" aoTentarDeNovo={recarregar} />
       ) : mudar.error ? (
