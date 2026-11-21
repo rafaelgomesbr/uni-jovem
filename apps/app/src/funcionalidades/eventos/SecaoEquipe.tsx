@@ -1,4 +1,11 @@
-import { useState } from 'react'
+import {
+  agruparBanda,
+  ehEtapaDeLouvor,
+  FUNCOES_PARA_CONVOCAR_NO_LOUVOR,
+  resumoDaBanda,
+} from '@uj/dominio'
+import { useState, type ReactNode } from 'react'
+import { View } from 'react-native'
 
 import type { Atribuicao, DetalheDoEvento } from '@/servicos/contratoDosEventos'
 import { Aviso } from '@/ui/Aviso'
@@ -7,10 +14,12 @@ import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Chip } from '@/ui/Chip'
 import { EstadoVazio } from '@/ui/EstadoVazio'
 import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
+import { Secao } from '@/ui/Secao'
 import { Texto } from '@/ui/Texto'
 import { formatarHora } from '@/utilidades/datas'
 
 import { usePode } from '../comunidade/permissoes'
+import { BotaoAvisarABanda } from '../repertorio/BotaoAvisarABanda'
 import {
   AVISO_DE_RASCUNHO,
   FolhaDeConvocar,
@@ -110,6 +119,20 @@ export function SecaoEquipe({
             aoPressionar={() => abrirFolha(g.id)}
           />
         ) : undefined
+        const etapaDoGrupo = evento.etapas.find((e) => e.id === g.id)
+        if (etapaDoGrupo && ehEtapaDeLouvor(etapaDoGrupo.titulo)) {
+          return (
+            <GrupoDoLouvor
+              key={g.id}
+              titulo={g.titulo}
+              pessoas={pessoas}
+              acao={acoes}
+              evento={evento}
+              comunidadeId={comunidadeId}
+              aoEscolher={atribuir ? setEscolhida : undefined}
+            />
+          )
+        }
         return pessoas.length ? (
           <CartaoDeVidro key={g.id} lista sobrancelha={g.titulo} {...(acoes ? { acoes } : {})}>
             <Lista>
@@ -145,5 +168,76 @@ export function SecaoEquipe({
         </>
       ) : null}
     </>
+  )
+}
+
+/**
+ * Convocados da etapa do Louvor (D61): um bloco por função da banda (Vocal,
+ * Violão, Guitarra...), o resumo "5 de 7 aceitaram. Falta: bateria" e o
+ * "Avisar a banda". A função de cada pessoa continua sendo o texto da
+ * convocação; aqui só é lida pela lista padrão. Quem convoca vê também as
+ * funções da banda que ainda estão sem ninguém.
+ */
+function GrupoDoLouvor({
+  titulo,
+  pessoas,
+  acao,
+  evento,
+  comunidadeId,
+  aoEscolher,
+}: {
+  titulo: string
+  pessoas: Atribuicao[]
+  acao: ReactNode
+  evento: DetalheDoEvento
+  comunidadeId: string
+  aoEscolher: ((a: Atribuicao) => void) | undefined
+}) {
+  const resumo = resumoDaBanda(pessoas)
+  const blocos = agruparBanda(pessoas).filter((g) => g.pessoas.length > 0)
+  const semNinguem = FUNCOES_PARA_CONVOCAR_NO_LOUVOR.filter(
+    (f) => !blocos.some((g) => g.funcao === f),
+  )
+  return (
+    <Secao titulo={titulo} {...(acao ? { acao } : {})}>
+      {pessoas.length === 0 ? (
+        <CartaoDeVidro>
+          <Texto variante="corpo" cor="textoSuave">
+            Ninguém convocado ainda.
+          </Texto>
+        </CartaoDeVidro>
+      ) : (
+        <>
+          {resumo.faltam.length > 0 ? (
+            <Aviso tipo="alerta" titulo={resumo.texto} />
+          ) : (
+            <Texto variante="corpo">{resumo.texto}</Texto>
+          )}
+          {blocos.map((b) => (
+            <CartaoDeVidro key={b.funcao} lista sobrancelha={`${b.funcao} · ${b.pessoas.length}`}>
+              <Lista>
+                {b.pessoas.map((a) =>
+                  linhaDaPessoaEscalada(a, aoEscolher ? () => aoEscolher(a) : undefined),
+                )}
+              </Lista>
+            </CartaoDeVidro>
+          ))}
+          {aoEscolher && semNinguem.length > 0 ? (
+            <Texto variante="meta" cor="textoSuave">
+              {`Ninguém convocado: ${semNinguem.map((f) => f.toLowerCase()).join(', ')}.`}
+            </Texto>
+          ) : null}
+        </>
+      )}
+      {aoEscolher ? (
+        <View style={{ flexDirection: 'row' }}>
+          <BotaoAvisarABanda
+            comunidadeId={comunidadeId}
+            eventoId={evento.id}
+            publicado={evento.status === 'publicado'}
+          />
+        </View>
+      ) : null}
+    </Secao>
   )
 }

@@ -71,6 +71,10 @@ const ROTULO_DO_CAMPO: Record<string, string> = {
   artista: 'o artista',
   cifra: 'a cifra',
   tom: 'o tom',
+  tomDoDia: 'o tom do dia',
+  andamentoBpm: 'o andamento',
+  duracaoSeg: 'a duração',
+  nota: 'a observação',
   detalhe: 'o detalhe',
   resolucao: 'a resolução',
   senha: 'a senha',
@@ -168,6 +172,13 @@ export function traduzirErroDoBanco(e: unknown): never {
       'limite_de_avisos',
       429,
       'Muitos avisos publicados na última hora. Espere um pouco antes de publicar outro.',
+    )
+  }
+  if (erro.code === 'UJ100') {
+    throw new ErroHttp(
+      'direitos_nao_confirmados',
+      400,
+      'Confirme que a sua comunidade pode usar esta letra e esta cifra antes de salvar.',
     )
   }
   if (erro.code === 'UJ070') {

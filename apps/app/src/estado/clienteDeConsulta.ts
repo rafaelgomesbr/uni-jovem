@@ -27,6 +27,10 @@ export const CHAVES = {
   /** Sob o prefixo dos eventos: convocar, responder, concluir tarefa ou registrar presença recarrega. */
   visaoGeral: (id: string, escopo: 'minha' | 'comunidade') =>
     ['c', id, 'eventos', 'visao-geral', escopo] as const,
+  /** Sob o prefixo dos eventos: convocar, responder ou mexer no encontro recarrega. */
+  repertorio: (id: string, eventoId: string) =>
+    ['c', id, 'eventos', 'repertorio', eventoId] as const,
+  meuRepertorio: (id: string) => ['c', id, 'eventos', 'meu-repertorio'] as const,
   substituicoes: (id: string) => ['c', id, 'substituicoes'] as const,
   disponibilidade: (id: string, de: string, ate: string) =>
     ['c', id, 'disponibilidade', de, ate] as const,

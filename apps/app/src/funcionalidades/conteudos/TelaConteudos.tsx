@@ -221,10 +221,19 @@ function ListaDoTipo({
                   {...(DE_PESSOA[def.tipo] ? { avatar: { nome } } : { icone: def.icone })}
                   titulo={nome}
                   descricao={descricao}
-                  rotuloAcessivel={[nome, descricao, arquivado ? def.arquivo.selo : null]
+                  rotuloAcessivel={[
+                    nome,
+                    descricao,
+                    arquivado ? def.arquivo.selo : null,
+                    def.tipo === 'musicas' && registro['temCifra'] === false ? 'Sem cifra' : null,
+                  ]
                     .filter(Boolean)
                     .join('. ')}
-                  {...(arquivado ? { extra: <Chip texto={def.arquivo.selo} tom="neutro" /> } : {})}
+                  {...(arquivado
+                    ? { extra: <Chip texto={def.arquivo.selo} tom="neutro" /> }
+                    : def.tipo === 'musicas' && registro['temCifra'] === false
+                      ? { extra: <Chip texto="Sem cifra" tom="neutro" /> }
+                      : {})}
                   aoPressionar={() =>
                     router.push({
                       pathname: '/conteudos/[tipo]/[itemId]',

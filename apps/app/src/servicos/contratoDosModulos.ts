@@ -68,6 +68,10 @@ export interface Musica extends Base {
   link: string | null
   /** Só no detalhe. */
   cifra?: string | null
+  /** A lista traz só isto (o selo "Sem cifra"), nunca o texto da cifra. Opcional: API antiga não manda. */
+  temCifra?: boolean
+  andamentoBpm?: number | null
+  duracaoSeg?: number | null
   observacoes: string | null
   arquivada: boolean
   musicos: { id: string; nome: string }[]

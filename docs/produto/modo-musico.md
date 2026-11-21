@@ -2,7 +2,7 @@
 
 Proposta de produto escrita em 21/11/2026, a partir do pedido do dono: "O app pode servir para maestros e regentes musicais: definir escalas de música e membros que vão compor o som. Talvez uma versão diferente para músicos, onde mostra as músicas e cifras. Melhorar a ideia."
 
-Este documento é uma proposta. Nada aqui foi construído nem decidido; o que muda o desenho está na seção 10, como pergunta ao dono.
+**Estado em 21/11/2026:** a **fatia 1 foi construída** (decisão D61 em [DECISOES.md](../DECISOES.md), migração 0027), com as respostas padrão às perguntas 1 a 3 da seção 10: só organizador e administrador editam o repertório, todo membro lê a cifra e não há músico convidado sem conta. A seção 9 diz o que a fatia 1 entregou e o que ficou para as fatias seguintes. O resto deste documento continua sendo o desenho: o que não é da fatia 1 segue como proposta, sem construção nem decisão, e a pergunta 4 (sinal de internet) decide se a fatia 2 sobe de prioridade.
 
 ## 1. Resumo e para quem é
 
@@ -303,6 +303,8 @@ Ordem pelo que prova o valor mais cedo. Esforço: pequena (poucos dias), média 
 
 ### Fatia 1 (recomendada): repertório do encontro, cifra com tom e Meu repertório
 
+> **Entregue em 21/11/2026 (D61, migração 0027), ainda sem uso real: falta a prova de valor em 3 sábados.** O que existe agora e o que ficou fora estão logo abaixo desta lista. Nada foi publicado: a mudança só chega ao aparelho num novo build e na implantação da 0027, que dependem do "sim" do dono.
+
 - **O que o dono ganha:** o regente monta o sábado do louvor no app; o músico abre a cifra certa, no tom certo, a partir do celular.
 - **O que muda no app:**
   - Música: andamento e formato ChordPro, transposição e capotraste, conversão de cifra colada, aviso de direitos.
@@ -313,6 +315,23 @@ Ordem pelo que prova o valor mais cedo. Esforço: pequena (poucos dias), média 
 - **Esforço:** média a grande. A transposição fica em `packages/dominio` como função pura e testável. A migração é pequena (colunas em `musicas`, uma tabela nova).
 - **Depende de:** nada novo. Usa Conteúdos, Convocados, Roteiro e notificações que já existem. Precisa só da decisão das perguntas 1 a 3 da seção 10.
 - **Prova de valor:** usar em 3 sábados reais antes de construir mais.
+
+**O que a fatia 1 entregou (21/11/2026):**
+
+- **Domínio (`packages/dominio`):** `cifra.ts` (ler e normalizar ChordPro, converter "acordes sobre a letra", transpor com grafia de ♯ ou ♭ pelo tom de chegada, acordes com baixo, `m7`, `sus4`, `dim`, `maj7`, capotraste com o tom que soa e o que se toca), `banda.ts` (lista padrão de funções, normalização do texto da convocação, resumo "5 de 7 aceitaram. Falta: bateria", louvor pela etapa ou pela função) e `repertorio.ts` (soma do tempo contra os minutos da etapa, duração m:ss).
+- **Banco e API:** colunas `andamento_bpm`, `duracao_seg` e `direito_confirmado_em` em `uj.musicas`; tabela `uj.repertorio_itens`; função `uj.avisar_banda`. Rotas: `GET`, `POST /eventos/:eventoId/repertorio`, `PATCH`, `DELETE /eventos/:eventoId/repertorio/:repertorioItemId`, `PUT .../repertorio/ordem`, `POST .../repertorio/avisar` e `GET /meu-repertorio`. As rotas de músicas aceitam `andamentoBpm`, `duracaoSeg` e `direitosConfirmados` e devolvem `temCifra`.
+- **App:** cifra no cadastro e na edição da música (dica de ChordPro, formato reconhecido, "Converter cifra colada", pré-visualização e aviso de direitos com confirmação); leitor de cifra com tom, capotraste e tamanho da letra em painel escuro; tela Repertório do encontro (adicionar da biblioteca, tom do dia, subir e descer por botão, tirar, Avisar a banda); Convocados do louvor agrupado por função com "Falta: bateria"; tela Meu repertório e leitura da cifra com anterior e próxima; cartão no Início; atalho Louvor na aba Comunidade.
+- **Permissões:** a matriz não mudou. Reaproveita `etapa.ler`, `etapa.gerenciar`, `escala.atribuir` e `escala.ler`; `docs/matriz-permissoes.md` continua igual ao gerado.
+
+**O que ficou para depois (não faz parte da fatia 1):**
+
+- **Fatia 2:** Modo palco (tela que não apaga, repertório e cifras no pacote offline e no cofre cifrado, "Deixar pronto sem internet", tamanho da letra lembrado por pessoa). Hoje a cifra só abre com internet.
+- **Fatia 3:** "Copiar de outro encontro", tom por vocalista, histórico ("tocada há 2 semanas"), materiais por música (vários links com tipo) e a categoria "Ensaio de louvor".
+- **Fatia 4:** "Meus instrumentos" e a folha de convocar sugerir primeiro quem tem o instrumento no cadastro de músico. Na fatia 1 a folha só oferece a lista padrão de funções.
+- **Fatia 5:** designação de regente (membro comum editando o repertório).
+- **Do desenho, não feito na fatia 1:** abas Materiais e Histórico na Música, filtros da biblioteca por tom e "tocadas recentemente", botão "Modo palco".
+- **Escolhas desta entrega:** não existe a coluna `formato_cifra` (o formato se deduz do texto, então cifra antiga continua abrindo e cifra colada em ChordPro passa a transpor sem migrar nada); "falta" conta só funções já convocadas (função convocada sem ninguém que aceitou); "Avisar a banda" não diz nome de música e respeita a preferência "Escalas" de cada pessoa.
+- **Pendências do dono (PH-11):** revisão jurídica do aviso de direitos autorais e do termo do administrador. A função não deve ser liberada às comunidades antes dela.
 
 ### Fatia 2: Modo palco e uso sem internet
 

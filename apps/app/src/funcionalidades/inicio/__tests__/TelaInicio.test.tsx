@@ -248,10 +248,15 @@ describe('tela Início', () => {
   })
 
   test('com inscrição próxima, mostra "Minhas inscrições" e abre o evento', async () => {
+    // Uma convocação que não é de louvor: o cartão "Meu repertório" (D61) não entra na conta dos 5.
+    const semLouvor = {
+      ...INICIO_CHEIO,
+      minhasEscalas: [{ ...INICIO_CHEIO.minhasEscalas[0]!, etapaTitulo: 'Palavra' }],
+    }
     await renderizarTela(<TelaInicio />, {
       rotas: {
         ...VISAO_PADRAO,
-        [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: INICIO_CHEIO }),
+        [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: semLouvor }),
         [`GET ${BASE}/inscricoes/eu`]: () => ({
           status: 200,
           corpo: {

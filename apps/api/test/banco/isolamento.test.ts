@@ -188,6 +188,20 @@ const CASOS: Record<string, Record<string, unknown> | undefined> = {
   'GET /api/v1/c/:comunidadeId/conteudos/dinamicas/:dinamicaId': undefined,
   'PATCH /api/v1/c/:comunidadeId/conteudos/dinamicas/:dinamicaId': { versao: 1, titulo: 'Tomada' },
   'DELETE /api/v1/c/:comunidadeId/conteudos/dinamicas/:dinamicaId': undefined,
+  // D61: repertório do encontro, avisar a banda e Meu repertório
+  'GET /api/v1/c/:comunidadeId/eventos/:eventoId/repertorio': undefined,
+  'POST /api/v1/c/:comunidadeId/eventos/:eventoId/repertorio': {
+    musicaId: '00000000-0000-4000-8000-000000000000',
+  },
+  'PATCH /api/v1/c/:comunidadeId/eventos/:eventoId/repertorio/:repertorioItemId': {
+    tomDoDia: 'A',
+  },
+  'DELETE /api/v1/c/:comunidadeId/eventos/:eventoId/repertorio/:repertorioItemId': undefined,
+  'PUT /api/v1/c/:comunidadeId/eventos/:eventoId/repertorio/ordem': {
+    ids: ['00000000-0000-4000-8000-000000000000'],
+  },
+  'POST /api/v1/c/:comunidadeId/eventos/:eventoId/repertorio/avisar': undefined,
+  'GET /api/v1/c/:comunidadeId/meu-repertorio': undefined,
   // F15: avisos
   'GET /api/v1/c/:comunidadeId/avisos': undefined,
   'POST /api/v1/c/:comunidadeId/avisos': { titulo: 'Invasão', texto: 'Texto', publicar: true },
@@ -371,6 +385,11 @@ beforeAll(async () => {
     'insert into uj.musica_musicos (comunidade_id, musica_id, musico_id) values ($1, $2, $3) returning id',
     [comB, idsDeB['musicaId'], idsDeB['musicoId']],
   )
+  idsDeB['repertorioItemId'] = await um(
+    `insert into uj.repertorio_itens (comunidade_id, evento_id, etapa_id, musica_id, ordem, tom_do_dia)
+     values ($1, $2, $3, $4, 0, 'G') returning id`,
+    [comB, eventoId, idsDeB['etapaId'], idsDeB['musicaId']],
+  )
   idsDeB['palestranteId'] = await um(
     "insert into uj.palestrantes (comunidade_id, nome, criado_por) values ($1, 'Palestrante de B', $2) returning id",
     [comB, adminB.id],
@@ -495,6 +514,8 @@ async function estadoDeB() {
             (select json_agg(row(titulo, versao) order by id) from uj.musicas where comunidade_id = $1) as mu,
             (select json_agg(row(nome, versao) order by id) from uj.musicos where comunidade_id = $1) as mo,
             (select count(*) from uj.musica_musicos where comunidade_id = $1) as mm,
+            (select json_agg(row(musica_id, ordem, tom_do_dia, nota, versao) order by id) from uj.repertorio_itens where comunidade_id = $1) as rp,
+            (select count(*) from uj.notificacoes where comunidade_id = $1) as nt,
             (select json_agg(row(nome, versao) order by id) from uj.palestrantes where comunidade_id = $1) as pa,
             (select json_agg(row(titulo, versao) order by id) from uj.dinamicas where comunidade_id = $1) as di,
             (select json_agg(row(titulo, estado, fixado, versao) order by id) from uj.avisos where comunidade_id = $1) as av,

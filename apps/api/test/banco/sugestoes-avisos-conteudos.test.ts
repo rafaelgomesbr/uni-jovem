@@ -231,6 +231,7 @@ describe('conteúdos', () => {
       tom: 'G',
       link: 'https://exemplo.test/musica',
       cifra: 'G D Em C',
+      direitosConfirmados: true,
     })
     expect(musica.statusCode).toBe(200)
     const musicaId = musica.json().id as string

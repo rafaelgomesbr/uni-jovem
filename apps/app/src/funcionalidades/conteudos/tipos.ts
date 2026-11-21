@@ -1,3 +1,5 @@
+import { formatarDuracaoDaMusica, lerDuracaoDaMusica, nomeDoTom } from '@uj/dominio'
+
 import type { TipoDeConteudo } from '@/servicos/contratoDosModulos'
 import type { NomeDoIcone } from '@/ui/Icone'
 
@@ -10,7 +12,10 @@ export interface DefinicaoDeCampo {
   multilinha?: boolean
   ajuda?: string
   /** Como o valor vai para a API. */
-  formato?: 'texto' | 'link' | 'numero' | 'lista'
+  formato?: 'texto' | 'link' | 'numero' | 'lista' | 'tom' | 'duracao' | 'cifra'
+  /** Para `numero`: o intervalo aceito (padrão 1 a 600) e a unidade mostrada ao lado. */
+  faixa?: readonly [number, number]
+  unidade?: string
 }
 
 export interface DefinicaoDoTipo {
@@ -50,7 +55,29 @@ export const TIPOS_DE_CONTEUDO: Readonly<Record<TipoDeConteudo, DefinicaoDoTipo>
     campos: [
       { campo: 'titulo', rotulo: 'Título', obrigatorio: true, min: 1, max: 120 },
       { campo: 'artista', rotulo: 'Artista ou ministério', max: 120 },
-      { campo: 'tom', rotulo: 'Tom', max: 12, ajuda: 'Por exemplo: G, Am, D#.' },
+      {
+        campo: 'tom',
+        rotulo: 'Tom',
+        max: 12,
+        formato: 'tom',
+        ajuda: 'O tom original da música. Por exemplo: G, Am, F#m, Bb.',
+      },
+      {
+        campo: 'andamentoBpm',
+        rotulo: 'Andamento (batidas por minuto)',
+        max: 3,
+        formato: 'numero',
+        faixa: [30, 300],
+        unidade: 'bpm',
+        ajuda: 'De 30 a 300. Pode deixar em branco.',
+      },
+      {
+        campo: 'duracaoSeg',
+        rotulo: 'Duração',
+        max: 5,
+        formato: 'duracao',
+        ajuda: 'Minutos e segundos, como 3:45. Ajuda a somar o tempo do repertório.',
+      },
       {
         campo: 'link',
         rotulo: 'Link (vídeo, cifra ou letra)',
@@ -58,7 +85,7 @@ export const TIPOS_DE_CONTEUDO: Readonly<Record<TipoDeConteudo, DefinicaoDoTipo>
         formato: 'link',
         ajuda: 'Um link que comece com https://.',
       },
-      { campo: 'cifra', rotulo: 'Cifra ou letra', max: 20000, multilinha: true },
+      { campo: 'cifra', rotulo: 'Cifra ou letra', max: 20000, multilinha: true, formato: 'cifra' },
       observacoes,
     ],
     arquivo: {
@@ -129,6 +156,8 @@ export const TIPOS_DE_CONTEUDO: Readonly<Record<TipoDeConteudo, DefinicaoDoTipo>
         rotulo: 'Duração em minutos',
         max: 3,
         formato: 'numero',
+        faixa: [1, 600],
+        unidade: 'min',
         ajuda: 'De 1 a 600.',
       },
       { campo: 'materiais', rotulo: 'Materiais', max: 2000, multilinha: true },
@@ -158,6 +187,37 @@ export function textoDoCampo(valor: unknown): string {
   return String(valor)
 }
 
+/** O valor do registro como o formulário e a leitura mostram (duração em minutos e segundos). */
+export function textoParaMostrar(c: DefinicaoDeCampo, valor: unknown): string {
+  if (c.formato === 'duracao')
+    return formatarDuracaoDaMusica(typeof valor === 'number' ? valor : null)
+  return textoDoCampo(valor)
+}
+
+/** Texto curto de aviso de direitos autorais, mostrado junto da cifra (D61). */
+export const AVISO_DE_DIREITOS =
+  'A cifra e a letra ficam só dentro da comunidade e não são públicas. Cadastre só o que a sua comunidade pode usar: por licença própria, autorização ou domínio público.'
+
+export const TEXTO_DA_CONFIRMACAO_DE_DIREITOS =
+  'Confirmo que a minha comunidade pode usar esta letra e cifra'
+
+/** Chave interna do formulário para a confirmação de direitos (não vai no corpo como campo). */
+export const CAMPO_DA_CONFIRMACAO = '__direitos'
+
+/**
+ * A cifra é nova ou mudou? Só nesse caso o aviso de direitos exige confirmação.
+ * Cifra apagada ou igual à salva não pede nada.
+ */
+export function exigeConfirmarDireitos(
+  def: DefinicaoDoTipo,
+  valores: Record<string, string>,
+  cifraSalva: string | null,
+): boolean {
+  if (def.tipo !== 'musicas') return false
+  const nova = (valores['cifra'] ?? '').trim()
+  return nova !== '' && nova !== (cifraSalva ?? '').trim()
+}
+
 /**
  * Valida o formulário e monta o corpo. Campos vazios viram `null` (apagam o
  * valor na edição); na criação, campos vazios simplesmente não vão.
@@ -183,9 +243,24 @@ export function montarCorpo(
         corpo[c.campo] = bruto
         break
       case 'numero': {
+        const [de, ate] = c.faixa ?? [1, 600]
         const n = Number(bruto)
-        if (!Number.isInteger(n) || n < 1 || n > 600) erros[c.campo] = 'Use um número de 1 a 600.'
+        if (!Number.isInteger(n) || n < de || n > ate) {
+          erros[c.campo] = `Use um número de ${de} a ${ate}.`
+        }
         corpo[c.campo] = n
+        break
+      }
+      case 'duracao': {
+        const segundos = lerDuracaoDaMusica(bruto)
+        if (segundos === null) erros[c.campo] = 'Use minutos e segundos, como 3:45.'
+        corpo[c.campo] = segundos
+        break
+      }
+      case 'tom': {
+        const tom = nomeDoTom(bruto)
+        if (tom === null) erros[c.campo] = 'Use um tom como G, Am, F#m ou Bb.'
+        corpo[c.campo] = tom
         break
       }
       case 'lista': {

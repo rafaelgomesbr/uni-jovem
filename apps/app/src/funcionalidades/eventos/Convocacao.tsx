@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
+import { ehEtapaDeLouvor, FUNCOES_DA_BANDA, type FuncaoDaBanda } from '@uj/dominio'
 import { useState } from 'react'
 
 import { api } from '@/servicos/api'
@@ -12,6 +13,7 @@ import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
 import { AvisoDeFalha } from '@/ui/Falha'
 import { FolhaNaTela, MenuDeAcoes } from '@/ui/FolhaNaTela'
+import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
 import { Segmentos } from '@/ui/Segmentos'
 import { mostrarToast } from '@/ui/Toast'
 import { confirmar } from '@/utilidades/confirmar'
@@ -96,6 +98,9 @@ export function FolhaDeConvocar({
   const [funcao, setFuncao] = useState<Funcao>(etapa ? 'responsável' : 'integrante')
   const [outra, setOutra] = useState('')
   const [erro, setErro] = useState<string | null>(null)
+  // Etapa do Louvor (D61): a função vem da lista padrão da banda, não de texto livre.
+  const louvor = etapa !== null && ehEtapaDeLouvor(etapa.titulo)
+  const [funcaoDaBanda, setFuncaoDaBanda] = useState<FuncaoDaBanda | null>(null)
   const dia = dataDoInstante(evento.inicio, evento.fuso)
   const disponibilidade = useDisponibilidade(comunidadeId, dia, dia, pode('disponibilidade', 'ler'))
   const indisponiveis = new Map(
@@ -113,7 +118,9 @@ export function FolhaDeConvocar({
   })
 
   function enviar() {
-    const nomeDaFuncao = funcao === 'outra' ? outra.trim() : funcao
+    const pedeNome = louvor ? funcaoDaBanda === 'Outro' : funcao === 'outra'
+    const nomeDaFuncao = pedeNome ? outra.trim() : louvor ? (funcaoDaBanda ?? '') : funcao
+    if (louvor && !funcaoDaBanda) return setErro('Escolha a função na banda.')
     if (!pessoa) return setErro('Escolha a pessoa.')
     if (nomeDaFuncao.length < 2) return setErro('Diga qual é a função.')
     setErro(null)
@@ -132,17 +139,36 @@ export function FolhaDeConvocar({
 
   return (
     <FolhaNaTela aberta={aberta} titulo="Convocar pessoa" aoFechar={aoFechar}>
-      <Segmentos
-        rotulo="Função"
-        valor={funcao}
-        aoMudar={setFuncao}
-        segmentos={[
-          { valor: 'responsável', rotulo: 'Responsável' },
-          { valor: 'integrante', rotulo: 'Integrante' },
-          { valor: 'outra', rotulo: 'Outra' },
-        ]}
-      />
-      {funcao === 'outra' ? (
+      {louvor ? (
+        <ListaDeOpcoes
+          rotulo="Função na banda"
+          valor={funcaoDaBanda}
+          aoMudar={setFuncaoDaBanda}
+          opcoes={FUNCOES_DA_BANDA.map((f) => ({ valor: f, rotulo: f }))}
+        />
+      ) : (
+        <Segmentos
+          rotulo="Função"
+          valor={funcao}
+          aoMudar={setFuncao}
+          segmentos={[
+            { valor: 'responsável', rotulo: 'Responsável' },
+            { valor: 'integrante', rotulo: 'Integrante' },
+            { valor: 'outra', rotulo: 'Outra' },
+          ]}
+        />
+      )}
+      {louvor ? (
+        funcaoDaBanda === 'Outro' ? (
+          <Campo
+            rotulo="Nome da função"
+            value={outra}
+            onChangeText={setOutra}
+            exemplo="Regência, percussão, backing"
+            maxLength={60}
+          />
+        ) : null
+      ) : funcao === 'outra' ? (
         <Campo
           rotulo="Nome da função"
           value={outra}

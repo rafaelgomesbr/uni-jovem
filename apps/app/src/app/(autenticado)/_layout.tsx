@@ -90,6 +90,11 @@ export default function LayoutAutenticado() {
           options={{ title: 'Etapa e equipe' }}
         />
         <Stack.Screen name="evento/[eventoId]/ao-vivo" options={{ title: 'Ao vivo' }} />
+        {/* Louvor (D61): repertório do encontro, Meu repertório e a cifra grande. */}
+        <Stack.Screen name="evento/[eventoId]/repertorio" options={{ title: 'Repertório' }} />
+        <Stack.Screen name="louvor" options={{ title: 'Louvor' }} />
+        <Stack.Screen name="meu-repertorio/index" options={{ title: 'Meu repertório' }} />
+        <Stack.Screen name="meu-repertorio/[eventoId]/[itemId]" options={{ title: 'Cifra' }} />
         <Stack.Screen name="evento/[eventoId]/inscricoes" options={{ title: 'Inscrições' }} />
         <Stack.Screen name="evento/[eventoId]/checkin" options={{ title: 'Check-in' }} />
         <Stack.Screen name="evento/[eventoId]/ler-qr" options={{ title: 'Ler QR', ...telaCheia }} />

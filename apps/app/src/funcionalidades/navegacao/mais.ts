@@ -45,6 +45,12 @@ export function useGruposDoMais(): GrupoDoMais[] {
       icone: 'sugestao',
     },
     {
+      href: '/louvor',
+      rotulo: 'Louvor',
+      descricao: 'Meu repertório, músicas, cifras e o repertório dos encontros.',
+      icone: 'musica',
+    },
+    {
       href: '/conteudos',
       rotulo: 'Conteúdos',
       descricao: 'Músicas, músicos, palestrantes e dinâmicas.',

@@ -191,6 +191,26 @@ async function main() {
     })
   }
 
+  // Louvor (D61): repertório do encontro, atalho Louvor e a música com cifra.
+  if (evento) {
+    await tentar('repertorio', async () => {
+      await irPara(admin, `/evento/${evento}/repertorio`)
+      await foto(admin, '28-repertorio-do-encontro')
+    })
+  }
+  await tentar('louvor', async () => {
+    await irPara(admin, '/louvor')
+    await foto(admin, '29-louvor')
+  })
+  await tentar('musicas', async () => {
+    await irPara(admin, '/conteudos?tipo=musicas')
+    await foto(admin, '30-musicas')
+  })
+  await tentar('nova-musica-com-cifra', async () => {
+    await irPara(admin, '/conteudos/musicas/novo')
+    await fotoEm(admin, /Cifra ou letra/, '31-musica-cifra-e-direitos')
+  })
+
   await tentar('oracao-anonima', async () => {
     await irPara(admin, '/oracao/novo')
     await fotoEm(admin, /Publicar como anônimo/, '27-oracao-anonima')
@@ -206,6 +226,17 @@ async function main() {
   await tentar('escalas', async () => {
     await irPara(membro, '/escalas')
     await foto(membro, '24-minhas-convocacoes')
+  })
+  await tentar('meu-repertorio', async () => {
+    await irPara(membro, '/meu-repertorio')
+    await foto(membro, '32-meu-repertorio')
+    // A cifra grande, no tom do dia, com os botões de tom, capotraste e letra.
+    await membro
+      .getByRole('button', { name: /^Música 1 de/ })
+      .first()
+      .click()
+    await assentar(membro)
+    await foto(membro, '33-cifra-grande')
   })
   await tentar('sino', async () => {
     await irPara(membro, '/caixa-de-notificacoes')

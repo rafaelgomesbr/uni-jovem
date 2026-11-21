@@ -228,6 +228,11 @@ describe('exclusão de comunidade ao fim da carência', () => {
       'insert into uj.musica_musicos (comunidade_id, musica_id, musico_id) values ($1, $2, $3) returning id',
       [x, musica, musico],
     )
+    // D61: o repertório do encontro também sai com a comunidade.
+    await um(
+      'insert into uj.repertorio_itens (comunidade_id, evento_id, musica_id, ordem) values ($1, $2, $3, 0) returning id',
+      [x, evento, musica],
+    )
     await um(
       "insert into uj.palestrantes (comunidade_id, nome, criado_por) values ($1, 'Palestrante', $2) returning id",
       [x, admin.id],

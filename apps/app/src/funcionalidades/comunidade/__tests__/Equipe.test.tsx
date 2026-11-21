@@ -58,6 +58,7 @@ describe('aba Comunidade (D57)', () => {
       ['Avisos', '/avisos'],
       ['Pedidos de oração', '/oracao'],
       ['Sugestões', '/sugestoes'],
+      ['Louvor', '/louvor'],
       ['Conteúdos', '/conteudos'],
     ] as const) {
       await usuario.press(screen.getByRole('button', { name: new RegExp(`^${nome}[.]`) }))

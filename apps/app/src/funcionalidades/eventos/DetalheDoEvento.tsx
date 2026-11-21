@@ -20,6 +20,7 @@ import { compartilharTexto } from '@/utilidades/compartilhar'
 
 import { usePode } from '../comunidade/permissoes'
 import { DetalheLocalDoEvento } from '../offline/DetalheLocalDoEvento'
+import { CartaoDoRepertorioNoEncontro } from '../repertorio/CartaoDoRepertorioNoEncontro'
 import { useEstaOnline, usePacoteDoEvento } from '../offline/ProvedorOffline'
 import { AcoesNoPainel, BarraDoEvento, useAcoesDoEvento } from './BarraDoEvento'
 import { useEvento } from './consultas'
@@ -227,11 +228,14 @@ function Conteudo({
       {atual === 'geral' ? (
         <VisaoGeralDoEvento evento={e} comunidadeId={comunidadeId} />
       ) : atual === 'etapas' ? (
-        <SecaoEtapas
-          evento={e}
-          comunidadeId={comunidadeId}
-          aoVerVisaoGeral={() => setVisao('geral')}
-        />
+        <>
+          <SecaoEtapas
+            evento={e}
+            comunidadeId={comunidadeId}
+            aoVerVisaoGeral={() => setVisao('geral')}
+          />
+          <CartaoDoRepertorioNoEncontro evento={e} comunidadeId={comunidadeId} />
+        </>
       ) : atual === 'equipe' ? (
         <SecaoEquipe evento={e} comunidadeId={comunidadeId} />
       ) : (

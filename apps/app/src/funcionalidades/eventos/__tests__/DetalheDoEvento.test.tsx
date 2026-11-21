@@ -138,13 +138,17 @@ describe('detalhe do evento', () => {
     expect(bruno).toBeDisabled()
     expect(screen.getByText('Já convocado')).toBeOnTheScreen()
 
+    // Etapa do Louvor (D61): a função sai da lista padrão da banda e é preciso escolher uma.
     await usuario.press(screen.getByRole('radio', { name: 'Carla Dias' }))
+    await usuario.press(screen.getByRole('button', { name: 'Convocar' }))
+    expect(await screen.findByText('Escolha a função na banda.')).toBeOnTheScreen()
+    await usuario.press(screen.getByRole('radio', { name: 'Violão' }))
     await usuario.press(screen.getByRole('button', { name: 'Convocar' }))
     await waitFor(() =>
       expect(pedidosPara(servidor, 'POST', `${CAMINHO}/atribuicoes`)[0]?.corpo).toEqual({
         vinculoId: PESSOAS[2]!.vinculoId,
         etapaId: ETAPAS[1],
-        funcao: 'responsável',
+        funcao: 'Violão',
       }),
     )
     // Rascunho: o toast não promete um aviso que ainda não saiu.

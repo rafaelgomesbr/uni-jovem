@@ -1,3 +1,4 @@
+import { detectarFormato } from '@uj/dominio'
 import { ESPACO } from '@uj/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
@@ -26,6 +27,8 @@ import { voltarOu } from '@/ui/navegacao'
 
 import { usePode } from '../comunidade/permissoes'
 import { SemComunidade } from '../navegacao/SemComunidade'
+import { LeitorDeCifra } from '../repertorio/LeitorDeCifra'
+import { CampoDeCifra } from './CampoDeCifra'
 import {
   useConteudo,
   useConteudos,
@@ -35,10 +38,13 @@ import {
   useExcluirConteudo,
 } from './consultas'
 import {
+  CAMPO_DA_CONFIRMACAO,
   ehTipoDeConteudo,
   estaArquivado,
+  exigeConfirmarDireitos,
   montarCorpo,
   textoDoCampo,
+  textoParaMostrar,
   TIPOS_DE_CONTEUDO,
   type DefinicaoDeCampo,
   type DefinicaoDoTipo,
@@ -87,33 +93,76 @@ function Formulario({
   valores,
   aoMudar,
   erros,
+  cifraSalva = null,
 }: {
   def: DefinicaoDoTipo
   valores: Valores
   aoMudar: (v: Valores) => void
   erros: Record<string, string>
+  /** A cifra como está salva (nula na criação): só a que mudou pede a confirmação de direitos. */
+  cifraSalva?: string | null
 }) {
   return (
     <>
-      {def.campos.map((c) => (
-        <Campo
-          key={c.campo}
-          rotulo={c.rotulo}
-          opcional={!c.obrigatorio}
-          value={valores[c.campo] ?? ''}
-          onChangeText={(t) => aoMudar({ ...valores, [c.campo]: t })}
-          erro={erros[c.campo] ?? null}
-          {...(c.ajuda ? { ajuda: c.ajuda } : {})}
-          multiline={!!c.multilinha}
-          {...(c.formato === 'numero' ? { inputMode: 'numeric' as const, sufixo: 'min' } : {})}
-          {...(c.formato === 'link'
-            ? { inputMode: 'url' as const, autoCapitalize: 'none' as const }
-            : {})}
-          maxLength={c.formato === 'numero' ? 3 : c.max}
-        />
-      ))}
+      {def.campos.map((c) =>
+        c.formato === 'cifra' ? (
+          <CampoDeCifra
+            key={c.campo}
+            rotulo={c.rotulo}
+            valor={valores[c.campo] ?? ''}
+            aoMudar={(t) => aoMudar({ ...valores, [c.campo]: t })}
+            erro={erros[c.campo] ?? null}
+            pedeConfirmacao={exigeConfirmarDireitos(def, valores, cifraSalva)}
+            confirmada={valores[CAMPO_DA_CONFIRMACAO] === 'sim'}
+            aoConfirmar={(sim) =>
+              aoMudar({ ...valores, [CAMPO_DA_CONFIRMACAO]: sim ? 'sim' : 'nao' })
+            }
+            erroDaConfirmacao={erros[CAMPO_DA_CONFIRMACAO] ?? null}
+          />
+        ) : (
+          <Campo
+            key={c.campo}
+            rotulo={c.rotulo}
+            opcional={!c.obrigatorio}
+            value={valores[c.campo] ?? ''}
+            onChangeText={(t) => aoMudar({ ...valores, [c.campo]: t })}
+            erro={erros[c.campo] ?? null}
+            {...(c.ajuda ? { ajuda: c.ajuda } : {})}
+            multiline={!!c.multilinha}
+            {...(c.formato === 'numero'
+              ? { inputMode: 'numeric' as const, sufixo: c.unidade ?? 'min' }
+              : {})}
+            {...(c.formato === 'duracao' ? { exemplo: '3:45' } : {})}
+            {...(c.formato === 'tom' ? { autoCapitalize: 'characters' as const } : {})}
+            {...(c.formato === 'link'
+              ? { inputMode: 'url' as const, autoCapitalize: 'none' as const }
+              : {})}
+            maxLength={c.formato === 'numero' ? 3 : c.max}
+          />
+        ),
+      )}
     </>
   )
+}
+
+/**
+ * Confere o aviso de direitos autorais: cifra nova ou mudada só salva com a
+ * confirmação marcada. Devolve o erro para o formulário e o que a API espera.
+ */
+function conferirDireitos(
+  def: DefinicaoDoTipo,
+  valores: Valores,
+  cifraSalva: string | null,
+): { erros: Record<string, string> } | { corpo: { direitosConfirmados?: true } } {
+  if (!exigeConfirmarDireitos(def, valores, cifraSalva)) return { corpo: {} }
+  if (valores[CAMPO_DA_CONFIRMACAO] !== 'sim') {
+    return {
+      erros: {
+        [CAMPO_DA_CONFIRMACAO]: 'Confirme os direitos de uso para salvar a letra e a cifra.',
+      },
+    }
+  }
+  return { corpo: { direitosConfirmados: true } }
 }
 
 function Erro({ titulo, erro }: { titulo: string; erro: unknown }) {
@@ -142,15 +191,19 @@ function Novo({ comunidadeId, def }: { comunidadeId: string; def: DefinicaoDoTip
 
   function salvar() {
     const r = montarCorpo(def, valores)
-    if ('erros' in r) {
-      setErros(r.erros)
+    const direitos = conferirDireitos(def, valores, null)
+    if ('erros' in r || 'erros' in direitos) {
+      setErros({ ...('erros' in r ? r.erros : {}), ...('erros' in direitos ? direitos.erros : {}) })
       return
     }
     setErros({})
     // Na criação, vazio não vai: a API só recebe o que foi preenchido.
-    const corpo = Object.fromEntries(
-      Object.entries(r.corpo).filter(([, v]) => v !== null && !(Array.isArray(v) && !v.length)),
-    )
+    const corpo = {
+      ...Object.fromEntries(
+        Object.entries(r.corpo).filter(([, v]) => v !== null && !(Array.isArray(v) && !v.length)),
+      ),
+      ...direitos.corpo,
+    }
     criar.mutate(corpo, {
       onSuccess: (criado) => {
         mostrarToast({
@@ -265,7 +318,8 @@ function Item({
 }
 
 /** Campo curto o bastante para ir como valor à direita da linha ("G", "45 min"). */
-const ehCurto = (c: DefinicaoDeCampo) => c.formato === 'numero' || c.max <= 12
+const ehCurto = (c: DefinicaoDeCampo) =>
+  c.formato === 'numero' || c.formato === 'duracao' || c.max <= 12
 
 /**
  * Leitura (3.7.3): cartão lista "Detalhes" (campos curtos, o link com
@@ -282,7 +336,7 @@ function Leitura({
   musica: Musica | null
 }) {
   const preenchidos = def.campos.filter(
-    (c) => c.campo !== def.principal && textoDoCampo(registro[c.campo]),
+    (c) => c.campo !== def.principal && textoParaMostrar(c, registro[c.campo]),
   )
   const detalhes = preenchidos.filter((c) => !c.multilinha)
   const textos = preenchidos.filter((c) => c.multilinha)
@@ -303,7 +357,7 @@ function Leitura({
           <CartaoDeVidro lista>
             <Lista>
               {detalhes.map((c) => {
-                const texto = textoDoCampo(registro[c.campo])
+                const texto = textoParaMostrar(c, registro[c.campo])
                 if (c.formato === 'link') {
                   return (
                     <LinhaDeLista
@@ -317,7 +371,7 @@ function Leitura({
                     />
                   )
                 }
-                const comUnidade = c.formato === 'numero' ? `${texto} min` : texto
+                const comUnidade = c.formato === 'numero' ? `${texto} ${c.unidade ?? 'min'}` : texto
                 return ehCurto(c) ? (
                   <LinhaDeLista key={c.campo} titulo={c.rotulo} valor={comUnidade} />
                 ) : (
@@ -340,13 +394,22 @@ function Leitura({
           </CartaoDeVidro>
         </Secao>
       ) : null}
-      {textos.map((c) => (
-        <CartaoDeVidro key={c.campo} sobrancelha={c.rotulo}>
-          <Texto variante="leitura" selectable>
-            {textoDoCampo(registro[c.campo])}
-          </Texto>
-        </CartaoDeVidro>
-      ))}
+      {textos.map((c) =>
+        // Cifra em ChordPro: leitor com tom, capotraste e letra grande. O resto, texto simples.
+        c.formato === 'cifra' && detectarFormato(textoDoCampo(registro[c.campo])) === 'chordpro' ? (
+          <LeitorDeCifra
+            key={c.campo}
+            cifra={textoDoCampo(registro[c.campo])}
+            tomOriginal={textoDoCampo(registro['tom']) || null}
+          />
+        ) : (
+          <CartaoDeVidro key={c.campo} sobrancelha={c.rotulo}>
+            <Texto variante="leitura" selectable>
+              {textoDoCampo(registro[c.campo])}
+            </Texto>
+          </CartaoDeVidro>
+        ),
+      )}
     </>
   )
 }
@@ -367,8 +430,9 @@ function Edicao({
   aoTerminar: () => void
 }) {
   const [valores, setValores] = useState<Valores>(() =>
-    Object.fromEntries(def.campos.map((c) => [c.campo, textoDoCampo(registro[c.campo])])),
+    Object.fromEntries(def.campos.map((c) => [c.campo, textoParaMostrar(c, registro[c.campo])])),
   )
+  const cifraSalva = def.tipo === 'musicas' ? textoDoCampo(registro['cifra']) : null
   const [erros, setErros] = useState<Record<string, string>>({})
   const editar = useEditarConteudo(comunidadeId, def.tipo)
   const excluir = useExcluirConteudo(comunidadeId, def.tipo)
@@ -382,13 +446,14 @@ function Edicao({
 
   function salvar() {
     const r = montarCorpo(def, valores)
-    if ('erros' in r) {
-      setErros(r.erros)
+    const direitos = conferirDireitos(def, valores, cifraSalva)
+    if ('erros' in r || 'erros' in direitos) {
+      setErros({ ...('erros' in r ? r.erros : {}), ...('erros' in direitos ? direitos.erros : {}) })
       return
     }
     setErros({})
     editar.mutate(
-      { id, versao, corpo: r.corpo },
+      { id, versao, corpo: { ...r.corpo, ...direitos.corpo } },
       {
         onSuccess: () => {
           mostrarToast({ texto: 'Alterações salvas' })
@@ -448,7 +513,13 @@ function Edicao({
       }
     >
       <CartaoDeVidro opaco intervalo={ESPACO.e16}>
-        <Formulario def={def} valores={valores} aoMudar={setValores} erros={erros} />
+        <Formulario
+          def={def}
+          valores={valores}
+          aoMudar={setValores}
+          erros={erros}
+          cifraSalva={cifraSalva}
+        />
       </CartaoDeVidro>
       {editar.error ? <Erro titulo="Não deu para salvar" erro={editar.error} /> : null}
       {excluir.error ? <Erro titulo="Não deu para excluir" erro={excluir.error} /> : null}

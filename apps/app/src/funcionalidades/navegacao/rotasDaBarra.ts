@@ -31,6 +31,8 @@ export const ROTAS_SEM_BARRA_FLUTUANTE: ReadonlySet<string> = new Set([
   'plataforma/nova',
   // Condução ao vivo.
   'evento/[eventoId]/ao-vivo',
+  // Leitura da cifra (D61): a letra grande ocupa a tela, sem a barra no caminho.
+  'meu-repertorio/[eventoId]/[itemId]',
 ])
 
 const GRUPO_AUTENTICADO = '(autenticado)'

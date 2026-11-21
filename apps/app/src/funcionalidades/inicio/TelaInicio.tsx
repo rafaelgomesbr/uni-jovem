@@ -26,6 +26,7 @@ import { TelaDoApp } from '../navegacao/TelaDoApp'
 import { EventosPreparados } from '../offline/EventosPreparados'
 import { CartaoDaMissao, useMissaoPendente } from '../onboarding/CartaoDaMissao'
 import { AvisoDosTermos } from '../privacidade/AvisoDosTermos'
+import { CartaoMeuRepertorio, escalaDeLouvorNoInicio } from '../repertorio/CartaoMeuRepertorio'
 import { CartaoDoVersiculo } from '../versiculo/CartaoDoVersiculo'
 import { AvisosDoInicio } from './AvisosDoInicio'
 import { CartaoDoProximoEvento } from './CartaoDoProximoEvento'
@@ -177,6 +178,8 @@ function MinhaVisao({
   const d = inicio.data
   const [proximo] = d.proximosEventos
   const [escala] = d.minhasEscalas
+  // Meu repertório (D61): só para quem foi convocado ao louvor.
+  const louvor = escalaDeLouvorNoInicio(d.minhasEscalas)
   const minhasEtapas = proximo
     ? d.minhasEscalas
         .filter((e) => e.eventoId === proximo.id && e.etapaTitulo)
@@ -215,7 +218,7 @@ function MinhaVisao({
       : null,
     missaoPendente ? { chave: 'missao', no: <CartaoDaMissao /> } : null,
   ].filter((c): c is { chave: string; no: ReactElement } => c !== null)
-  const fixos = 1 + (proximo ? 1 : 0) + (escala ? 1 : 0)
+  const fixos = 1 + (proximo ? 1 : 0) + (escala ? 1 : 0) + (louvor ? 1 : 0)
   const visiveis = condicionais.slice(0, Math.max(0, MAXIMO_DE_CARTOES - fixos))
 
   return (
@@ -268,6 +271,8 @@ function MinhaVisao({
           fuso={fuso}
         />
       ) : null}
+
+      {louvor ? <CartaoMeuRepertorio escala={louvor} fuso={fuso} /> : null}
 
       {d.substituicoesAbertas > 0 ? (
         <Aviso

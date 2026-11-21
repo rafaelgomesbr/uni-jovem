@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type pg from 'pg'
 import { z } from 'zod'
+import { nomeDoTom } from '@uj/dominio'
 import { ErroHttp, NAO_ENCONTRADO, traduzirErroDoBanco, validar } from '../http.ts'
 import { auditar, exigir, idDoCaminho, naComunidade } from './contexto.ts'
 
@@ -18,6 +19,17 @@ const link = z
   .max(2000)
   .regex(/^https:\/\/\S+$/, 'Use um link que comece com https://.')
 
+/** Tom no formato do app (G, Am, F#m, Bb); vazio apaga. Aceita ♯ e ♭ e devolve ASCII. */
+const tom = z
+  .string()
+  .trim()
+  .max(12)
+  .refine((v) => v === '' || nomeDoTom(v) !== null, 'Use um tom como G, Am ou F#m.')
+  .transform((v) => (v === '' ? null : nomeDoTom(v)))
+
+const MENSAGEM_DE_DIREITOS =
+  'Confirme que a sua comunidade pode usar esta letra e esta cifra antes de salvar.'
+
 interface TipoDeConteudo {
   caminho: string
   tabela: string
@@ -26,6 +38,8 @@ interface TipoDeConteudo {
   colunas: Record<string, string>
   /** Colunas longas que não vão na lista (só no detalhe). */
   soNoDetalhe: string[]
+  /** Colunas calculadas que entram na lista e no detalhe (sem o texto longo). */
+  calculadas?: string[]
   /** Campos só de edição (arquivar, desativar). */
   soNaEdicao: Record<string, z.ZodType>
   criar: z.ZodObject
@@ -43,18 +57,26 @@ const TIPOS: TipoDeConteudo[] = [
       tom: 'tom',
       link: 'link',
       cifra: 'cifra',
+      andamentoBpm: 'andamento_bpm',
+      duracaoSeg: 'duracao_seg',
       observacoes: 'observacoes',
       arquivada: 'arquivada',
     },
     soNoDetalhe: ['cifra'],
+    // A lista mostra o selo "Sem cifra" sem trazer o texto da cifra.
+    calculadas: [`(cifra is not null and btrim(cifra) <> '') as "temCifra"`],
     soNaEdicao: { arquivada: z.boolean().optional() },
     criar: z.object({
       titulo: z.string().trim().min(1, 'Informe o título da música.').max(120),
       artista: texto(120).nullish(),
-      tom: texto(12).nullish(),
+      tom: tom.nullish(),
       link: link.nullish(),
       cifra: texto(20000).nullish(),
+      andamentoBpm: z.number().int().min(30).max(300).nullish(),
+      duracaoSeg: z.number().int().min(10).max(3600).nullish(),
       observacoes: texto(2000).nullish(),
+      // Confirmação do aviso de direitos: pedida quando a cifra é nova ou mudou. Não é coluna.
+      direitosConfirmados: z.boolean().optional(),
     }),
     ordem: 'arquivada, titulo',
   },
@@ -127,6 +149,11 @@ const TIPOS: TipoDeConteudo[] = [
   },
 ]
 
+const temTexto = (v: unknown): v is string => typeof v === 'string' && v.trim() !== ''
+
+const direitosNaoConfirmados = () =>
+  new ErroHttp('direitos_nao_confirmados', 400, MENSAGEM_DE_DIREITOS)
+
 function selecao(t: TipoDeConteudo, detalhe: boolean): string {
   const campos = Object.entries(t.colunas)
     .filter(([, coluna]) => detalhe || !t.soNoDetalhe.includes(coluna))
@@ -134,6 +161,7 @@ function selecao(t: TipoDeConteudo, detalhe: boolean): string {
   return [
     'id',
     ...campos,
+    ...(t.calculadas ?? []),
     'versao',
     'criado_em as "criadoEm"',
     'atualizado_em as "atualizadoEm"',
@@ -207,10 +235,19 @@ export function registrarRotasDeConteudos(app: FastifyInstance, api: pg.Pool): v
       exigir(pedido, 'conteudo', 'gerenciar')
       const dados = validar(t.criar, pedido.body) as Record<string, unknown>
       const campos = Object.keys(dados).filter((k) => t.colunas[k] !== undefined)
+      // Cifra nova: o aviso de direitos autorais precisa ter sido confirmado (e fica registrado).
+      const comCifra = ehMusica && temTexto(dados['cifra'])
+      if (comCifra && dados['direitosConfirmados'] !== true) throw direitosNaoConfirmados()
       return tx(pedido, async (c) => {
+        const colunas = campos.map((k) => t.colunas[k]!)
+        const valores = campos.map((_, i) => `$${i + 2}`)
+        if (comCifra) {
+          colunas.push('direito_confirmado_em')
+          valores.push('now()')
+        }
         const { rows } = await c.query<{ id: string; versao: number }>(
-          `insert into uj.${t.tabela} (comunidade_id, ${campos.map((k) => t.colunas[k]).join(', ')})
-           values ($1, ${campos.map((_, i) => `$${i + 2}`).join(', ')}) returning id, versao`,
+          `insert into uj.${t.tabela} (comunidade_id, ${colunas.join(', ')})
+           values ($1, ${valores.join(', ')}) returning id, versao`,
           [pedido.comunidade!.id, ...campos.map((k) => dados[k] ?? null)],
         )
         await auditar(c, pedido, 'conteudo.criado', { tipo: t.tabela, id: rows[0]!.id })
@@ -246,17 +283,26 @@ export function registrarRotasDeConteudos(app: FastifyInstance, api: pg.Pool): v
       const versao = dados['versao'] as number
       return tx(pedido, async (c) => {
         const atual = (
-          await c.query<{ versao: number }>(
-            `select versao from uj.${t.tabela} where id = $1 and comunidade_id = $2`,
+          await c.query<{ versao: number; cifra?: string | null }>(
+            `select versao${ehMusica ? ', cifra' : ''} from uj.${t.tabela}
+              where id = $1 and comunidade_id = $2`,
             [id, pedido.comunidade!.id],
           )
         ).rows[0]
         if (!atual) throw NAO_ENCONTRADO()
         if (atual.versao !== versao) throw conflito({ versao: atual.versao })
         if (campos.length === 0) return { id, versao }
+        // Só a cifra que mudou pede a confirmação de direitos de novo.
+        const cifraMudou =
+          ehMusica && temTexto(dados['cifra']) && dados['cifra'] !== (atual.cifra ?? null)
+        if (cifraMudou && dados['direitosConfirmados'] !== true) throw direitosNaoConfirmados()
+        const atribuicoes = [
+          ...campos.map((k, i) => `${t.colunas[k]} = $${i + 4}`),
+          ...(cifraMudou ? ['direito_confirmado_em = now()'] : []),
+        ]
         const { rows } = await c.query(
           `update uj.${t.tabela}
-              set ${campos.map((k, i) => `${t.colunas[k]} = $${i + 4}`).join(', ')}
+              set ${atribuicoes.join(', ')}
             where id = $1 and comunidade_id = $2 and versao = $3 returning id, versao`,
           [id, pedido.comunidade!.id, versao, ...campos.map((k) => dados[k] ?? null)],
         )
