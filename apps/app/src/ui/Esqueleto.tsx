@@ -1,14 +1,31 @@
 import { DURACAO, ESPACO, RAIO, type NomeDoPapel, TIPO } from '@uj/tokens'
-import { useEffect, useState, type ReactNode } from 'react'
+import { QueryClientContext } from '@tanstack/react-query'
+import { useContext, useEffect, useState, type ReactNode } from 'react'
 import { Animated, Platform, View, type DimensionValue } from 'react-native'
 
 import { usePreferenciasDeAcessibilidade } from './acessibilidade'
+import { Botao } from './Botao'
+import { Texto } from './Texto'
+import { useAnunciar } from './useAnunciar'
 import { useTema } from './tema'
+
+/**
+ * Depois deste tempo carregando, a tela ganha "Tentar de novo" (D58). É menor
+ * que o tempo até o erro de verdade (12 s por pedido mais uma nova tentativa),
+ * para ninguém ficar olhando blocos cinzas sem saída.
+ */
+export const DEMORA_DO_ESQUELETO_MS = 10_000
+export const AVISO_DE_DEMORA = 'Está demorando mais que o normal. Confira sua conexão.'
 
 interface PropsDoEsqueleto {
   /** "Carregando a agenda": o que o leitor de tela ouve. Os blocos ficam ocultos para ele. */
   rotulo: string
   children: ReactNode
+  /**
+   * O que "Tentar de novo" faz quando a carga demora. Sem ele, refaz as
+   * consultas que ainda estão carregando pela primeira vez (React Query).
+   */
+  aoTentarDeNovo?: () => void
 }
 
 /**
@@ -17,16 +34,24 @@ interface PropsDoEsqueleto {
  * aparece depois de 300 ms, para não piscar em carga rápida. O indicador
  * giratório fica só dentro de botões.
  */
-export function Esqueleto({ rotulo, children }: PropsDoEsqueleto) {
+export function Esqueleto({ rotulo, children, aoTentarDeNovo }: PropsDoEsqueleto) {
   const { reduzirMovimento } = usePreferenciasDeAcessibilidade()
   const [visivel, setVisivel] = useState(false)
   const [pulso] = useState(() => new Animated.Value(1))
+  const consultas = useContext(QueryClientContext)
+  const [demorou, setDemorou] = useState(false)
+  // Cada "Tentar de novo" recomeça a contagem da demora.
+  const [rodada, setRodada] = useState(0)
 
   // O atraso e o pulso são relógios externos à tela: começam ao montar e param ao sair.
   useEffect(() => {
     const t = setTimeout(() => setVisivel(true), DURACAO.atrasoDoEsqueleto)
     return () => clearTimeout(t)
   }, [])
+  useEffect(() => {
+    const t = setTimeout(() => setDemorou(true), DEMORA_DO_ESQUELETO_MS)
+    return () => clearTimeout(t)
+  }, [rodada])
   useEffect(() => {
     if (!visivel || reduzirMovimento) return
     const metade = DURACAO.pulso / 2
@@ -48,26 +73,62 @@ export function Esqueleto({ rotulo, children }: PropsDoEsqueleto) {
     return () => laco.stop()
   }, [visivel, reduzirMovimento, pulso])
 
+  function tentarDeNovo() {
+    setDemorou(false)
+    setRodada((r) => r + 1)
+    if (aoTentarDeNovo) aoTentarDeNovo()
+    else if (consultas) {
+      // Cancela a espera atual antes de refazer: sem isso, o React Query devolve o mesmo
+      // pedido pendurado em vez de começar outro.
+      const carregando = {
+        predicate: (q: { state: { status: string } }) => q.state.status === 'pending',
+      }
+      void consultas.cancelQueries(carregando).then(() => consultas.refetchQueries(carregando))
+    }
+  }
+
   return (
-    <View
-      accessible
-      accessibilityRole="progressbar"
-      accessibilityLabel={rotulo}
-      aria-busy
-      style={{ gap: ESPACO.e16, alignSelf: 'stretch' }}
-    >
-      {visivel ? (
-        <Animated.View
-          style={{
-            gap: ESPACO.e16,
-            // O pulso é animação, não estado: a opacidade varia só enquanto carrega.
-            // eslint-disable-next-line no-restricted-syntax
-            opacity: reduzirMovimento ? 1 : pulso,
-          }}
-        >
-          {children}
-        </Animated.View>
-      ) : null}
+    <>
+      <View
+        accessible
+        accessibilityRole="progressbar"
+        accessibilityLabel={rotulo}
+        aria-busy
+        style={{ gap: ESPACO.e16, alignSelf: 'stretch' }}
+      >
+        {visivel ? (
+          <Animated.View
+            style={{
+              gap: ESPACO.e16,
+              // O pulso é animação, não estado: a opacidade varia só enquanto carrega.
+              // eslint-disable-next-line no-restricted-syntax
+              opacity: reduzirMovimento ? 1 : pulso,
+            }}
+          >
+            {children}
+          </Animated.View>
+        ) : null}
+      </View>
+      {/* Fora do bloco acessível acima: o leitor de tela precisa alcançar o botão. */}
+      {demorou ? <AvisoDeDemora aoTentarDeNovo={tentarDeNovo} /> : null}
+    </>
+  )
+}
+
+/** "Está demorando": texto e botão de 44, anunciado ao aparecer. Nada de cor como único sinal. */
+function AvisoDeDemora({ aoTentarDeNovo }: { aoTentarDeNovo: () => void }) {
+  useAnunciar(AVISO_DE_DEMORA)
+  return (
+    <View style={{ gap: ESPACO.e12, alignItems: 'flex-start' }}>
+      <Texto variante="corpo" cor="textoSuave">
+        {AVISO_DE_DEMORA}
+      </Texto>
+      <Botao
+        titulo="Tentar de novo"
+        icone="sincronizar"
+        variante="secundario"
+        aoPressionar={aoTentarDeNovo}
+      />
     </View>
   )
 }

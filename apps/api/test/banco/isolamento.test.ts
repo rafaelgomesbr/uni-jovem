@@ -126,6 +126,8 @@ const CASOS: Record<string, Record<string, unknown> | undefined> = {
   'PUT /api/v1/c/:comunidadeId/disponibilidade/:data': { disponivel: true },
   // F10
   'GET /api/v1/c/:comunidadeId/inicio': undefined,
+  // D59: visão geral do Início (a minha e a da comunidade).
+  'GET /api/v1/c/:comunidadeId/visao-geral': undefined,
   // F11
   'GET /api/v1/c/:comunidadeId/eventos/:eventoId/ao-vivo': undefined,
   'POST /api/v1/c/:comunidadeId/eventos/:eventoId/ao-vivo': { comando: 'assumir', versao: 0 },

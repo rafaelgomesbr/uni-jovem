@@ -54,8 +54,12 @@ function acompanhar<T>(p: Promise<T>) {
 beforeEach(() => jest.useFakeTimers())
 afterEach(() => jest.useRealTimers())
 
-describe('tempo limite dos pedidos (A6)', () => {
-  test('pedido sem resposta por 20 s vira SemConexao, com a mensagem de sempre', async () => {
+describe('tempo limite dos pedidos (A6, D58)', () => {
+  test('o limite de um pedido comum é humano: 12 s', () => {
+    expect(TEMPO_LIMITE_MS).toBe(12_000)
+  })
+
+  test('pedido sem resposta por 12 s vira SemConexao, com a mensagem de sempre', async () => {
     const { cliente, sinais } = servidorPendurado()
     await cliente.abrirSessao({ segundoFator: false, acesso: 'a' })
     const pedido = acompanhar(cliente.get('/api/v1/eu'))
@@ -105,7 +109,7 @@ describe('tempo limite dos pedidos (A6)', () => {
     expect(ehCancelamento(erro)).toBe(true)
   })
 
-  test('long polling do ao vivo (o servidor segura 25 s) não estoura aos 20 s', async () => {
+  test('long polling do ao vivo (o servidor segura 25 s) não estoura aos 12 s', async () => {
     const { cliente } = servidorPendurado()
     await cliente.abrirSessao({ segundoFator: false, acesso: 'a' })
     const pedido = acompanhar(

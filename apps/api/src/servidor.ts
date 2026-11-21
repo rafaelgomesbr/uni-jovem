@@ -19,6 +19,7 @@ import { registrarRotasDeEventos } from './rotas/eventos.ts'
 import { registrarRotasDeSeries } from './rotas/series.ts'
 import { registrarRotasDeEscalas } from './rotas/escalas.ts'
 import { registrarRotaDeInicio } from './rotas/inicio.ts'
+import { registrarRotaDeVisaoGeral } from './rotas/visao-geral.ts'
 import { registrarRotasAoVivo } from './rotas/ao-vivo.ts'
 import { registrarPaginasPublicas } from './publico/rotas.ts'
 import { registrarRotasDeInscricoes } from './rotas/inscricoes.ts'
@@ -216,6 +217,7 @@ export function criarServidor(
       registrarRotasDeSeries(app, recursos.api)
       registrarRotasDeEscalas(app, recursos.api)
       registrarRotaDeInicio(app, recursos.api)
+      registrarRotaDeVisaoGeral(app, recursos.api)
       registrarRotasAoVivo(app, recursos.api)
       registrarRotasDeInscricoes(app, recursos.api)
       registrarRotasDeOracao(app, { api: recursos.api, config })

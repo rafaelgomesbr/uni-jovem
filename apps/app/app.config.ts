@@ -139,6 +139,8 @@ const config: ExpoConfig = {
         autoVerify: true,
         data: [
           { scheme: 'https', host: DOMINIO[VARIANTE], pathPrefix: '/convite' },
+          // Link do código da comunidade (`/entrar/<codigo>`, D58), o mesmo do iOS (AASA).
+          { scheme: 'https', host: DOMINIO[VARIANTE], pathPrefix: '/entrar/' },
           { scheme: 'https', host: DOMINIO[VARIANTE], pathPrefix: '/app' },
         ],
         category: ['BROWSABLE', 'DEFAULT'],

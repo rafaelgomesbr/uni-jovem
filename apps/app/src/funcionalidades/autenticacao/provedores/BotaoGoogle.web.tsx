@@ -1,7 +1,7 @@
 import * as Google from 'expo-auth-session/providers/google'
 import { useEffect, useEffectEvent } from 'react'
 
-import { BotaoDeMarca } from '@/ui/BotaoDeMarca'
+import { BotaoDeAcessoRapido } from '@/ui/BotaoDeAcessoRapido'
 
 import { googleConfigurado, idsDoGoogle, retornoDoGoogle } from './configuracao'
 
@@ -57,7 +57,8 @@ function BotaoGoogleConfigurado({
   const inativo = desabilitado || !pedido || carregando
   const motivoFinal = !pedido ? 'Preparando a entrada com o Google.' : motivo
   return (
-    <BotaoDeMarca
+    <BotaoDeAcessoRapido
+      marca="google"
       titulo={titulo}
       carregando={carregando}
       inativo={inativo}

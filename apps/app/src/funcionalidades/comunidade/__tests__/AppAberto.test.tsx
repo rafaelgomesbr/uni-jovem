@@ -1,10 +1,11 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native'
 import { router, useLocalSearchParams } from 'expo-router'
+import { Linking } from 'react-native'
 
 import { BASE, COMUNIDADE, FUSO, pedidosPara, renderizarTela, respostaEu } from '@/testes/telas'
 import { confirmar } from '@/utilidades/confirmar'
 
-import { TelaCodigoDaComunidade } from '../TelaCodigoDaComunidade'
+import { mensagemDoConvite, TelaCodigoDaComunidade } from '../TelaCodigoDaComunidade'
 import { TelaComunidade } from '../TelaComunidade'
 import { TelaConfigurarComunidade } from '../TelaConfigurarComunidade'
 import { RESUMO_DO_TERMO_DO_ADMIN, TelaCriarComunidade } from '../TelaCriarComunidade'
@@ -194,6 +195,40 @@ describe('Código da comunidade (admin)', () => {
     })
     expect(await screen.findByText('WXYZ 6789')).toBeOnTheScreen()
     expect(pedidosPara(servidor, 'POST', `${BASE}/codigo/trocar`)).toHaveLength(1)
+  })
+
+  test('compartilhar: a mensagem diz a comunidade, o código e o link (D58)', async () => {
+    expect(
+      mensagemDoConvite(
+        'Jovens Centro',
+        'XPHVYHFS',
+        'https://unijovem.solerte.com.br/entrar/XPHVYHFS',
+      ),
+    ).toBe(
+      'Entre na comunidade Jovens Centro no Uni Jovem. Código: XPHV YHFS. Link: https://unijovem.solerte.com.br/entrar/XPHVYHFS',
+    )
+    const abrir = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined)
+    await renderizarTela(<TelaCodigoDaComunidade />, {
+      papel: 'admin',
+      rotas: {
+        [`GET ${BASE}`]: () => ({ status: 200, corpo: DETALHE }),
+        [`GET ${BASE}/codigo`]: () => ({
+          status: 200,
+          corpo: {
+            codigo: 'XPHVYHFS',
+            link: 'https://x/entrar/XPHVYHFS',
+            modoEntrada: 'codigo_direto',
+          },
+        }),
+      },
+    })
+    await fireEvent.press(await screen.findByRole('button', { name: 'Compartilhar no WhatsApp' }))
+    await waitFor(() => expect(abrir).toHaveBeenCalledTimes(1))
+    const texto = decodeURIComponent(String(abrir.mock.calls[0]?.[0]).split('text=')[1] ?? '')
+    expect(texto).toBe(
+      'Entre na comunidade Jovens Centro no Uni Jovem. Código: XPHV YHFS. Link: https://x/entrar/XPHVYHFS',
+    )
+    abrir.mockRestore()
   })
 
   test('membro não vê o código', async () => {

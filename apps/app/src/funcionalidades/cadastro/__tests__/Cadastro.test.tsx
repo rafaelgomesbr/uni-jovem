@@ -1,5 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import * as AppleAuthentication from 'expo-apple-authentication'
 import { router } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import type { ReactElement } from 'react'
@@ -154,6 +155,29 @@ describe('Criar conta (ADR 0007)', () => {
     expect(screen.getByRole('button', { name: 'Continuar com o Google' })).toBeOnTheScreen()
   })
 
+  test('deixa claro que não há confirmação de e-mail, sem falar em código', async () => {
+    await renderizar(<TelaCriarConta />, {})
+    expect(await screen.findByText(/Não precisa confirmar o e-mail/)).toBeOnTheScreen()
+    expect(screen.queryByText(/código de 6 números/i)).toBeNull()
+    await preencherDados()
+    await fireEvent.press(screen.getByRole('button', { name: 'Continuar' }))
+    expect(await screen.findByText(/Falta só a senha/)).toBeOnTheScreen()
+    expect(screen.queryByText(/código/i)).toBeNull()
+  })
+
+  test('com Google e Apple: os acessos rápidos vêm antes do e-mail, na ordem Apple, Google', async () => {
+    process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID = 'ios-123.apps.googleusercontent.com'
+    ;(AppleAuthentication.isAvailableAsync as jest.Mock).mockResolvedValue(true)
+    await renderizar(<TelaCriarConta />, {})
+    await screen.findByRole('button', { name: 'Continuar com a Apple' })
+    const botoes = screen.getAllByRole('button').map((b) => b.props.accessibilityLabel as string)
+    expect(botoes.indexOf('Continuar com a Apple')).toBeLessThan(
+      botoes.indexOf('Continuar com o Google'),
+    )
+    expect(screen.getByText('ou crie com e-mail')).toBeOnTheScreen()
+    ;(AppleAuthentication.isAvailableAsync as jest.Mock).mockResolvedValue(false)
+  })
+
   test('menos de 16: a mensagem da TC-01.v2 e, depois, o aparelho fica travado por 24 horas', async () => {
     await renderizar(<TelaCriarConta />, {})
     await fireEvent.press(await screen.findByRole('radio', { name: 'Tenho menos de 16 anos.' }))
@@ -225,6 +249,58 @@ describe('Google ou Apple com e-mail novo: "Falta pouco"', () => {
         aceites: { termos: true },
       }),
     )
+  })
+
+  test('Apple na tela de criar conta: o nome vem junto e a conta nasce sem código nem e-mail de confirmação', async () => {
+    ;(AppleAuthentication.isAvailableAsync as jest.Mock).mockResolvedValue(true)
+    ;(AppleAuthentication.signInAsync as jest.Mock).mockResolvedValue({
+      identityToken: 'token-da-apple',
+      fullName: { givenName: 'Ana', familyName: 'Souza' },
+    })
+    const servidor = await renderizar(
+      <View>
+        <TelaCriarConta />
+        <TelaCompletarCadastro />
+      </View>,
+      {
+        'POST /api/auth/provedor/apple': () => ({
+          status: 200,
+          corpo: {
+            cadastroPendente: true,
+            tokenDeCadastro: 'token-de-cadastro',
+            nome: 'Ana Souza',
+            email: 'ana@exemplo.com',
+          },
+        }),
+        'POST /api/auth/provedor/concluir-cadastro': () => ({ status: 200, corpo: SESSAO }),
+      },
+    )
+    await fireEvent.press(await screen.findByRole('button', { name: 'Continuar com a Apple' }))
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith('/completar-cadastro'))
+    expect(corpoDe(servidor, '/provedor/apple')).toMatchObject({
+      identityToken: 'token-da-apple',
+      nome: 'Ana Souza',
+    })
+    expect(await screen.findByText('Falta pouco')).toBeOnTheScreen()
+    expect(screen.getByText(/já confirmou seu e-mail/)).toBeOnTheScreen()
+
+    await fireEvent.press(screen.getAllByRole('radio', { name: 'Tenho 18 anos ou mais.' }).at(-1)!)
+    const termos = screen.getAllByRole('checkbox', {
+      name: 'Li e concordo com os Termos de Uso e a Política de Privacidade.',
+    })
+    await fireEvent.press(termos.at(-1)!)
+    await fireEvent.press(screen.getAllByRole('button', { name: 'Criar conta' }).at(-1)!)
+    await waitFor(() =>
+      expect(corpoDe(servidor, '/provedor/concluir-cadastro')).toMatchObject({
+        tokenDeCadastro: 'token-de-cadastro',
+        faixaEtaria: '18_mais',
+      }),
+    )
+    // A conta nova abre a sessão; sem comunidade, o Início mostra "Comece por aqui" (teste próprio).
+    await waitFor(() =>
+      expect(servidor.pedidos.some((p) => p.url.endsWith('/api/v1/eu'))).toBe(true),
+    )
+    ;(AppleAuthentication.isAvailableAsync as jest.Mock).mockResolvedValue(false)
   })
 
   test('sem cadastro pendente (app reaberto): manda começar de novo', async () => {

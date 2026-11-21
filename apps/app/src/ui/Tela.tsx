@@ -85,6 +85,16 @@ export function pontoDeAssentar(y: number, limiar: number): number | null {
   return Math.abs(alvo - y) < 1 ? null : alvo
 }
 
+/**
+ * O dedo soltou sem inércia? Só com velocidade medida e quase zero. Onde o
+ * evento não traz velocidade (web, parte do Android), a rolagem pode estar
+ * prestes a deslizar: assentar aí brigaria com o gesto (o `scrollTo`
+ * interrompe a inércia). Nesses casos quem assenta é o fim do momentum.
+ */
+export function soltouSemInercia(velocidade: number | undefined): boolean {
+  return velocidade !== undefined && Math.abs(velocidade) < 0.05
+}
+
 interface PropsDaTela {
   children: ReactNode
   /** Raiz: `display` 34/38. Pilha: `tituloTela` 28/32. Anunciado como cabeçalho de nível 1. */
@@ -152,6 +162,8 @@ export function Tela({
   const espacoDaBarra = useContext(ContextoDaBarraDeAbas)
   const teclado = useTecladoAberto()
   const rolagem = useRef<ComponentRef<typeof ScrollView>>(null)
+  // Último ponto para onde a tela mandou a rolagem sozinha (zera quando a pessoa toca de novo).
+  const ultimoAssento = useRef<number | null>(null)
   const [fimDoTitulo, setFimDoTitulo] = useState<number | null>(null)
   const [compacto, setCompacto] = useState(false)
   // Altura real da barra de ação: com fonte grande o botão cresce, e o ao vivo usa controles de 56.
@@ -224,7 +236,15 @@ export function Tela({
   function assentar(y: number) {
     if (fimDoTitulo === null || !titulo) return
     const alvo = pontoDeAssentar(y, fimDoTitulo + preenchimento.paddingTop - alturaDoCompacto)
-    if (alvo !== null) rolagem.current?.scrollTo({ y: alvo, animated: !reduzirMovimento })
+    if (alvo === null) {
+      ultimoAssento.current = null
+      return
+    }
+    // O mesmo ponto pedido de novo sem a pessoa ter tocado: a rolagem não chegou lá (conteúdo
+    // curto demais) e cada fim de rolagem pediria outra vez. Desiste em vez de repetir.
+    if (ultimoAssento.current === alvo) return
+    ultimoAssento.current = alvo
+    rolagem.current?.scrollTo({ y: alvo, animated: !reduzirMovimento })
   }
 
   return (
@@ -239,9 +259,13 @@ export function Tela({
             contentInsetAdjustmentBehavior="never"
             keyboardShouldPersistTaps="handled"
             onScroll={aoRolar}
+            // Tocar de novo (inclusive para parar a rolagem) cancela o assentar automático.
+            onScrollBeginDrag={() => {
+              ultimoAssento.current = null
+            }}
             // Sem inércia, o dedo soltou e a rolagem parou ali; com inércia, espera ela acabar.
             onScrollEndDrag={(e) => {
-              if (Math.abs(e.nativeEvent.velocity?.y ?? 0) < 0.05) {
+              if (soltouSemInercia(e.nativeEvent.velocity?.y)) {
                 assentar(e.nativeEvent.contentOffset.y)
               }
             }}

@@ -7,7 +7,7 @@ import {
 import { useRef, useState } from 'react'
 import { Platform } from 'react-native'
 
-import { BotaoDeMarca } from '@/ui/BotaoDeMarca'
+import { BotaoDeAcessoRapido } from '@/ui/BotaoDeAcessoRapido'
 import { googleConfigurado, idsDoGoogle } from './configuracao'
 
 interface PropsDoBotaoGoogle {
@@ -61,7 +61,8 @@ export function BotaoGoogle({
   }
 
   return (
-    <BotaoDeMarca
+    <BotaoDeAcessoRapido
+      marca="google"
       titulo={titulo}
       carregando={carregando || pedindo}
       inativo={desabilitado || carregando || pedindo}

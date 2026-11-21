@@ -1,6 +1,30 @@
 # Status do projeto
 
-Atualizado em 17/11/2026.
+Atualizado em 21/11/2026.
+
+## Visão geral no Início e versículo recolhido em 21/11/2026 (D59)
+
+- Pedidos do dono: "Versículo do dia aparecer minimizado e expandir quando o leitor quiser" e "No app ter uma visão geral minha, e uma visão geral de todos caso eu seja adm". Decisão D59 em [DECISOES.md](DECISOES.md); sem migração e sem commit.
+- Versículo: recolhido por padrão nas telas de navegação (linha com rótulo, referência e chevron; `aria-expanded`; sem animação com Reduzir movimento); a escolha vale só na sessão; a tela cheia `/versiculo` continua aberta.
+- Início: seletor "Minha visão | Da comunidade" (o segundo só com `relatorio:ler`, ou seja, organizador e administrador). "Seu resumo" e "Para resolver", "Próximos 14 dias" e "Números da comunidade", cada número com atalho para a tela certa. API: uma rota nova, `GET /api/v1/c/:comunidadeId/visao-geral?escopo=minha|comunidade` (só contagens; 403 para membro na parte da comunidade), com teste próprio e entrada no inventário de isolamento.
+- Testes novos: `apps/api/test/banco/visao-geral.test.ts` (11) e `apps/app/src/funcionalidades/inicio/__tests__/VisaoGeral.test.tsx` (15), mais um caso em `Versiculo.test.tsx`. Conferência no aparelho: pendente.
+
+## Entrar e criar conta redesenhados em 21/11/2026
+
+- Pedido do dono: tela de login moderna, cadastro e login com Google e Apple, cadastro sem confirmação de e-mail. Decisão D60 em [DECISOES](DECISOES.md); o cadastro sem confirmação já estava no [ADR 0008](adr/0008-cadastro-simplificado.md).
+- Feito: Entrar, Criar conta e convite com o mesmo cabeçalho; acessos rápidos grandes antes do e-mail (Apple no iOS, Google no iOS, Android e web); botão da Apple próprio, em português, com o logotipo (o nativo saía em inglês); textos deixam claro que não há confirmação de e-mail; a Apple passa a mandar o nome na primeira vez. Componentes novos: `ui/BotaoDeAcessoRapido`, `ui/LogoDaApple`, `ui/SeparadorComTexto`, `AcessosRapidos`, `CabecalhoDeAcesso`. Catálogo atualizado.
+- Evidência: testes de `TelaEntrar`, `Cadastro`, `Convite`, `AcessosRapidos` e `BotaoDeAcessoRapido` (presença por plataforma, clique chama o fluxo do provedor, erro humano, nomes acessíveis e alvos de 44 pt). Nada publicado: a mudança só chega ao aparelho num novo build (ou atualização) que o dono autorizar.
+- Não verificado em aparelho: o botão da Apple e o Google no iPhone real, a leitura com VoiceOver e o teclado sobre o formulário. Entrada web pela Apple não existe (depende de Services ID).
+
+## Link do código da comunidade e travadas em 21/11/2026 (D58)
+
+- Pedido do dono: "O link gerado na tela Código da comunidade não leva pra lugar nenhum, o aplicativo fica travando." Decisão D58 em [DECISOES](DECISOES.md); sem migração e sem commit.
+- Causa do link (confirmada no código): o link é `https://<domínio>/entrar/<CODIGO>`. O servidor não tinha rota para esse caminho (404) e o app não tinha a rota `entrar/<codigo>` (a rota `entrar` é o login); o `apple-app-site-association` e o `intent-filter` já mandavam o celular abrir o app nesse caminho, então o app caía em "Página não encontrada". Sem o app, o navegador mostrava 404.
+- API: página pública `GET /entrar/:codigo` (`apps/api/src/publico/paginaDoCodigo.ts`), sem consulta ao banco, `noindex`, com "Abrir no app", "Continuar no navegador" e "Copiar código"; formato inválido responde 404 amigável. O Caddy de homologação e de produção já encaminha `/entrar/*` à API (sem regra própria).
+- App: rota `entrar/[codigo]` (logada vai a "Tenho um código" com o campo preenchido, sem enviar; deslogada guarda o link e vai ao login, e volta depois de entrar ou criar a conta); `intent-filter` Android com `pathPrefix /entrar/`; texto de compartilhar com comunidade, código e link.
+- Auditoria de travamento, confirmado no código e corrigido: pedido de 20 s com 2 repetições (cerca de 60 s de tela carregando antes do erro) agora 12 s com 1 repetição; na abertura do app o `/eu` não repete (a espera é atrás da abertura); carregamento longo ganha "Tentar de novo" depois de 10 s; `+not-found` e o limite de erro de rota têm "Voltar ao início"; convite vencido ou inválido deixava o token em espera e cada entrada seguinte voltava a ele (corrigido); assentar a rolagem do cabeçalho brigava com a inércia onde o evento não traz velocidade e podia repetir o mesmo ponto (corrigido).
+- Auditoria, não confirmado como causa: guardas de rota (`(autenticado)` e `(publico)` leem o mesmo estado da sessão, sem ping-pong; o destino guardado é de uso único); cascata do `ProvedorOffline` ao voltar ao primeiro plano (só invalida chaves locais e a comunidade quando o servidor aceitou algo; as leituras de rede em segundo plano ficam sob os novos 12 s). Só um aparelho confirma: o link universal abrindo o app (o build instalado hoje não tem a rota, precisa de novo build; o Android também precisa do `intent-filter` novo), a rolagem sem briga em Android e iOS e o tempo real em rede ruim.
+- Evidência: `apps/api/test/paginas-publicas.test.ts` (5 casos novos), `LinkDoCodigo.test.tsx` (6), `Entrada.test.tsx` (2), `AppAberto.test.tsx` (1), `tentativasDasConsultas.test.ts` (3), `EsqueletoDemorado.test.tsx` (3), `AssentoDaRolagem.test.tsx` (5), `ErroDeRota.test.tsx` (2) e `Convite.test.tsx` (1).
 
 ## Pedido atualizado: cadastro simplificado em 17/11/2026
 

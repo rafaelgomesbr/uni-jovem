@@ -91,6 +91,18 @@ describe('tela do versículo', () => {
     expect(screen.getByRole('button', { name: 'Abrir os Ajustes do aparelho' })).toBeOnTheScreen()
   })
 
+  test('a tela cheia mostra o versículo aberto, sem a linha que recolhe (D59)', async () => {
+    permissaoDoSistema(2)
+    const v = versiculoDoDia(new Date())
+    await renderizarTela(<TelaVersiculo />, {
+      rotas: { 'GET /api/v1/eu/notificacoes': () => ({ status: 200, corpo: PREFERENCIAS }) },
+    })
+    expect(await screen.findByText(v.texto)).toBeOnTheScreen()
+    expect(screen.getByText(`${v.referencia} · BLIVRE`)).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: /Mostrar texto|Recolher texto/ })).toBeNull()
+    await screen.findByRole('switch', { name: 'Receber todo dia' })
+  })
+
   test('a permissão só é pedida depois da explicação e do toque em "Ativar"', async () => {
     permissaoDoSistema(0)
     await renderizarTela(<TelaVersiculo />, {

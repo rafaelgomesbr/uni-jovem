@@ -120,7 +120,10 @@ describe('Comece por aqui (conta sem comunidade)', () => {
 })
 
 describe('Tenho um código', () => {
-  beforeEach(() => jest.clearAllMocks())
+  beforeEach(() => {
+    jest.clearAllMocks()
+    jest.mocked(useLocalSearchParams).mockReturnValue({})
+  })
 
   test('código não reconhecido: erro humano no campo, nada vai para a API', async () => {
     const { servidor } = await renderizarTela(<TelaTenhoUmCodigo />, {
@@ -130,6 +133,30 @@ describe('Tenho um código', () => {
     await fireEvent.press(screen.getByRole('checkbox', { name: FE }))
     await fireEvent.press(screen.getByRole('button', { name: 'Entrar na comunidade' }))
     expect(await screen.findByText(/Não reconhecemos esse código/)).toBeOnTheScreen()
+    expect(pedidosPara(servidor, 'POST', '/api/v1/entrada')).toHaveLength(0)
+  })
+
+  test('código vindo do link (D58): preenche o campo, não envia sozinho e mantém o consentimento', async () => {
+    jest.mocked(useLocalSearchParams).mockReturnValue({ codigo: 'XPHVYHFS' })
+    const { servidor } = await renderizarTela(<TelaTenhoUmCodigo />, {
+      rotas: { 'GET /api/v1/eu': semComunidade() },
+    })
+    const campo = await screen.findByLabelText('Código ou link')
+    expect(campo.props.value).toBe('XPHVYHFS')
+    expect(screen.getByText(/Código do link: XPHV YHFS/)).toBeOnTheScreen()
+    // Nada foi enviado, e o botão segue exigindo o consentimento sobre a fé.
+    expect(screen.getByRole('button', { name: 'Entrar na comunidade' })).toBeDisabled()
+    expect(pedidosPara(servidor, 'POST', '/api/v1/entrada')).toHaveLength(0)
+  })
+
+  test('código do link fora do formato: mensagem humana e campo vazio', async () => {
+    jest.mocked(useLocalSearchParams).mockReturnValue({ codigo: 'XPHV0HF1' })
+    const { servidor } = await renderizarTela(<TelaTenhoUmCodigo />, {
+      rotas: { 'GET /api/v1/eu': semComunidade() },
+    })
+    const campo = await screen.findByLabelText('Código ou link')
+    expect(campo.props.value).toBe('')
+    expect(screen.getByText(/O código deste link não parece certo/)).toBeOnTheScreen()
     expect(pedidosPara(servidor, 'POST', '/api/v1/entrada')).toHaveLength(0)
   })
 

@@ -223,6 +223,42 @@ export interface RespostaDoInicio {
   avisos?: AvisoDoInicio[]
 }
 
+/** `GET /visao-geral?escopo=minha` (D59): só números da própria pessoa; texto de oração nunca vem. */
+export interface MinhaVisaoGeral {
+  escopo: 'minha'
+  convocacoesParaResponder: number
+  convocacoesProximas: number
+  tarefasAbertas: number
+  inscricoes: number
+  /** Encontros em que a pessoa esteve, entre os que aconteceram nos últimos 30 dias. */
+  presenca30dias: { presentes: number; encontros: number }
+  oracoesAtivas: number
+}
+
+/** Encontro dos próximos 14 dias, com a situação das convocações (só contagens). */
+export interface EncontroDaVisaoGeral {
+  id: string
+  titulo: string
+  inicio: string
+  fuso: string
+  convocados: number
+  semResposta: number
+  recusadas: number
+}
+
+/** `GET /visao-geral?escopo=comunidade` (D59): organização; contagens e identificadores. */
+export interface VisaoGeralDaComunidade {
+  escopo: 'comunidade'
+  pessoasAtivas: number
+  proximosEncontros: EncontroDaVisaoGeral[]
+  convocacoes: { semResposta: number; recusadas: number }
+  pedidosDeEntrada: number
+  /** Nulo para quem não pode ler denúncias (só administrador). */
+  denunciasAbertas: number | null
+  presencaMedia: { encontros: number; media: number | null }
+  tarefasAtrasadas: number
+}
+
 /** `GET /convocacoes/aguardando-resposta` (D57): só contagens, para a organização. */
 export interface EncontroAguardandoResposta {
   id: string

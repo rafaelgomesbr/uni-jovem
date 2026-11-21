@@ -6,6 +6,11 @@ import { COMUNIDADE, pedidosPara, renderizarTela } from '@/testes/telas'
 
 import { AceitarComConta } from '../AceitarComConta'
 import { CadastroPorConvite } from '../CadastroPorConvite'
+import {
+  descartarConviteEmEspera,
+  guardarConviteEmEspera,
+  lerConviteEmEspera,
+} from '../conviteEmEspera'
 import { TelaConvite } from '../TelaConvite'
 import { apagarTravaDeIdade } from '../travaDeIdade'
 
@@ -106,6 +111,40 @@ describe('conta nova por convite', () => {
       consentimentoFe: true,
       responsavelCiente: true,
     })
+  })
+})
+
+describe('conta nova por convite: acessos rápidos e sem confirmação de e-mail', () => {
+  afterEach(() => {
+    delete process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID
+  })
+
+  test('Google antes do formulário, "ou crie com e-mail", e nada de código por e-mail', async () => {
+    process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID = 'ios-123.apps.googleusercontent.com'
+    await renderizarTela(<CadastroPorConvite token={TOKEN} comunidade="Jovens Centro" />)
+
+    const google = await screen.findByRole('button', { name: 'Continuar com o Google' })
+    expect(google).toBeOnTheScreen()
+    expect(screen.getByText('ou crie com e-mail')).toBeOnTheScreen()
+    expect(screen.getByText(/Não precisa confirmar o e-mail/)).toBeOnTheScreen()
+    expect(screen.queryByText(/código de 6 números/i)).toBeNull()
+    expect(screen.queryByLabelText('Código de 6 números')).toBeNull()
+    // Os campos e os aceites continuam todos ali.
+    expect(screen.getByLabelText('Nome')).toBeOnTheScreen()
+    expect(screen.getByLabelText('E-mail')).toBeOnTheScreen()
+    expect(screen.getByRole('radio', { name: 'Tenho 18 anos ou mais.' })).toBeOnTheScreen()
+    expect(
+      screen.getByRole('checkbox', {
+        name: 'Li e concordo com os Termos de Uso e a Política de Privacidade.',
+      }),
+    ).toBeOnTheScreen()
+  })
+
+  test('menor de 16 não vê os acessos rápidos', async () => {
+    process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID = 'ios-123.apps.googleusercontent.com'
+    await renderizarTela(<CadastroPorConvite token={TOKEN} comunidade="Jovens Centro" />)
+    await fireEvent.press(await screen.findByRole('radio', { name: 'Tenho menos de 16 anos.' }))
+    expect(screen.queryByRole('button', { name: 'Continuar com o Google' })).toBeNull()
   })
 })
 
@@ -284,5 +323,30 @@ describe('convite aberto por quem já está conectado', () => {
     expect(await screen.findByText('Você recebeu um convite')).toBeOnTheScreen()
     expect(screen.getByRole('button', { name: 'Entrar em Jovens Norte como Membro' })).toBeEnabled()
     expect(screen.queryByText(/Você já faz parte/)).toBeNull()
+  })
+})
+
+describe('convite que não serve', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    descartarConviteEmEspera()
+  })
+
+  test('sair do convite vencido esquece o token em espera: nada de voltar a ele a cada entrada', async () => {
+    guardarConviteEmEspera(TOKEN)
+    parametros.mockReturnValue({})
+    await renderizarTela(<TelaConvite />, {
+      rotas: {
+        'POST /api/auth/convite/consultar': () => ({
+          status: 200,
+          corpo: { situacao: 'expirado' },
+        }),
+      },
+    })
+    expect(await screen.findByText('Este convite venceu')).toBeOnTheScreen()
+    expect(lerConviteEmEspera()).toBe(TOKEN)
+    await fireEvent.press(screen.getByRole('button', { name: 'Ir para o Início' }))
+    expect(router.replace).toHaveBeenCalledWith('/')
+    expect(lerConviteEmEspera()).toBeNull()
   })
 })

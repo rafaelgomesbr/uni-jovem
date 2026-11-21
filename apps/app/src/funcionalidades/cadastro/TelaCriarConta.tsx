@@ -22,6 +22,7 @@ import { useConfirmarDescarte, useTravaDeEnvio } from '@/ui/navegacao'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 
+import { CabecalhoDeAcesso } from '../autenticacao/CabecalhoDeAcesso'
 import { problemaDaSenha } from '../autenticacao/politicaDeSenha'
 import {
   EntradaComProvedores,
@@ -216,9 +217,13 @@ export function TelaCriarConta() {
         </BarraDeAcao>
       ),
       <>
-        <Texto variante="corpo" cor="textoSuave">
-          Sua conta é sua, não da igreja. Depois você entra numa comunidade ou cria a sua.
-        </Texto>
+        <CabecalhoDeAcesso
+          apoio={
+            CADASTRO_SIMPLIFICADO
+              ? 'Sua conta é sua, não da igreja. Não precisa confirmar o e-mail: é só preencher e entrar. Depois você escolhe uma comunidade ou cria a sua.'
+              : 'Sua conta é sua, não da igreja. Depois você entra numa comunidade ou cria a sua.'
+          }
+        />
         {indisponivel ? (
           <Aviso tipo="info" titulo="Cadastro por e-mail indisponível agora" anunciar>
             {temProvedor
@@ -226,7 +231,9 @@ export function TelaCriarConta() {
               : 'Por enquanto, não dá para criar conta por e-mail. Tente de novo mais tarde.'}
           </Aviso>
         ) : null}
-        {!menor && temProvedor ? <EntradaComProvedores aoComecar={liberarSaida} /> : null}
+        {!menor ? (
+          <EntradaComProvedores aoComecar={liberarSaida} separador="ou crie com e-mail" />
+        ) : null}
         <CartaoDeVidro opaco intervalo={ESPACO.e16}>
           <Campo
             rotulo="Nome"
@@ -242,7 +249,7 @@ export function TelaCriarConta() {
             rotulo="E-mail"
             ajuda={
               CADASTRO_SIMPLIFICADO
-                ? 'Use o e-mail com que você vai entrar na conta.'
+                ? 'É com este e-mail que você vai entrar. Não precisa confirmar.'
                 : 'Vamos mandar um código de 6 números para confirmar.'
             }
             value={email}
@@ -328,8 +335,7 @@ export function TelaCriarConta() {
         </CartaoDeVidro>
       ) : (
         <Texto variante="corpo">
-          Seu e-mail não precisa de confirmação nesta etapa. Crie uma senha para entrar na sua
-          conta.
+          Falta só a senha. Não precisa confirmar o e-mail: assim que criar a conta, você já entra.
         </Texto>
       )}
       <CartaoDeVidro opaco intervalo={ESPACO.e16}>

@@ -40,6 +40,15 @@ export function avisoDoCodigo(modo: string | undefined): string {
 }
 
 /**
+ * Texto do compartilhamento (WhatsApp e outros apps), em português corrido:
+ * a comunidade, o código legível e o link por último, sem ponto depois dele
+ * (o ponto entraria no link e o quebraria).
+ */
+export function mensagemDoConvite(nomeDaComunidade: string, codigo: string, link: string): string {
+  return `Entre na comunidade ${nomeDaComunidade} no ${NOME_DO_APP}. Código: ${formatarCodigoDaComunidade(codigo)}. Link: ${link}`
+}
+
+/**
  * Rota `/codigo-da-comunidade` (admin). Com `?novo=1`, é o "Convide sua
  * equipe" que aparece logo depois de criar a comunidade.
  */
@@ -125,7 +134,7 @@ function Codigo({
   const trocar = useTrocarCodigo(comunidade.id)
   const legivel = formatarCodigoDaComunidade(atual.codigo)
   const modo = atual.modoEntrada ?? detalhe.data?.modoEntrada
-  const mensagem = `Entre na ${comunidade.nome} no ${NOME_DO_APP}: abra o link ou use o código ${legivel}.\n${atual.link}`
+  const mensagem = mensagemDoConvite(comunidade.nome, atual.codigo, atual.link)
 
   async function noWhatsApp() {
     const ok = await abrirLink(linkDoWhatsApp(mensagem))

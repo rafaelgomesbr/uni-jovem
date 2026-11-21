@@ -42,6 +42,8 @@ interface PropsDoErroDaTela {
   /** Completa "Não deu para carregar ..." ("a agenda", "as suas escalas"), quando não há título. */
   oQue?: string
   aoTentarDeNovo: () => void
+  /** Saída que não depende da tela quebrada (ex.: "Voltar ao início" do limite de erro de rota). */
+  acaoSecundaria?: { titulo: string; aoPressionar: () => void }
 }
 
 /**
@@ -49,7 +51,13 @@ interface PropsDoErroDaTela {
  * primário "Tentar de novo", no lugar do conteúdo que não carregou. Sem
  * internet é alerta, não erro: o título diz isso. Anunciado ao aparecer.
  */
-export function ErroDaTela({ erro, titulo, oQue, aoTentarDeNovo }: PropsDoErroDaTela) {
+export function ErroDaTela({
+  erro,
+  titulo,
+  oQue,
+  aoTentarDeNovo,
+  acaoSecundaria,
+}: PropsDoErroDaTela) {
   const semConexao = erro instanceof SemConexao
   const tituloFinal =
     titulo ??
@@ -62,6 +70,7 @@ export function ErroDaTela({ erro, titulo, oQue, aoTentarDeNovo }: PropsDoErroDa
       titulo={tituloFinal}
       descricao={descricao}
       acao={{ titulo: 'Tentar de novo', icone: 'sincronizar', aoPressionar: aoTentarDeNovo }}
+      {...(acaoSecundaria ? { acaoSecundaria } : {})}
     />
   )
 }

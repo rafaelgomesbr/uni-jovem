@@ -67,12 +67,31 @@ const INICIO_VAZIO = {
   substituicoesAbertas: 0,
 }
 
+// O "Seu resumo" da Minha visão (D59) tem a própria rota; estes testes são do resto do Início.
+const VISAO_PADRAO = {
+  [`GET ${BASE}/visao-geral`]: () => ({
+    status: 200,
+    corpo: {
+      escopo: 'minha',
+      convocacoesParaResponder: 1,
+      convocacoesProximas: 0,
+      tarefasAbertas: 1,
+      inscricoes: 0,
+      presenca30dias: { presentes: 0, encontros: 0 },
+      oracoesAtivas: 0,
+    },
+  }),
+}
+
 describe('tela Início', () => {
   beforeEach(() => jest.clearAllMocks())
 
   test('mostra eventos, escalas e tarefas reais, no horário da comunidade', async () => {
     await renderizarTela(<TelaInicio />, {
-      rotas: { [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: INICIO_CHEIO }) },
+      rotas: {
+        ...VISAO_PADRAO,
+        [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: INICIO_CHEIO }),
+      },
     })
 
     expect(
@@ -90,6 +109,7 @@ describe('tela Início', () => {
   test('"Você foi convocado": aceitar chama a API da própria atribuição e avisa', async () => {
     const { servidor } = await renderizarTela(<TelaInicio />, {
       rotas: {
+        ...VISAO_PADRAO,
         [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: INICIO_CHEIO }),
         [`POST ${BASE}/atribuicoes/a1/confirmar`]: () => ({
           status: 200,
@@ -116,6 +136,7 @@ describe('tela Início', () => {
   test('"Não posso ir" pergunta antes, recusa a própria convocação e avisa', async () => {
     const { servidor } = await renderizarTela(<TelaInicio />, {
       rotas: {
+        ...VISAO_PADRAO,
         [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: INICIO_CHEIO }),
         [`POST ${BASE}/atribuicoes/a1/recusar`]: () => ({
           status: 200,
@@ -146,7 +167,10 @@ describe('tela Início', () => {
   test('"Voltar" no diálogo não recusa nada', async () => {
     jest.mocked(confirmar).mockResolvedValueOnce(false)
     const { servidor } = await renderizarTela(<TelaInicio />, {
-      rotas: { [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: INICIO_CHEIO }) },
+      rotas: {
+        ...VISAO_PADRAO,
+        [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: INICIO_CHEIO }),
+      },
     })
 
     await userEvent
@@ -160,6 +184,7 @@ describe('tela Início', () => {
   test('concluir a própria tarefa manda só "concluida"', async () => {
     const { servidor } = await renderizarTela(<TelaInicio />, {
       rotas: {
+        ...VISAO_PADRAO,
         [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: INICIO_CHEIO }),
         [`PATCH ${BASE}/eventos/e1/tarefas/t1`]: () => ({ status: 200, corpo: { id: 't1' } }),
       },
@@ -176,7 +201,10 @@ describe('tela Início', () => {
 
   test('vazio, para organizador: oferece o Sábado padrão', async () => {
     await renderizarTela(<TelaInicio />, {
-      rotas: { [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: INICIO_VAZIO }) },
+      rotas: {
+        ...VISAO_PADRAO,
+        [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: INICIO_VAZIO }),
+      },
     })
 
     expect(await screen.findByText('Nenhum encontro marcado')).toBeOnTheScreen()
@@ -191,7 +219,10 @@ describe('tela Início', () => {
   test('vazio, para membro: leva à agenda, sem criar', async () => {
     await renderizarTela(<TelaInicio />, {
       papel: 'membro',
-      rotas: { [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: INICIO_VAZIO }) },
+      rotas: {
+        ...VISAO_PADRAO,
+        [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: INICIO_VAZIO }),
+      },
     })
 
     expect(await screen.findByText('Nenhum encontro marcado')).toBeOnTheScreen()
@@ -202,6 +233,7 @@ describe('tela Início', () => {
   test('erro da API vira mensagem humana com "Tentar de novo"', async () => {
     await renderizarTela(<TelaInicio />, {
       rotas: {
+        ...VISAO_PADRAO,
         [`GET ${BASE}/inicio`]: () => ({
           status: 500,
           corpo: { erro: 'interno', mensagem: 'Algo deu errado do nosso lado. Tente de novo.' },
@@ -218,6 +250,7 @@ describe('tela Início', () => {
   test('com inscrição próxima, mostra "Minhas inscrições" e abre o evento', async () => {
     await renderizarTela(<TelaInicio />, {
       rotas: {
+        ...VISAO_PADRAO,
         [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: INICIO_CHEIO }),
         [`GET ${BASE}/inscricoes/eu`]: () => ({
           status: 200,

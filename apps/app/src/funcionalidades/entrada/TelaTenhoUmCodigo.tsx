@@ -1,7 +1,7 @@
 import { ESPACO, RAIO } from '@uj/tokens'
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera'
 import * as Clipboard from 'expo-clipboard'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { useRef, useState } from 'react'
 import { Linking, Platform, View } from 'react-native'
 
@@ -19,6 +19,7 @@ import { useConfirmarDescarte, useTravaDeEnvio } from '@/ui/navegacao'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { mostrarToast } from '@/ui/Toast'
+import { parametro } from '@/utilidades/parametros'
 
 import { abrirConvite, lerTokenDoConvite } from '../comunidade/TelaEntrarComConvite'
 import { CamposDoConsentimento, useConsentimentoDaEntrada } from './ConsentimentoDaEntrada'
@@ -36,6 +37,8 @@ const COMUNIDADE_DO_CODIGO = 'comunidade deste código'
 const LADO_MAXIMO_DO_VISOR = 320
 const NAO_RECONHECIDO =
   'Não reconhecemos esse código. Ele tem 8 letras e números, como ABCD 2345. Se recebeu um link, cole o link inteiro.'
+const CODIGO_DO_LINK_INVALIDO =
+  'O código deste link não parece certo. Ele tem 8 letras e números, como ABCD 2345. Digite o código que a liderança passou ou cole o link inteiro.'
 
 /**
  * "Tenho um código ou convite" (ADR 0007): um campo só aceita o código da
@@ -48,13 +51,26 @@ export function TelaTenhoUmCodigo() {
   const [texto, setTexto] = useState('')
   const [mensagem, setMensagem] = useState('')
   const [erro, setErro] = useState<string | null>(null)
+  // O link do código (`/entrar/<codigo>`) chega pelo parâmetro `codigo` (D58).
+  const doLink = parametro(useLocalSearchParams<{ codigo?: string | string[] }>().codigo)
+  const [linkAplicado, setLinkAplicado] = useState<string | null>(null)
+  const [preenchido, setPreenchido] = useState('')
+  // Preenche o campo uma vez por link, durante a renderização (sem efeito). Nunca envia
+  // sozinho: o consentimento e o botão continuam sendo da pessoa.
+  if (doLink !== null && doLink !== linkAplicado) {
+    const lido = lerCodigoDaComunidade(doLink)
+    setLinkAplicado(doLink)
+    setPreenchido(lido ?? '')
+    setTexto(lido ?? '')
+    setErro(lido ? null : CODIGO_DO_LINK_INVALIDO)
+  }
   const [camera, setCamera] = useState(false)
   const entrar = useEntrarComCodigo()
   const consentimento = useConsentimentoDaEntrada()
   const trava = useTravaDeEnvio()
   const pedido = entrar.data?.resultado === 'pedido_pendente' ? entrar.data : null
   const liberarSaida = useConfirmarDescarte(
-    !entrar.isSuccess && !!(texto.trim() || mensagem.trim()),
+    !entrar.isSuccess && !!((texto.trim() && texto.trim() !== preenchido) || mensagem.trim()),
   )
 
   function continuar(valor = texto) {
@@ -148,7 +164,9 @@ export function TelaTenhoUmCodigo() {
           exemplo="ABCD 2345"
           ajuda={
             valido
-              ? `Código ${formatarCodigoDaComunidade(valido)}`
+              ? preenchido === valido
+                ? `Código do link: ${formatarCodigoDaComunidade(valido)}. Confira e toque em "Entrar na comunidade".`
+                : `Código ${formatarCodigoDaComunidade(valido)}`
               : 'São 8 letras e números. Maiúsculas ou minúsculas, tanto faz.'
           }
           value={texto}

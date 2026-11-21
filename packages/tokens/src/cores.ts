@@ -215,6 +215,16 @@ export const MARCA_DO_GOOGLE = {
   textoInativo: '#767676',
 } as const
 
+/**
+ * Botão "Continuar com a Apple": preto com texto e logotipo brancos no tema
+ * claro, branco com preto no escuro (as duas versões oficiais da marca). Cores
+ * fixas, fora da paleta do tema.
+ */
+export const MARCA_DA_APPLE = {
+  claro: { fundo: '#000000', texto: '#FFFFFF', pressionado: '#2A2A2A', textoInativo: '#A0A0A0' },
+  escuro: { fundo: '#FFFFFF', texto: '#000000', pressionado: '#E6E6E6', textoInativo: '#6B6B6B' },
+} as const
+
 /** Iniciais sobre as cores de comunidade e de pessoa: sempre branco (todas passam 4,5:1). */
 export const INICIAIS_SOBRE_COR = '#FFFFFF'
 

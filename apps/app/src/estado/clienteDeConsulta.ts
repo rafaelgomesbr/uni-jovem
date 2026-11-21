@@ -24,6 +24,9 @@ export const CHAVES = {
   minhasEscalas: (id: string) => ['c', id, 'minhas-escalas'] as const,
   /** Sob o prefixo dos eventos: qualquer mudança num encontro (convocar, publicar) recarrega. */
   aguardandoResposta: (id: string) => ['c', id, 'eventos', 'aguardando-resposta'] as const,
+  /** Sob o prefixo dos eventos: convocar, responder, concluir tarefa ou registrar presença recarrega. */
+  visaoGeral: (id: string, escopo: 'minha' | 'comunidade') =>
+    ['c', id, 'eventos', 'visao-geral', escopo] as const,
   substituicoes: (id: string) => ['c', id, 'substituicoes'] as const,
   disponibilidade: (id: string, de: string, ate: string) =>
     ['c', id, 'disponibilidade', de, ate] as const,
@@ -64,13 +67,18 @@ export const CHAVES = {
   denunciasDeComunidade: ['plataforma', 'denuncias-de-comunidade'] as const,
 }
 
+/** Novas tentativas de uma leitura que falhou por rede ou tempo (escritas não repetem). */
+export const LEITURAS_NOVAS_TENTATIVAS = 1
+
 export function criarClienteDeConsulta(): QueryClient {
   return new QueryClient({
     defaultOptions: {
       queries: {
         staleTime: 30_000,
         // Erro da API é resposta definitiva (permissão, validação): repetir não ajuda.
-        retry: (falhas, erro) => !(erro instanceof ErroDaApi) && falhas < 2,
+        // Só a falta de rede/tempo esgotado tenta mais UMA vez (D58): duas repetições de 20 s
+        // deixavam a tela carregando por um minuto antes do "Tentar de novo".
+        retry: (falhas, erro) => !(erro instanceof ErroDaApi) && falhas < LEITURAS_NOVAS_TENTATIVAS,
       },
       mutations: {
         retry: false,

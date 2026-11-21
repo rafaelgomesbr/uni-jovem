@@ -4,6 +4,7 @@ import { NOME_DO_APP } from '@uj/dominio'
 import type { FastifyInstance, FastifyReply } from 'fastify'
 import type { Ambiente, Config } from '../config.ts'
 import { CSP_PUBLICA, html, pagina, Seguro } from './html.ts'
+import { registrarPaginaDoCodigo } from './paginaDoCodigo.ts'
 import { markdownParaHtml, semAnexos, semNotasInternas } from './markdown.ts'
 
 /**
@@ -145,6 +146,9 @@ export function registrarDocumentosPublicos(
   o: { config: Config; pasta?: string },
 ): void {
   const pasta = o.pasta ?? PASTA_DOS_DOCUMENTOS
+
+  // Link do código da comunidade (D58): `/entrar/:codigo`, sem consultar o banco.
+  registrarPaginaDoCodigo(app, { config: o.config })
 
   function responder(r: FastifyReply, status: number, conteudo: string) {
     // Estas páginas podem ser indexadas: o Google Play precisa alcançar /excluir-conta.

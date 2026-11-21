@@ -244,3 +244,94 @@ describe('app aberto nas páginas públicas (ADR 0007)', () => {
     expect(caminhoSemConsulta('/api/v1/entrada')).toBe('/api/v1/entrada')
   })
 })
+
+describe('link do código da comunidade: /entrar/:codigo (D58)', () => {
+  it('código válido: mostra o código formatado e as três ações, sem script embutido', async () => {
+    const app = servidorDasPaginas(producao, pastaCompleta)
+    const r = await app.inject({ method: 'GET', url: '/entrar/XPHVYHFS' })
+    expect(r.statusCode).toBe(200)
+    expect(r.headers['content-type']).toContain('text/html')
+    expect(r.headers['x-robots-tag']).toBe('noindex, nofollow')
+    expect(r.headers['content-security-policy']).toContain("script-src 'self'")
+    expect(r.body).toContain('noindex')
+    expect(r.body).toContain('Você foi convidado(a) para uma comunidade no Uni Jovem')
+    expect(r.body).toContain('XPHV YHFS')
+    expect(r.body).toContain('href="unijovem://entrar/XPHVYHFS"')
+    expect(r.body).toContain('>Abrir no app<')
+    expect(r.body).toContain('href="/app/tenho-um-codigo?codigo=XPHVYHFS"')
+    expect(r.body).toContain('Continuar no navegador')
+    expect(r.body).toContain('Copiar código')
+    expect(r.body).toContain('<script src="/publico/codigo.js" defer>')
+    // Nenhum script inline: a CSP não deixaria rodar.
+    expect(r.body.replace(/<script src="[^"]*" defer><\/script>/g, '')).not.toContain('<script')
+  })
+
+  it('aceita minúsculas, espaço e hífen, e usa o esquema do ambiente', async () => {
+    const hml = servidorDasPaginas(
+      carregarConfig(
+        envDeTeste({
+          UJ_AMBIENTE: 'homologacao',
+          URL_PUBLICA: 'https://unijovem-hml.exemplo.test',
+          TURNSTILE_SEGREDO: 'ts',
+        }),
+      ),
+      pastaCompleta,
+    )
+    const r = await hml.inject({ method: 'GET', url: '/entrar/xphv-yhfs' })
+    expect(r.statusCode).toBe(200)
+    expect(r.body).toContain('XPHV YHFS')
+    expect(r.body).toContain('href="unijovem-hml://entrar/XPHVYHFS"')
+  })
+
+  it('formato inválido: 404 amigável, sem refletir o que veio na URL', async () => {
+    const app = servidorDasPaginas(producao, pastaCompleta)
+    for (const ruim of [
+      'ABC',
+      'XPHVYHFSX',
+      'XPHVYHF0', // 0 não existe no alfabeto
+      'XPHVYHFO', // O também não
+      'XPHVYHF1',
+      '%3Cscript%3Ealert(1)%3C%2Fscript%3E',
+      'A'.repeat(90),
+    ]) {
+      const r = await app.inject({ method: 'GET', url: `/entrar/${ruim}` })
+      expect(r.statusCode, ruim).toBe(404)
+      expect(r.headers['x-robots-tag']).toBe('noindex, nofollow')
+      expect(r.body).toContain('Código não reconhecido')
+      expect(r.body).not.toContain('<script>')
+      expect(r.body).not.toContain('Abrir no app')
+    }
+    const vazio = await app.inject({ method: 'GET', url: '/entrar/' })
+    expect(vazio.statusCode).toBe(404)
+  })
+
+  it('não consulta o banco: resposta igual para qualquer código de formato válido', async () => {
+    // O servidor das páginas nem tem banco: se a rota consultasse, falharia aqui.
+    const app = servidorDasPaginas(producao, pastaCompleta)
+    const a = await app.inject({ method: 'GET', url: '/entrar/ABCD2345' })
+    const b = await app.inject({ method: 'GET', url: '/entrar/ZZZZ9999' })
+    expect(a.statusCode).toBe(200)
+    expect(b.statusCode).toBe(200)
+    // Nada de nome de comunidade: só o código muda entre as duas páginas.
+    expect(
+      a.body
+        .replaceAll('ABCD2345', 'X')
+        .replaceAll('ABCD 2345', 'Y')
+        .replaceAll('A B C D 2 3 4 5', 'Z'),
+    ).toBe(
+      b.body
+        .replaceAll('ZZZZ9999', 'X')
+        .replaceAll('ZZZZ 9999', 'Y')
+        .replaceAll('Z Z Z Z 9 9 9 9', 'Z'),
+    )
+  })
+
+  it('o script de copiar é servido como JavaScript e só lê o atributo do botão', async () => {
+    const app = servidorDasPaginas(producao, pastaCompleta)
+    const r = await app.inject({ method: 'GET', url: '/publico/codigo.js' })
+    expect(r.statusCode).toBe(200)
+    expect(r.headers['content-type']).toContain('text/javascript')
+    expect(r.body).toContain("getAttribute('data-codigo')")
+    expect(r.body).not.toContain('location')
+  })
+})

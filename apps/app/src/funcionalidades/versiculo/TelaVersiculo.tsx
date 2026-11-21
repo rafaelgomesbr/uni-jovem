@@ -41,7 +41,7 @@ export function TelaVersiculo() {
   const prefs = usePreferenciasDaConta()
   return (
     <Tela pilha titulo="Versículo do dia" descricao={TEXTO_DO_VERSICULO}>
-      <CartaoDoVersiculo />
+      <CartaoDoVersiculo fixoAberto />
       {prefs.isPending ? (
         <Esqueleto rotulo="Carregando a sua preferência">
           <CartaoDeEsqueleto />

@@ -100,6 +100,7 @@ input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(-
 button,.botao{display:inline-block;min-height:48px;padding:12px 20px;border:0;border-radius:14px;background:var(--prim);color:var(--sobreprim);font-weight:700;font-size:1rem;text-decoration:none;cursor:pointer}
 .secundario{background:transparent;color:var(--texto);border:2px solid var(--prim)}
 .acoes{display:flex;flex-direction:column;align-items:stretch;gap:12px;margin:16px 0}.acoes form{margin:0}.acoes .botao,.acoes button{width:100%;text-align:center}
+.codigo{font-size:2rem;font-weight:800;letter-spacing:.12em;margin:.2em 0;user-select:all;overflow-wrap:anywhere}[hidden]{display:none!important}
 .print{font-weight:700;font-size:1.15rem;border-left:4px solid var(--prim);padding:4px 12px;margin:16px 0}
 .isca{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
 .qr{background:#fff;padding:12px;border-radius:12px;display:inline-block}.qr svg{width:200px;height:200px}
@@ -111,3 +112,10 @@ code{font-family:ui-monospace,Consolas,monospace;font-size:.9em}a{color:var(--te
 
 /** Lê o token do fragmento (#t=...) e preenche o formulário de cancelamento. */
 export const SCRIPT_CANCELAR = `(function(){var m=location.hash.match(/t=([\\w-]+)/);var c=document.getElementById('token');if(m&&c){c.value=m[1];history.replaceState(null,'',location.pathname);}else{var a=document.getElementById('sem-token');if(a)a.hidden=false;}})();`
+
+/**
+ * "Copiar código" da página do link do código: o botão nasce escondido (sem
+ * JavaScript, o código aparece em texto selecionável) e só aparece se o
+ * navegador deixa copiar. O código vem do atributo, nunca é montado de entrada.
+ */
+export const SCRIPT_COPIAR_CODIGO = `(function(){var b=document.getElementById('copiar');var s=document.getElementById('copiado');if(!b)return;function avisar(t){if(s)s.textContent=t;}function plano(c){var t=document.createElement('textarea');t.value=c;t.setAttribute('readonly','');t.style.position='fixed';t.style.opacity='0';document.body.appendChild(t);t.select();var ok=false;try{ok=document.execCommand('copy');}catch(e){}document.body.removeChild(t);return ok;}b.hidden=false;b.addEventListener('click',function(){var c=b.getAttribute('data-codigo')||'';if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(c).then(function(){avisar('Código copiado.');},function(){avisar(plano(c)?'Código copiado.':'Não deu para copiar. Selecione o código e copie.');});}else{avisar(plano(c)?'Código copiado.':'Não deu para copiar. Selecione o código e copie.');}});})();`

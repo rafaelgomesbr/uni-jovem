@@ -74,7 +74,8 @@ export interface CadastroComProvedor {
 }
 
 /** O que o app recebeu do provedor: o ID token (e, na Apple, o nonce cru). */
-export type CredencialDoProvedor = { idToken: string } | { identityToken: string; nonce: string }
+export type CredencialDoProvedor =
+  { idToken: string } | { identityToken: string; nonce: string; nome?: string }
 
 export interface SituacaoDaBiometria extends Biometria {
   /** A sessão deste aparelho só abre com a biometria. */
@@ -212,10 +213,13 @@ export function ProvedorDeSessao({
     encerrada.current = false
     // `always`: sem rede, o pedido falha na hora (e o app abre com a conta salva) em vez de
     // ficar pausado esperando a conexão.
+    // `retry: false`: na abertura o app espera atrás da abertura (splash); a falha cai em "abrir
+    // com a conta salva" ou em "Tentar de novo", e uma repetição só alongaria a espera (D58).
     const dados = await consultas.fetchQuery({
       queryKey: CHAVES.eu,
       queryFn: buscarEu,
       networkMode: 'always',
+      retry: false,
     })
     setPreferida(await lerComunidadeAtiva(dados.conta.id))
     encerramento.current = null

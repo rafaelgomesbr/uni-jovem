@@ -1,25 +1,26 @@
 import { useMutation } from '@tanstack/react-query'
 import { ESPACO } from '@uj/tokens'
 import { router } from 'expo-router'
-import { useState } from 'react'
-import { View } from 'react-native'
+import { useEffect, useRef, useState, type ComponentRef } from 'react'
+import { Platform, TextInput, View } from 'react-native'
 
-import { NOME_DO_APP } from '@/constantes'
 import { useSessao, type ResultadoDeEntrar } from '@/estado/sessao'
 import { Aviso } from '@/ui/Aviso'
-import { Botao, BotaoIcone, EmPar } from '@/ui/Botao'
+import { Botao, BotaoIcone } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { AvisoDeFalha } from '@/ui/Falha'
-import { IconeDoApp } from '@/ui/IconeDoApp'
+import { focar, type NoDeTexto } from '@/ui/foco'
 import { useSemConexao } from '@/ui/IndicadorDeConexao'
+import { SeparadorComTexto } from '@/ui/SeparadorComTexto'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 
 import { AlteracoesDescartadas } from '../offline/AlteracoesDescartadas'
-import { BotaoApple, pedirCredencialDaApple, useAppleDisponivel } from './provedores/BotaoApple'
-import { BotaoGoogle } from './provedores/BotaoGoogle'
-import { googleConfigurado } from './provedores/configuracao'
+import { CabecalhoDeAcesso } from './CabecalhoDeAcesso'
+import { AcessosRapidos } from './provedores/AcessosRapidos'
+import { pedirCredencialDaApple } from './provedores/BotaoApple'
+import { useTemProvedor } from './provedores/EntradaComProvedores'
 
 interface ErrosDoFormulario {
   email?: string
@@ -33,12 +34,13 @@ type Pedido =
   | { tipo: 'biometria' }
 
 /**
- * Entrar (3.1.1 e quadro 05): Aurora total, marca a 40 da área segura,
- * cartão "ENTRAR" com e-mail, senha, "Esqueci a senha" e o primário largo
- * (com o Face ID como só ícone de 48 ao lado, se há sessão guardada neste
- * aparelho), e embaixo Google e Apple em fundo branco. Conta aberta (ADR
- * 0007): "Criar conta" leva ao cadastro por e-mail, e Google ou Apple com um
- * e-mail novo levam a "Falta pouco" (idade e aceites).
+ * Entrar (D60): a marca, "Bem-vindo de volta" e, primeiro, os acessos rápidos
+ * grandes (Apple no iOS, Google onde existe), depois "ou com e-mail" e o
+ * formulário de e-mail e senha (com o Face ID como só ícone ao lado de
+ * "Entrar", se há sessão guardada neste aparelho). No rodapé, "Criar conta" em
+ * destaque e o link de convite. Conta aberta (ADR 0007): Google ou Apple com
+ * um e-mail novo levam a "Falta pouco" (idade e aceites), e a conta nasce sem
+ * confirmação de e-mail (ADR 0008).
  */
 export function TelaEntrar() {
   const sessao = useSessao()
@@ -48,9 +50,15 @@ export function TelaEntrar() {
   const [erros, setErros] = useState<ErrosDoFormulario>({})
   // Falha do lado do provedor (antes de chegar à API), com texto pronto.
   const [falhaDoProvedor, setFalhaDoProvedor] = useState<string | null>(null)
-  const appleDisponivel = useAppleDisponivel()
-  const temProvedor = appleDisponivel || googleConfigurado()
+  const temProvedor = useTemProvedor()
   const { biometria } = sessao
+  const titulo = useRef<NoDeTexto>(null)
+  const campoDaSenha = useRef<ComponentRef<typeof TextInput>>(null)
+
+  // Com leitor de tela, a tela abre lendo o título, não o último foco da tela anterior.
+  useEffect(() => {
+    if (Platform.OS !== 'web') focar(titulo)
+  }, [])
 
   const entrar = useMutation({
     mutationFn: async (pedido: Pedido): Promise<ResultadoDeEntrar | null> => {
@@ -61,7 +69,7 @@ export function TelaEntrar() {
         case 'google':
           return sessao.entrarComProvedor('google', { idToken: pedido.idToken })
         case 'apple': {
-          const credencial = await pedirCredencialDaApple()
+          const credencial = await pedirCredencialDaApple({ comNome: true })
           // Cancelou na folha da Apple: nada a mostrar.
           return credencial ? sessao.entrarComProvedor('apple', credencial) : null
         }
@@ -77,6 +85,8 @@ export function TelaEntrar() {
     },
   })
   const emAndamento = entrar.isPending ? entrar.variables.tipo : null
+  const provedorEmAndamento =
+    emAndamento === 'google' || emAndamento === 'apple' ? emAndamento : null
 
   function enviar() {
     const novos: ErrosDoFormulario = {}
@@ -87,25 +97,26 @@ export function TelaEntrar() {
     entrar.mutate({ tipo: 'senha' })
   }
 
-  const erroDeEntrada = entrar.error ? (
+  // O erro aparece perto de quem o causou: dos botões rápidos, acima deles; da senha, acima de "Entrar".
+  const erroDoPedido = entrar.error ? entrar.variables?.tipo : null
+  const erroNosAcessos = erroDoPedido === 'google' || erroDoPedido === 'apple'
+  const avisoDosAcessos = erroNosAcessos ? (
     <AvisoDeFalha erro={entrar.error} />
   ) : falhaDoProvedor ? (
     <AvisoDeFalha mensagem={falhaDoProvedor} />
   ) : null
+  const avisoDoFormulario =
+    entrar.error && !erroNosAcessos ? <AvisoDeFalha erro={entrar.error} /> : null
 
   return (
     <Tela semCabecalho>
       <AlteracoesDescartadas />
 
-      <View>
-        <IconeDoApp />
-        <Texto variante="display" style={{ marginTop: ESPACO.e16 }}>
-          {NOME_DO_APP}
-        </Texto>
-        <Texto variante="corpo" cor="textoSuave" style={{ marginTop: ESPACO.e4 }}>
-          A agenda da juventude, num lugar só
-        </Texto>
-      </View>
+      <CabecalhoDeAcesso
+        titulo="Bem-vindo de volta"
+        apoio="Entre para ver a agenda, as escalas e os recados da sua comunidade."
+        refDoTitulo={titulo}
+      />
 
       {semConexao ? (
         <Aviso tipo="alerta" titulo="Sem conexão">
@@ -113,7 +124,26 @@ export function TelaEntrar() {
         </Aviso>
       ) : null}
 
-      <CartaoDeVidro sobrancelha="Entrar" intervalo={ESPACO.e16} style={{ marginTop: ESPACO.e8 }}>
+      {temProvedor ? (
+        <View style={{ gap: ESPACO.e16 }}>
+          <View style={{ gap: ESPACO.e12 }}>
+            {avisoDosAcessos}
+            <AcessosRapidos
+              carregando={provedorEmAndamento}
+              desabilitado={emAndamento === 'senha' || emAndamento === 'biometria'}
+              aoObterTokenDoGoogle={(idToken) => entrar.mutate({ tipo: 'google', idToken })}
+              aoPedirApple={() => entrar.mutate({ tipo: 'apple' })}
+              aoFalhar={(mensagem) => {
+                entrar.reset()
+                setFalhaDoProvedor(mensagem)
+              }}
+            />
+          </View>
+          <SeparadorComTexto texto="ou com e-mail" />
+        </View>
+      ) : null}
+
+      <CartaoDeVidro intervalo={ESPACO.e16}>
         <Campo
           rotulo="E-mail"
           value={email}
@@ -122,13 +152,16 @@ export function TelaEntrar() {
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
-          autoComplete="email"
+          autoComplete="username"
           textContentType="username"
           inputMode="email"
           returnKeyType="next"
+          submitBehavior="submit"
+          onSubmitEditing={() => campoDaSenha.current?.focus()}
         />
         <View>
           <Campo
+            ref={campoDaSenha}
             rotulo="Senha"
             senha
             value={senha}
@@ -150,7 +183,7 @@ export function TelaEntrar() {
             />
           </View>
         </View>
-        {erroDeEntrada}
+        {avisoDoFormulario}
         <View style={{ flexDirection: 'row', gap: ESPACO.e8 }}>
           {biometria.travada ? (
             <BotaoIcone
@@ -162,40 +195,21 @@ export function TelaEntrar() {
             />
           ) : null}
           <View style={{ flex: 1 }}>
-            <EmPar>
-              <Botao
-                titulo="Entrar"
-                tamanho="grande"
-                aoPressionar={enviar}
-                carregando={emAndamento === 'senha'}
-                desabilitado={emAndamento !== null && emAndamento !== 'senha'}
-              />
-            </EmPar>
+            <Botao
+              titulo="Entrar"
+              tamanho="grande"
+              larguraTotal
+              aoPressionar={enviar}
+              carregando={emAndamento === 'senha'}
+              desabilitado={emAndamento !== null && emAndamento !== 'senha'}
+            />
           </View>
         </View>
       </CartaoDeVidro>
 
-      {temProvedor ? (
-        <View style={{ gap: ESPACO.e8 }}>
-          <BotaoGoogle
-            carregando={emAndamento === 'google'}
-            desabilitado={emAndamento !== null && emAndamento !== 'google'}
-            aoObterToken={(idToken) => entrar.mutate({ tipo: 'google', idToken })}
-            aoFalhar={(mensagem) => {
-              entrar.reset()
-              setFalhaDoProvedor(mensagem)
-            }}
-          />
-          <BotaoApple
-            carregando={emAndamento === 'apple'}
-            aoPressionar={() => entrar.mutate({ tipo: 'apple' })}
-          />
-        </View>
-      ) : null}
-
-      <View style={{ alignItems: 'flex-start', gap: ESPACO.e8 }}>
-        <Texto variante="corpo" cor="textoSuave">
-          Ainda não tem conta? Crie a sua em poucos passos.
+      <View style={{ gap: ESPACO.e8, alignItems: 'center' }}>
+        <Texto variante="meta" cor="textoSuave" centralizado>
+          Ainda não tem conta?
         </Texto>
         <Botao
           titulo="Criar conta"
@@ -208,7 +222,6 @@ export function TelaEntrar() {
         <Botao
           titulo="Tenho um link de convite"
           variante="terciario"
-          alinhado
           aoPressionar={() => router.push('/colar-convite')}
         />
       </View>

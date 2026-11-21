@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { Fragment, type ReactElement } from 'react'
+import { Fragment, useState, type ReactElement } from 'react'
 
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { useSessao } from '@/estado/sessao'
@@ -14,6 +14,7 @@ import { CaixaDeMarcar } from '@/ui/CaixaDeMarcar'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
+import { Segmentos } from '@/ui/Segmentos'
 
 import { useFusoDaComunidade } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
@@ -29,7 +30,9 @@ import { CartaoDoVersiculo } from '../versiculo/CartaoDoVersiculo'
 import { AvisosDoInicio } from './AvisosDoInicio'
 import { CartaoDoProximoEvento } from './CartaoDoProximoEvento'
 import { CartaoSuaEscala } from './CartaoSuaEscala'
+import { MinhaVisaoGeral } from './MinhaVisaoGeral'
 import { MinhasInscricoes, useMinhasInscricoes } from './MinhasInscricoes'
+import { VisaoGeralDaComunidade } from './VisaoGeralDaComunidade'
 
 /** No máximo 5 cartões no Início (2.13). */
 const MAXIMO_DE_CARTOES = 5
@@ -85,7 +88,47 @@ export function TelaInicio() {
   )
 }
 
+type Visao = 'minha' | 'comunidade'
+
+/**
+ * Visão geral (D59): "Minha visão" para todos; "Da comunidade" só para quem
+ * organiza (a mesma permissão dos relatórios). Membro nem vê o seletor.
+ */
 function Inicio({
+  comunidadeId,
+  nomeDaComunidade,
+}: {
+  comunidadeId: string
+  nomeDaComunidade: string
+}) {
+  const pode = usePode()
+  const [escolhida, setEscolhida] = useState<Visao>('minha')
+  const podeVerComunidade = pode('relatorio', 'ler')
+  // Papel rebaixado com a tela aberta: volta à visão pessoal em vez de pedir o que a API nega.
+  const visao: Visao = podeVerComunidade ? escolhida : 'minha'
+  return (
+    <>
+      {podeVerComunidade ? (
+        <Segmentos
+          rotulo="Visão geral"
+          valor={visao}
+          aoMudar={setEscolhida}
+          segmentos={[
+            { valor: 'minha', rotulo: 'Minha visão' },
+            { valor: 'comunidade', rotulo: 'Da comunidade' },
+          ]}
+        />
+      ) : null}
+      {visao === 'comunidade' ? (
+        <VisaoGeralDaComunidade comunidadeId={comunidadeId} />
+      ) : (
+        <MinhaVisao comunidadeId={comunidadeId} nomeDaComunidade={nomeDaComunidade} />
+      )}
+    </>
+  )
+}
+
+function MinhaVisao({
   comunidadeId,
   nomeDaComunidade,
 }: {
@@ -178,6 +221,8 @@ function Inicio({
   return (
     <>
       <CartaoDoVersiculo />
+
+      <MinhaVisaoGeral comunidadeId={comunidadeId} />
 
       {nadaExiste ? (
         <EstadoVazio

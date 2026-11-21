@@ -20,7 +20,7 @@ import { Texto } from '@/ui/Texto'
 
 import { AceitarComConta, JaParticipa } from './AceitarComConta'
 import { CadastroPorConvite } from './CadastroPorConvite'
-import { lerConviteEmEspera } from './conviteEmEspera'
+import { descartarConviteEmEspera, lerConviteEmEspera } from './conviteEmEspera'
 
 const SITUACAO: Readonly<Record<Exclude<SituacaoDoConvite, 'valido'>, [string, string]>> = {
   expirado: ['Este convite venceu', 'Peça um convite novo a quem administra a comunidade.'],
@@ -104,7 +104,12 @@ export function TelaConvite() {
 
   const sair = {
     titulo: conectado ? 'Ir para o Início' : 'Ir para entrar',
-    aoPressionar: () => router.replace(conectado ? '/' : '/entrar'),
+    aoPressionar: () => {
+      // Sair do convite que não serve esquece o token em espera: com ele guardado, toda entrada
+      // seguinte nesta sessão do app voltaria para este mesmo convite (o grupo público redireciona).
+      descartarConviteEmEspera()
+      router.replace(conectado ? '/' : '/entrar')
+    },
   }
 
   if (!token) {

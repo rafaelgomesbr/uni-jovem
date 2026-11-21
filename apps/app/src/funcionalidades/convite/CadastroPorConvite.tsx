@@ -20,12 +20,10 @@ import { focar, type NoDeTexto } from '@/ui/foco'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 
+import { CabecalhoDeAcesso } from '../autenticacao/CabecalhoDeAcesso'
 import { problemaDaSenha } from '../autenticacao/politicaDeSenha'
 import { RegrasDaSenha } from '../autenticacao/RegrasDaSenha'
-import {
-  EntradaComProvedores,
-  useTemProvedor,
-} from '../autenticacao/provedores/EntradaComProvedores'
+import { EntradaComProvedores } from '../autenticacao/provedores/EntradaComProvedores'
 import {
   AceiteDosTermos,
   CadastroTravado,
@@ -99,7 +97,6 @@ export function CadastroPorConvite({
   const [responsavel, setResponsavel] = useState(false)
   const adolescente = faixa === '16_17'
   const travado = useCadastroTravado()
-  const temProvedor = useTemProvedor()
 
   const whatsappNormalizado = normalizarWhatsApp(whatsapp)
 
@@ -224,8 +221,19 @@ export function CadastroPorConvite({
       ),
       <>
         {cartaoDoConvite}
-        {!menor && temProvedor ? (
-          <EntradaComProvedores aoComecar={() => guardarConviteEmEspera(token)} />
+        <CabecalhoDeAcesso
+          semMarca
+          apoio={
+            CADASTRO_SIMPLIFICADO
+              ? 'Crie sua conta para entrar na comunidade. Não precisa confirmar o e-mail: é só preencher e entrar.'
+              : 'Crie sua conta para entrar na comunidade.'
+          }
+        />
+        {!menor ? (
+          <EntradaComProvedores
+            aoComecar={() => guardarConviteEmEspera(token)}
+            separador="ou crie com e-mail"
+          />
         ) : null}
         <CartaoDeVidro intervalo={ESPACO.e16}>
           <Campo
@@ -254,7 +262,7 @@ export function CadastroPorConvite({
             rotulo="E-mail"
             ajuda={
               CADASTRO_SIMPLIFICADO
-                ? 'Use o e-mail com que você vai entrar na conta.'
+                ? 'É com este e-mail que você vai entrar. Não precisa confirmar.'
                 : 'Vamos mandar um código de 6 números para confirmar.'
             }
             value={email}

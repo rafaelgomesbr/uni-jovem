@@ -87,8 +87,10 @@ const SESSAO_ENCERRADA = new Set(['sessao_invalida', 'nao_autenticado'])
  * A6: tempo limite de um pedido comum. O `fetch` do React Native não tem um
  * útil: em Wi-Fi de igreja ou 4G fraco o pedido ficava pendurado, com a tela
  * carregando e o botão girando para sempre. Estourou: vira `SemConexao`.
+ * D58: 12 s (eram 20). Com 1 nova tentativa nas leituras, a tela vira erro com
+ * "Tentar de novo" em cerca de 25 s no pior caso (eram 60 s); escrita nunca se repete.
  */
-export const TEMPO_LIMITE_MS = 20_000
+export const TEMPO_LIMITE_MS = 12_000
 /** O ao vivo segura a resposta até 25 s no servidor (long polling). */
 export const TEMPO_LIMITE_LONG_POLLING_MS = 40_000
 /** Foto e logotipo vão em base64 (até cerca de 2,7 MB): subida lenta no 4G. */

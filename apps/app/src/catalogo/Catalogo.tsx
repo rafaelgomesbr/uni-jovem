@@ -13,6 +13,7 @@ import { Avatar } from '@/ui/Avatar'
 import { Aviso } from '@/ui/Aviso'
 import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { BarraDeProgresso } from '@/ui/BarraDeProgresso'
+import { BotaoDeAcessoRapido } from '@/ui/BotaoDeAcessoRapido'
 import { Botao, BotaoIcone, ParDeBotoes, type VarianteDoBotao } from '@/ui/Botao'
 import { CabecalhoDeTela } from '@/ui/CabecalhoDeTela'
 import { CaixaDeMarcar } from '@/ui/CaixaDeMarcar'
@@ -29,6 +30,7 @@ import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
 import { Numeros } from '@/ui/Numeros'
 import { LinhaDePilulas, PilulasDeFiltro } from '@/ui/PilulasDeFiltro'
 import { Secao } from '@/ui/Secao'
+import { SeparadorComTexto } from '@/ui/SeparadorComTexto'
 import { Segmentos } from '@/ui/Segmentos'
 import { StatusDoCabecalho } from '@/ui/StatusDoCabecalho'
 import { Tela } from '@/ui/Tela'
@@ -124,6 +126,24 @@ function Botoes() {
           motivo="Aceite os termos para continuar."
           aoPressionar={nada}
         />
+      </Grupo>
+      <Grupo titulo="Acessos rápidos (Apple e Google)">
+        <BotaoDeAcessoRapido marca="apple" titulo="Continuar com a Apple" aoPressionar={nada} />
+        <BotaoDeAcessoRapido marca="google" titulo="Continuar com o Google" aoPressionar={nada} />
+        <BotaoDeAcessoRapido
+          marca="google"
+          titulo="Continuar com o Google"
+          carregando
+          aoPressionar={nada}
+        />
+        <BotaoDeAcessoRapido
+          marca="apple"
+          titulo="Continuar com a Apple"
+          inativo
+          motivo="Aguarde o Google terminar."
+          aoPressionar={nada}
+        />
+        <SeparadorComTexto texto="ou com e-mail" />
       </Grupo>
       <Grupo titulo="Alternável e alto (Ao vivo)">
         <Linha>

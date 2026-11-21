@@ -4,6 +4,7 @@ import { TabList, TabSlot, TabTrigger, Tabs } from 'expo-router/ui'
 import { Text } from 'react-native'
 
 import * as LayoutRaiz from '@/app/_layout'
+import NaoEncontrado from '@/app/+not-found'
 
 import { ErroDeRota } from '../ErroDeRota'
 
@@ -67,6 +68,38 @@ describe('limite de erro por tela', () => {
     quebrar = false
     await fireEvent.press(screen.getByRole('button', { name: 'Tentar de novo' }))
     expect(await screen.findByText('Tela de pé')).toBeOnTheScreen()
+  })
+
+  test('erro que persiste: "Voltar ao início" é a saída que não depende da tela quebrada', async () => {
+    await renderRouter(
+      {
+        _layout: raiz,
+        index: () => <Text>Início</Text>,
+        'evento/novo': TelaQuebrada,
+      },
+      { initialUrl: '/evento/novo' },
+    )
+    // "Tentar de novo" falha outra vez: continua no erro, mas a saída funciona.
+    await fireEvent.press(await screen.findByRole('button', { name: 'Tentar de novo' }))
+    expect(await screen.findByText('Esta tela não abriu')).toBeOnTheScreen()
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar ao início' }))
+    expect(await screen.findByText('Início')).toBeOnTheScreen()
+    expect(screen.queryByText('Esta tela não abriu')).toBeNull()
+  })
+
+  test('endereço que não existe: "Voltar ao início" leva ao Início, sem laço', async () => {
+    await renderRouter(
+      {
+        _layout: raiz,
+        index: () => <Text>Início</Text>,
+        '+not-found': NaoEncontrado,
+      },
+      { initialUrl: '/endereco/que/nao/existe' },
+    )
+    expect(await screen.findByText('Página não encontrada')).toBeOnTheScreen()
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar ao início' }))
+    expect(await screen.findByText('Início')).toBeOnTheScreen()
+    expect(screen.queryByText('Página não encontrada')).toBeNull()
   })
 
   test('erro numa aba: só a aba cai, a barra de abas continua', async () => {
