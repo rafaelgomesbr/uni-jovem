@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { ESPACO } from '@uj/tokens'
+import { CADASTRO_SIMPLIFICADO } from '@uj/dominio'
 import { router } from 'expo-router'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
@@ -125,11 +126,16 @@ export function CadastroPorConvite({
   const concluir = useMutation({
     mutationFn: async () => {
       const resposta = await api.post<SessaoAberta>(
-        '/api/auth/convite/concluir',
+        CADASTRO_SIMPLIFICADO ? '/api/auth/convite/criar' : '/api/auth/convite/concluir',
         {
           token,
-          verificacaoId,
-          codigo: codigo.trim(),
+          ...(CADASTRO_SIMPLIFICADO
+            ? {
+                email: email.trim(),
+                aceites: { termos, responsavelCiente: adolescente && responsavel },
+              }
+            : {}),
+          ...(!CADASTRO_SIMPLIFICADO ? { verificacaoId, codigo: codigo.trim() } : {}),
           nome: nome.trim(),
           ...(whatsappNormalizado ? { whatsapp: whatsappNormalizado } : {}),
           senha,
@@ -158,7 +164,10 @@ export function CadastroPorConvite({
       pilha
       semVoltar
       aurora={1}
-      passos={{ atual: NUMERO[passo], total: 3 }}
+      passos={{
+        atual: CADASTRO_SIMPLIFICADO && passo === 'senha' ? 2 : NUMERO[passo],
+        total: CADASTRO_SIMPLIFICADO ? 2 : 3,
+      }}
       titulo={TITULO[passo]}
       refDoTitulo={titulo}
       {...(barra ? { barraDeAcao: barra } : {})}
@@ -188,7 +197,10 @@ export function CadastroPorConvite({
         novos.whatsapp = 'Use o formato com DDD, como (11) 91234-5678.'
       }
       setErros(novos)
-      if (Object.keys(novos).length === 0) iniciar.mutate()
+      if (Object.keys(novos).length === 0) {
+        if (CADASTRO_SIMPLIFICADO) setPasso('senha')
+        else iniciar.mutate()
+      }
     }
     const motivoDosDados =
       faixa === null
@@ -201,7 +213,7 @@ export function CadastroPorConvite({
       menor ? null : (
         <BarraDeAcao>
           <Botao
-            titulo="Enviar código"
+            titulo={CADASTRO_SIMPLIFICADO ? 'Continuar' : 'Enviar código'}
             tamanho="grande"
             aoPressionar={enviarDados}
             carregando={iniciar.isPending}
@@ -240,7 +252,11 @@ export function CadastroPorConvite({
           />
           <Campo
             rotulo="E-mail"
-            ajuda="Vamos mandar um código de 6 números para confirmar."
+            ajuda={
+              CADASTRO_SIMPLIFICADO
+                ? 'Use o e-mail com que você vai entrar na conta.'
+                : 'Vamos mandar um código de 6 números para confirmar.'
+            }
             value={email}
             onChangeText={setEmail}
             erro={erros.email ?? null}
@@ -390,10 +406,10 @@ export function CadastroPorConvite({
       </CartaoDeVidro>
       {outroErro ? <AvisoDeFalha erro={concluir.error} /> : null}
       <Botao
-        titulo="Voltar ao código"
+        titulo={CADASTRO_SIMPLIFICADO ? 'Corrigir meus dados' : 'Voltar ao código'}
         variante="terciario"
         alinhado
-        aoPressionar={() => setPasso('codigo')}
+        aoPressionar={() => setPasso(CADASTRO_SIMPLIFICADO ? 'dados' : 'codigo')}
       />
     </>,
   )

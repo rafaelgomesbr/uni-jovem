@@ -26,7 +26,7 @@ jest.mock('expo-router', () => ({
 }))
 
 const cofre = (SecureStore as unknown as { __cofre: Map<string, string> }).__cofre
-const google = jest.requireMock('expo-auth-session/providers/google') as {
+const google = jest.requireMock('@react-native-google-signin/google-signin') as {
   __responder: (r: unknown) => void
 }
 
@@ -83,74 +83,66 @@ describe('Criar conta (ADR 0007)', () => {
   test('dois passos: dados e aceites, depois código e senha numa tela só; abre a sessão', async () => {
     const servidor = await renderizar(<TelaCriarConta />, {
       'POST /api/auth/cadastro/iniciar': () => ({ status: 200, corpo: { ok: true } }),
-      'POST /api/auth/cadastro/concluir': () => ({ status: 200, corpo: SESSAO }),
+      'POST /api/auth/cadastro/criar': () => ({ status: 200, corpo: SESSAO }),
     })
     // TC-01.v2: o aviso de que conta de menor de 16 é encerrada.
     expect(
       await screen.findByText(/conta de quem tem menos de 16 anos é encerrada/),
     ).toBeOnTheScreen()
     await preencherDados()
-    await fireEvent.press(screen.getByRole('button', { name: 'Enviar código' }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Continuar' }))
 
-    expect(await screen.findByText('Confira seu e-mail')).toBeOnTheScreen()
+    expect(await screen.findByText('Crie sua senha')).toBeOnTheScreen()
     // A opção de 16 ou 17 anos já declara que o responsável sabe (TC-01.v2).
-    expect(corpoDe(servidor, '/cadastro/iniciar')).toEqual({
-      nome: 'Ana Souza',
-      email: 'ana@exemplo.com',
-      faixaEtaria: '16_17',
-      aceites: { termos: true, responsavelCiente: true },
-      plataforma: 'ios',
-      turnstile: undefined,
-    })
+    expect(corpoDe(servidor, '/cadastro/iniciar')).toBeUndefined()
+    expect(screen.queryByLabelText('Código de 6 números')).toBeNull()
 
-    await fireEvent.changeText(screen.getByLabelText('Código de 6 números'), '123456')
     await fireEvent.changeText(screen.getByLabelText('Crie uma senha'), 'uma frase bem longa')
     await fireEvent.press(screen.getByRole('button', { name: 'Criar conta' }))
     await waitFor(() =>
       expect(servidor.pedidos.some((p) => p.url.endsWith('/api/v1/eu'))).toBe(true),
     )
-    expect(corpoDe(servidor, '/cadastro/concluir')).toMatchObject({
+    expect(corpoDe(servidor, '/cadastro/criar')).toMatchObject({
       email: 'ana@exemplo.com',
-      codigo: '123456',
+      faixaEtaria: '16_17',
+      aceites: { termos: true, responsavelCiente: true },
       senha: 'uma frase bem longa',
     })
   })
 
-  test('código errado volta para o campo do código, sem perder a senha', async () => {
+  test('senha recusada pode ser corrigida sem perder os dados', async () => {
     await renderizar(<TelaCriarConta />, {
       'POST /api/auth/cadastro/iniciar': () => ({ status: 200, corpo: { ok: true } }),
-      'POST /api/auth/cadastro/concluir': () => ({
+      'POST /api/auth/cadastro/criar': () => ({
         status: 400,
-        corpo: { erro: 'codigo_invalido', mensagem: 'Código incorreto. Confira o e-mail.' },
+        corpo: { erro: 'senha_fraca', mensagem: 'Escolha uma senha mais forte.' },
       }),
     })
     await preencherDados()
-    await fireEvent.press(screen.getByRole('button', { name: 'Enviar código' }))
-    await fireEvent.changeText(await screen.findByLabelText('Código de 6 números'), '000000')
+    await fireEvent.press(screen.getByRole('button', { name: 'Continuar' }))
     await fireEvent.changeText(screen.getByLabelText('Crie uma senha'), 'uma frase bem longa')
     await fireEvent.press(screen.getByRole('button', { name: 'Criar conta' }))
-    expect(await screen.findByText('Código incorreto. Confira o e-mail.')).toBeOnTheScreen()
+    expect(await screen.findByText('Escolha uma senha mais forte.')).toBeOnTheScreen()
     expect(screen.getByLabelText('Crie uma senha').props.value).toBe('uma frase bem longa')
   })
 
   test('e-mail que já tem conta: oferece entrar ou recuperar a senha', async () => {
     await renderizar(<TelaCriarConta />, {
       'POST /api/auth/cadastro/iniciar': () => ({ status: 200, corpo: { ok: true } }),
-      'POST /api/auth/cadastro/concluir': () => ({
+      'POST /api/auth/cadastro/criar': () => ({
         status: 409,
         corpo: { erro: 'conta_existente', mensagem: 'Este e-mail já tem conta.' },
       }),
     })
     await preencherDados()
-    await fireEvent.press(screen.getByRole('button', { name: 'Enviar código' }))
-    await fireEvent.changeText(await screen.findByLabelText('Código de 6 números'), '123456')
+    await fireEvent.press(screen.getByRole('button', { name: 'Continuar' }))
     await fireEvent.changeText(screen.getByLabelText('Crie uma senha'), 'uma frase bem longa')
     await fireEvent.press(screen.getByRole('button', { name: 'Criar conta' }))
     await fireEvent.press(await screen.findByRole('button', { name: 'Esqueci a senha' }))
     expect(router.replace).toHaveBeenCalledWith('/recuperar-senha')
   })
 
-  test('cadastro por e-mail indisponível (503): a mensagem e os botões de Google e Apple', async () => {
+  test('provedores disponiveis aparecem desde o inicio', async () => {
     process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID = 'ios-123.apps.googleusercontent.com'
     await renderizar(<TelaCriarConta />, {
       'POST /api/auth/cadastro/iniciar': () => ({
@@ -158,9 +150,7 @@ describe('Criar conta (ADR 0007)', () => {
         corpo: { erro: 'cadastro_indisponivel', mensagem: 'Use Google ou Apple.' },
       }),
     })
-    await preencherDados()
-    await fireEvent.press(screen.getByRole('button', { name: 'Enviar código' }))
-    expect(await screen.findByText('Cadastro por e-mail indisponível agora')).toBeOnTheScreen()
+    expect(screen.queryByLabelText('Código de 6 números')).toBeNull()
     expect(screen.getByRole('button', { name: 'Continuar com o Google' })).toBeOnTheScreen()
   })
 
@@ -170,7 +160,7 @@ describe('Criar conta (ADR 0007)', () => {
     expect(
       screen.getByText(/seu pai, sua mãe ou seu responsável pode inscrever você/),
     ).toBeOnTheScreen()
-    expect(screen.queryByRole('button', { name: 'Enviar código' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Continuar' })).toBeNull()
   })
 
   test('aparelho travado: o cadastro não abre', async () => {
@@ -215,7 +205,7 @@ describe('Google ou Apple com e-mail novo: "Falta pouco"', () => {
     )
     await fireEvent.press(await screen.findByRole('button', { name: 'Continuar com o Google' }))
     await act(async () => {
-      google.__responder({ type: 'success', params: { id_token: 'token-do-google' } })
+      google.__responder({ type: 'success', data: { idToken: 'token-do-google' } })
     })
     await waitFor(() => expect(router.push).toHaveBeenCalledWith('/completar-cadastro'))
     expect(await screen.findByText('Falta pouco')).toBeOnTheScreen()

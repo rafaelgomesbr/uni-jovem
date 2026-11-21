@@ -128,6 +128,16 @@ async function contas(): Promise<number> {
 }
 
 describe('entrar com Google', () => {
+  it('não conecta por coincidência de e-mail a uma conta ainda não confirmada', async () => {
+    const p = await pessoaComSessao(b, app, config, 'Email Nao Confirmado')
+    await b.su.query('update uj.contas set email_verificado_em = null where id = $1', [p.id])
+    const r = await entrarGoogle(await tokenGoogle({ email: p.email }))
+    expect(r.statusCode).toBe(401)
+    expect(
+      (await b.su.query('select 1 from uj.contas_provedores where conta_id=$1', [p.id])).rows,
+    ).toEqual([])
+  })
+
   it('e-mail verificado igual ao da conta: entra, vincula pelo sub e audita sem o token', async () => {
     const p = await pessoaComSessao(b, app, config, 'Gabi Google')
     const s = sub()

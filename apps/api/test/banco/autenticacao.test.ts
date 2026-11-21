@@ -97,6 +97,92 @@ async function cadastrar(
 }
 
 describe('cadastro por convite', () => {
+  it('cadastro simplificado mantém idade mínima e aceite obrigatório, sem criar conta', async () => {
+    const corpo = {
+      nome: 'Pessoa Nova',
+      email: 'recusado.simples@exemplo.test',
+      senha: SENHA,
+      plataforma: 'ios',
+      faixaEtaria: 'menos_16',
+      aceites: { termos: true },
+    }
+    expect((await post('/api/auth/cadastro/criar', corpo)).statusCode).toBe(422)
+    expect(
+      (
+        await post('/api/auth/cadastro/criar', {
+          ...corpo,
+          faixaEtaria: '18_mais',
+          aceites: { termos: false },
+        })
+      ).statusCode,
+    ).toBe(400)
+    expect(
+      (await b.su.query('select 1 from uj.contas where email=$1', [corpo.email])).rows,
+    ).toEqual([])
+  })
+
+  it.each(['ios', 'android', 'web'])(
+    'cadastro simplificado em %s: cria sem enviar e-mail, abre sessão e permite entrar com senha',
+    async (plataforma) => {
+      const email = `simples.${plataforma}@exemplo.test`
+      const antes = caixa.length
+      const r = await post('/api/auth/cadastro/criar', {
+        nome: 'Pessoa Nova',
+        email,
+        senha: SENHA,
+        plataforma,
+        faixaEtaria: '18_mais',
+        aceites: { termos: true },
+      })
+      expect(r.statusCode).toBe(200)
+      expect(r.json().acesso).toBeTruthy()
+      expect(caixa.length).toBe(antes)
+      const conta = await b.su.query('select email_verificado_em from uj.contas where email = $1', [
+        email,
+      ])
+      expect(conta.rows).toEqual([{ email_verificado_em: null }])
+      expect((await post('/api/auth/entrar', { email, senha: SENHA, plataforma })).statusCode).toBe(
+        200,
+      )
+      const repetida = await post('/api/auth/cadastro/criar', {
+        nome: 'Outra Pessoa',
+        email,
+        senha: SENHA,
+        plataforma,
+        faixaEtaria: '18_mais',
+        aceites: { termos: true },
+      })
+      expect(repetida.statusCode).toBe(409)
+    },
+  )
+
+  it('convite simplificado: conta, vínculo e aceites são atômicos sem confirmar e-mail', async () => {
+    const token = await convite('membro', 'simples.convite@exemplo.test')
+    const corpo = {
+      token,
+      nome: 'Pessoa Convite',
+      email: 'outro.convite@exemplo.test',
+      senha: SENHA,
+      plataforma: 'android',
+      faixaEtaria: '18_mais',
+      aceites: { termos: true },
+      consentimentoFe: true,
+    }
+    expect((await post('/api/auth/convite/criar', corpo)).statusCode).toBe(409)
+    expect(
+      (await b.su.query('select 1 from uj.contas where email=$1', [corpo.email])).rows,
+    ).toEqual([])
+    const certo = await post('/api/auth/convite/criar', {
+      ...corpo,
+      email: 'simples.convite@exemplo.test',
+    })
+    expect(certo.statusCode).toBe(200)
+    const conta = await b.su.query(
+      "select a.email_verificado_em, (select count(*)::int from uj.consentimentos c where c.conta_id=a.id) as aceites from uj.contas a where email='simples.convite@exemplo.test'",
+    )
+    expect(conta.rows).toEqual([{ email_verificado_em: null, aceites: 3 }])
+  })
+
   it('e-mail desligado: 503 antes de gravar verificação ou gastar a cota do convite', async () => {
     const token = await convite('membro')
     const outro = criarServidor(config, { api: b.api, auth: b.auth, correio: correioDesligado() })

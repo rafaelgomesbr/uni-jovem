@@ -2,12 +2,20 @@ import { fireEvent, screen, userEvent, waitFor } from '@testing-library/react-na
 import { router, useLocalSearchParams, usePreventRemove } from 'expo-router'
 import { Alert } from 'react-native'
 
-import { EVENTO_ID, eventoDeTeste } from '@/testes/fixturas'
+import { DIA_DO_INICIO, EVENTO_ID, eventoDeTeste, INICIO } from '@/testes/fixturas'
 import { BASE, pedidosPara, renderizarTela } from '@/testes/telas'
 
 import { TelaEditarEvento } from '../TelaEditarEvento'
 import { TelaMudarStatus } from '../TelaMudarStatus'
 import { TelaNovoEvento } from '../TelaNovoEvento'
+
+// Datas relativas a hoje: um sábado entre 7 e 13 dias à frente (o horário já
+// passou se a data for fixa, e a tela recusa publicar no passado).
+const [ANO, MES, DIA] = DIA_DO_INICIO.split('-').map(Number) as [number, number, number]
+const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+const DATA_ESCOLHIDA = new Date(ANO, MES - 1, DIA, 12)
+const HORA_ESCOLHIDA = new Date(ANO, MES - 1, DIA, 16, 0)
+const ROTULO_DA_DATA = new RegExp(`^Data: Sáb\., ${DIA} de ${MESES[MES - 1]}\. de ${ANO}`)
 
 jest.mock('expo-router', () => ({
   router: {
@@ -66,8 +74,8 @@ describe('criar encontro', () => {
     expect(await screen.findByDisplayValue('Sábado')).toBeOnTheScreen()
     // A hora do Sábado padrão já vem escolhida; a data vem do seletor, nada é digitado.
     expect(screen.getByRole('button', { name: 'Hora: 16:00' })).toBeOnTheScreen()
-    await escolher(/^Data:/, new Date(2026, 10, 21, 12))
-    expect(screen.getByRole('button', { name: /^Data: Sáb\., 21 de nov\. de 2026/ })).toBeTruthy()
+    await escolher(/^Data:/, DATA_ESCOLHIDA)
+    expect(screen.getByRole('button', { name: ROTULO_DA_DATA })).toBeTruthy()
     await userEvent.setup().press(screen.getByRole('button', { name: 'Salvar rascunho' }))
 
     await waitFor(() => expect(pedidosPara(servidor, 'POST', `${BASE}/eventos`)).toHaveLength(1))
@@ -76,7 +84,7 @@ describe('criar encontro', () => {
       categoria: 'Programação de sábado',
       modelo: 'sabado_padrao',
       // 16:00 em São Paulo.
-      inicio: '2026-11-21T19:00:00.000Z',
+      inicio: INICIO,
       visibilidade: 'interna',
     })
     // Sem duração digitada, quem decide é a soma das etapas do modelo.
@@ -156,8 +164,8 @@ describe('criar encontro', () => {
 
     await fireEvent.changeText(await screen.findByLabelText('Título'), 'Sábado')
     await fireEvent.changeText(screen.getByLabelText('Categoria'), 'Programação de sábado')
-    await escolher(/^Data:/, new Date(2026, 10, 21, 12))
-    await escolher(/^Hora:/, new Date(2026, 10, 21, 16, 0))
+    await escolher(/^Data:/, DATA_ESCOLHIDA)
+    await escolher(/^Hora:/, HORA_ESCOLHIDA)
     await fireEvent.changeText(screen.getByLabelText('Duração'), '60')
     await usuario.press(screen.getByRole('radio', { name: 'Toda semana' }))
     expect(await screen.findByText('Toda semana, aos sábados, às 16:00')).toBeOnTheScreen()
@@ -167,7 +175,7 @@ describe('criar encontro', () => {
     expect(pedidosPara(servidor, 'POST', `${BASE}/series`)[0]?.corpo).toMatchObject({
       regra: { frequencia: 'semanal', intervaloSemanas: 1, diasDaSemana: [6] },
       horaLocal: '16:00',
-      inicioEm: '2026-11-21',
+      inicioEm: DIA_DO_INICIO,
       duracaoMin: 60,
       publicar: true,
     })

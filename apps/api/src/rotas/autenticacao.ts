@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
-import { cadastroSemConviteHabilitado, POLITICAS } from '@uj/dominio'
+import { CADASTRO_SIMPLIFICADO, cadastroSemConviteHabilitado, POLITICAS } from '@uj/dominio'
 import { verificarAcesso, type ConteudoDoAcesso } from '../autenticacao/jwt.ts'
 import { ipInteiro, Limitador, truncarIp } from '../autenticacao/limitador.ts'
 import {
@@ -19,6 +19,7 @@ import {
   concluirCadastro,
   concluirCadastroPorProvedor,
   iniciarCadastro,
+  criarCadastroSimplificado,
 } from '../autenticacao/servicoDeCadastro.ts'
 import { verificarTurnstile } from '../publico/apoio.ts'
 import {
@@ -562,7 +563,61 @@ export function registrarRotasDeAutenticacao(
 
   app.get('/api/auth/cadastro/configuracao', async () => ({
     turnstileChaveDoSite: d.config.TURNSTILE_CHAVE_DO_SITE ?? null,
+    cadastroSimplificado: CADASTRO_SIMPLIFICADO,
   }))
+
+  const dadosSimplificados = z.object({
+    nome,
+    email,
+    senha,
+    faixaEtaria,
+    aceites,
+    aparelho,
+    plataforma,
+    whatsapp,
+    turnstile: z.string().trim().max(4096).optional(),
+  })
+  for (const porConvite of [false, true]) {
+    app.post(
+      porConvite ? '/api/auth/convite/criar' : '/api/auth/cadastro/criar',
+      async (pedido, resposta) => {
+        if (
+          !CADASTRO_SIMPLIFICADO ||
+          (!porConvite && !cadastroSemConviteHabilitado(POLITICAS.conta))
+        )
+          throw CADASTRO_NAO_HABILITADO()
+        const corpo = validar(
+          porConvite
+            ? dadosSimplificados.extend({
+                token: tokenDeConvite,
+                consentimentoFe: marcado(MENSAGEM_SEM_CONSENTIMENTO_DE_FE),
+              })
+            : dadosSimplificados,
+          pedido.body,
+        )
+        limitar(lim.cadastroConcluirIp, ip(pedido), resposta)
+        limitar(lim.cadastroConcluirEmail, normalizarEmail(corpo.email), resposta)
+        if (
+          !porConvite &&
+          (corpo.plataforma === 'web' || pedido.headers.origin !== undefined) &&
+          !(await verificarTurnstile(d.config.TURNSTILE_SEGREDO, corpo.turnstile, pedido.ip))
+        ) {
+          throw new ErroHttp(
+            'verificacao_humana',
+            403,
+            'Aguarde a verificação de segurança e tente de novo.',
+          )
+        }
+        const sessao = await criarCadastroSimplificado(d, {
+          ...corpo,
+          aparelho: corpo.aparelho ?? null,
+          whatsapp: corpo.whatsapp ?? null,
+          ...('token' in corpo ? { token: corpo.token as string } : {}),
+        })
+        return responderSessao(sessao, corpo.plataforma, resposta)
+      },
+    )
+  }
 
   app.post('/api/auth/cadastro/iniciar', async (pedido, resposta) => {
     if (!cadastroSemConviteHabilitado(POLITICAS.conta)) throw CADASTRO_NAO_HABILITADO()

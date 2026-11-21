@@ -137,6 +137,26 @@ jest.mock('expo-apple-authentication', () => {
 })
 
 // Google: o pedido fica pronto e a resposta é controlada pelo teste (`__responder`).
+jest.mock('@react-native-google-signin/google-signin', () => {
+  let responder: ((r: unknown) => void) | null = null
+  return {
+    GoogleSignin: {
+      configure: jest.fn(),
+      hasPlayServices: jest.fn(async () => true),
+      signIn: jest.fn(
+        () =>
+          new Promise((resolve) => {
+            responder = resolve
+          }),
+      ),
+    },
+    isSuccessResponse: (r: { type: string }) => r.type === 'success',
+    isErrorWithCode: (r: { code?: string }) => typeof r?.code === 'string',
+    statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
+    __responder: (r: unknown) => responder?.(r),
+  }
+})
+
 jest.mock('expo-auth-session/providers/google', () => {
   const React = require('react')
   let ouvinte: ((r: unknown) => void) | null = null

@@ -30,7 +30,7 @@ describe('políticas de entrada (ADR 0007)', () => {
   it('quem cria comunidade: conta com e-mail confirmado; o Criador sempre', () => {
     const p = POLITICAS.comunidade
     expect(podeCriarComunidade(p, { criador: false, emailConfirmado: true })).toBe(true)
-    expect(podeCriarComunidade(p, { criador: false, emailConfirmado: false })).toBe(false)
+    expect(podeCriarComunidade(p, { criador: false, emailConfirmado: false })).toBe(true)
     expect(podeCriarComunidade('somente_criador', { criador: false, emailConfirmado: true })).toBe(
       false,
     )

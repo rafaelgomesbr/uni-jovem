@@ -1,6 +1,33 @@
 # Status do projeto
 
-Atualizado em 16/11/2026.
+Atualizado em 17/11/2026.
+
+## Pedido atualizado: cadastro simplificado em 17/11/2026
+
+- O dono autorizou criar sem confirmar e-mail nesta etapa e pediu login Google e Apple. A senha de app do Gmail deixa de bloquear o cadastro. Decisão em [ADR 0008](adr/0008-cadastro-simplificado.md).
+- Migração 0026 e rotas de cadastro direto, sem enviar código. Conta por senha continua com e-mail não confirmado no banco. Convite e consentimentos atômicos; idade mínima mantida. Criar comunidade dispensa confirmação de e-mail nesta etapa, mantendo 18 anos e os limites existentes.
+- Google nativo integrado ao SDK no celular; web mantém OAuth no navegador. Dono confirmou a criação dos clientes OAuth de produção. Cliente iOS criado: `457514327131-or68a2c6oomnan6t301ni4u30vpkujcv.apps.googleusercontent.com`. Clientes web e Android em configuração.
+- Verificação do código simplificado passou: 575 testes de API/pacotes, 410 do app, formato, lint, tipos e fumaça funcional web. Lint específico do app também passou. Implantação da 0026 e builds com o fluxo simplificado ainda em andamento. O TestFlight (5) registrado abaixo é a versão anterior a esta nova orientação.
+
+## Correção do cadastro em 17/11/2026
+
+- Pedido do dono: corrigir a criação de perfil em web, Android e iOS e enviar ao TestFlight.
+- Causas confirmadas: e-mail desligado em produção (erro 500 no convite), ausência do desafio Turnstile no formulário web e Google sem os clientes OAuth de produção.
+- Código corrigido: SMTP com TLS, falha de envio tratada como 503, convite sem gravação quando o envio está desligado, Turnstile web com renovação no reenvio e acesso aos provedores desde o início, preservando o convite.
+- `npm.cmd run verificar` passou: 569 testes da API/pacotes e 410 do app, lint, tipos, formato e fumaça web com envio do formulário e reenvio de código. Detalhes em [auditoria do cadastro](auditorias/2026-11-17-cadastro.md).
+- Produção: API e web de `d64494a` implantadas, backup `backups/diario-2026-11-17.dump`, 25 migrações já aplicadas, saúde 200. O POST web passou pelo Turnstile e respondeu 503 por envio ainda desligado.
+- Ativação SMTP depende da senha de app do Gmail a ser colocada pelo dono no arquivo local protegido. iOS (5) enviado à Apple às 10:49:35, entrega `6917d4e1-b732-4c01-bfc6-46c6c6182595`, upload sem erros e confirmado `VALID` e `IN_BETA_TESTING`. Android (9) concluído e assinado, artefato em `tmp/uni-jovem-1.0.0-9.aab`, sem novo upload ao Play. Contadores remotos EAS: iOS 5, Android 9.
+
+## Retomada dos envios em 16/11/2026
+
+- Autorização do dono: "pode verificar onde o claude parou e subir os buids ?", no contexto da implantação necessária e dos envios ao TestFlight e ao teste interno do Google Play, mantendo o teto de R$ 0.
+- Código de origem: `bc8ec05`, branch `release`, árvore limpa no início. O archive iOS 1.0.0 (4) já estava compilado no Mac; os hashes da configuração, das abas e do formulário de oração conferem com o código local.
+- Produção: backup `backups/diario-2026-11-16.dump` feito antes da implantação; `infra/prod/implantar.sh` aplicado com as migrações 0023, 0024 e 0025. API e banco `healthy`; `/api/saude` público devolve `{"ok":true,"ambiente":"producao"}`. Conferência de privilégios: `uj_api` sem SELECT em `autor_conta_id`, com SELECT em `autor_publico`. Web republicada com `infra/prod/publicar-web.sh`.
+- Verificação: formato, lint, tipos e 564 testes da API e dos pacotes passaram. Na primeira execução, 409 de 410 testes do app passaram, com falha de espera pelo toast em `Bloqueios.test.tsx`; repetição da suíte completa: 59 suítes e 410 testes passaram, com aviso de worker encerrado à força. Fumaça da web passou em `/app/entrar`, `/app/recuperar-senha` e `/app/criar-conta`. Nenhuma alteração no código do produto nesta retomada.
+- iOS: assinatura conferida e build 1.0.0 (4) enviado pelo script existente em 16/11/2026, às 09:18 (Brasília). Entrega `6182aa43-1645-44a9-ae17-a7dab629a32b`, resposta `UPLOAD SUCCEEDED with no errors`. API do App Store Connect confirmou o build (4) como `VALID` e `IN_BETA_TESTING`, com notificação automática habilitada. Grupo interno "Equipe Uni Jovem" com `hasAccessToAllBuilds=true`. Disponível no TestFlight; sem envio à revisão pública da App Store.
+- Android: build local 1.0.0 (8) concluído em 16/11/2026 às 09:50 (Brasília), sem custo de nuvem (`BUILD SUCCESSFUL in 8m 49s`). Arquivo: `tmp/uni-jovem-1.0.0-8.aab`, 112.148.982 bytes, SHA-256 `dc3af3012d745b59811ea54578b0351ba8e86d82251c6f866af5c9333321ee33`. `jarsigner -verify`: `jar verified`; certificado SHA-256 `55:93:38:FC:BF:34:77:2A:7B:D4:D7:57:95:68:63:DF:EF:29:5F:A1:DC:D7:55:78:42:D1:F8:B7:DB:C0:CB:47`, igual à chave de upload anterior. Manifesto: `com.solerte.unijovem`, versão 1.0.0, código 8, mínimo 24, destino 36, sem as permissões bloqueadas pelo projeto. Contador remoto do EAS sincronizado para 8.
+- Ambiente do build Android: `C:/uj-android-20261116`, Java 21 do Android Studio, CMake 3.31.1 e Ninja oficial 1.13.2 (checksums conferidos). O Ninja antigo falhava no limite de caminhos de 260 caracteres; a atualização das ferramentas locais resolveu. A assinatura e o código de versão são aplicados pelo init script local `assinar-local.gradle`, sem editar o código nativo gerado à mão. Chave existente baixada do EAS para os caminhos ignorados `apps/app/credentials.json` e `apps/app/credentials/android/keystore.jks`, com acesso local restrito ao dono.
+- Google Play: Android 1.0.0 (8) enviado pelo Chrome após o dono entrar na conta. Em 16/11/2026, o Console confirmou a faixa interna ativa, última versão 8 (1.0.0), status "Disponível para testadores internos", lançamento às 14:34 (Brasília), um código de versão. Registro: faixa `4701600075887871933`, versão `/releases/4/details`, app `4972469995880639252`. Notas pt-BR preenchidas com as abas novas, oração anônima e melhorias de navegação. O bloqueio anterior de acesso ao navegador foi superado com a sessão do Chrome aberta pelo dono. Não foi criada chave de conta de serviço.
 
 ## Onde estamos
 

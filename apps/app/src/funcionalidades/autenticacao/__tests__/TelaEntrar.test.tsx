@@ -22,7 +22,7 @@ const lerSeguro = SecureStore.getItemAsync as jest.Mock
 const lerSeguroOriginal = lerSeguro.getMockImplementation()!
 const disponivelNaApple = AppleAuthentication.isAvailableAsync as jest.Mock
 const entrarNaApple = AppleAuthentication.signInAsync as jest.Mock
-const google = jest.requireMock('expo-auth-session/providers/google') as {
+const google = jest.requireMock('@react-native-google-signin/google-signin') as {
   __responder: (r: unknown) => void
 }
 
@@ -142,7 +142,7 @@ describe('tela Entrar', () => {
       .setup()
       .press(await screen.findByRole('button', { name: 'Continuar com o Google' }))
     await act(async () => {
-      google.__responder({ type: 'success', params: { id_token: 'token-do-google' } })
+      google.__responder({ type: 'success', data: { idToken: 'token-do-google' } })
     })
 
     await waitFor(() =>
@@ -166,7 +166,7 @@ describe('tela Entrar', () => {
       .setup()
       .press(await screen.findByRole('button', { name: 'Continuar com o Google' }))
     await act(async () => {
-      google.__responder({ type: 'success', params: { id_token: 'token-sem-conta' } })
+      google.__responder({ type: 'success', data: { idToken: 'token-sem-conta' } })
     })
     expect(await screen.findByText(mensagem)).toBeOnTheScreen()
   })

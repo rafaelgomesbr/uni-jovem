@@ -148,6 +148,7 @@ export async function entrarComProvedor(
         `select a.id, a.senha_hash, a.estado, a.totp_ativado_em, a.plataforma_proprietario
            from uj.contas a
           where a.email = $1
+            and a.email_verificado_em is not null
             and not exists (select 1 from uj.contas_provedores p
                              where p.conta_id = a.id and p.provedor = $2)
           for update of a`,

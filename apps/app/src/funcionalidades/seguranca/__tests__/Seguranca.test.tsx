@@ -17,7 +17,7 @@ jest.mock('@/utilidades/confirmar', () => ({ confirmar: jest.fn(async () => true
 
 const cofre = (SecureStore as unknown as { __cofre: Map<string, string> }).__cofre
 const autenticar = LocalAuthentication.authenticateAsync as jest.Mock
-const google = jest.requireMock('expo-auth-session/providers/google') as {
+const google = jest.requireMock('@react-native-google-signin/google-signin') as {
   __responder: (r: unknown) => void
 }
 
@@ -115,7 +115,7 @@ describe('Perfil, Segurança', () => {
     await fireEvent.changeText(screen.getByLabelText('Senha atual'), 'minha senha de sempre')
     await usuario.press(screen.getByRole('button', { name: 'Conectar com Google' }))
     await act(async () => {
-      google.__responder({ type: 'success', params: { id_token: 'token-para-conectar' } })
+      google.__responder({ type: 'success', data: { idToken: 'token-para-conectar' } })
     })
 
     await waitFor(() =>

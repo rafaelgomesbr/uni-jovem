@@ -675,7 +675,7 @@ const CODIGO_DO_CONVITE: Record<string, string> = {
   UJ080: 'limite_de_participantes',
 }
 
-function traduzirErroDeConvite(e: unknown): never {
+export function traduzirErroDeConvite(e: unknown): never {
   const codigo = (e as { code?: string }).code
   if (codigo && MENSAGEM_DO_CONVITE[codigo]) {
     throw new ErroDeAuth(CODIGO_DO_CONVITE[codigo]!, 409, MENSAGEM_DO_CONVITE[codigo]!)

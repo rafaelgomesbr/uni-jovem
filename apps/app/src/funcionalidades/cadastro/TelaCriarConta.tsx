@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { ESPACO } from '@uj/tokens'
+import { CADASTRO_SIMPLIFICADO } from '@uj/dominio'
 import { router } from 'expo-router'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { View } from 'react-native'
@@ -123,10 +124,18 @@ export function TelaCriarConta() {
   const concluir = useMutation({
     mutationFn: async () => {
       const resposta = await api.post<SessaoAberta>(
-        '/api/auth/cadastro/concluir',
+        CADASTRO_SIMPLIFICADO ? '/api/auth/cadastro/criar' : '/api/auth/cadastro/concluir',
         {
+          ...(CADASTRO_SIMPLIFICADO
+            ? {
+                nome: nome.trim(),
+                faixaEtaria: faixa,
+                aceites: { termos, responsavelCiente: faixa === '16_17' },
+                turnstile: verificacao.obterToken(),
+              }
+            : {}),
           email: email.trim(),
-          codigo: codigo.trim(),
+          ...(!CADASTRO_SIMPLIFICADO ? { codigo: codigo.trim() } : {}),
           senha,
           plataforma: plataformaAtual(),
           aparelho: nomeDoAparelho(),
@@ -149,7 +158,13 @@ export function TelaCriarConta() {
       pilha
       aurora={1}
       passos={{ atual: passo === 'dados' ? 1 : 2, total: 2 }}
-      titulo={passo === 'dados' ? 'Criar conta' : 'Confira seu e-mail'}
+      titulo={
+        passo === 'dados'
+          ? 'Criar conta'
+          : CADASTRO_SIMPLIFICADO
+            ? 'Crie sua senha'
+            : 'Confira seu e-mail'
+      }
       refDoTitulo={titulo}
       {...(barra ? { barraDeAcao: barra } : {})}
     >
@@ -182,13 +197,16 @@ export function TelaCriarConta() {
       setErros(novos)
       if (Object.keys(novos).length > 0 || motivo) return
       if (!trava.pegar()) return
-      iniciar.mutate()
+      if (CADASTRO_SIMPLIFICADO) {
+        trava.soltar()
+        setPasso('codigo')
+      } else iniciar.mutate()
     }
     return moldura(
       menor ? null : (
         <BarraDeAcao>
           <Botao
-            titulo="Enviar código"
+            titulo={CADASTRO_SIMPLIFICADO ? 'Continuar' : 'Enviar código'}
             tamanho="grande"
             aoPressionar={enviarDados}
             carregando={iniciar.isPending}
@@ -222,7 +240,11 @@ export function TelaCriarConta() {
           />
           <Campo
             rotulo="E-mail"
-            ajuda="Vamos mandar um código de 6 números para confirmar."
+            ajuda={
+              CADASTRO_SIMPLIFICADO
+                ? 'Use o e-mail com que você vai entrar na conta.'
+                : 'Vamos mandar um código de 6 números para confirmar.'
+            }
             value={email}
             onChangeText={setEmail}
             erro={erros.email ?? null}
@@ -260,7 +282,8 @@ export function TelaCriarConta() {
 
   const enviarCodigo = () => {
     const novos: Erros = {}
-    if (!/^\d{6}$/.test(codigo.trim())) novos.codigo = 'O código tem 6 números.'
+    if (!CADASTRO_SIMPLIFICADO && !/^\d{6}$/.test(codigo.trim()))
+      novos.codigo = 'O código tem 6 números.'
     const problema = problemaDaSenha(senha, senha, { nome, email })
     if (problema) novos.senha = problema
     setErros(novos)
@@ -285,23 +308,30 @@ export function TelaCriarConta() {
       />
     </BarraDeAcao>,
     <>
-      <CartaoDeVidro opaco intervalo={ESPACO.e16}>
-        <Texto variante="corpo" accessibilityLiveRegion="polite">
-          {`Mandamos um código de 6 números para ${email.trim()}. Ele vale por 10 minutos.`}
+      {!CADASTRO_SIMPLIFICADO ? (
+        <CartaoDeVidro opaco intervalo={ESPACO.e16}>
+          <Texto variante="corpo" accessibilityLiveRegion="polite">
+            {`Mandamos um código de 6 números para ${email.trim()}. Ele vale por 10 minutos.`}
+          </Texto>
+          <Campo
+            rotulo="Código de 6 números"
+            value={codigo}
+            onChangeText={setCodigo}
+            erro={erros.codigo ?? null}
+            codigo
+            ajuda="Não chegou? Olhe a caixa de spam ou mande outro código."
+            keyboardType="number-pad"
+            textContentType="oneTimeCode"
+            autoComplete="one-time-code"
+            maxLength={6}
+          />
+        </CartaoDeVidro>
+      ) : (
+        <Texto variante="corpo">
+          Seu e-mail não precisa de confirmação nesta etapa. Crie uma senha para entrar na sua
+          conta.
         </Texto>
-        <Campo
-          rotulo="Código de 6 números"
-          value={codigo}
-          onChangeText={setCodigo}
-          erro={erros.codigo ?? null}
-          codigo
-          ajuda="Não chegou? Olhe a caixa de spam ou mande outro código."
-          keyboardType="number-pad"
-          textContentType="oneTimeCode"
-          autoComplete="one-time-code"
-          maxLength={6}
-        />
-      </CartaoDeVidro>
+      )}
       <CartaoDeVidro opaco intervalo={ESPACO.e16}>
         <RegrasDaSenha senha={senha} nome={nome} email={email} />
         <Campo
@@ -345,16 +375,18 @@ export function TelaCriarConta() {
         <AvisoDeFalha erro={iniciar.error} titulo="O código não foi enviado" />
       ) : null}
       <View style={{ alignItems: 'flex-start' }}>
-        <Botao
-          titulo="Mandar outro código"
-          variante="terciario"
-          alinhado
-          carregando={iniciar.isPending}
-          aoPressionar={() => {
-            if (!trava.pegar()) return
-            iniciar.mutate()
-          }}
-        />
+        {!CADASTRO_SIMPLIFICADO ? (
+          <Botao
+            titulo="Mandar outro código"
+            variante="terciario"
+            alinhado
+            carregando={iniciar.isPending}
+            aoPressionar={() => {
+              if (!trava.pegar()) return
+              iniciar.mutate()
+            }}
+          />
+        ) : null}
         <Botao
           titulo="Corrigir meus dados"
           variante="terciario"

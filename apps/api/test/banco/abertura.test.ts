@@ -520,10 +520,9 @@ describe('criar comunidade (livre com limites)', () => {
       [bia.id],
     )
     const semEmail = await criarAberta(bia, 'Sem e-mail confirmado')
-    expect(semEmail.statusCode).toBe(403)
-    expect(semEmail.json().erro).toBe('email_nao_confirmado')
+    expect(semEmail.statusCode).toBe(200)
     const criadas = await b.su.query('select 1 from uj.comunidades where criado_por = $1', [bia.id])
-    expect(criadas.rows).toEqual([])
+    expect(criadas.rows).toHaveLength(1)
   })
 
   it('uma nova de cada vez e até 3 criadas por conta', async () => {

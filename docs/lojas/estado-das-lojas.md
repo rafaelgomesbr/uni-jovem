@@ -1,5 +1,20 @@
 # Estado das fichas nas lojas
 
+## Correção do cadastro em 17/11/2026
+
+- iOS 1.0.0 (5) compilado localmente, assinado e enviado à Apple em 17/11/2026 às 10:49:35 (Brasília). `UPLOAD SUCCEEDED with no errors`, entrega `6917d4e1-b732-4c01-bfc6-46c6c6182595`, IPA com 17.175.641 bytes. Confirmado pela API como `VALID` e `IN_BETA_TESTING`, com notificação automática habilitada. Grupo interno Equipe Uni Jovem com acesso automático a todos os builds. Notas pt-BR salvas. O primeiro envio havia sido recusado por número duplicado (4); o reenvio foi assinado com o número 5. Contador remoto EAS em 5.
+- Código de origem: `d64494a`. Hashes dos arquivos de cadastro e convite conferem entre a origem local e a usada no archive. Apple acessível desde o início do cadastro e do convite; convite preservado ao usar provedor.
+- API e web corrigidas já implantadas. Códigos por e-mail ainda dependem da autenticação SMTP no Gmail do dono. O suporte SMTP está incluído na API; a credencial fica só no servidor e não exige novo binário.
+- Android 1.0.0 (9) concluído localmente, sem custo, em `tmp/uni-jovem-1.0.0-9.aab` (112.149.647 bytes). Assinatura conferida, mesma chave de upload anterior; manifesto com `com.solerte.unijovem`, versão 1.0.0 e código 9. SHA-256 `706d1f4cf46bd2a4c7d4431436e00c0363d08f4e69e90dc8923787ccac338af3`. Contador remoto EAS em 9. Nenhum novo upload ao Play foi concluído nesta etapa.
+
+## Atualização dos envios em 16/11/2026
+
+- Pedido do dono: conferir onde o Claude parou e subir os builds.
+- Produção atualizada do commit `bc8ec05`: backup anterior à implantação, migrações 0023 a 0025 aplicadas, API saudável e web republicada. A API perdeu o acesso à autoria oculta dos pedidos de oração anônimos, conforme conferência de privilégios no banco.
+- TestFlight: iOS 1.0.0 (4), com as abas novas e oração anônima, enviado em 16/11/2026 às 09:18 (Brasília). Entrega/build `6182aa43-1645-44a9-ae17-a7dab629a32b`, `UPLOAD SUCCEEDED with no errors`, processamento `VALID`, distribuição `IN_BETA_TESTING`. Grupo interno "Equipe Uni Jovem" com acesso automático a todos os builds. Nenhum envio à revisão pública da App Store.
+- Android: build local 1.0.0 (8) concluído em 16/11/2026 às 09:50 (Brasília), sem custo de nuvem, com a chave de upload existente do EAS. Arquivo `tmp/uni-jovem-1.0.0-8.aab` (112.148.982 bytes), assinatura verificada pelo `jarsigner` e impressão SHA-256 do certificado igual à chave de upload anterior (`55:93:38:...:CB:47`). Pacote `com.solerte.unijovem`, mínimo 24, destino 36. Contador remoto do EAS atualizado para 8. Enviado ao Google Play e disponível no teste interno desde 16/11/2026 às 14:34 (Brasília).
+- Google Play: Android 1.0.0 (8) confirmado no Console como "Disponível para testadores internos", faixa ativa, última versão 8 (1.0.0), um código de versão, lançamento em 16/11/2026 às 14:34 (Brasília). App `4972469995880639252`, faixa `4701600075887871933`, registro `/releases/4/details`. O upload foi feito pela interface do Chrome na sessão aberta pelo dono; sem nova credencial de API. As notas pt-BR descrevem as abas novas, oração anônima e melhorias de navegação. A tela Testar e lançar também mostrou "Você não tem alterações não publicadas" antes do novo upload; o estado das antigas mudanças da ficha não foi auditado em detalhe nesta retomada.
+
 - **Data:** 15/11/2026.
 - **Quem preencheu:** agente, no Chrome do dono (conta Apple "Rafael Gomes" e conta Google Play "Rafael Gomes", já logadas), a pedido do dono.
 - **Fonte do conteúdo:** [`metadados.md`](metadados.md), [`declaracao-de-dados.md`](declaracao-de-dados.md) (versão 2, de 15/11/2026, no que foi preenchido; a versão 3, do app aberto, entra no envio do binário com a ADR 0007), [`revisao-apple.md`](revisao-apple.md), [`docs/privacidade/`](../privacidade/) e `docs/DECISOES.md` (D3, D27, D31, D33).

@@ -87,10 +87,13 @@ async function conferirCadastro(navegador: Browser) {
       `,
       }),
     )
-    await page.route('**/api/auth/cadastro/iniciar', async (rota) => {
+    await page.route('**/api/auth/cadastro/criar', async (rota) => {
       envios.push(rota.request().postDataJSON() as Record<string, unknown>)
       desafios++
-      await rota.fulfill({ json: { ok: true } })
+      await rota.fulfill({
+        status: 422,
+        json: { erro: 'senha_fraca', mensagem: 'Escolha outra senha.' },
+      })
     })
     await page.goto(`http://127.0.0.1:${PORTA}/app/criar-conta`)
     await page.getByLabel('Nome', { exact: true }).fill('Pessoa de Teste')
@@ -98,21 +101,20 @@ async function conferirCadastro(navegador: Browser) {
     await page.getByRole('radio', { name: 'Tenho 18 anos ou mais.' }).click()
     await page.getByRole('checkbox').click()
     await page.waitForFunction(() => Boolean((window as unknown as { desafio?: unknown }).desafio))
-    await page.getByRole('button', { name: 'Enviar código', exact: true }).click()
-    await page.getByLabel('Código de 6 números', { exact: true }).waitFor()
-    const reenviado = page.waitForResponse((r) => r.url().endsWith('/api/auth/cadastro/iniciar'))
-    await page.getByRole('button', { name: 'Mandar outro código', exact: true }).click()
-    // O reenvio precisa carregar um desafio novo, pois o anterior já foi usado.
-    await reenviado
+    await page.getByRole('button', { name: 'Continuar', exact: true }).click()
+    await page.getByLabel('Crie uma senha', { exact: true }).fill('uma frase comprida e boa 2026')
+    const criado = page.waitForResponse((r) => r.url().endsWith('/api/auth/cadastro/criar'))
+    await page.getByRole('button', { name: 'Criar conta', exact: true }).click()
+    await criado
     if (
-      desafios !== 2 ||
+      desafios !== 1 ||
       envios[0]?.plataforma !== 'web' ||
       envios[0]?.turnstile !== 'desafio-inicial' ||
-      envios[1]?.turnstile !== 'desafio-renovado'
+      envios[0]?.codigo !== undefined
     ) {
-      throw new Error('O cadastro web não enviou a plataforma e um desafio novo por código.')
+      throw new Error('O cadastro simplificado não enviou os dados com a verificação de segurança.')
     }
-    console.log('ok cadastro web: dados, desafio e reenvio de código')
+    console.log('ok cadastro web simplificado, sem confirmação de e-mail')
   } finally {
     await page.close()
   }

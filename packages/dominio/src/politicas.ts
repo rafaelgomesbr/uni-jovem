@@ -7,6 +7,8 @@
  */
 
 /** Quem cria conta. */
+export const CADASTRO_SIMPLIFICADO = true
+
 export const POLITICAS_DE_CONTA = ['somente_por_convite', 'cadastro_publico'] as const
 export type PoliticaDeConta = (typeof POLITICAS_DE_CONTA)[number]
 
@@ -64,7 +66,7 @@ export function podeCriarComunidade(
   conta: { criador: boolean; emailConfirmado: boolean },
 ): boolean {
   if (conta.criador) return true
-  return politica === 'livre_com_limites' && conta.emailConfirmado
+  return politica === 'livre_com_limites' && (conta.emailConfirmado || CADASTRO_SIMPLIFICADO)
 }
 
 /** Verificação da comunidade: `nova` tem rodinhas; `verificada` (pelo Criador) não. */

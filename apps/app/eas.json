@@ -32,7 +32,11 @@
       "distribution": "store",
       "autoIncrement": true,
       "android": { "buildType": "app-bundle" },
-      "env": { "UJ_VARIANTE": "producao", "EXPO_PUBLIC_API_URL": "https://unijovem.solerte.com.br" }
+      "env": {
+        "UJ_VARIANTE": "producao",
+        "EXPO_PUBLIC_API_URL": "https://unijovem.solerte.com.br",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "457514327131-or68a2c6oomnan6t301ni4u30vpkujcv.apps.googleusercontent.com"
+      }
     }
   },
   "submit": {

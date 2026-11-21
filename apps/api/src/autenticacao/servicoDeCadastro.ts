@@ -12,6 +12,7 @@ import {
   hashDeCodigo,
   hashDeSenha,
   hashDeToken,
+  hmacDeToken,
   iguais,
 } from './cripto.ts'
 import { NOME_DO_PROVEDOR, type IdentidadeDoProvedor, type Provedor } from './provedores.ts'
@@ -24,6 +25,7 @@ import {
   exigirSenhaBoa,
   MENOR_DE_16,
   normalizarEmail,
+  traduzirErroDeConvite,
   TENTATIVAS_CODIGO,
   VALIDADE_CODIGO_MIN,
   type DependenciasAuth,
@@ -99,6 +101,64 @@ async function registrarAceitesDaConta(
     VERSAO_DO_TEXTO['TC-02'],
     forma,
   ])
+}
+
+/** Cadastro temporariamente sem código de e-mail, autorizado em 17/11/2026. */
+export async function criarCadastroSimplificado(
+  d: DependenciasAuth,
+  pedido: {
+    nome: string
+    email: string
+    senha: string
+    faixaEtaria: FaixaEtaria | 'menos_16'
+    aceites: Aceites
+    plataforma: Plataforma
+    aparelho: string | null
+    token?: string
+    whatsapp?: string | null
+  },
+): Promise<SessaoAberta> {
+  const faixa = conferirIdade(pedido.faixaEtaria, pedido.aceites)
+  const email = normalizarEmail(pedido.email)
+  exigirSenhaBoa(pedido.senha, { nome: pedido.nome, email })
+  const senhaHash = await hashDeSenha(pedido.senha)
+  return emTx(d.auth, async (c) => {
+    let contaId: string
+    try {
+      const r = await c.query<{ id: string }>(
+        'select uj.criar_conta_sem_confirmacao($1, $2, $3, $4) as id',
+        [pedido.nome, email, senhaHash, pedido.whatsapp ?? null],
+      )
+      contaId = r.rows[0]!.id
+    } catch (erro) {
+      if ((erro as { code?: string }).code === 'UJ005') throw CONTA_EXISTENTE()
+      throw erro
+    }
+    await registrarAceitesDaConta(c, contaId, faixa, pedido.plataforma)
+    if (pedido.token) {
+      let vinculoId: string
+      try {
+        const r = await c.query<{ id: string }>('select uj.aceitar_convite($1, $2) as id', [
+          hmacDeToken(pedido.token, d.config.CONVITE_SEGREDO),
+          contaId,
+        ])
+        vinculoId = r.rows[0]!.id
+      } catch (erro) {
+        traduzirErroDeConvite(erro)
+      }
+      await c.query("select uj.registrar_consentimento($1, null, $2, 'TC-03', $3, $4, null, $5)", [
+        contaId,
+        vinculoId,
+        VERSAO_DO_TEXTO['TC-03'],
+        pedido.plataforma,
+        faixa === '16_17' ? true : null,
+      ])
+    }
+    await auditar(c, contaId, 'conta.criada', {
+      origem: pedido.token ? 'convite_sem_confirmacao' : 'senha_sem_confirmacao',
+    })
+    return abrirSessao(d, c, contaId, pedido)
+  })
 }
 
 // ------------------------------------------------------------ cadastro por e-mail

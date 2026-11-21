@@ -31,6 +31,13 @@ LOG=~/srv/builds/assinar-ios-loja.log
 ARQUIVO=$(ls -d "$SAIDA"/*.xcarchive | head -1)
 ESQUEMA=$(basename "$ARQUIVO" .xcarchive)
 APP="$ARQUIVO/Products/Applications/$ESQUEMA.app"
+# Archives gerados a partir de um prebuild anterior podem ter o número literal
+# no Info.plist. O número de distribuição é aplicado antes da assinatura.
+if [ -n "${UJ_NUMERO_BUILD:-}" ]; then
+  [[ "$UJ_NUMERO_BUILD" =~ '^[1-9][0-9]*$' ]] || { echo "Número de build inválido." >&2; exit 1; }
+  /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $UJ_NUMERO_BUILD" "$APP/Info.plist"
+fi
+echo "Build: $(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Info.plist")"
 echo "1/4 Perfil e permissões ($ESQUEMA)..."
 cp "$PERFIL" "$APP/embedded.mobileprovision"
 security cms -D -i "$PERFIL" > "$SAIDA/perfil.plist"

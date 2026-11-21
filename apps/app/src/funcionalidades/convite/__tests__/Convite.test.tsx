@@ -44,7 +44,7 @@ describe('conta nova por convite', () => {
     expect(
       await screen.findByText(/Para ter uma conta no Uni Jovem é preciso ter 16 anos ou mais/),
     ).toBeOnTheScreen()
-    expect(screen.queryByRole('button', { name: 'Enviar código' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Continuar' })).toBeNull()
     expect(pedidosPara(servidor, 'POST', '/api/auth/convite/iniciar')).toHaveLength(0)
   })
 
@@ -57,7 +57,7 @@ describe('conta nova por convite', () => {
             status: 200,
             corpo: { verificacaoId: '66666666-6666-4666-8666-000000000001' },
           }),
-          'POST /api/auth/convite/concluir': () => ({
+          'POST /api/auth/convite/criar': () => ({
             status: 422,
             corpo: { erro: 'parar_aqui', mensagem: 'Fim do teste.' },
           }),
@@ -65,7 +65,7 @@ describe('conta nova por convite', () => {
       },
     )
     await preencherDados()
-    const enviar = screen.getByRole('button', { name: 'Enviar código' })
+    const enviar = screen.getByRole('button', { name: 'Continuar' })
     // Nenhuma opção vem marcada e o botão explica o que falta.
     expect(enviar).toBeDisabled()
     expect(screen.getByText('Responda quantos anos você tem.')).toBeOnTheScreen()
@@ -78,16 +78,9 @@ describe('conta nova por convite', () => {
         name: 'Li e concordo com os Termos de Uso e a Política de Privacidade.',
       }),
     )
-    await fireEvent.press(screen.getByRole('button', { name: 'Enviar código' }))
-    await waitFor(() =>
-      expect(pedidosPara(servidor, 'POST', '/api/auth/convite/iniciar')).toHaveLength(1),
-    )
-    expect(pedidosPara(servidor, 'POST', '/api/auth/convite/iniciar')[0]!.corpo).toMatchObject({
-      faixaEtaria: '16_17',
-    })
-
-    await fireEvent.changeText(await screen.findByLabelText('Código de 6 números'), '123456')
     await fireEvent.press(screen.getByRole('button', { name: 'Continuar' }))
+    expect(pedidosPara(servidor, 'POST', '/api/auth/convite/iniciar')).toHaveLength(0)
+    expect(screen.queryByLabelText('Código de 6 números')).toBeNull()
     await fireEvent.changeText(await screen.findByLabelText('Senha'), 'umaSenhaBemLonga#2026')
     await fireEvent.changeText(screen.getByLabelText('Repita a senha'), 'umaSenhaBemLonga#2026')
 
@@ -105,9 +98,9 @@ describe('conta nova por convite', () => {
     await fireEvent.press(criar)
 
     await waitFor(() =>
-      expect(pedidosPara(servidor, 'POST', '/api/auth/convite/concluir')).toHaveLength(1),
+      expect(pedidosPara(servidor, 'POST', '/api/auth/convite/criar')).toHaveLength(1),
     )
-    expect(pedidosPara(servidor, 'POST', '/api/auth/convite/concluir')[0]!.corpo).toMatchObject({
+    expect(pedidosPara(servidor, 'POST', '/api/auth/convite/criar')[0]!.corpo).toMatchObject({
       faixaEtaria: '16_17',
       aceiteTermos: true,
       consentimentoFe: true,

@@ -152,6 +152,14 @@ const config: ExpoConfig = {
     favicon: './assets/images/favicon.png',
   },
   plugins: [
+    ...(CLIENTE_GOOGLE_IOS
+      ? [
+          [
+            '@react-native-google-signin/google-signin',
+            { iosUrlScheme: CLIENTE_GOOGLE_IOS.split('.').reverse().join('.') },
+          ] as [string, { iosUrlScheme: string }],
+        ]
+      : []),
     'expo-router',
     [
       'expo-splash-screen',

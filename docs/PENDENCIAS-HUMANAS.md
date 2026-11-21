@@ -4,7 +4,17 @@ O que só o dono do projeto pode fazer (contas, DNS, chaves, aprovações) e o q
 
 Estados: **aberta** (ninguém agiu), **em andamento**, **feita em dd/mm/aaaa**, **dispensada em dd/mm/aaaa** (com motivo).
 
-Atualizado em 15/11/2026.
+Atualizado em 16/11/2026.
+
+## Retomada dos builds em 16/11/2026
+
+O dono autorizou conferir a parada do Claude e subir os builds. A produção foi atualizada até a migração 0025, e o iOS 1.0.0 (4) está disponível no TestFlight (`VALID`, `IN_BETA_TESTING`). O Android 1.0.0 (8) foi compilado localmente, sem custo, e está em `tmp/uni-jovem-1.0.0-8.aab`, com assinatura conferida e a mesma chave de upload dos builds anteriores.
+
+O dono abriu e entrou no Chrome, o que permitiu o envio pela interface. O Google Play confirmou o Android 1.0.0 (8) como "Disponível para testadores internos", com lançamento em 16/11/2026 às 14:34 (Brasília). O upload manual do AAB deixou de ser necessário. A tela Testar e lançar mostrou "Você não tem alterações não publicadas" antes do novo upload; não houve ação desta retomada para enviar a ficha à revisão pública.
+
+## Pendências registradas
+
+Em 17/11/2026, o dono escolheu aproveitar o Gmail que recebe o encaminhamento do Cloudflare. A PH-03 passa a admitir SMTP existente, com suporte implementado e testado no código. Falta gerar a senha de app do Gmail e salvá-la no arquivo local protegido `.env.smtp`, sem enviar a senha pelo chat. A porta 25 não respondeu no teste de rede do Mac; a porta 587 autenticada respondeu. Clientes Google de produção (PH-14) continuam pendentes.
 
 | #     | Fase | Ação do dono                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Bloqueia                                                                                                | Estado       |
 | ----- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- | ------------ |
