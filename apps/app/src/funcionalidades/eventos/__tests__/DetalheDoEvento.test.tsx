@@ -90,8 +90,9 @@ describe('Encontro: a organização', () => {
     await montar('organizador')
     expect(await screen.findByText('Quando e onde')).toBeOnTheScreen()
     expect(screen.getByText('Local a definir')).toBeOnTheScreen()
-    // "1 de 1 responderam": Bruno aceitou. Todos responderam, e a linha leva aos Convocados.
-    expect(screen.getByText(/^1 de 1 responderam\. Todos responderam\./)).toBeOnTheScreen()
+    // Bruno aceitou: "Todos responderam." uma vez só (sem "1 de 1 responderam" antes), e a linha leva aos Convocados.
+    expect(screen.getByText(/^Todos responderam\./)).toBeOnTheScreen()
+    expect(screen.queryByText(/1 de 1 responderam/)).toBeNull()
     expect(await screen.findByText('Inscrições: 12 de 20')).toBeOnTheScreen()
     // A Preparação é uma linha fechada com o resumo; abrir mostra as tarefas.
     expect(screen.getByText('2 tarefas')).toBeOnTheScreen()

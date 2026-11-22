@@ -11,9 +11,11 @@ import {
   acoesDoMembro,
   descreverParte,
   emOnde,
+  estaNoLouvor,
   etiquetaDoMomento,
   momentoDoDia,
   quandoFoiSalva,
+  textoDaDespedida,
   tocaNoLouvor,
   type SituacaoDoLider,
   type SituacaoDoMembro,
@@ -110,6 +112,52 @@ describe('os nomes da parte da pessoa', () => {
   })
 })
 
+describe('estar no louvor (D73): quem tem a convocação de louvor que ainda vale', () => {
+  test('aceita ou pendente conta; recusada e outra função não', () => {
+    expect(estaNoLouvor([parteDoMomento({ estado: 'confirmada' })])).toBe(true)
+    expect(estaNoLouvor([parteDoMomento({ estado: 'pendente' })])).toBe(true)
+    expect(estaNoLouvor([parteDoMomento({ estado: 'substituicao_pedida' })])).toBe(true)
+    expect(estaNoLouvor([parteDoMomento({ estado: 'recusada' })])).toBe(false)
+    expect(
+      estaNoLouvor([
+        parteDoMomento({ estado: 'confirmada', funcao: 'Recepção', etapaTitulo: null }),
+      ]),
+    ).toBe(false)
+    expect(estaNoLouvor([])).toBe(false)
+  })
+})
+
+describe('a faixa de cima quando o encontro de ontem terminou (D73): diz QUAL encontro', () => {
+  const agora = new Date('2026-11-22T13:00:00.000Z')
+  const ontem = {
+    titulo: 'Sábado',
+    inicio: '2026-11-21T19:00:00.000Z',
+    fuso: 'America/Sao_Paulo',
+    presentes: 12,
+  }
+
+  test('"Sábado de ontem terminou. 12 presentes." (não "Sábado terminou" ao lado de "Sábado, em 6 dias")', () => {
+    expect(textoDaDespedida(ontem, agora)).toBe('Sábado de ontem terminou. 12 presentes.')
+    expect(textoDaDespedida({ ...ontem, presentes: 1 }, agora)).toBe(
+      'Sábado de ontem terminou. 1 presente.',
+    )
+  })
+
+  test('presença zerada ou desconhecida não entra: o zero não é um fato, é "ninguém marcou"', () => {
+    expect(textoDaDespedida({ ...ontem, presentes: 0 }, agora)).toBe('Sábado de ontem terminou.')
+    expect(textoDaDespedida({ ...ontem, presentes: null }, agora)).toBe('Sábado de ontem terminou.')
+  })
+
+  test('terminou hoje cedo: "de hoje"; passou mais de um dia: a data entre parênteses', () => {
+    expect(textoDaDespedida({ ...ontem, inicio: '2026-11-22T11:00:00.000Z' }, agora)).toBe(
+      'Sábado de hoje terminou. 12 presentes.',
+    )
+    expect(textoDaDespedida(ontem, new Date('2026-11-24T13:00:00.000Z'))).toBe(
+      'Sábado (Sáb., 21 de nov.) terminou. 12 presentes.',
+    )
+  })
+})
+
 describe('datas do cartão', () => {
   test('"Sáb., 28 de nov.": o dia da semana abreviado, no fuso do encontro', () => {
     expect(dataCurta('2026-11-28T19:00:00.000Z', 'America/Sao_Paulo')).toBe('Sáb., 28 de nov.')
@@ -131,6 +179,7 @@ describe('o botão do cartão do MEMBRO (tabela 3.1 do UX)', () => {
     musicoConfirmado: false,
     podeSeInscrever: false,
     depoisDeUmEncontro: false,
+    temRepertorio: false,
   }
   const acao = (s: Partial<SituacaoDoMembro>) => acoesDoMembro({ ...base, ...s })
 
@@ -146,6 +195,24 @@ describe('o botão do cartão do MEMBRO (tabela 3.1 do UX)', () => {
   test('longe e confirmado: o músico abre o repertório; outra parte só vê o encontro', () => {
     expect(acao({ musicoConfirmado: true })).toEqual({ primaria: 'repertorio', secundaria: 'ver' })
     expect(acao({})).toEqual({ primaria: 'ver', secundaria: null })
+  })
+
+  test('quem não toca vê o repertório em leitura quando o encontro tem músicas (D73)', () => {
+    expect(acao({ temRepertorio: true })).toEqual({ primaria: 'ver', secundaria: 'repertorio' })
+    expect(acao({ temRepertorio: true, depoisDeUmEncontro: true })).toEqual({
+      primaria: 'verProximo',
+      secundaria: 'repertorio',
+    })
+    // O músico confirmado segue com o dele, no primário.
+    expect(acao({ temRepertorio: true, musicoConfirmado: true })).toEqual({
+      primaria: 'repertorio',
+      secundaria: 'ver',
+    })
+    // Com a inscrição aberta, o primário é Inscrever-me (o repertório vai para um botão à parte).
+    expect(acao({ temRepertorio: true, podeSeInscrever: true })).toEqual({
+      primaria: 'inscrever',
+      secundaria: 'ver',
+    })
   })
 
   test('longe, público e não inscrito: Inscrever-me e Ver o encontro', () => {

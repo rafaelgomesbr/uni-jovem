@@ -80,7 +80,9 @@ describe('banda do encontro nos Convocados (D61)', () => {
     expect(screen.getByRole('button', { name: 'Convocar para Guitarra' })).toBeOnTheScreen()
     expect(screen.getByRole('button', { name: 'Convocar para Som' })).toBeOnTheScreen()
     // O resumo de cima conta quem respondeu (quem recusou também respondeu).
-    expect(screen.getByText('3 de 3 responderam')).toBeOnTheScreen()
+    // Com todos respondidos o título é "Todos responderam", uma vez só (D73).
+    expect(screen.getByText('Todos responderam')).toBeOnTheScreen()
+    expect(screen.queryByText('3 de 3 responderam')).toBeNull()
     expect(screen.getByText('Falta: bateria')).toBeOnTheScreen()
   })
 

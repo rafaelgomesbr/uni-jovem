@@ -43,6 +43,12 @@ interface PropsDasPilulas<T extends string> {
    * item fica em x=20 e sobra 20 no fim. Desligue dentro de cartão.
    */
   sangrar?: boolean
+  /**
+   * As pílulas quebram em mais linhas em vez de rolar de lado. Para uma escolha que não pode ficar
+   * escondida à direita (folha de convocar: o "Louvor" cortado fora da tela, D73). Vale só fora
+   * de `LinhaDePilulas`.
+   */
+  quebrar?: boolean
 }
 
 /** Dentro de `LinhaDePilulas`: o grupo não rola sozinho, a linha rola por todos. */
@@ -61,6 +67,7 @@ export function PilulasDeFiltro<T extends string>({
   multipla = false,
   opcional = false,
   sangrar = true,
+  quebrar = false,
 }: PropsDasPilulas<T>) {
   const naLinha = useContext(ContextoDaLinha)
   const alternavel = multipla || opcional
@@ -94,6 +101,18 @@ export function PilulasDeFiltro<T extends string>({
         {...papelDoGrupo}
         aria-label={rotulo}
         style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}
+      >
+        {itens}
+      </View>
+    )
+  }
+
+  if (quebrar) {
+    return (
+      <View
+        {...papelDoGrupo}
+        aria-label={rotulo}
+        style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: ESPACO.e8 }}
       >
         {itens}
       </View>

@@ -7,7 +7,8 @@ import { criarDeposito } from '@/funcionalidades/offline/deposito'
 import { ProvedorOffline } from '@/funcionalidades/offline/ProvedorOffline'
 import { baixarRepertorio } from '@/funcionalidades/offline/repertorioOffline'
 import type { Rota } from '@/testes/dubles'
-import { EVENTO_ID } from '@/testes/fixturas'
+import { EVENTO_ID, eventoDeTeste } from '@/testes/fixturas'
+import { eventoDoMomento, inicioComMomento, momentoDeTeste } from '@/testes/momento'
 import { limparAparelho } from '@/testes/offline'
 import {
   encontroDoMeuRepertorioDeTeste,
@@ -115,11 +116,69 @@ describe('Meu repertório (D61, D71)', () => {
   })
 
   describe('os três estados', () => {
-    test('vazio: quem não toca no louvor vê como funciona, sem botão', async () => {
-      await renderizarTela(<TelaMeuRepertorio />, { papel: 'membro', rotas: rotas([]) })
-      expect(await screen.findByText('Você não está no louvor deste encontro.')).toBeOnTheScreen()
-      expect(screen.getByText('Quando for, o repertório aparece aqui.')).toBeOnTheScreen()
-      expect(screen.queryByRole('button', { name: /Modo palco/ })).toBeNull()
+    test('quem não toca (D73) não esbarra em "você não está no louvor": vê o repertório do próximo encontro, em leitura', async () => {
+      await renderizarTela(<TelaMeuRepertorio />, {
+        papel: 'membro',
+        rotas: {
+          ...rotas([]),
+          [`GET ${BASE}/inicio`]: () => ({
+            status: 200,
+            corpo: inicioComMomento(
+              momentoDeTeste({ evento: eventoDoMomento({ id: EVENTO_ID, musicas: 2 }) }),
+            ),
+          }),
+          [`GET ${BASE}/eventos/${EVENTO_ID}`]: () => ({
+            status: 200,
+            corpo: eventoDeTeste({ atribuicoes: [] }),
+          }),
+          [`GET ${BASE}/eventos/${EVENTO_ID}/repertorio`]: () => ({
+            status: 200,
+            corpo: {
+              itens: [
+                {
+                  id: 'item-1',
+                  ordem: 0,
+                  musicaId: 'm1',
+                  etapaId: null,
+                  tomDoDia: 'A',
+                  nota: null,
+                  versao: 1,
+                  titulo: 'Firmes na rocha',
+                  artista: null,
+                  tomOriginal: 'G',
+                  andamentoBpm: null,
+                  duracaoSeg: 240,
+                  arquivada: false,
+                  temCifra: true,
+                },
+              ],
+            },
+          }),
+        },
+      })
+      // A lista, o tom do dia e a cifra a um toque: nada de "Você não está no louvor".
+      expect(await screen.findByLabelText(/^Música 1 de 1: Firmes na rocha\./)).toBeOnTheScreen()
+      expect(screen.queryByText(/Você não está no louvor/)).toBeNull()
+      // Só leitura: sem Adicionar nem Avisar a banda, sem Modo palco.
+      expect(screen.queryByRole('button', { name: 'Adicionar músicas' })).toBeNull()
+      expect(screen.queryByRole('button', { name: /^Abrir o Modo palco/ })).toBeNull()
+    })
+
+    test('quem não toca e ainda não há encontro marcado: diz isso, sem culpar o louvor', async () => {
+      await renderizarTela(<TelaMeuRepertorio />, {
+        papel: 'membro',
+        rotas: {
+          ...rotas([]),
+          [`GET ${BASE}/inicio`]: () => ({
+            status: 200,
+            corpo: inicioComMomento(
+              momentoDeTeste({ evento: null, estado: null, minutosParaInicio: null }),
+            ),
+          }),
+        },
+      })
+      expect(await screen.findByText('Ainda não há encontro marcado.')).toBeOnTheScreen()
+      expect(screen.queryByText(/Você não está no louvor/)).toBeNull()
     })
 
     test('vazio de quem toca: o repertório ainda não foi montado', async () => {

@@ -2,6 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import {
   ehEtapaDeLouvor,
   FUNCOES_DA_BANDA,
+  mesmaFuncao,
   normalizarFuncaoDaBanda,
   type FuncaoDaBanda,
 } from '@uj/dominio'
@@ -116,13 +117,74 @@ function descreverSugestao(funcao: string, vezes: number, disponivel: boolean | 
   return partes.join(' · ')
 }
 
+/** "quem conduz" e "quem ajuda": o nome das funções padrão do encontro, como o líder as escolhe. */
+export function rotuloDaFuncao(funcao: string): string {
+  if (funcao === 'responsável') return 'quem conduz'
+  if (funcao === 'integrante') return 'quem ajuda'
+  return funcao.toLocaleLowerCase('pt-BR')
+}
+
+/** Onde a pessoa serve: o encontro inteiro ou o título da etapa. */
+export function nomeDoBloco(
+  etapaId: string | null,
+  etapas: readonly Pick<Etapa, 'id' | 'titulo'>[],
+) {
+  if (etapaId === null) return 'Encontro inteiro'
+  return etapas.find((e) => e.id === etapaId)?.titulo ?? 'Outra etapa'
+}
+
+/** "Encontro inteiro (quem ajuda)", "Louvor (violão)": o bloco e a função, para dizer onde já está. */
+export function ondeJaEsta(
+  a: Pick<Atribuicao, 'etapaId' | 'funcao'>,
+  etapas: readonly Pick<Etapa, 'id' | 'titulo'>[],
+): string {
+  return `${nomeDoBloco(a.etapaId, etapas)} (${rotuloDaFuncao(a.funcao)})`
+}
+
+/**
+ * Quem já está no bloco, em uma frase: "Na banda: Ana (violão), Bruno (bateria)." no Louvor e
+ * "No encontro inteiro: Ana, Bruno." nos demais. Quem recusou não conta. Uma pessoa com duas
+ * funções aparece uma vez, com as duas.
+ */
+export function quemJaEstaNoBloco(
+  atribuicoes: readonly Pick<Atribuicao, 'etapaId' | 'funcao' | 'estado' | 'vinculoId' | 'nome'>[],
+  etapaId: string | null,
+  etapas: readonly Pick<Etapa, 'id' | 'titulo'>[],
+): string {
+  const etapa = etapas.find((e) => e.id === etapaId)
+  const banda = !!etapa && ehEtapaDeLouvor(etapa.titulo)
+  const bloco = banda
+    ? 'na banda'
+    : etapaId === null
+      ? 'no encontro inteiro'
+      : `em ${etapa?.titulo ?? 'esta etapa'}`
+  const porPessoa = new Map<string, { nome: string; funcoes: string[] }>()
+  for (const a of atribuicoes) {
+    if (a.etapaId !== etapaId || a.estado === 'recusada') continue
+    const atual = porPessoa.get(a.vinculoId) ?? {
+      nome: a.nome.split(' ')[0] ?? a.nome,
+      funcoes: [],
+    }
+    atual.funcoes.push(a.funcao.toLocaleLowerCase('pt-BR'))
+    porPessoa.set(a.vinculoId, atual)
+  }
+  if (porPessoa.size === 0) return `Ninguém ${bloco} ainda.`
+  const nomes = [...porPessoa.values()].map((p) =>
+    banda ? `${p.nome} (${p.funcoes.join(', ')})` : p.nome,
+  )
+  return `${bloco.charAt(0).toLocaleUpperCase('pt-BR')}${bloco.slice(1)}: ${nomes.join(', ')}.`
+}
+
 /**
  * Folha "Convocar" (D69, seção 3.5): várias pessoas de uma vez. A função vem preenchida do bloco
  * onde o toque saiu ("Convocar" em Bateria já traz Bateria); "Sugeridas" primeiro (quem serviu
  * nessa função e quem avisou que pode neste dia, pela API de sugestões); "Todas as pessoas" com a
- * busca pelo nome; quem já foi convocado ou avisou que não pode fica à vista e travado, com o
- * motivo escrito. "Convocar 2 pessoas" fecha a folha, o bloco mostra as duas como "aguardando" e o
- * aviso a elas só sai depois de 10 s, com Desfazer.
+ * busca pelo nome. O bloqueio "Já convocado" vale só para a MESMA combinação de bloco (encontro
+ * inteiro, etapa ou Louvor) e função (D73): quem já serve o encontro inteiro aparece marcável para o
+ * Louvor, com "Já está em: Encontro inteiro (quem ajuda)", e a mesma pessoa pode ter duas funções na
+ * banda. Quem avisou que não pode neste dia fica travado, com o motivo escrito. "Convocar 2
+ * pessoas" fecha a folha, o bloco mostra as duas como "aguardando" e o aviso a elas só sai depois
+ * de 10 s, com Desfazer.
  */
 export function FolhaDeConvocar({
   evento,
@@ -182,18 +244,45 @@ export function FolhaDeConvocar({
 
   const pessoas = usePessoasAtivas(comunidadeId)
   const sugestoes = useQuery({
-    queryKey: ['c', comunidadeId, 'eventos', 'sugestoes-de-convocacao', evento.id, nomeDaFuncao],
-    queryFn: () => chamadasV3.sugestoesDeConvocacao(comunidadeId, evento.id, nomeDaFuncao),
+    queryKey: [
+      'c',
+      comunidadeId,
+      'eventos',
+      'sugestoes-de-convocacao',
+      evento.id,
+      etapaId ?? 'geral',
+      nomeDaFuncao,
+    ],
+    queryFn: () => chamadasV3.sugestoesDeConvocacao(comunidadeId, evento.id, nomeDaFuncao, etapaId),
     enabled: aberta && pronta,
     retry: false,
   })
 
-  const jaNoGrupo = new Set([
-    ...evento.atribuicoes.filter((a) => a.etapaId === etapaId).map((a) => a.vinculoId),
-    ...emEspera.filter((c) => c.etapaId === etapaId).map((c) => c.vinculoId),
-    ...(sugestoes.data?.jaConvocadas ?? []),
-  ])
+  // Tudo o que já existe neste encontro, com quem está na espera do Desfazer (também conta).
+  const existentes = [
+    ...evento.atribuicoes,
+    ...emEspera.map((c) => ({
+      etapaId: c.etapaId,
+      vinculoId: c.vinculoId,
+      funcao: c.funcao,
+      estado: 'pendente' as const,
+      nome: c.nome,
+    })),
+  ]
+  // O bloqueio é só da MESMA combinação (bloco e função): estar no encontro inteiro não impede de
+  // tocar no Louvor, nem tocar violão impede de cantar (D73).
+  const naMesmaCombinacao = (vinculoId: string) =>
+    pronta
+      ? existentes.find(
+          (a) =>
+            a.vinculoId === vinculoId &&
+            a.etapaId === etapaId &&
+            mesmaFuncao(a.funcao, nomeDaFuncao),
+        )
+      : undefined
+  const jaPelaApi = new Set(sugestoes.data?.jaConvocadas ?? [])
   const naoPodem = new Set((sugestoes.data?.indisponiveis ?? []).map((i) => i.vinculoId))
+  const quemJaEsta = quemJaEstaNoBloco(existentes, etapaId, evento.etapas)
   const termo = semAcento(busca.trim())
   const passaNaBusca = (nome: string) => !termo || semAcento(nome).includes(termo)
   const sugeridas = (sugestoes.data?.sugeridas ?? []).filter((s) => passaNaBusca(s.nome))
@@ -254,22 +343,34 @@ export function FolhaDeConvocar({
     : 'Convocar pessoas'
 
   function linhaDaPessoa(vinculoId: string, nome: string, apoio: string) {
-    const travada = jaNoGrupo.has(vinculoId)
-      ? 'Já convocado'
-      : naoPodem.has(vinculoId)
-        ? 'Avisou que não pode neste dia'
-        : null
+    const igual = naMesmaCombinacao(vinculoId)
+    const outros = existentes.filter((a) => a.vinculoId === vinculoId && a !== igual)
+    const travada = igual
+      ? `Já convocado: ${ondeJaEsta(igual, evento.etapas)}${
+          igual.estado === 'recusada' ? '. Avisou que não pode ir' : ''
+        }`
+      : jaPelaApi.has(vinculoId)
+        ? 'Já convocado nesta função'
+        : naoPodem.has(vinculoId)
+          ? 'Avisou que não pode neste dia'
+          : null
+    // Quem já está em outro bloco ou função continua marcável, com o aviso de onde já está.
+    const jaEsta =
+      !travada && outros.length > 0
+        ? `Já está em: ${[...new Set(outros.map((a) => ondeJaEsta(a, evento.etapas)))].join('; ')}`
+        : ''
+    const descricao = travada ?? ([apoio, jaEsta].filter(Boolean).join(' · ') || null)
     const marcada = marcadas.includes(vinculoId)
     return (
       <LinhaDeLista
         key={vinculoId}
         avatar={{ nome }}
         titulo={nome}
-        {...(travada || apoio ? { descricao: travada ?? apoio } : {})}
+        {...(descricao ? { descricao } : {})}
         semSeta
         marcada={marcada}
         desabilitada={travada !== null}
-        rotuloAcessivel={`${nome}${travada ? `. ${travada}` : apoio ? `. ${apoio}` : ''}`}
+        rotuloAcessivel={`${nome}${descricao ? `. ${descricao}` : ''}`}
         extra={
           marcada ? (
             <Icone nome="check" cor={cores.destaque} tamanho={18} peso="forte" />
@@ -286,6 +387,7 @@ export function FolhaDeConvocar({
         <PilulasDeFiltro
           rotulo="Onde"
           sangrar={false}
+          quebrar
           pilulas={[
             { valor: 'geral', rotulo: 'Encontro inteiro' },
             ...evento.etapas.map((e) => ({ valor: e.id, rotulo: e.titulo })),
@@ -298,6 +400,7 @@ export function FolhaDeConvocar({
         <PilulasDeFiltro
           rotulo="Função na banda"
           sangrar={false}
+          quebrar
           pilulas={FUNCOES_DA_BANDA.map((f) => ({ valor: f, rotulo: f }))}
           selecionadas={funcaoDaBanda ? [funcaoDaBanda] : []}
           aoMudar={(v) => setFuncaoDaBanda(v[0] ?? null)}
@@ -323,6 +426,10 @@ export function FolhaDeConvocar({
           maxLength={60}
         />
       ) : null}
+
+      <Texto variante="meta" cor="textoSuave" testID="quem-ja-esta-no-bloco">
+        {quemJaEsta}
+      </Texto>
 
       {!pronta ? (
         <Texto variante="corpo" cor="textoSuave">

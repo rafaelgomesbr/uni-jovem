@@ -5,6 +5,7 @@ import type { Rota } from '@/testes/dubles'
 import { INICIO } from '@/testes/fixturas'
 import {
   RELOGIO,
+  aDias,
   eventoDoMomento,
   inicioComMomento,
   liderDoMomento,
@@ -145,7 +146,7 @@ describe('Início do membro: o cartão do momento (3.1 do UX)', () => {
     expect(screen.queryByRole('button', { name: /^Aceitar/ })).toBeNull()
     await userEvent
       .setup()
-      .press(screen.getByRole('button', { name: 'Abrir o meu repertório de Sábado Jovem' }))
+      .press(screen.getByRole('button', { name: 'Abrir o repertório: Sábado Jovem' }))
     expect(router.push).toHaveBeenCalledWith('/meu-repertorio')
     expect(screen.getByRole('button', { name: 'Ver o encontro' })).toBeOnTheScreen()
   })
@@ -255,6 +256,49 @@ describe('Início do membro: o cartão do momento (3.1 do UX)', () => {
     )
     expect(await screen.findByText('Obrigado por servir ontem.')).toBeOnTheScreen()
     expect(screen.getByRole('button', { name: 'Ver o próximo encontro' })).toBeOnTheScreen()
+  })
+
+  test('líder: a faixa do encontro de ontem diz qual terminou, sem contradizer o cartão do próximo (D73)', async () => {
+    await comoLider(
+      momentoDeTeste({
+        lider: liderDoMomento(),
+        recemTerminado: {
+          id: 'e0',
+          titulo: 'Sábado Jovem',
+          inicio: aDias(-6),
+          fim: aDias(-6),
+          fuso: 'America/Sao_Paulo',
+          presentes: 0,
+          euServi: false,
+        },
+      }),
+    )
+    // O cartão é do PRÓXIMO encontro (em 5 dias) e a faixa é do de ontem: a faixa diz "de ontem" e
+    // não afirma "0 presentes" (sem check-in o zero não é um fato).
+    expect(await screen.findByText('EM 5 DIAS')).toBeOnTheScreen()
+    expect(screen.getByText('Sábado Jovem de ontem terminou.')).toBeOnTheScreen()
+    expect(screen.queryByText(/0 presentes/)).toBeNull()
+    expect(screen.queryByText('Sábado Jovem terminou.')).toBeNull()
+  })
+
+  test('líder: com presença marcada a faixa leva o número', async () => {
+    await comoLider(
+      momentoDeTeste({
+        lider: liderDoMomento(),
+        recemTerminado: {
+          id: 'e0',
+          titulo: 'Sábado Jovem',
+          inicio: aDias(-6),
+          fim: aDias(-6),
+          fuso: 'America/Sao_Paulo',
+          presentes: 12,
+          euServi: false,
+        },
+      }),
+    )
+    expect(
+      await screen.findByText('Sábado Jovem de ontem terminou. 12 presentes.'),
+    ).toBeOnTheScreen()
   })
 
   test('quem não serviu não ganha o "Obrigado"', async () => {
@@ -483,7 +527,7 @@ describe('Início do líder: o cartão do momento (3.2 do UX)', () => {
     })
   })
 
-  test('tudo respondido: "Todos responderam ✓", "Ver o encontro" e "Abrir o repertório"', async () => {
+  test('tudo respondido: "Todos responderam ✓" (uma vez só), "Ver o encontro" e "Montar o repertório"', async () => {
     await comoLider(
       momentoDeTeste({
         lider: lider({
@@ -497,9 +541,14 @@ describe('Início do líder: o cartão do momento (3.2 do UX)', () => {
       }),
     )
     expect(await screen.findByText('Todos responderam ✓')).toBeOnTheScreen()
+    // Uma vez só: nada de "11 de 11 responderam" nem de outro "Todos responderam" ao lado.
+    expect(screen.queryByText('11 de 11 responderam')).toBeNull()
+    expect(screen.queryByText('Todos responderam')).toBeNull()
+    expect(screen.getAllByText(/Todos responderam/)).toHaveLength(1)
     expect(screen.getByRole('button', { name: 'Ver o encontro' })).toBeOnTheScreen()
+    // O líder não toca e o encontro não tem músicas: o botão é de montar o repertório.
     expect(
-      screen.getByRole('button', { name: 'Abrir o meu repertório de Sábado Jovem' }),
+      screen.getByRole('button', { name: 'Montar o repertório: Sábado Jovem' }),
     ).toBeOnTheScreen()
   })
 

@@ -13,6 +13,7 @@ import {
   acoesDoMembro,
   dataEHorario,
   descreverParte,
+  estaNoLouvor,
   etiquetaDoMomento,
   momentoDoDia,
   tocaNoLouvor,
@@ -71,7 +72,9 @@ export function CartaoDoMembro({
   aoRecusar,
   rodape,
 }: Props) {
-  const destinos = useDestinosDoEncontro(evento)
+  const toco = estaNoLouvor(partes)
+  const musicas = evento.musicas ?? 0
+  const destinos = useDestinosDoEncontro(evento, { toco, musicas, organiza: false })
   const esperaDoDesfazer = useDesfazerPendente()
   const dia = momentoDoDia(momento)
 
@@ -88,6 +91,7 @@ export function CartaoDoMembro({
     musicoConfirmado,
     podeSeInscrever,
     depoisDeUmEncontro: momento.recemTerminado !== null,
+    temRepertorio: musicas > 0,
   })
 
   function botao(acao: typeof primaria, principal: boolean) {
@@ -121,8 +125,12 @@ export function CartaoDoMembro({
 
   const botoes = ordenarBotoes(botao(primaria, true), secundaria ? botao(secundaria, false) : null)
   const respondendo = primaria === 'aceitar'
-  const musicoSemBotao =
-    musicoConfirmado && primaria !== 'repertorio' && secundaria !== 'repertorio' && !respondendo
+  // O repertório não some por não caber no par: quem toca e quem só quer ver (D73) o têm à mão.
+  const repertorioSemBotao =
+    (musicoConfirmado || musicas > 0) &&
+    primaria !== 'repertorio' &&
+    secundaria !== 'repertorio' &&
+    !respondendo
 
   // A resposta recusada ainda pode ser desfeita enquanto o toast espera.
   const podeDesfazer = esperaDoDesfazer !== null && partes.some((p) => emEspera.has(p.atribuicaoId))
@@ -218,14 +226,14 @@ export function CartaoDoMembro({
           <Chip tom="alerta" icone="relogio" texto="Na lista de espera" />
         ) : null}
 
-        {musicoSemBotao ? (
+        {repertorioSemBotao ? (
           <Botao
-            titulo="Abrir o repertório"
+            titulo={destinos.rotuloDoRepertorio}
             variante="terciario"
             alinhado
             icone="musica"
             tamanho="compacto"
-            rotuloAcessivel={`Abrir o meu repertório de ${evento.titulo}`}
+            rotuloAcessivel={`${destinos.rotuloDoRepertorio}: ${evento.titulo}`}
             aoPressionar={destinos.repertorio}
           />
         ) : null}

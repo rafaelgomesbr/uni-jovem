@@ -35,6 +35,7 @@ momento: {
     id, titulo, categoria, inicio, fim, duracaoMin, fuso,
     status,                             // 'publicado' | 'adiado' | 'rascunho' (rascunho só para a organização)
     visibilidade,                       // 'interna' | 'publica'
+    musicas,                            // quantas músicas tem o repertório (qualquer papel; só a contagem, D73)
     local: { nome, tipo, endereco, latitude, longitude, referencia } | null
   } | null,
   estado: 'longe' | 'vespera' | 'no_dia' | 'acontecendo' | null,
@@ -98,19 +99,19 @@ Erros: 400 `data_no_passado` (data e hora já passaram), 400 data ou hora mal fo
 
 Corpo: `{ funcao: string (2 a 60), etapaId?: uuid | null, vinculoIds: uuid[] (1 a 30) }`. Uma transação só: todas ou nenhuma.
 
-Resposta: `{ criadas: [{ id, vinculoId, estado: 'pendente' }], jaConvocadas: [vinculoId] }`. Quem já estava convocado na mesma função e etapa não é duplicado. Em encontro **publicado**, cada pessoa criada recebe a convocação pelos gatilhos de sempre; em **rascunho**, ninguém é avisado ainda.
+Resposta: `{ criadas: [{ id, vinculoId, estado: 'pendente' }], jaConvocadas: [vinculoId] }`. Quem já estava convocado na mesma combinação de **bloco (etapa ou encontro inteiro) e função** não é duplicado (a comparação ignora acento e caixa; "voz" e "Vocal" são a mesma da banda). A mesma pessoa em **outro bloco** ou com **outra função** é permitida (D73): quem serve o encontro inteiro também pode tocar no louvor, e quem toca violão também pode cantar. Em encontro **publicado**, cada pessoa criada recebe a convocação pelos gatilhos de sempre; em **rascunho**, ninguém é avisado ainda.
 
 Erros: 400 corpo inválido (lista vazia, mais de 30, função curta, id que não é uuid); 403 membro; 404 encontro de outra comunidade, etapa de outro encontro, ou **qualquer** pessoa que não seja ativa nesta comunidade (o lote inteiro cai, nada é gravado). Auditoria: `escala.convocadas_em_lote` com contagens.
 
-## `GET /c/:id/eventos/:eventoId/sugestoes-de-convocacao?funcao=Bateria`
+## `GET /c/:id/eventos/:eventoId/sugestoes-de-convocacao?funcao=Bateria&etapaId=`
 
-`funcao` é obrigatória (2 a 60). Resposta:
+`funcao` é obrigatória (2 a 60). `etapaId` é opcional: `geral` (encontro inteiro) ou o id da etapa onde a pessoa serviria; com ele, `jaConvocadas` só traz quem já está **nesse bloco** com a função (D73). Sem ele, vale qualquer bloco, como antes. Resposta:
 
 ```
 { funcao, data: 'AAAA-MM-DD',
   sugeridas: [{ vinculoId, nome, vezes, ultimaVez, disponivelNoDia }],   // até 10
   indisponiveis: [{ vinculoId, nome }],      // avisaram que NÃO podem neste dia
-  jaConvocadas: [vinculoId] }                // já estão nesta função neste encontro
+  jaConvocadas: [vinculoId] }                // já estão nesta função (e neste bloco, se etapaId veio)
 ```
 
 Ordem: serviu na função e informou que pode no dia; serviu na função (mais vezes, mais recente primeiro); só informou que pode. Considera os 12 meses anteriores, só encontros publicados que já passaram, e **não conta recusa**. "voz" e "Vocal", "violao" e "Violão" são a mesma função; funções livres ("Recepção") comparam por texto sem acento nem caixa. Quem informou que não pode **nunca** está em `sugeridas`. `disponivelNoDia` é `true` ou `null`. Erros: 400 sem `funcao`; 403 membro; 404 encontro de outra comunidade (o 404 vem antes do 400).

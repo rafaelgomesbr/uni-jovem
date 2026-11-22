@@ -42,6 +42,15 @@ describe('chamadas das rotas novas do v3', () => {
     expect(get).toHaveBeenCalledWith(
       `/api/v1/c/${COM}/eventos/${EV}/sugestoes-de-convocacao?funcao=Proje%C3%A7%C3%A3o%20%26%20som`,
     )
+    // O bloco vai junto: nulo é o encontro inteiro, senão o id da etapa (D73).
+    await chamadasV3.sugestoesDeConvocacao(COM, EV, 'Bateria', null)
+    expect(get).toHaveBeenLastCalledWith(
+      `/api/v1/c/${COM}/eventos/${EV}/sugestoes-de-convocacao?funcao=Bateria&etapaId=geral`,
+    )
+    await chamadasV3.sugestoesDeConvocacao(COM, EV, 'Bateria', 'etapa-1')
+    expect(get).toHaveBeenLastCalledWith(
+      `/api/v1/c/${COM}/eventos/${EV}/sugestoes-de-convocacao?funcao=Bateria&etapaId=etapa-1`,
+    )
     await chamadasV3.lembrarPendentes(COM, EV)
     expect(post).toHaveBeenLastCalledWith(`/api/v1/c/${COM}/eventos/${EV}/lembrar-pendentes`)
   })

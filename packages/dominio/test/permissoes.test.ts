@@ -178,6 +178,29 @@ describe('matriz de permissões', () => {
     expect(celulas).toBe(Object.keys(ESPERADO).length * 24)
   })
 
+  it('repertório e banda são de leitura para todo vínculo ativo; editar é da organização (D73)', () => {
+    const como = (papel: Papel | null): Ator => ({
+      papel,
+      designacoes: [],
+      proprietarioComDoisFatores: false,
+    })
+    // O repertório é `etapa.ler`, a banda são as convocações (`escala.ler`) e as músicas, a Biblioteca (`conteudo.ler`).
+    for (const papel of ['membro', 'organizador', 'admin'] as const) {
+      expect(permite(como(papel), 'etapa', 'ler'), `etapa.ler ${papel}`).toBe(true)
+      expect(permite(como(papel), 'escala', 'ler'), `escala.ler ${papel}`).toBe(true)
+      expect(permite(como(papel), 'conteudo', 'ler'), `conteudo.ler ${papel}`).toBe(true)
+    }
+    // Sem vínculo ativo (outra comunidade ou conta sem vínculo) nada disso vale.
+    expect(permite(como(null), 'etapa', 'ler')).toBe(false)
+    expect(permite(como(null), 'escala', 'ler')).toBe(false)
+    expect(permite(como(null), 'conteudo', 'ler')).toBe(false)
+    // Editar o repertório e convocar continuam só da organização.
+    expect(permite(como('membro'), 'etapa', 'gerenciar')).toBe(false)
+    expect(permite(como('membro'), 'escala', 'atribuir')).toBe(false)
+    expect(permite(como('organizador'), 'etapa', 'gerenciar')).toBe(true)
+    expect(permite(como('organizador'), 'escala', 'atribuir')).toBe(true)
+  })
+
   it('ator sem o campo `criador` (como o app monta) não ganha ação de plataforma', () => {
     const comum: Ator = { papel: 'admin', designacoes: [], proprietarioComDoisFatores: false }
     expect(permite(comum, 'plataforma', 'criar_comunidade')).toBe(false)

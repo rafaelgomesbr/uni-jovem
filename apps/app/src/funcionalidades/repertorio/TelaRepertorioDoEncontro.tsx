@@ -70,11 +70,20 @@ export function descricaoDoItem(item: ItemDoRepertorio): string {
  * Rota `/evento/[eventoId]/repertorio` (D61, visual A em D71): o repertório do louvor do encontro,
  * a tela com que o regente monta o sábado. Quem organiza adiciona músicas da biblioteca (várias de
  * uma vez), muda o tom do dia, sobe e desce (sempre por botão), tira com Desfazer e avisa a banda
- * com Desfazer de 10 s. Os demais veem a mesma lista, só leitura, e abrem a cifra.
+ * com Desfazer de 10 s. Os demais (D73: toda pessoa da comunidade, com vínculo ativo) veem a mesma
+ * lista, só leitura, com a ordem, o tom do dia e a banda, e abrem a cifra para ler.
  */
 export function TelaRepertorioDoEncontro() {
-  const { comunidadeAtiva } = useSessao()
   const eventoId = parametro(useLocalSearchParams<{ eventoId: string }>().eventoId)
+  return <RepertorioDoEncontroPorId eventoId={eventoId} />
+}
+
+/**
+ * O repertório de um encontro pelo id: a tela acima o lê da rota, e o "Meu repertório" de quem não
+ * toca (D73) o abre aqui, para o próximo encontro, em vez de dizer "você não está no louvor".
+ */
+export function RepertorioDoEncontroPorId({ eventoId }: { eventoId: string | null }) {
+  const { comunidadeAtiva } = useSessao()
   const evento = useEvento(comunidadeAtiva?.id ?? null, eventoId)
 
   if (!comunidadeAtiva || !eventoId) {

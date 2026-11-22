@@ -239,6 +239,27 @@ describe('"Sua parte" e inscrição', () => {
     expect(m.lider).toBeNull()
   })
 
+  it('qualquer pessoa vê quantas músicas o encontro tem (D73), mesmo sem tocar; só a contagem', async () => {
+    await limpar()
+    const e = await encontro('Com repertório', new Date(Date.now() + 5 * DIA))
+    expect((await inicio(camila)).momento.evento.musicas).toBe(0)
+    const musica = await b.dono.query<{ id: string }>(
+      `insert into uj.musicas (comunidade_id, titulo, criado_por) values ($1, 'Sobre a rocha', $2) returning id`,
+      [com, org.id],
+    )
+    await b.dono.query(
+      `insert into uj.repertorio_itens (comunidade_id, evento_id, musica_id, ordem)
+       values ($1, $2, $3, 0)`,
+      [com, e, musica.rows[0]!.id],
+    )
+    // Camila não é de nenhuma banda e é só membro: vê a contagem, nunca o título.
+    const m = (await inicio(camila)).momento
+    expect(m.evento.musicas).toBe(1)
+    expect(m.lider).toBeNull()
+    expect(JSON.stringify(m)).not.toContain('Sobre a rocha')
+    expect((await inicio(org)).momento.evento.musicas).toBe(1)
+  })
+
   it('inscrições: não se aplica, aberta, inscrito, espera e fechada', async () => {
     await limpar()
     const interno = await encontro('Interno', new Date(Date.now() + 3 * DIA))

@@ -23,6 +23,15 @@ Capturas de 22/11/2026, tiradas da prévia local (`npm run previa`, dados fictí
 | 90 a 93 | Comece por aqui, Tenho um código, Boas-vindas, Procurar comunidade                                                                                                                             |
 | 95 a 97 | `/escalas` e `/programacoes` (redirecionam para a Agenda) e uma rota inexistente (página "Não encontrado" humana)                                                                              |
 
+## Como testar como membro (22/11/2026)
+
+O dono é administrador da comunidade real e a conta de administrador não pode baixar o próprio papel (regra da hierarquia), então "ver como membro" pede uma segunda conta. Dois caminhos, sem criar nada em produção sem o "sim" dele:
+
+1. **Na prévia local (dados fictícios, nada publicado).** `npm run previa` já semeia **Carla Menezes** (`demo.membro@unijovem.invalid`) como membro da comunidade A, ao lado da administradora (`demo.admin@...`) e do organizador (`demo.organizador@...`). A senha de cada conta fica em `.previa/contas.txt` (o terminal nunca a mostra). Entre como a Carla para conferir o Início do membro, a Agenda, o Encontro, o repertório e a banda em leitura (D73), e como `demo.admin@...` para ver o lado da liderança. Júlia, Pedro e as demais figurantes não têm senha.
+2. **No app instalado (TestFlight), com a comunidade real.** Em Comunidade, "Convidar" cria um convite com o padrão do app (papel Membro, 7 dias); abra o link com **outra conta** (outro e-mail, ou Apple/Google de outra pessoa) e aceite. Essa conta entra como membro e testa o app inteiro como membro; depois o administrador pode tirá-la em "Pessoas". O papel Membro já vem marcado no convite, então não há como entrar com mais permissão por engano.
+
+O que um membro deve ver, e que a liderança confere: o cartão do momento sem os números da organização, "Ver o repertório" quando o encontro tem músicas (e "Abrir o repertório" só para quem toca), "Quem toca" sem "Falta" na tela do repertório, e nenhuma ação de convocar, publicar ou editar.
+
 ## Ressalvas (leia antes de julgar uma captura)
 
 - A semente não traz repertório nem cifra: o script monta três músicas no próximo encontro, escreve uma cifra inventada em duas delas e a Carla aceita o Louvor. É dado da prévia, não do app.

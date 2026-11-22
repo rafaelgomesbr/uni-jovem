@@ -189,6 +189,41 @@ describe('Pílula de filtro tonal (D64)', () => {
   })
 })
 
+describe('PilulasDeFiltro com `quebrar` (D73): a escolha não rola para fora da tela', () => {
+  function Quebra({ quebrar }: { quebrar: boolean }) {
+    const [v, setV] = useState<string[]>(['a'])
+    return (
+      <PilulasDeFiltro
+        rotulo="Onde"
+        pilulas={[
+          { valor: 'a', rotulo: 'Encontro inteiro' },
+          { valor: 'b', rotulo: 'Boas-vindas' },
+          { valor: 'c', rotulo: 'Louvor' },
+        ]}
+        selecionadas={v}
+        aoMudar={setV}
+        sangrar={false}
+        quebrar={quebrar}
+      />
+    )
+  }
+
+  test('com `quebrar` as pílulas quebram de linha (sem rolagem) e seguem sendo um grupo de rádio', async () => {
+    await render(<Quebra quebrar />)
+    const grupo = screen.getByLabelText('Onde')
+    expect(grupo).toHaveProp('accessibilityRole', 'radiogroup')
+    expect(estilo(grupo as never)).toMatchObject({ flexDirection: 'row', flexWrap: 'wrap' })
+    // Nenhuma rolagem horizontal: a última pílula ("Louvor") não fica escondida à direita.
+    expect(grupo).not.toHaveProp('horizontal')
+    expect(screen.getByRole('radio', { name: 'Louvor' })).toBeOnTheScreen()
+  })
+
+  test('sem `quebrar` continua rolando de lado, como antes', async () => {
+    await render(<Quebra quebrar={false} />)
+    expect(screen.getByLabelText('Onde')).toHaveProp('horizontal', true)
+  })
+})
+
 describe('Rádio e caixa de marcar de 24', () => {
   test('a linha marcada da lista de opções ganha a faixa quente de cantos redondos; as outras, não', async () => {
     await render(

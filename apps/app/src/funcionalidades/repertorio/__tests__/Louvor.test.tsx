@@ -1,7 +1,9 @@
 import { screen, userEvent } from '@testing-library/react-native'
 import { router } from 'expo-router'
 
-import { renderizarTela } from '@/testes/telas'
+import { ETAPAS, EVENTO_ID, eventoDeTeste } from '@/testes/fixturas'
+import { eventoDoMomento, inicioComMomento, momentoDeTeste } from '@/testes/momento'
+import { BASE, PESSOAS, renderizarTela } from '@/testes/telas'
 
 import { TelaLouvor } from '../TelaLouvor'
 
@@ -17,13 +19,48 @@ jest.mock('expo-router', () => ({
   usePreventRemove: jest.fn(() => jest.fn()),
 }))
 
-describe('atalho Louvor (D61)', () => {
+/** O Início aponta o próximo encontro; o encontro traz a banda (Bruno no violão, Carla no vocal, Marcos recusou). */
+function rotasDoProximoEncontro() {
+  const convocacao = (
+    i: number,
+    funcao: string,
+    estado: 'confirmada' | 'pendente' | 'recusada',
+    nome: string,
+  ) => ({
+    id: `atr-${i}`,
+    etapaId: ETAPAS[1],
+    vinculoId: PESSOAS[i % PESSOAS.length]!.vinculoId,
+    funcao,
+    estado,
+    nome,
+  })
+  return {
+    [`GET ${BASE}/inicio`]: () => ({
+      status: 200,
+      corpo: inicioComMomento(momentoDeTeste({ evento: eventoDoMomento({ id: EVENTO_ID }) })),
+    }),
+    [`GET ${BASE}/eventos/${EVENTO_ID}`]: () => ({
+      status: 200,
+      corpo: eventoDeTeste({
+        atribuicoes: [
+          convocacao(1, 'Violão', 'confirmada', 'Bruno Lima'),
+          convocacao(2, 'Vocal', 'pendente', 'Carla Dias'),
+          convocacao(0, 'Bateria', 'recusada', 'Marcos Lima'),
+        ],
+      }),
+    }),
+  }
+}
+
+describe('atalho Louvor (D61, D73): de toda a comunidade', () => {
   beforeEach(() => jest.clearAllMocks())
 
-  test('leva ao Meu repertório, à Biblioteca, aos músicos e aos encontros', async () => {
+  test('leva ao repertório do próximo encontro, à Biblioteca, aos músicos e aos encontros', async () => {
     await renderizarTela(<TelaLouvor />, { papel: 'membro' })
     const usuario = userEvent.setup()
-    await usuario.press(await screen.findByRole('button', { name: /^Meu repertório\./ }))
+    await usuario.press(
+      await screen.findByRole('button', { name: /^Repertório do próximo encontro\./ }),
+    )
     expect(router.push).toHaveBeenLastCalledWith('/meu-repertorio')
     await usuario.press(screen.getByRole('button', { name: /^Biblioteca de músicas\./ }))
     expect(router.push).toHaveBeenLastCalledWith({
@@ -42,5 +79,20 @@ describe('atalho Louvor (D61)', () => {
   test('lembra que letra e cifra ficam só dentro da comunidade', async () => {
     await renderizarTela(<TelaLouvor />, { papel: 'membro' })
     expect(await screen.findByText('Só dentro da comunidade')).toBeOnTheScreen()
+  })
+
+  test('o membro que não toca vê quem toca no próximo encontro, sem "falta" nem situação (D73)', async () => {
+    await renderizarTela(<TelaLouvor />, { papel: 'membro', rotas: rotasDoProximoEncontro() })
+    // Quem recusou não aparece; ninguém diz o que falta (isso é da organização).
+    expect(await screen.findByText('Quem toca: Bruno (violão), Carla (vocal).')).toBeOnTheScreen()
+    expect(screen.queryByText(/Falta/)).toBeNull()
+    expect(screen.queryByText(/aguardando|aceitou/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Convocar a banda' })).toBeNull()
+  })
+
+  test('quem organiza vê a banda com o que falta', async () => {
+    await renderizarTela(<TelaLouvor />, { papel: 'organizador', rotas: rotasDoProximoEncontro() })
+    expect(await screen.findByText(/Falta: /)).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Ver os convocados' })).toBeOnTheScreen()
   })
 })

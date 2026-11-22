@@ -377,13 +377,29 @@ export function registrarRotasDeMontarEncontro(app: FastifyInstance, api: pg.Poo
         ])
         if (!etapa.rowCount) throw NAO_ENCONTRADO()
       }
+      // A mesma combinação (bloco + função, sem acento nem caixa: "voz" e "Vocal" são a mesma da
+      // banda) já convocada não se repete. Outro bloco ou outra função da mesma pessoa é permitido:
+      // quem serve o encontro inteiro também pode tocar no louvor. O índice único do banco segue como
+      // segunda camada (texto exato).
+      const existentes = (
+        await c.query<{ vinculoId: string; funcao: string }>(
+          `select vinculo_id as "vinculoId", funcao from uj.atribuicoes
+            where evento_id = $1 and comunidade_id = $2
+              and etapa_id is not distinct from $3::uuid and vinculo_id = any ($4::uuid[])`,
+          [eventoId, comunidadeId, corpo.etapaId ?? null, ids],
+        )
+      ).rows
+      const repetidas = new Set(
+        existentes.filter((a) => mesmaFuncao(a.funcao, corpo.funcao)).map((a) => a.vinculoId),
+      )
+      const novas = ids.filter((id) => !repetidas.has(id))
       const { rows } = await c.query<{ id: string; vinculoId: string; estado: string }>(
         `insert into uj.atribuicoes (comunidade_id, evento_id, etapa_id, vinculo_id, funcao)
          select $1, $2, $3, v, $5 from unnest($4::uuid[]) as v
          on conflict (evento_id, (coalesce(etapa_id, '00000000-0000-0000-0000-000000000000'::uuid)),
                       vinculo_id, funcao) do nothing
          returning id, vinculo_id as "vinculoId", estado`,
-        [comunidadeId, eventoId, corpo.etapaId ?? null, ids, corpo.funcao],
+        [comunidadeId, eventoId, corpo.etapaId ?? null, novas, corpo.funcao],
       )
       const criadas = new Set(rows.map((r) => r.vinculoId))
       const jaConvocadas = ids.filter((id) => !criadas.has(id))
@@ -402,7 +418,8 @@ export function registrarRotasDeMontarEncontro(app: FastifyInstance, api: pg.Poo
 
   /**
    * Quem convocar para uma função: quem serviu nela nos últimos 12 meses e quem
-   * disse que pode neste dia, sem quem já está convocado nela. `indisponiveis`
+   * disse que pode neste dia, sem quem já está convocado nela (no mesmo bloco, se
+   * `etapaId` vier: a mesma pessoa pode ter outra função em outro bloco). `indisponiveis`
    * são todas as pessoas que avisaram que NÃO podem neste dia (a folha mostra
    * com o motivo). Só a organização lê disponibilidade de outras pessoas.
    * O encontro é conferido antes da consulta: id de outra comunidade dá 404.
@@ -413,8 +430,13 @@ export function registrarRotasDeMontarEncontro(app: FastifyInstance, api: pg.Poo
     return tx(pedido, async (c) => {
       const comunidadeId = pedido.comunidade!.id
       const evento = await exigirEvento(c, comunidadeId, eventoId)
-      const { funcao } = validar(
-        z.object({ funcao: z.string().trim().min(2).max(60) }),
+      const { funcao, etapaId } = validar(
+        z.object({
+          funcao: z.string().trim().min(2).max(60),
+          // O bloco onde a pessoa serviria: 'geral' (encontro inteiro) ou o id da etapa. Sem ele, vale
+          // qualquer bloco (o comportamento de antes). Estar em OUTRO bloco não é estar convocada aqui.
+          etapaId: z.union([uuid, z.literal('geral')]).optional(),
+        }),
         pedido.query ?? {},
       )
       const data = dataNoFuso(evento.inicio, evento.fuso)
@@ -448,12 +470,17 @@ export function registrarRotasDeMontarEncontro(app: FastifyInstance, api: pg.Poo
           .map((d) => [d.vinculo_id, d.disponivel]),
       )
       const jaConvocadas = (
-        await c.query<{ vinculoId: string; funcao: string }>(
-          `select vinculo_id as "vinculoId", funcao from uj.atribuicoes
+        await c.query<{ vinculoId: string; funcao: string; etapaId: string | null }>(
+          `select vinculo_id as "vinculoId", funcao, etapa_id as "etapaId" from uj.atribuicoes
             where evento_id = $1 and comunidade_id = $2`,
           [eventoId, comunidadeId],
         )
-      ).rows.filter((a) => mesmaFuncao(a.funcao, funcao))
+      ).rows.filter(
+        (a) =>
+          mesmaFuncao(a.funcao, funcao) &&
+          (etapaId === undefined ||
+            (etapaId === 'geral' ? a.etapaId === null : a.etapaId === etapaId)),
+      )
       const jaIds = new Set(jaConvocadas.map((a) => a.vinculoId))
       const { sugeridas } = sugerirParaFuncao({
         funcao,

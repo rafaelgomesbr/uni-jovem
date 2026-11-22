@@ -422,6 +422,39 @@ describe('repertório do encontro', () => {
     )
   })
 
+  it('quem não toca (membro) vê as músicas, a ordem, o tom do dia e quem está na banda (D73); outra comunidade não', async () => {
+    const enc = await novoEncontro(comA, orgA)
+    const m1 = await novaMusica(comA, orgA, 'Primeira')
+    const m2 = await novaMusica(comA, orgA, 'Segunda')
+    const url = `/eventos/${enc.eventoId}/repertorio`
+    await req('POST', comA, url, orgA, { musicaId: m1, tomDoDia: 'A' })
+    await req('POST', comA, url, orgA, { musicaId: m2 })
+    await convocar(comA, orgA, enc.eventoId, v['ana']!, enc.louvorId, 'Violão')
+    await convocar(comA, orgA, enc.eventoId, v['bia']!, enc.louvorId, 'Bateria')
+
+    // Mara é só membro e não está na banda: lê a lista inteira, sem a cifra.
+    const lista = await req('GET', comA, url, membroA)
+    expect(lista.statusCode).toBe(200)
+    const itens = lista.json().itens as { titulo: string; tomDoDia: string | null }[]
+    expect(itens.map((i) => i.titulo)).toEqual(['Primeira', 'Segunda'])
+    expect(itens[0]!.tomDoDia).toBe('A')
+    expect(JSON.stringify(lista.json())).not.toContain('Sobre a rocha')
+    // E vê quem toca e o quê pelo próprio encontro.
+    const detalhe = await req('GET', comA, `/eventos/${enc.eventoId}`, membroA)
+    expect(detalhe.statusCode).toBe(200)
+    const banda = (
+      detalhe.json().atribuicoes as { funcao: string; nome: string; etapaId: string }[]
+    ).map((a) => `${a.nome}:${a.funcao}`)
+    expect(banda.sort()).toEqual(['Ana:Violão', 'Bia:Bateria'])
+    // O Meu repertório dela segue vazio (não toca), e a cifra completa continua de quem toca.
+    expect((await req('GET', comA, '/meu-repertorio', membroA)).json().encontros).toEqual([])
+    // Quem é de outra comunidade não vê nada disso: 404 nas duas rotas.
+    expect((await req('GET', comA, url, orgB)).statusCode).toBe(404)
+    expect((await req('GET', comA, `/eventos/${enc.eventoId}`, orgB)).statusCode).toBe(404)
+    // Sai de cena: o encontro não pode contaminar o "Meu repertório" dos testes seguintes.
+    await b.dono.query('delete from uj.eventos where id = $1', [enc.eventoId])
+  })
+
   it('encontro em rascunho: membro não vê o repertório (404); organizador vê', async () => {
     const enc = await novoEncontro(comA, orgA, false)
     const m = await novaMusica(comA, orgA, 'Rascunho')

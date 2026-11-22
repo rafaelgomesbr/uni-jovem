@@ -76,8 +76,26 @@ export function pessoas(n: number): string {
   return `${n} ${n === 1 ? 'pessoa' : 'pessoas'}`
 }
 
+/**
+ * O que o botão do repertório diz (D73): quem toca "Abrir o repertório" (o dele, com a cifra e o
+ * Modo palco); quem não toca "Ver o repertório" (a lista e a banda, só leitura); a organização, sem
+ * músicas ainda, "Montar o repertório".
+ */
+export function rotuloDoRepertorio(o: { toco: boolean; musicas: number; organiza: boolean }) {
+  if (o.toco) return 'Abrir o repertório'
+  if (o.musicas === 0 && o.organiza) return 'Montar o repertório'
+  return 'Ver o repertório'
+}
+
 /** Para onde cada botão comum do cartão leva (o mesmo para o membro e para o líder). */
-export function useDestinosDoEncontro(evento: { id: string; local?: EventoDoMomento['local'] }) {
+export function useDestinosDoEncontro(
+  evento: { id: string; local?: EventoDoMomento['local'] },
+  repertorio: { toco: boolean; musicas: number; organiza: boolean } = {
+    toco: false,
+    musicas: 0,
+    organiza: false,
+  },
+) {
   const alvo = { eventoId: evento.id }
   const abrirEncontro = () => router.push({ pathname: '/evento/[eventoId]', params: alvo })
   return {
@@ -97,7 +115,15 @@ export function useDestinosDoEncontro(evento: { id: string; local?: EventoDoMome
     editar: () => router.push({ pathname: '/evento/[eventoId]/editar', params: alvo }),
     checkin: () => router.push({ pathname: '/evento/[eventoId]/checkin', params: alvo }),
     aoVivo: () => router.push({ pathname: '/evento/[eventoId]/ao-vivo', params: alvo }),
-    repertorio: () => router.push('/meu-repertorio'),
+    /**
+     * Quem toca abre o repertório dele; os demais, a lista do encontro em leitura (D73): ninguém
+     * esbarra em "você não está no louvor".
+     */
+    repertorio: () =>
+      repertorio.toco
+        ? router.push('/meu-repertorio')
+        : router.push({ pathname: '/evento/[eventoId]/repertorio', params: alvo }),
+    rotuloDoRepertorio: rotuloDoRepertorio(repertorio),
     marcarProximo: () =>
       router.push({ pathname: '/evento/novo', params: { modelo: 'sabado_padrao' } }),
   }
@@ -160,10 +186,10 @@ export function botaoComum(
       return (
         <Botao
           key={acao}
-          titulo="Abrir o repertório"
+          titulo={destinos.rotuloDoRepertorio}
           variante={variante}
           icone="musica"
-          rotuloAcessivel={`Abrir o meu repertório de ${evento.titulo}`}
+          rotuloAcessivel={`${destinos.rotuloDoRepertorio}: ${evento.titulo}`}
           aoPressionar={destinos.repertorio}
         />
       )

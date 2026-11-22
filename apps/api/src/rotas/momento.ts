@@ -188,6 +188,15 @@ export async function montarMomento(
     )
   ).rows
 
+  // Quantas músicas o repertório tem: qualquer pessoa da comunidade vê o repertório do encontro
+  // (D73), então o cartão pode oferecer "Ver o repertório". Só a contagem, nunca título nem cifra.
+  const musicas = (
+    await c.query<{ n: number }>(
+      'select count(*)::int as n from uj.repertorio_itens where evento_id = $1 and comunidade_id = $2',
+      [evento.id, comunidadeId],
+    )
+  ).rows[0]!.n
+
   // Inscrição: "Inscrições abertas" só onde faz sentido (encontro público ou com vagas contadas).
   const inscritos = (
     await c.query<{ n: number }>(
@@ -235,6 +244,7 @@ export async function montarMomento(
       fuso: evento.fuso,
       status: evento.status,
       visibilidade: evento.visibilidade,
+      musicas,
       local:
         evento.localNome === null
           ? null

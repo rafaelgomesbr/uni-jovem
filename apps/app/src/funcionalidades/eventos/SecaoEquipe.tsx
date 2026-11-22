@@ -154,9 +154,17 @@ export function SecaoEquipe({
       ) : (
         <CartaoDeVidro>
           <View style={{ gap: ESPACO.e8 }}>
-            <Texto variante="tituloItem">
-              {`${respostas.responderam} de ${respostas.convocados} responderam`}
-            </Texto>
+            {/* Uma vez só: com todos respondidos o título vira "Todos responderam" com o check. */}
+            {respostas.pendentes === 0 ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}>
+                <Icone nome="confirmado" cor={cores.sucesso} tamanho={20} />
+                <Texto variante="tituloItem">Todos responderam</Texto>
+              </View>
+            ) : (
+              <Texto variante="tituloItem">
+                {`${respostas.responderam} de ${respostas.convocados} responderam`}
+              </Texto>
+            )}
             <BarraDeProgresso
               fracao={respostas.convocados ? respostas.responderam / respostas.convocados : 0}
               rotulo={`${respostas.responderam} de ${respostas.convocados} responderam`}
@@ -166,11 +174,7 @@ export function SecaoEquipe({
               <Texto variante="meta" cor="textoSuave">
                 {`Faltam: ${juntarNomes(respostas.nomesPendentes)}`}
               </Texto>
-            ) : (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}>
-                <Chip situacao="aceitou" texto="Todos responderam" />
-              </View>
-            )}
+            ) : null}
             {faltaNaBanda.length > 0 ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}>
                 <Icone nome="avisoAlerta" cor={cores.alerta} tamanho={16} />

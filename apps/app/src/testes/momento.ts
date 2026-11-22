@@ -31,6 +31,7 @@ export function eventoDoMomento(parcial: Partial<EventoDoMomento> = {}): EventoD
     fuso: FUSO,
     status: 'publicado',
     visibilidade: 'interna',
+    musicas: 0,
     local: {
       nome: 'Salão da igreja',
       tipo: 'externo',

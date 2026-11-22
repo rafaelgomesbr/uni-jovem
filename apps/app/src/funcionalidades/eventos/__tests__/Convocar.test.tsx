@@ -14,7 +14,13 @@ import { confirmarAgora, desfazerAgora } from '@/ui/ToastComDesfazer'
 
 import { reiniciarRespostas } from '../../escalas/respostasOtimistas'
 import { reiniciarConvocadosEmEspera } from '../convocadosOtimistas'
-import { quantasPessoas, pessoasDistintas } from '../Convocacao'
+import {
+  ondeJaEsta,
+  pessoasDistintas,
+  quantasPessoas,
+  quemJaEstaNoBloco,
+  rotuloDaFuncao,
+} from '../Convocacao'
 import { DetalheDoEvento } from '../DetalheDoEvento'
 import { contarRespostas, juntarNomes } from '../respostas'
 
@@ -123,6 +129,43 @@ describe('as contas dos Convocados (puras)', () => {
     expect(juntarNomes(['Bruno', 'Camila', 'Davi'])).toBe('Bruno, Camila e Davi')
     expect(quantasPessoas(1)).toBe('1 pessoa')
     expect(quantasPessoas(2)).toBe('2 pessoas')
+  })
+
+  test('onde a pessoa já está: o bloco e a função, em palavras (D73)', () => {
+    const etapas = [{ id: ETAPAS[1], titulo: 'Louvor' }]
+    expect(rotuloDaFuncao('integrante')).toBe('quem ajuda')
+    expect(rotuloDaFuncao('responsável')).toBe('quem conduz')
+    expect(rotuloDaFuncao('Violão')).toBe('violão')
+    expect(ondeJaEsta({ etapaId: null, funcao: 'integrante' }, etapas)).toBe(
+      'Encontro inteiro (quem ajuda)',
+    )
+    expect(ondeJaEsta({ etapaId: ETAPAS[1], funcao: 'Violão' }, etapas)).toBe('Louvor (violão)')
+  })
+
+  test('quem já está no bloco: a banda com as funções, os outros blocos só com nomes; recusa não conta', () => {
+    const etapas = [
+      { id: ETAPAS[0], titulo: 'Boas-vindas' },
+      { id: ETAPAS[1], titulo: 'Louvor' },
+    ]
+    const a = (
+      etapaId: string | null,
+      p: (typeof PESSOAS)[0],
+      funcao: string,
+      estado: Atribuicao['estado'] = 'confirmada',
+    ) => ({ etapaId, vinculoId: p.vinculoId, nome: p.nome, funcao, estado })
+    const todas = [
+      a(ETAPAS[1], ANA, 'Violão'),
+      a(ETAPAS[1], ANA, 'Vocal'),
+      a(ETAPAS[1], BRUNO, 'Bateria', 'pendente'),
+      a(ETAPAS[1], CARLA, 'Teclado', 'recusada'),
+      a(null, CARLA, 'integrante'),
+    ]
+    expect(quemJaEstaNoBloco(todas, ETAPAS[1], etapas)).toBe(
+      'Na banda: Ana (violão, vocal), Bruno (bateria).',
+    )
+    expect(quemJaEstaNoBloco(todas, null, etapas)).toBe('No encontro inteiro: Carla.')
+    expect(quemJaEstaNoBloco(todas, ETAPAS[0], etapas)).toBe('Ninguém em Boas-vindas ainda.')
+    expect(quemJaEstaNoBloco([], ETAPAS[1], etapas)).toBe('Ninguém na banda ainda.')
   })
 })
 
@@ -285,12 +328,31 @@ describe('a folha "Convocar" em lote', () => {
     await waitFor(() => expect(screen.getByText('Todas as pessoas (3)')).toBeOnTheScreen())
   })
 
-  test('"Já convocado" e "Avisou que não pode neste dia" ficam à vista e travados, com o motivo escrito', async () => {
-    await abrirParaBateria()
-    const bruno = await screen.findByLabelText(/^Bruno Lima\. Já convocado/)
+  test('quem já está em OUTRA função do mesmo bloco continua marcável, e diz onde já está (D73)', async () => {
+    const usuario = userEvent.setup()
+    await montar(NO_LOUVOR, {
+      [`GET ${CAMINHO}/sugestoes-de-convocacao`]: () => ({
+        status: 200,
+        corpo: { ...SUGESTOES, sugeridas: [], indisponiveis: [] },
+      }),
+    })
+    await usuario.press(await screen.findByRole('button', { name: 'Convocar para Bateria' }))
+    // Bruno já toca violão no Louvor: para a bateria ele pode ser convocado também.
+    const bruno = await screen.findByLabelText(/^Bruno Lima\. Já está em: Louvor \(violão\)/)
+    expect(bruno).not.toBeDisabled()
+    expect(screen.queryByText(/^Já convocado/)).toBeNull()
+  })
+
+  test('a MESMA combinação (bloco e função) fica travada, com o motivo escrito', async () => {
+    const usuario = userEvent.setup()
+    await montar(NO_LOUVOR)
+    await usuario.press(await screen.findByRole('button', { name: 'Convocar para Bateria' }))
+    await screen.findByText('Convocar para Bateria')
+    // Trocar a função para Violão (a de Bruno) trava Bruno.
+    await usuario.press(screen.getByRole('radio', { name: 'Violão' }))
+    const bruno = await screen.findByLabelText(/^Bruno Lima\. Já convocado: Louvor \(violão\)/)
     expect(bruno).toBeDisabled()
-    // Bruno já está no Louvor E avisou que não pode: o primeiro motivo é o de já estar convocado.
-    expect(screen.getByText('Já convocado')).toBeOnTheScreen()
+    expect(screen.getByText('Já convocado: Louvor (violão)')).toBeOnTheScreen()
   })
 
   test('quem avisou que não pode neste dia fica travado, com o motivo escrito', async () => {
@@ -403,5 +465,124 @@ describe('a folha "Convocar" em lote', () => {
       await screen.findByRole('button', { name: 'Bruno Lima, Violão. Convocação: Aceitou' }),
     )
     expect(await screen.findByRole('button', { name: /^Tirar da convocação/ })).toBeOnTheScreen()
+  })
+})
+
+describe('convocar quem já serve o encontro: o bloqueio é só da mesma combinação (D73)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    reiniciarRespostas()
+    reiniciarConvocadosEmEspera()
+  })
+  afterEach(async () => {
+    await act(async () => desfazerAgora())
+  })
+
+  /** Ana (quem convoca) já serve o encontro inteiro, como "quem ajuda". */
+  const ANA_NO_ENCONTRO: Atribuicao = {
+    id: 'atr-ana',
+    etapaId: null,
+    vinculoId: ANA.vinculoId,
+    funcao: 'integrante',
+    estado: 'confirmada',
+    nome: ANA.nome,
+  }
+
+  /** Sem sugeridas: cada pessoa aparece uma vez só (em "Todas as pessoas"). */
+  const ROTA_DO_LOTE = {
+    [`POST ${CAMINHO}/atribuicoes/lote`]: () => ({
+      status: 200,
+      corpo: { criadas: [], jaConvocadas: [] },
+    }),
+    [`GET ${CAMINHO}/sugestoes-de-convocacao`]: () => ({
+      status: 200,
+      corpo: { ...SUGESTOES, sugeridas: [], indisponiveis: [] },
+    }),
+  }
+
+  test('no encontro inteiro como "quem ajuda": ela aparece travada, com o motivo', async () => {
+    const usuario = userEvent.setup()
+    await montar([ANA_NO_ENCONTRO], ROTA_DO_LOTE)
+    await usuario.press(await screen.findByRole('button', { name: 'Convocar pessoas' }))
+    const ana = await screen.findByLabelText(
+      /^Ana Souza\. Já convocado: Encontro inteiro \(quem ajuda\)/,
+    )
+    expect(ana).toBeDisabled()
+  })
+
+  test('para o Louvor, violão: ela aparece marcável ("Já está em: Encontro inteiro") e o lote sai certo', async () => {
+    const usuario = userEvent.setup()
+    const { servidor } = await montar([ANA_NO_ENCONTRO], ROTA_DO_LOTE)
+    await usuario.press(await screen.findByRole('button', { name: 'Convocar pessoas' }))
+    // O bloco "Louvor" está à vista (as pílulas quebram de linha, não rolam para fora da tela).
+    await usuario.press(await screen.findByRole('radio', { name: 'Louvor' }))
+    expect(screen.getByText('Ninguém na banda ainda.')).toBeOnTheScreen()
+    await usuario.press(screen.getByRole('radio', { name: 'Violão' }))
+
+    const ana = await screen.findByLabelText(
+      /^Ana Souza\. Já está em: Encontro inteiro \(quem ajuda\)/,
+    )
+    expect(ana).not.toBeDisabled()
+    expect(screen.getByText('Já está em: Encontro inteiro (quem ajuda)')).toBeOnTheScreen()
+    await usuario.press(ana)
+    await usuario.press(await screen.findByRole('button', { name: 'Convocar 1 pessoa' }))
+    // A banda já mostra a líder, aguardando, na espera do Desfazer.
+    expect(await screen.findByText('1 pessoa convocada.')).toBeOnTheScreen()
+    await act(async () => confirmarAgora())
+    await waitFor(() =>
+      expect(pedidosPara(servidor, 'POST', `${CAMINHO}/atribuicoes/lote`)[0]?.corpo).toEqual({
+        funcao: 'Violão',
+        etapaId: ETAPAS[1],
+        vinculoIds: [ANA.vinculoId],
+      }),
+    )
+    // A pergunta das sugestões leva o bloco: estar no encontro inteiro não conta como "já convocado" no Louvor.
+    expect(
+      servidor.pedidos.some(
+        (p) => p.url.includes('sugestoes-de-convocacao') && p.url.includes(`etapaId=${ETAPAS[1]}`),
+      ),
+    ).toBe(true)
+  })
+
+  test('a mesma pessoa pode ter duas funções na banda: violão e vocal', async () => {
+    const usuario = userEvent.setup()
+    const violao: Atribuicao = {
+      id: 'atr-violao',
+      etapaId: ETAPAS[1],
+      vinculoId: ANA.vinculoId,
+      funcao: 'Violão',
+      estado: 'confirmada',
+      nome: ANA.nome,
+    }
+    const { servidor } = await montar([ANA_NO_ENCONTRO, violao], ROTA_DO_LOTE)
+    await usuario.press(await screen.findByRole('button', { name: 'Convocar pessoas' }))
+    await usuario.press(await screen.findByRole('radio', { name: 'Louvor' }))
+    expect(screen.getByText('Na banda: Ana (violão).')).toBeOnTheScreen()
+    await usuario.press(screen.getByRole('radio', { name: 'Vocal' }))
+    const ana = await screen.findByLabelText(/^Ana Souza\. Já está em: /)
+    expect(ana).not.toBeDisabled()
+    await usuario.press(ana)
+    await usuario.press(await screen.findByRole('button', { name: 'Convocar 1 pessoa' }))
+    await act(async () => confirmarAgora())
+    await waitFor(() =>
+      expect(pedidosPara(servidor, 'POST', `${CAMINHO}/atribuicoes/lote`)[0]?.corpo).toEqual({
+        funcao: 'Vocal',
+        etapaId: ETAPAS[1],
+        vinculoIds: [ANA.vinculoId],
+      }),
+    )
+  })
+
+  test('o servidor também diz quem já está na função: "Já convocado nesta função" trava', async () => {
+    const usuario = userEvent.setup()
+    await montar([ANA_NO_ENCONTRO], {
+      [`GET ${CAMINHO}/sugestoes-de-convocacao`]: () => ({
+        status: 200,
+        corpo: { ...SUGESTOES, sugeridas: [], indisponiveis: [], jaConvocadas: [CARLA.vinculoId] },
+      }),
+    })
+    await usuario.press(await screen.findByRole('button', { name: 'Convocar pessoas' }))
+    const carla = await screen.findByLabelText(/^Carla Dias\. Já convocado nesta função/)
+    expect(carla).toBeDisabled()
   })
 })

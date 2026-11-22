@@ -28,18 +28,39 @@ const TEXTO_DO_ESTADO: Readonly<Record<EstadoDaConvocacao, string>> = {
 const primeiroNome = (nome: string | null | undefined) => (nome ?? 'Alguém').split(' ')[0]!
 
 /**
+ * "Quem toca: Ana (violão, vocal), Bruno (bateria).": a banda para quem só quer saber quem vai
+ * estar lá (D73). Cada pessoa uma vez, com as funções dela; quem recusou não aparece e nada diz o
+ * que falta (isso é da organização). `null` quando ninguém está na banda.
+ */
+export function textoDeQuemToca(
+  pessoas: readonly { vinculoId: string; nome: string; funcao: string; estado: string }[],
+): string | null {
+  const porPessoa = new Map<string, { nome: string; funcoes: string[] }>()
+  for (const p of pessoas) {
+    if (p.estado === 'recusada') continue
+    const atual = porPessoa.get(p.vinculoId) ?? { nome: primeiroNome(p.nome), funcoes: [] }
+    atual.funcoes.push(p.funcao.toLocaleLowerCase('pt-BR'))
+    porPessoa.set(p.vinculoId, atual)
+  }
+  if (porPessoa.size === 0) return null
+  const itens = [...porPessoa.values()].map((p) => `${p.nome} (${p.funcoes.join(', ')})`)
+  return `Quem toca: ${itens.join(', ')}.`
+}
+
+/**
  * A banda do encontro (D71): quem foi convocado ao louvor, agrupado por instrumento, com o que
  * ainda falta ("5 de 7 aceitaram. Falta: bateria"). Para quem monta o repertório saber, sem
  * perguntar, se o sábado do louvor está fechado. Só lê as convocações que o encontro já traz: a
  * convocação em si continua na seção Convocados do encontro. Cada função é escrita em texto, e o
- * que falta leva ícone e palavra, nunca só cor.
+ * que falta leva ícone e palavra, nunca só cor. Quem não organiza (D73) vê só "Quem toca: Ana
+ * (violão), Bruno (bateria).", sem o que falta nem a situação de cada resposta.
  */
 export function BandaDoEncontro({
   evento,
   podeConvocar,
 }: {
   evento: DetalheDoEvento
-  /** Quem organiza vê o atalho para convocar quando a banda está vazia. */
+  /** Quem organiza vê o que falta e o atalho para convocar; os demais só leem quem toca. */
   podeConvocar: boolean
 }) {
   const { cores } = useTema()
@@ -51,12 +72,34 @@ export function BandaDoEncontro({
         etapaTitulo: a.etapaId ? (titulos.get(a.etapaId) ?? null) : null,
       }),
     )
-    .map((a) => ({ funcao: a.funcao, estado: a.estado as EstadoDaConvocacao, nome: a.nome }))
+    .map((a) => ({
+      vinculoId: a.vinculoId,
+      funcao: a.funcao,
+      estado: a.estado as EstadoDaConvocacao,
+      nome: a.nome,
+    }))
   const irParaOEncontro = () =>
     router.push({ pathname: '/evento/[eventoId]', params: { eventoId: evento.id } })
 
+  // Quem não organiza (D73) só lê: quem toca, sem "falta", sem situação de cada resposta.
+  if (!podeConvocar) {
+    const quemToca = textoDeQuemToca(pessoas)
+    if (!quemToca) return null
+    return (
+      <Cartao sobrancelha="Banda">
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: ESPACO.e8 }}>
+          <View style={{ paddingTop: ESPACO.e4 }}>
+            <Icone nome="musica" cor={cores.textoSuave} tamanho={18} />
+          </View>
+          <Texto variante="corpo" style={{ flex: 1 }} accessibilityRole="text">
+            {quemToca}
+          </Texto>
+        </View>
+      </Cartao>
+    )
+  }
+
   if (pessoas.length === 0) {
-    if (!podeConvocar) return null
     return (
       <Cartao sobrancelha="Banda">
         <Texto variante="corpo" cor="textoSuave">

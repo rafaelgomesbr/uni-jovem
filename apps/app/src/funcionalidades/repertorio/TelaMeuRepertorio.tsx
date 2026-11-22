@@ -18,9 +18,11 @@ import { momentoDoEncontro } from '@/utilidades/momentoDoEncontro'
 
 import { estadoEfetivo, useRespostasOtimistas } from '../escalas/respostasOtimistas'
 import { useResponderComDesfazer } from '../escalas/consultas'
+import { useInicio } from '../inicio/consultas'
 import { VazioComSol } from '../inscricoes/VazioComSol'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { useEstaOnline } from '../offline/ProvedorOffline'
+import { RepertorioDoEncontroPorId } from './TelaRepertorioDoEncontro'
 import { descricaoDaMusica, textoDaParte } from './rotulosDoRepertorio'
 import { UsoSemInternet } from './UsoSemInternet'
 import {
@@ -48,6 +50,9 @@ function abrirMusica(eventoId: string, itemId: string, palco = false) {
  * Rota `/meu-repertorio` (D61, visual A em D71): a tela do músico. Só o que a pessoa toca nos
  * próximos encontros, no tom do dia, com a cifra a um toque e o Modo palco a outro. Com a cópia
  * guardada no aparelho, abre e funciona sem internet. Nada de menu do resto do app no caminho.
+ *
+ * Quem não toca (D73) não esbarra em "você não está no louvor": o repertório é de toda a
+ * comunidade, e a rota abre o "Repertório do encontro" do próximo encontro, em leitura.
  */
 export function TelaMeuRepertorio() {
   const { comunidadeAtiva } = useSessao()
@@ -59,6 +64,11 @@ export function TelaMeuRepertorio() {
         <SemComunidade oQue="o seu repertório" />
       </Tela>
     )
+  }
+
+  // Quem não toca: o repertório do próximo encontro, só para ler (a lista, o tom do dia e a banda).
+  if (situacao.tipo === 'pronto' && situacao.encontros.length === 0) {
+    return <RepertorioDoProximoEncontro comunidadeId={comunidadeAtiva.id} />
   }
 
   const primeiro = situacao.tipo === 'pronto' ? situacao.encontros[0] : undefined
@@ -92,12 +102,7 @@ export function TelaMeuRepertorio() {
           descricao="Conecte-se à internet para ver as músicas e baixar as cifras."
           acao={{ titulo: 'Tentar de novo', aoPressionar: situacao.tentarDeNovo }}
         />
-      ) : situacao.encontros.length === 0 ? (
-        <VazioComSol
-          titulo="Você não está no louvor deste encontro."
-          descricao="Quando for, o repertório aparece aqui."
-        />
-      ) : (
+      ) : situacao.encontros.length === 0 ? null : (
         <>
           {situacao.origem === 'aparelho' ? (
             <Aviso tipo="info" titulo="Sem internet">
@@ -119,6 +124,46 @@ export function TelaMeuRepertorio() {
       )}
     </Tela>
   )
+}
+
+/** O próximo encontro da comunidade, para quem não toca: o do cartão do Início, ou o primeiro da lista. */
+function RepertorioDoProximoEncontro({ comunidadeId }: { comunidadeId: string }) {
+  const inicio = useInicio(comunidadeId)
+  const proximo = inicio.data?.momento?.evento?.id ?? inicio.data?.proximosEventos[0]?.id ?? null
+
+  if (inicio.isPending) {
+    return (
+      <Tela pilha titulo="Repertório">
+        <Esqueleto rotulo="Carregando o repertório">
+          <LinhaDeEsqueleto altura={72} />
+          <LinhaDeEsqueleto altura={72} />
+          <LinhaDeEsqueleto altura={72} />
+        </Esqueleto>
+      </Tela>
+    )
+  }
+  if (inicio.error && !inicio.data) {
+    return (
+      <Tela pilha titulo="Repertório">
+        <ErroDaTela
+          erro={inicio.error}
+          titulo="Não deu para carregar o repertório."
+          aoTentarDeNovo={() => void inicio.refetch()}
+        />
+      </Tela>
+    )
+  }
+  if (!proximo) {
+    return (
+      <Tela pilha titulo="Repertório">
+        <VazioComSol
+          titulo="Ainda não há encontro marcado."
+          descricao="Quando a liderança marcar o próximo, o repertório dele aparece aqui."
+        />
+      </Tela>
+    )
+  }
+  return <RepertorioDoEncontroPorId eventoId={proximo} />
 }
 
 function Encontro({

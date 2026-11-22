@@ -279,6 +279,8 @@ function Conteudo({
           <QuandoEOnde evento={e} />
           <RoteiroEnxuto evento={e} />
           <QuemServe evento={e} />
+          {/* D73: o repertório do encontro é de toda a comunidade; o cartão só aparece havendo músicas. */}
+          <CartaoDoRepertorioNoEncontro evento={e} comunidadeId={comunidadeId} />
           <InscricaoDoMembro evento={e} comunidadeId={comunidadeId} />
           <SobreOEncontro evento={e} />
           {temPreparacao(e) ? <Preparacao evento={e} comunidadeId={comunidadeId} /> : null}

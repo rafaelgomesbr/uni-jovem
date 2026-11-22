@@ -29,8 +29,10 @@ function resumoDosConvocadosDoEncontro(evento: DetalheDoEvento): string {
     ? resumoDaBanda(evento.atribuicoes.filter((a) => a.etapaId === louvor.id)).faltam
     : []
   return [
-    `${r.responderam} de ${r.convocados} responderam.`,
-    r.pendentes > 0 ? `Faltam: ${juntarNomes(r.nomesPendentes)}.` : 'Todos responderam.',
+    // Uma vez só: com todos respondidos, "Todos responderam." no lugar da contagem.
+    r.pendentes > 0
+      ? `${r.responderam} de ${r.convocados} responderam. Faltam: ${juntarNomes(r.nomesPendentes)}.`
+      : 'Todos responderam.',
     faltam.length > 0 ? `Falta: ${faltam.map((f) => f.toLowerCase()).join(', ')}.` : null,
   ]
     .filter(Boolean)

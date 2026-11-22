@@ -11,6 +11,7 @@ Pedido do dono (22/11/2026): "propostas de melhoria reais do app que já temos: 
 - **Não rodei o app, o VoiceOver nem o TalkBack.** O que digo sobre leitor de tela e fonte grande é desenho, e está marcado "verificar no aparelho" onde depende de teste real.
 - **Toques:** um toque é uma ação física. Digitar conta como "campo", à parte. Os números "antes" dos fluxos (a) a (h) vêm da auditoria de 21/11/2026 (contados pelo código). Os de (i) e (j) e todos os "depois" são estimativas do desenho, não medidas.
 - **Login e cadastro:** fora do escopo (D63). Só trato do que vem depois da entrada e do ponto em que os dois se encontram.
+- **Revisto em 22/11/2026 (D73):** o repertório e a banda são de toda a comunidade (o Louvor, o botão "Ver o repertório" e o Repertório do encontro em leitura valem para todos), e o bloqueio "Já convocado" vale só para a mesma combinação de bloco e função. Onde este documento ainda diz "só quem toca ou organiza" ou mostra "Você não está no louvor", vale a D73.
 - **Estado das ondas da auditoria de 21/11:** Onda 1 feita (D62). Da Onda 2 estão feitos 2.1 (sem seletor no Início do líder), 2.3b (Louvor só de quem toca), 2.5 (Agenda em Lista, parcial), 2.9 (botão do cartão por estado) e 2.13 (Primeiros passos só do líder). Os demais itens das Ondas 2 e 3 (2.2, 2.3, 2.4, 2.6, 2.7, 2.8, 2.10, 2.11, 2.12, 3.1 a 3.10) não foram feitos e entram aqui, redesenhados, na seção 10.
 - **Formatação:** não havia terminal nesta sessão. Rodar `npx prettier --write docs/design/app-v3-ux.md` antes de commitar (as tabelas precisam de alinhamento).
 
@@ -187,7 +188,7 @@ App v3
 |
 |-- [Comunidade]
 |     Ações rápidas, Avisos, Pedidos de oração, Pessoas
-|     Mais: Biblioteca, Louvor (só quem toca ou organiza), Sugestões
+|     Mais: Biblioteca, Louvor (todos, D73), Sugestões
 |     Organização (dobrada): Pedidos de entrada e convites, Relatórios, Locais, Modelos,
 |                            Denúncias, Configurações, Código da comunidade
 |
@@ -349,7 +350,7 @@ Quatro camadas. Quanto mais fundo, mais raro e mais atrás de um toque de pedido
 | **Início**     | Cartão do momento, aviso fixado, resumo                                           | Mais "Sua parte" e "Para responder"        | O cartão mostra quem falta responder, falta função e o próximo passo do sábado (seção 3.2)          |
 | **Agenda**     | Lista, "Todos / Só o que é meu", Calendário                                       | Resposta direto na linha, pedidos de ajuda | "Novo encontro", chip "Rascunhos" (só quando existe um)                                             |
 | **Encontro**   | Página única                                                                      | "Sua parte" no alto                        | 3 abas: Resumo, Roteiro, Convocados; "Mais" com Editar, Copiar, Cancelar; Check-in e Ao vivo no dia |
-| **Comunidade** | Ações rápidas "Pedir oração", "Sugerir uma ideia"; Avisos; Pedidos; Pessoas; Mais | Mais "Louvor" para quem toca               | Ações "Novo aviso", "Convidar"; "Organização" dobrada                                               |
+| **Comunidade** | Ações rápidas "Pedir oração", "Sugerir uma ideia"; Avisos; Pedidos; Pessoas; Mais | Mais "Louvor" para todos (D73)             | Ações "Novo aviso", "Convidar"; "Organização" dobrada                                               |
 | **Perfil**     | 6 linhas                                                                          | Igual                                      | "Segurança" mostra o alerta de código extra desligado só para o administrador (D62)                 |
 
 ---
@@ -711,7 +712,7 @@ Regras: pendente tem **dois** botões, sempre (D62). `Preciso de alguém no meu 
 |                                      |
 | Mais                                 |
 |  Biblioteca                        > |
-|  Louvor (só quem toca ou organiza) > |
+|  Louvor (todos, D73)               > |
 |  Sugestões                         > |
 |                                      |
 | Organização (organização, dobrada) v |
@@ -728,7 +729,7 @@ Regras: pendente tem **dois** botões, sempre (D62). `Preciso de alguém no meu 
 - **Pedidos de oração, `3 novos`:** número em texto (nunca só cor). O texto do pedido nunca aparece aqui (regra de privacidade do CLAUDE.md).
 - **Sai daqui:** "Sair da comunidade" (Perfil, Comunidades), a legenda "Você é Administrador" como assunto (fica em Pessoas, no seu cartão), os segmentos Pessoas, Pedidos e Convites (viram a linha Pessoas e a seção Organização).
 - **Organização** é um acordeão fechado, para organizador e administrador. `Pedidos de entrada (2)` mostra o número em texto.
-- **Louvor** só aparece para quem foi convocado ao louvor ou organiza (D62).
+- **Louvor** aparece para todos (D73, que revê a D62): o repertório do próximo encontro e a banda são de leitura para toda a comunidade; editar continua da organização.
 - O vocabulário musical (tom, capotraste) nunca aparece aqui.
 
 **Toques:** `Pedir oração` abre o novo pedido (fluxo h). `Novo aviso` abre o novo aviso (fluxo g). `Convidar` abre Convidar. `Pessoas` abre a lista (busca por nome, desativados no fim, como hoje). A linha de aviso abre o aviso.
@@ -888,7 +889,7 @@ Meu repertório                      Cifra (leitura)
 **Estados:**
 
 - **Carregando:** 4 linhas de esqueleto.
-- **Vazio, não convocado ao louvor:** `Você não está no louvor deste encontro. Quando for, o repertório aparece aqui.` Sem botão.
+- **Não convocado ao louvor (D73):** não há mais este vazio. `/meu-repertorio` abre o Repertório do próximo encontro em leitura (lista, tom do dia, cifra para ler, "Quem toca: Ana (violão), Bruno (bateria)." sem "Falta"); no Início o botão é `Ver o repertório` e só aparece havendo músicas.
 - **Vazio, convocado e sem músicas ainda:** `O repertório ainda não foi montado. Assim que a liderança montar, você recebe um aviso.`
 - **Erro:** `Não deu para carregar o repertório.` `Tentar de novo`. Se o pacote já estiver baixado, a lista abre assim mesmo, sem erro.
 - **Sem internet:** com o repertório baixado, **tudo funciona**, inclusive cifra e Modo palco. Sem estar baixado: `Este repertório ainda não está no seu aparelho. Conecte-se para baixar.` e botão `Baixar agora`.
@@ -1150,7 +1151,7 @@ Um vazio responde a três perguntas: **o que é isto?**, **por que está vazio?*
 | Pessoas                       | `Por enquanto, só você.`                             | `Convide o grupo para o Uni Jovem.`                                                | `Convidar`                        | Sim                          |
 | Convocados                    | `Ninguém convocado ainda.`                           | `Convoque quem vai servir neste encontro.`                                         | `Convocar pessoas`                | Não                          |
 | Check-in                      | `Ninguém convocado ou inscrito.`                     | `Procure pelo nome ou leia o QR de quem chegou.`                                   | `Ler QR`                          | Não                          |
-| Meu repertório, não convocado | `Você não está no louvor deste encontro.`            | `Quando for, o repertório aparece aqui.`                                           | (nenhuma)                         | Não                          |
+| Meu repertório, não convocado | (D73: abre o Repertório do encontro, em leitura)     | `Ainda não há encontro marcado.` quando não há encontro                            | (nenhuma)                         | Não                          |
 | Sino                          | `Nenhuma novidade.`                                  | `Avisos, convocações e lembretes aparecem aqui.`                                   | (nenhuma)                         | Sim, pequena                 |
 | Sem comunidade                | `Você recebeu um código ou um link?`                 | `Com ele você entra no seu grupo em poucos segundos.`                              | `Tenho um código`                 | Sim                          |
 

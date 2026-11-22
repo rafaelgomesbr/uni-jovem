@@ -452,6 +452,31 @@ describe('repertório do encontro no visual A (D71)', () => {
       })
     })
 
+    test('quem não organiza lê "Quem toca", sem "Falta" nem a situação de cada resposta (D73)', async () => {
+      await montar(
+        'membro',
+        [ITEM_1],
+        {},
+        eventoDeTeste({
+          duracaoMin: 30,
+          atribuicoes: [
+            atribuicao(0, 'Violão', 'confirmada', 'Bruno Lima'),
+            atribuicao(1, 'Vocal', 'pendente', 'Carla Dias'),
+            atribuicao(2, 'Bateria', 'recusada', 'Marcos Lima'),
+            // A mesma pessoa em duas funções aparece uma vez, com as duas.
+            { ...atribuicao(0, 'Vocal', 'confirmada', 'Bruno Lima'), id: 'atr-dupla' },
+          ],
+        }),
+      )
+      expect(
+        await screen.findByText('Quem toca: Bruno (violão, vocal), Carla (vocal).'),
+      ).toBeOnTheScreen()
+      expect(screen.queryByText(/Falta/)).toBeNull()
+      expect(screen.queryByText(/aguardando|aceitou|aceitaram/)).toBeNull()
+      expect(screen.queryByText('Banda completa')).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Ver os convocados' })).toBeNull()
+    })
+
     test('quem não organiza não vê a banda vazia', async () => {
       await montar('membro', [ITEM_1], {}, eventoDeTeste({ duracaoMin: 30, atribuicoes: [] }))
       await screen.findByLabelText(/^Música 1 de 1/)

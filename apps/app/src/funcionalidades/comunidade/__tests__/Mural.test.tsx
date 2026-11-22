@@ -169,8 +169,8 @@ describe('a aba Comunidade é um mural curto (D70)', () => {
   })
 })
 
-describe('Louvor só para quem toca ou organiza (D62)', () => {
-  test('o membro convocado ao louvor vê, com a descrição do repertório', async () => {
+describe('Louvor é de toda a comunidade (D73: o repertório e a banda são de todos)', () => {
+  test('o membro que toca vê, com a descrição do repertório e da banda', async () => {
     await renderizarTela(<TelaComunidade />, {
       papel: 'membro',
       rotas: {
@@ -179,12 +179,12 @@ describe('Louvor só para quem toca ou organiza (D62)', () => {
       },
     })
     const louvor = await screen.findByRole('button', { name: /^Louvor[.]/ })
-    expect(screen.getByText('Repertório e cifras do encontro.')).toBeOnTheScreen()
+    expect(screen.getByText('Repertório do encontro e quem toca.')).toBeOnTheScreen()
     await userEvent.setup().press(louvor)
     expect(router.push).toHaveBeenLastCalledWith('/louvor')
   })
 
-  test('quem foi convocado a outra função não vê', async () => {
+  test('quem foi convocado a outra função também vê: não precisa tocar para ler o repertório', async () => {
     await renderizarTela(<TelaComunidade />, {
       papel: 'membro',
       rotas: {
@@ -192,17 +192,24 @@ describe('Louvor só para quem toca ou organiza (D62)', () => {
         [`GET ${BASE}/minhas-escalas`]: OUTRA_FUNCAO,
       },
     })
-    await screen.findByRole('button', { name: /^Biblioteca[.]/ })
-    expect(screen.queryByRole('button', { name: /^Louvor[.]/ })).toBeNull()
+    expect(await screen.findByRole('button', { name: /^Louvor[.]/ })).toBeOnTheScreen()
   })
 
-  test('quem organiza vê, sem precisar de convocação (e a lista de convocações nem é pedida)', async () => {
+  test('membro sem nenhuma convocação vê, e a lista de convocações nem é pedida', async () => {
     const { servidor } = await renderizarTela(<TelaComunidade />, {
+      papel: 'membro',
+      rotas: { [`GET ${BASE}/mural`]: mural() },
+    })
+    expect(await screen.findByRole('button', { name: /^Louvor[.]/ })).toBeOnTheScreen()
+    expect(pedidosPara(servidor, 'GET', `${BASE}/minhas-escalas`)).toHaveLength(0)
+  })
+
+  test('quem organiza vê', async () => {
+    await renderizarTela(<TelaComunidade />, {
       papel: 'organizador',
       rotas: { [`GET ${BASE}/mural`]: mural({ organizacao: { pedidosDeEntrada: 0 } }) },
     })
     expect(await screen.findByRole('button', { name: /^Louvor[.]/ })).toBeOnTheScreen()
-    expect(pedidosPara(servidor, 'GET', `${BASE}/minhas-escalas`)).toHaveLength(0)
   })
 })
 

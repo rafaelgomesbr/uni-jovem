@@ -1,10 +1,7 @@
 import type { Href } from 'expo-router'
 
-import { useSessao } from '@/estado/sessao'
 import type { NomeDoIcone } from '@/ui/Icone'
 
-import { useMinhasEscalas } from '../escalas/consultas'
-import { escalaDeLouvor } from '../repertorio/souDoLouvor'
 import { usePode } from './permissoes'
 
 export interface AtalhoDoMural {
@@ -30,17 +27,13 @@ export interface AcaoRapida {
  * - **Ações rápidas:** quem organiza ganha "Novo aviso" e, se a matriz deixa, "Convidar";
  *   o par se completa com "Pedir oração" e "Sugerir uma ideia" quando falta (o organizador
  *   não convida: só a administração cria convite). O membro tem as duas últimas.
- * - **Mais:** Biblioteca, Louvor (só quem toca ou organiza, D62) e Sugestões.
+ * - **Mais:** Biblioteca, Louvor (de toda a comunidade: o repertório e a banda são de todos, D73) e
+ *   Sugestões.
  * - **Organização:** o que a matriz libera, dobrado na tela. Comunidade que não está ativa
  *   (suspensa) não convida nem muda configuração.
  */
 export function useAtalhosDoMural(ativa: boolean) {
   const pode = usePode()
-  const { comunidadeAtiva } = useSessao()
-  const organizaOLouvor = pode('etapa', 'gerenciar')
-  // Quem organiza não precisa da lista de convocações para ver o Louvor: nem a pede.
-  const minhasEscalas = useMinhasEscalas(organizaOLouvor ? null : (comunidadeAtiva?.id ?? null))
-  const veOLouvor = organizaOLouvor || escalaDeLouvor(minhasEscalas.data ?? []) !== null
   const modera = pode('sugestao', 'moderar')
 
   const pedirOracao: AcaoRapida = {
@@ -95,16 +88,12 @@ export function useAtalhosDoMural(ativa: boolean) {
       descricao: 'Músicas, palestrantes e dinâmicas da comunidade.',
       icone: 'conteudo',
     },
-    ...(veOLouvor
-      ? [
-          {
-            href: '/louvor' as const,
-            rotulo: 'Louvor',
-            descricao: 'Repertório e cifras do encontro.',
-            icone: 'musica' as const,
-          },
-        ]
-      : []),
+    {
+      href: '/louvor',
+      rotulo: 'Louvor',
+      descricao: 'Repertório do encontro e quem toca.',
+      icone: 'musica',
+    },
     {
       href: '/sugestoes',
       rotulo: 'Sugestões',

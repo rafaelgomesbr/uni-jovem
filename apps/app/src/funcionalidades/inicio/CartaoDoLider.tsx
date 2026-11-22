@@ -24,6 +24,7 @@ import {
   acoesDoLider,
   dataEHorario,
   descreverParte,
+  estaNoLouvor,
   etiquetaDoMomento,
   momentoDoDia,
   type AcaoDoMomento,
@@ -105,7 +106,11 @@ export function CartaoDoLider({
   const evento = momento.evento
   const lider = momento.lider
   const terminou = !evento && momento.recemTerminado !== null
-  const destinos = useDestinosDoEncontro(evento ?? { id: momento.recemTerminado?.id ?? '' })
+  const destinos = useDestinosDoEncontro(evento ?? { id: momento.recemTerminado?.id ?? '' }, {
+    toco: estaNoLouvor(partes),
+    musicas: evento?.musicas ?? lider?.musicas ?? 0,
+    organiza: true,
+  })
   const invalidar = useInvalidarEventos(comunidadeId)
   const esperaDoToast = useDesfazerPendente()
 
@@ -378,7 +383,12 @@ export function CartaoDoLider({
           </Texto>
         ) : lider && lider.convocados > 0 ? (
           <>
-            <Texto variante="rotulo">{`${lider.responderam} de ${lider.convocados} responderam`}</Texto>
+            {/* Uma vez só: com todos respondidos a linha vira "Todos responderam ✓" (nada de repetir abaixo). */}
+            <Texto variante="rotulo">
+              {todosResponderam
+                ? 'Todos responderam ✓'
+                : `${lider.responderam} de ${lider.convocados} responderam`}
+            </Texto>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}>
               <View style={{ flex: 1 }}>
                 <BarraDeProgresso
@@ -395,9 +405,7 @@ export function CartaoDoLider({
               <Texto variante="meta">
                 {`Você lembrou ${lembrados.nomes}, hoje às ${lembrados.hora}.`}
               </Texto>
-            ) : todosResponderam ? (
-              <Texto variante="meta">Todos responderam ✓</Texto>
-            ) : faltam.length > 0 ? (
+            ) : todosResponderam ? null : faltam.length > 0 ? (
               <Texto variante="meta">{textoDeQuemFalta(faltam, totalQueFalta)}</Texto>
             ) : (lider.pendentes ?? 0) > 0 ? (
               <Texto variante="meta">Quem falta já foi lembrado hoje.</Texto>
@@ -429,6 +437,18 @@ export function CartaoDoLider({
             variante="legenda"
             cor="textoSuave"
           >{`Sua parte: ${rotuloDaParte.join(', ')}`}</Texto>
+        ) : null}
+        {/* Havendo músicas o repertório fica à mão em qualquer momento, mesmo fora do par de botões (D73). */}
+        {(evento.musicas ?? 0) > 0 && primaria !== 'repertorio' && secundaria !== 'repertorio' ? (
+          <Botao
+            titulo={destinos.rotuloDoRepertorio}
+            variante="terciario"
+            alinhado
+            icone="musica"
+            tamanho="compacto"
+            rotuloAcessivel={`${destinos.rotuloDoRepertorio}: ${evento.titulo}`}
+            aoPressionar={destinos.repertorio}
+          />
         ) : null}
       </View>
     )

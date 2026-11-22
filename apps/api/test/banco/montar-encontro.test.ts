@@ -474,6 +474,56 @@ describe('convocar várias pessoas de uma vez', () => {
     expect(avisadas.rowCount).toBe(0)
   })
 
+  it('a mesma pessoa em OUTRO bloco ou com OUTRA função é permitida; a mesma combinação não (sem acento nem caixa)', async () => {
+    const r = await req('POST', comA, '/eventos', orgA, {
+      titulo: 'Sábado dos blocos',
+      categoria: 'Programação de sábado',
+      inicio: new Date(Date.now() + 21 * DIA).toISOString(),
+      duracaoMin: 90,
+    })
+    const ev = r.json().id as string
+    const etapa = (
+      await req('POST', comA, `/eventos/${ev}/etapas`, orgA, { titulo: 'Louvor', duracaoMin: 20 })
+    ).json().id as string
+    const lote = (funcao: string, etapaId: string | null, ids: string[]) =>
+      req('POST', comA, `/eventos/${ev}/atribuicoes/lote`, orgA, {
+        funcao,
+        etapaId,
+        vinculoIds: ids,
+      })
+
+    // Já serve o encontro inteiro como integrante: convocar para a banda funciona.
+    expect((await lote('integrante', null, [v['ana']!])).json().criadas).toHaveLength(1)
+    const banda = (await lote('Violão', etapa, [v['ana']!])).json()
+    expect(banda.criadas).toEqual([expect.objectContaining({ vinculoId: v['ana'] })])
+    expect(banda.jaConvocadas).toEqual([])
+    // Duas funções na banda para a mesma pessoa: permitido.
+    const vocal = (await lote('Vocal', etapa, [v['ana']!])).json()
+    expect(vocal.criadas).toHaveLength(1)
+    expect(vocal.jaConvocadas).toEqual([])
+
+    // A mesma combinação, escrita de outro jeito: não duplica e diz quem já estava.
+    for (const igual of ['violao', 'VIOLÃO']) {
+      const de_novo = (await lote(igual, etapa, [v['ana']!, v['bruno']!])).json()
+      expect(de_novo.criadas).toEqual([expect.objectContaining({ vinculoId: v['bruno'] })])
+      expect(de_novo.jaConvocadas).toEqual([v['ana']])
+      await b.dono.query(
+        'delete from uj.atribuicoes where evento_id = $1 and vinculo_id = $2 and funcao = $3',
+        [ev, v['bruno'], igual],
+      )
+    }
+    // "voz" e "Vocal" são a mesma função da banda.
+    expect((await lote('voz', etapa, [v['ana']!])).json().jaConvocadas).toEqual([v['ana']])
+    expect(
+      (
+        await b.su.query(
+          'select count(*)::int as n from uj.atribuicoes where evento_id = $1 and vinculo_id = $2',
+          [ev, v['ana']],
+        )
+      ).rows[0].n,
+    ).toBe(3)
+  })
+
   it('em encontro publicado, cada pessoa recebe a convocação', async () => {
     const r = await req('POST', comA, `/eventos/${v['copia']}/atribuicoes/lote`, orgA, {
       funcao: 'Som',
@@ -623,6 +673,43 @@ describe('sugestões por função', () => {
     ).json()
     expect(j.sugeridas.map((s: { nome: string }) => s.nome)).toEqual(['Camila'])
     expect(j.jaConvocadas).toEqual([v['leo']])
+  })
+
+  it('com etapaId, só conta quem já está NESSE bloco; estar em outro não exclui', async () => {
+    const etapa = (
+      await req('POST', comA, `/eventos/${alvo}/etapas`, orgA, { titulo: 'Louvor', duracaoMin: 20 })
+    ).json().id as string
+    // Léo já está convocado na bateria do encontro inteiro (sem etapa), do teste anterior.
+    const geral = (
+      await req(
+        'GET',
+        comA,
+        `/eventos/${alvo}/sugestoes-de-convocacao?funcao=bateria&etapaId=geral`,
+        orgA,
+      )
+    ).json()
+    expect(geral.jaConvocadas).toEqual([v['leo']])
+    const noLouvor = (
+      await req(
+        'GET',
+        comA,
+        `/eventos/${alvo}/sugestoes-de-convocacao?funcao=bateria&etapaId=${etapa}`,
+        orgA,
+      )
+    ).json()
+    expect(noLouvor.jaConvocadas).toEqual([])
+    expect(noLouvor.sugeridas.map((s: { nome: string }) => s.nome)).toContain('Léo')
+    // Bloco que não é uuid nem 'geral': 400.
+    expect(
+      (
+        await req(
+          'GET',
+          comA,
+          `/eventos/${alvo}/sugestoes-de-convocacao?funcao=bateria&etapaId=x`,
+          orgA,
+        )
+      ).statusCode,
+    ).toBe(400)
   })
 
   it('função obrigatória (400), membro 403 e encontro de outra comunidade 404 mesmo sem função', async () => {

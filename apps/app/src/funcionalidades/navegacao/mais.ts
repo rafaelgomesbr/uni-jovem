@@ -2,11 +2,7 @@ import type { Href } from 'expo-router'
 
 import type { NomeDoIcone } from '@/ui/Icone'
 
-import { useSessao } from '@/estado/sessao'
-
 import { usePode } from '../comunidade/permissoes'
-import { useMinhasEscalas } from '../escalas/consultas'
-import { escalaDeLouvor } from '../repertorio/souDoLouvor'
 
 export interface ItemDoMais {
   href: Href
@@ -27,12 +23,7 @@ export interface GrupoDoMais {
  */
 export function useGruposDoMais(): GrupoDoMais[] {
   const pode = usePode()
-  const { comunidadeAtiva } = useSessao()
-  // "Louvor" só para quem toca (convocada ao louvor) ou organiza (D62). Quem organiza
-  // não precisa da lista de convocações: nem a pede.
-  const organizaOLouvor = pode('etapa', 'gerenciar')
-  const minhasEscalas = useMinhasEscalas(organizaOLouvor ? null : (comunidadeAtiva?.id ?? null))
-  const veOLouvor = organizaOLouvor || escalaDeLouvor(minhasEscalas.data ?? []) !== null
+  // "Louvor" é de toda a comunidade (D73): o repertório e a banda do encontro são de leitura para todos.
   const comunidade: ItemDoMais[] = [
     {
       href: '/avisos',
@@ -54,16 +45,12 @@ export function useGruposDoMais(): GrupoDoMais[] {
         : 'Mande uma ideia, se quiser sem mostrar seu nome.',
       icone: 'sugestao',
     },
-    ...(veOLouvor
-      ? [
-          {
-            href: '/louvor' as const,
-            rotulo: 'Louvor',
-            descricao: 'Repertório e cifras do encontro.',
-            icone: 'musica' as const,
-          },
-        ]
-      : []),
+    {
+      href: '/louvor',
+      rotulo: 'Louvor',
+      descricao: 'Repertório do encontro e quem toca.',
+      icone: 'musica',
+    },
     {
       href: '/conteudos',
       rotulo: 'Biblioteca',

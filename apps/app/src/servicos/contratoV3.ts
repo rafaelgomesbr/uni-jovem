@@ -42,6 +42,11 @@ export interface EventoDoMomento {
   /** `rascunho` só chega para a organização. */
   status: StatusDoEvento
   visibilidade: 'interna' | 'publica'
+  /**
+   * Quantas músicas tem o repertório (qualquer papel, só a contagem; D73). Opcional: API antiga e
+   * cópia guardada por versão antiga não trazem, e o cartão trata a falta como "sem repertório".
+   */
+  musicas?: number
   local: LocalDoMomento | null
 }
 
@@ -334,9 +339,17 @@ export const chamadasV3 = {
       corpo,
     ),
 
-  sugestoesDeConvocacao: (comunidadeId: string, eventoId: string, funcao: string) =>
+  /** `etapaId` nulo é o encontro inteiro: quem já está em outro bloco não conta como convocado aqui. */
+  sugestoesDeConvocacao: (
+    comunidadeId: string,
+    eventoId: string,
+    funcao: string,
+    etapaId?: string | null,
+  ) =>
     api.get<RespostaDeSugestoes>(
-      `${daComunidade(comunidadeId)}/eventos/${eventoId}/sugestoes-de-convocacao?funcao=${encodeURIComponent(funcao)}`,
+      `${daComunidade(comunidadeId)}/eventos/${eventoId}/sugestoes-de-convocacao?funcao=${encodeURIComponent(funcao)}${
+        etapaId === undefined ? '' : `&etapaId=${etapaId ?? 'geral'}`
+      }`,
     ),
 
   /** "Lembrar os N". Genérico, no máximo um por pessoa e por encontro a cada 24 h. */

@@ -53,6 +53,20 @@ export function tocaNoLouvor(
   )
 }
 
+/**
+ * A pessoa tem convocação de louvor neste encontro que ainda vale (a recusada não conta), aceita ou
+ * não? É quem tem o "Meu repertório" (cifra, Modo palco); os demais veem a lista em leitura (D73).
+ */
+export function estaNoLouvor(
+  partes: readonly Pick<ParteDoMomento, 'funcao' | 'etapaTitulo' | 'estado'>[],
+): boolean {
+  return partes.some(
+    (p) =>
+      p.estado !== 'recusada' &&
+      ehConvocacaoDeLouvor({ funcao: p.funcao, etapaTitulo: p.etapaTitulo }),
+  )
+}
+
 /** Tempo até o início em linguagem curta: "EM 3 H", "EM 40 MIN". */
 function tempoCurto(minutos: number): string {
   if (minutos < 60) return `EM ${Math.max(1, Math.round(minutos))} MIN`
@@ -106,6 +120,27 @@ export function quandoFoiSalva(salvaEm: number, agora: Date = new Date()): strin
     : `${dois(quando.getDate())}/${dois(quando.getMonth() + 1)}, ${hora}`
 }
 
+/**
+ * A faixa de cima do Início quando o encontro de ontem acaba de terminar e o cartão já mostra o
+ * próximo: "Sábado de ontem terminou. 12 presentes." Diz QUAL encontro terminou (o de hoje cedo ou o
+ * de ontem), porque num grupo que se reúne todo sábado os dois têm o mesmo nome e "Sábado
+ * terminou" ao lado de "Sábado, em 6 dias" parecia contradição (22/11/2026). Presença zerada não
+ * entra: sem check-in o zero não é um fato, é só "ninguém marcou".
+ */
+export function textoDaDespedida(
+  r: { titulo: string; inicio: string; fuso: string; presentes: number | null },
+  agora: Date = new Date(),
+): string {
+  const dias = diasAte(r.inicio, r.fuso, agora)
+  const quando =
+    dias === 0 ? 'de hoje' : dias === -1 ? 'de ontem' : `(${dataCurta(r.inicio, r.fuso)})`
+  const presentes =
+    r.presentes !== null && r.presentes > 0
+      ? ` ${r.presentes} ${r.presentes === 1 ? 'presente' : 'presentes'}.`
+      : ''
+  return `${r.titulo} ${quando} terminou.${presentes}`
+}
+
 /** "Sáb., 28 de nov. · 16:00 às 17:00". */
 export function dataEHorario(inicio: string, duracaoMin: number, fuso: string): string {
   return `${dataCurta(inicio, fuso)} · ${faixaDeHorario(inicio, duracaoMin, fuso)}`
@@ -148,13 +183,16 @@ export interface SituacaoDoMembro {
   podeSeInscrever: boolean
   /** O encontro de ontem acabou de terminar e este é o próximo. */
   depoisDeUmEncontro: boolean
+  /** O encontro tem músicas no repertório: qualquer pessoa pode ver (D73). */
+  temRepertorio: boolean
 }
 
 /**
  * A tabela do membro (3.1 do UX). A convocação pendente vence o relógio: o primário é
  * "Aceitar" até o dia, e no dia também. Acontecendo: "Acompanhar ao vivo". Véspera e dia:
  * "Como chegar". Longe: o músico confirmado abre o repertório, quem pode se inscrever
- * inscreve-se, o resto só vê o encontro.
+ * inscreve-se, o resto vê o encontro e, havendo repertório, "Ver o repertório" (D73: o repertório
+ * e a banda são de toda a comunidade).
  */
 export function acoesDoMembro(s: SituacaoDoMembro): AcoesDoCartao {
   if (s.pendente) return { primaria: 'aceitar', secundaria: 'naoPossoIr' }
@@ -164,8 +202,10 @@ export function acoesDoMembro(s: SituacaoDoMembro): AcoesDoCartao {
   }
   if (s.musicoConfirmado) return { primaria: 'repertorio', secundaria: 'ver' }
   if (s.podeSeInscrever) return { primaria: 'inscrever', secundaria: 'ver' }
-  if (s.depoisDeUmEncontro) return { primaria: 'verProximo', secundaria: null }
-  return { primaria: 'ver', secundaria: null }
+  // Quem não toca e não precisa de outra coisa: o encontro e, havendo músicas, o repertório em leitura.
+  const repertorio = s.temRepertorio ? ('repertorio' as const) : null
+  if (s.depoisDeUmEncontro) return { primaria: 'verProximo', secundaria: repertorio }
+  return { primaria: 'ver', secundaria: repertorio }
 }
 
 export interface SituacaoDoLider {

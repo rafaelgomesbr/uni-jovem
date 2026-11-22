@@ -37,7 +37,7 @@ import { CartaoDoMembro } from './CartaoDoMembro'
 import { useAndamentoDoCartao, useInicio, type RespostaDoInicioComMomento } from './consultas'
 import { FaixaDoEncanto, HaloDoEncanto, useEncantoDoInicio } from './EncantoDoSol'
 import { MinhaVisaoGeral } from './MinhaVisaoGeral'
-import { emOnde, momentoDoDia, quandoFoiSalva } from './momento'
+import { emOnde, momentoDoDia, quandoFoiSalva, textoDaDespedida } from './momento'
 import { ParaResponder } from './ParaResponder'
 import { AvisoDeEspera } from './PecasDoCartao'
 
@@ -280,15 +280,10 @@ function ConteudoDoInicio({
   const encantoDoCartao = emCena?.tipo === 'aceitar' || emCena?.tipo === 'publicou'
   const poseDoEncanto = animando && emCena?.tipo === 'aceitar' ? ('pleno' as const) : undefined
 
+  // Só com o cartão já no encontro seguinte: aí a faixa diz de qual encontro fala (o que acabou).
   const despedida =
     momento.recemTerminado && evento && organiza
-      ? `${momento.recemTerminado.titulo} terminou.${
-          momento.recemTerminado.presentes !== null
-            ? ` ${momento.recemTerminado.presentes} ${
-                momento.recemTerminado.presentes === 1 ? 'presente' : 'presentes'
-              }.`
-            : ''
-        }`
+      ? textoDaDespedida(momento.recemTerminado, new Date(momento.agora))
       : momento.recemTerminado?.euServi && !organiza
         ? 'Obrigado por servir ontem.'
         : null
@@ -397,7 +392,7 @@ function parteParaResponder(item: EscalaDoInicio, fuso: string) {
   }
 }
 
-/** "Obrigado por servir ontem." (ou "Sábado Jovem terminou. 12 presentes."), com o sol no poente. */
+/** "Obrigado por servir ontem." (ou "Sábado de ontem terminou. 12 presentes."), com o sol no poente. */
 function LinhaDeDespedida({ texto }: { texto: string }) {
   return (
     <View
