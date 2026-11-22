@@ -281,3 +281,10 @@ A variante com barra final (`/privacidade/`, `/excluir-conta/`, `/termos/`) resp
 - **TestFlight:** 1.0.0 (7), entrega `b0b6d818-b4a0-45cc-a9c4-ad8026591dc2`, processado (`VALID`). Traz o login novo, o Início novo, a simplificação e o modo músico.
 - **Android 1.0.0 (11):** compilado localmente, assinado com a chave de upload (SHA-256 do certificado `55:93:38:...:CB:47` conferido), em `tmp/uni-jovem-1.0.0-11.aab`. **Não está no Play:** o Chrome bloqueia o acesso da página do Console à rede local, então o envio fica com o dono (arrastar o arquivo em Teste interno > Criar nova versão, ou liberar "Acesso à rede local" para o Play Console). O teste interno segue na versão 8, com um rascunho vazio.
 - **Clientes do Google (PH-14):** criados em 21/11/2026 (Web de produção, Android assinatura e Android upload); tela de consentimento publicada.
+
+### 7.7 Build Android de 22/11/2026 (commit `d73220d`, app v3 Direção A)
+
+- **Android 1.0.0 (13):** compilado localmente em 22/11/2026 (`BUILD SUCCESSFUL in 4m 36s`, Gradle `:app:bundleRelease`, Java 21 do Android Studio, sem custo de nuvem), a partir do commit `d73220d` (app v3 Direção A, ondas 1 e 2 mais as pendências de QA), com a fonte copiada de `git archive HEAD` para `C:/ujb` e o ambiente nativo já gerado (sem mudança de `app.config.ts`, `package.json` nem de assets desde o (11)). Variante de produção, API `https://unijovem.solerte.com.br`.
+- **Arquivo:** `tmp/uni-jovem-1.0.0-13.aab`, 112.961.137 bytes, SHA-256 `b99565a4cb8df49dd0a89254797b86eba37fa2a0a8f392e82ab95d5b7248a9c2`.
+- **Conferências:** `jarsigner -verify` devolve `jar verified`; certificado SHA-256 `55:93:38:FC:BF:34:77:2A:7B:D4:D7:57:95:68:63:DF:EF:29:5F:A1:DC:D7:55:78:42:D1:F8:B7:DB:C0:CB:47`, igual ao da chave de upload; manifesto do módulo base com `com.solerte.unijovem`, versão 1.0.0, código 13. Daemons do Gradle encerrados ao fim.
+- **Não enviado ao Play:** o envio ao teste interno continua com o dono (arrastar o arquivo em Teste interno > Criar nova versão). Nenhum envio ao Play foi feito nesta etapa. A conferência no aparelho Android continua pendente.
