@@ -25,7 +25,7 @@ export type { PropsDoCampoDeMomento, TipoDeMomento }
 /**
  * Campo de data ou hora (D64): a caixa do Campo, tocável, com o ícone de
  * calendário ou relógio à esquerda (esquerda diz "o que é"), o valor em 16/22 ou
- * "Escolher data" em `campoExemplo`, e o anel de foco ligado enquanto o seletor
+ * "Escolher" em `campoExemplo`, e o anel de foco ligado enquanto o seletor
  * está aberto. O toque abre o seletor nativo do `@expo/ui`:
  * no iOS, o calendário (data) ou a roda (hora) numa folha da largura da tela,
  * com "Pronto"; no Android, o diálogo do Material 3. Nada é digitado.
@@ -117,7 +117,7 @@ export function CampoDeMomento({
           }}
           numberOfLines={1}
         >
-          {formatado ?? (tipo === 'data' ? 'Escolher data' : 'Escolher horário')}
+          {formatado ?? 'Escolher'}
         </Texto>
         {desabilitado ? null : (
           <AnelDoCampo ativo={aberto} comErro={!!erro} testID={`momento-${tipo}`} />

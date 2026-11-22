@@ -163,6 +163,7 @@ export function DeslizarParaResponder({
             pointerEvents="none"
             accessible={false}
             importantForAccessibility="no-hide-descendants"
+            accessibilityElementsHidden
             style={[
               {
                 position: 'absolute',
@@ -184,6 +185,8 @@ export function DeslizarParaResponder({
           </Animated.View>
           <Animated.View
             testID="fundo-de-recusar"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
             style={[
               {
                 position: 'absolute',
@@ -230,26 +233,30 @@ export function DeslizarParaResponder({
                 estiloDaFrente,
               ]}
             >
-              <Pressable
-                accessibilityRole={aoPressionar ? 'button' : 'text'}
-                accessibilityLabel={[titulo, descricao].filter(Boolean).join('. ')}
-                accessibilityActions={acoesDeAcessibilidade}
-                onAccessibilityAction={(e) => {
-                  if (e.nativeEvent.actionName === 'aceitar') aceitar()
-                  if (e.nativeEvent.actionName === 'recusar') recusar()
-                }}
-                disabled={!aoPressionar}
-                onPress={aoPressionar}
-                style={{ minHeight: 44, justifyContent: 'center', gap: ESPACO.e2 }}
-              >
-                <Texto variante="tituloItem">{titulo}</Texto>
-                {descricao ? (
-                  <Texto variante="meta" cor="textoSuave">
-                    {descricao}
-                  </Texto>
-                ) : null}
-                {extra ? <View style={{ marginTop: ESPACO.e4 }}>{extra}</View> : null}
-              </Pressable>
+              {/* O `extra` (chip da situação, "Você: Louvor") fica FORA do botão do título: o rótulo
+                  do botão esconde os filhos, e a situação é lida como o que ela é, um item à parte. */}
+              <View style={{ gap: ESPACO.e6 }}>
+                <Pressable
+                  accessibilityRole={aoPressionar ? 'button' : 'text'}
+                  accessibilityLabel={[titulo, descricao].filter(Boolean).join('. ')}
+                  accessibilityActions={acoesDeAcessibilidade}
+                  onAccessibilityAction={(e) => {
+                    if (e.nativeEvent.actionName === 'aceitar') aceitar()
+                    if (e.nativeEvent.actionName === 'recusar') recusar()
+                  }}
+                  disabled={!aoPressionar}
+                  onPress={aoPressionar}
+                  style={{ minHeight: 44, justifyContent: 'center', gap: ESPACO.e2 }}
+                >
+                  <Texto variante="tituloItem">{titulo}</Texto>
+                  {descricao ? (
+                    <Texto variante="meta" cor="textoSuave">
+                      {descricao}
+                    </Texto>
+                  ) : null}
+                </Pressable>
+                {extra}
+              </View>
               <ParDeBotoes>
                 <Botao
                   titulo={rotuloDeRecusar}

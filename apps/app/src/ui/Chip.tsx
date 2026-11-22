@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-syntax -- opacidade aqui é a entrada do chip, animação e não estado (D65) */
 import { ALTURA, CURVAS, ESPACO, MOLAS, MOVIMENTO_DAS_TELAS, RAIO, type Paleta } from '@uj/tokens'
-import { useEffect, type ReactNode } from 'react'
+import { isValidElement, useEffect, type ReactNode } from 'react'
 import { View } from 'react-native'
 import Animated, {
   cancelAnimation,
@@ -49,6 +49,18 @@ export const SITUACOES_DO_CHIP: Readonly<Record<SituacaoDoChip, DefinicaoDaSitua
   aoVivo: { tom: 'quente', texto: 'Ao vivo', ponto: true },
   novo: { tom: 'info', texto: 'Novo' },
   rascunho: { tom: 'neutro', texto: 'Rascunho' },
+}
+
+/**
+ * A palavra de um chip passado como elemento (para quem monta o rótulo falado de uma linha que se
+ * toca: o rótulo próprio esconde os filhos, e sem isto "Aguardando", "Arquivado" ou "3 a enviar"
+ * só existiriam para quem enxerga). Devolve `null` se `no` não for um `Chip`.
+ */
+export function palavraDoChip(no: ReactNode): string | null {
+  if (!isValidElement(no) || no.type !== Chip) return null
+  const { texto, situacao } = no.props as { texto?: unknown; situacao?: SituacaoDoChip }
+  if (typeof texto === 'string' && texto) return texto
+  return situacao ? SITUACOES_DO_CHIP[situacao].texto : null
 }
 
 const TONS: Readonly<

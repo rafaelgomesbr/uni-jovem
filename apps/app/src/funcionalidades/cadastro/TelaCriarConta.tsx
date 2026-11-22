@@ -20,6 +20,7 @@ import { LinkDeAcesso } from '@/ui/LinkDeAcesso'
 import { useConfirmarDescarte, useTravaDeEnvio, voltarOu } from '@/ui/navegacao'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
+import { useAnunciar } from '@/ui/useAnunciar'
 import { parametro } from '@/utilidades/parametros'
 
 import {
@@ -129,6 +130,8 @@ export function TelaCriarConta() {
     },
   })
   const jaTemConta = emailJaCadastrado(concluir.error)
+  // O papel `alert` não fala no iOS: o aviso novo é anunciado nas três plataformas.
+  useAnunciar(jaTemConta ? 'Este e-mail já tem conta.' : null)
 
   if (travado) {
     return (

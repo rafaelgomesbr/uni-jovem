@@ -213,26 +213,31 @@ function ListaDoTipo({
               {visiveis.map((registro) => {
                 const nome = String(registro[def.principal] ?? '')
                 const arquivado = estaArquivado(def, registro)
-                const descricao = descricaoDoItem(def, registro)
+                const semCifra = def.tipo === 'musicas' && registro['temCifra'] === false
+                // "Sem cifra" na frente do texto, não num chip à direita: o chip tomava 90 pt da linha
+                // e cortava "Ninguém escalado para tocar" (capturas de 22/11/2026).
+                const descricao =
+                  semCifra && !arquivado
+                    ? `Sem cifra · ${descricaoDoItem(def, registro)}`
+                    : descricaoDoItem(def, registro)
                 return (
                   <LinhaDeLista
                     key={String(registro['id'])}
                     {...(DE_PESSOA[def.tipo] ? { avatar: { nome } } : { icone: def.icone })}
                     titulo={nome}
                     descricao={descricao}
+                    linhasDaDescricao={3}
                     rotuloAcessivel={[
                       nome,
                       descricao,
                       arquivado ? def.arquivo.selo : null,
-                      def.tipo === 'musicas' && registro['temCifra'] === false ? 'Sem cifra' : null,
+                      semCifra && arquivado ? 'Sem cifra' : null,
                     ]
                       .filter(Boolean)
                       .join('. ')}
                     {...(arquivado
                       ? { extra: <Chip texto={def.arquivo.selo} tom="neutro" /> }
-                      : def.tipo === 'musicas' && registro['temCifra'] === false
-                        ? { extra: <Chip texto="Sem cifra" tom="neutro" /> }
-                        : {})}
+                      : {})}
                     aoPressionar={() =>
                       router.push({
                         pathname: '/conteudos/[tipo]/[itemId]',

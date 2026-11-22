@@ -99,7 +99,7 @@ describe('banda do encontro nos Convocados (D61)', () => {
     await userEvent.setup().press(await screen.findByRole('radio', { name: 'Convocados' }))
     expect(await screen.findByText('0 de 1 responderam')).toBeOnTheScreen()
     expect(screen.getByText('Faltam: Bruno Lima')).toBeOnTheScreen()
-    expect(screen.getAllByText('Aguardando resposta').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Aguardando').length).toBeGreaterThan(0)
     // Ninguém aceitou ainda: a função que foi convocada aparece como a que falta.
     expect(screen.getByText('0 de 1 aceitaram. Falta: vocal')).toBeOnTheScreen()
   })

@@ -140,9 +140,9 @@ describe('caixa de notificações (o sino, D68)', () => {
       },
     })
 
-    expect(await screen.findByText('Ensaio do louvor às 15h')).toBeOnTheScreen()
+    expect(await screen.findByText(/há .+ · Ensaio do louvor às 15h$/)).toBeOnTheScreen()
     // O título real no lugar do texto genérico da notificação do sistema.
-    expect(screen.getByText('Sábado Jovem')).toBeOnTheScreen()
+    expect(screen.getByText(/há .+ · Sábado Jovem$/)).toBeOnTheScreen()
     expect(screen.queryByText('Toque para ler.')).toBeNull()
     expect(screen.getByText('Novas')).toBeOnTheScreen()
     expect(screen.queryByText('Antes')).toBeNull()
@@ -205,7 +205,9 @@ describe('caixa de notificações (o sino, D68)', () => {
         }),
       },
     })
-    expect(await screen.findByText('Uma pessoa quer entrar em Jovens Centro.')).toBeOnTheScreen()
+    expect(
+      await screen.findByText(/há .+ · Uma pessoa quer entrar em Jovens Centro.$/),
+    ).toBeOnTheScreen()
   })
 
   test('uma convocação abre o encontro (a linha "Sua parte"), marca como lida e baixa o contador', async () => {

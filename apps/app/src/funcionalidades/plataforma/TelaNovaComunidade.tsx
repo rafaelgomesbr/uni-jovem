@@ -25,6 +25,7 @@ import { Secao } from '@/ui/Secao'
 import { Segmentos } from '@/ui/Segmentos'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
+import { TextoAnunciado } from '@/ui/TextoAnunciado'
 import { mostrarToast } from '@/ui/Toast'
 import { useTravaDeEnvio } from '@/ui/navegacao'
 import { copiarTexto } from '@/utilidades/compartilhar'
@@ -345,9 +346,9 @@ function EntrarNaNova({
           </Texto>
         </Cartao>
         {gravarFuso.isPending ? (
-          <Texto variante="legenda" cor="textoSuave" accessibilityLiveRegion="polite">
+          <TextoAnunciado variante="legenda" cor="textoSuave">
             Gravando o fuso horário
-          </Texto>
+          </TextoAnunciado>
         ) : null}
         {gravarFuso.error ? (
           <Aviso tipo="alerta" titulo="O fuso não foi gravado">

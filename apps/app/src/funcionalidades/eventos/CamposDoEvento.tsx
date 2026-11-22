@@ -137,7 +137,7 @@ export function CamposDoEvento({
   )
   const blocoDaData = visiveis.data ? (
     <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: ESPACO.e12 }}>
-      <View style={{ flex: 1.4 }}>
+      <View style={{ flex: 1 }}>
         <CampoDeData
           rotulo="Data"
           valor={r.data || null}
@@ -289,7 +289,7 @@ export function CamposDoEvento({
                 aoMudar={(v) => mudar('listaDeEspera', v)}
               />
               <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: ESPACO.e12 }}>
-                <View style={{ flex: 1.4 }}>
+                <View style={{ flex: 1 }}>
                   <CampoDeData
                     rotulo="Inscrições até"
                     opcional

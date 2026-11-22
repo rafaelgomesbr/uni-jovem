@@ -7,6 +7,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  useWindowDimensions,
   View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -76,6 +77,9 @@ interface PropsDaFolhaNaTela {
 export function FolhaNaTela({ aberta, titulo, aoFechar, children }: PropsDaFolhaNaTela) {
   const { cores, elevacao } = useTema()
   const margens = useSafeAreaInsets()
+  // 90% da janela, em número: '90%' mede o contêiner, que cresce com o conteúdo, e a folha ficava
+  // 10% menor que o conteúdo com uma fresta de página embaixo (capturas de 22/11/2026).
+  const { height: alturaDaJanela } = useWindowDimensions()
   const { reduzirMovimento } = usePreferenciasDeAcessibilidade()
   const tituloRef = useRef<NoDeTexto>(null)
 
@@ -104,7 +108,7 @@ export function FolhaNaTela({ aberta, titulo, aoFechar, children }: PropsDaFolha
           <Vidro
             tipo="folha"
             style={{
-              maxHeight: '90%',
+              maxHeight: Math.round(alturaDaJanela * 0.9),
               borderTopLeftRadius: RAIO.barra,
               borderTopRightRadius: RAIO.barra,
               borderBottomWidth: 0,

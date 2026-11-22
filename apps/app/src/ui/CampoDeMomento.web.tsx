@@ -22,7 +22,7 @@ export type { PropsDoCampoDeMomento, TipoDeMomento }
 
 /**
  * Web: o `<input type="date|time">` do navegador, com a caixa do Campo (D64):
- * ícone de calendário ou relógio à esquerda e, vazio, "Escolher data" em
+ * ícone de calendário ou relógio à esquerda e, vazio, "Escolher" em
  * `campoExemplo` no lugar do "dd/mm/aaaa" do navegador (a camada some quando o
  * campo recebe o foco, para o teclado ver os segmentos).
  */
@@ -148,7 +148,7 @@ export function CampoDeMomento({
                 lineHeight: TIPO.campo.altura,
               }}
             >
-              {tipo === 'data' ? 'Escolher data' : 'Escolher horário'}
+              Escolher
             </Texto>
           </View>
         ) : null}

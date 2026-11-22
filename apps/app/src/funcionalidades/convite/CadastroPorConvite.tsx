@@ -19,6 +19,7 @@ import { AvisoDeFalha } from '@/ui/Falha'
 import { focar, type NoDeTexto } from '@/ui/foco'
 import { LinkDeAcesso } from '@/ui/LinkDeAcesso'
 import { Texto } from '@/ui/Texto'
+import { useAnunciar } from '@/ui/useAnunciar'
 
 import {
   emailParecido,
@@ -137,6 +138,8 @@ export function CadastroPorConvite({
   const jaTemConta =
     ehErroDaApi(concluir.error, 'conta_existente') ||
     (ehErroDaApi(concluir.error) && concluir.error.status === 409)
+  // O papel `alert` não fala no iOS: o aviso novo é anunciado nas três plataformas.
+  useAnunciar(jaTemConta ? 'Este e-mail já tem conta.' : null)
 
   function entrarNaContaQueJaTenho() {
     guardarConviteEmEspera(token)

@@ -198,6 +198,23 @@ describe('Igual ao último sábado (a conferência)', () => {
     expect(pedidosPara(servidor, 'POST', `${BASE}/eventos/${NOVO}/status`)).toHaveLength(0)
   })
 
+  test('sair sem salvar nem publicar apaga o rascunho que a abertura criou (nada solto na Agenda)', async () => {
+    const { servidor, unmount } = await montar()
+    await screen.findByText('Roteiro: 7 etapas, 1 h')
+    unmount()
+    await waitFor(() =>
+      expect(pedidosPara(servidor, 'DELETE', `${BASE}/eventos/${NOVO}`)).toHaveLength(1),
+    )
+  })
+
+  test('"Salvar rascunho" e sair da tela não apaga o que foi guardado', async () => {
+    const usuario = userEvent.setup()
+    const { servidor, unmount } = await montar()
+    await usuario.press(await screen.findByRole('button', { name: 'Salvar rascunho' }))
+    unmount()
+    expect(pedidosPara(servidor, 'DELETE', `${BASE}/eventos/${NOVO}`)).toHaveLength(0)
+  })
+
   test('"Levar as músicas também": refaz a cópia (apaga o rascunho anterior) com as músicas', async () => {
     const usuario = userEvent.setup()
     const { servidor } = await montar()

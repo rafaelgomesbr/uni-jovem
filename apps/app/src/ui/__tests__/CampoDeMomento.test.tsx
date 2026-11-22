@@ -52,9 +52,9 @@ describe('CampoDeMomento no iOS', () => {
 })
 
 describe('CampoDeMomento: a mesma caixa do Campo (D64)', () => {
-  test('vazio, mostra "Escolher data" em `campoExemplo`, e a caixa tem 56 e raio 16', async () => {
+  test('vazio, mostra "Escolher" em `campoExemplo`, e a caixa tem 56 e raio 16', async () => {
     await render(<CampoDeData rotulo="Data" valor={null} aoMudar={() => {}} />)
-    const exemplo = screen.getByText('Escolher data')
+    const exemplo = screen.getByText('Escolher')
     expect(exemplo).toHaveStyle({
       color: TEMAS.claro.base.campoExemplo,
       fontSize: 16,

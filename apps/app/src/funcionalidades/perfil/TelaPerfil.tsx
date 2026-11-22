@@ -316,13 +316,13 @@ function Identidade({ conta, funcao }: { conta: Conta; funcao: string | null }) 
       aoPressionar={() => router.push('/editar-perfil')}
       rotuloAcessivel={`Editar perfil. ${conta.nome}${funcao ? `, ${funcao}` : ''}`}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e16 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e12 }}>
         <Avatar
           nome={conta.nome}
           avatar={conta.avatar ?? null}
           foto={fotoDaConta(conta)}
           proprio
-          lado={64}
+          lado={52}
           decorativo
         />
         <View style={{ flex: 1, minWidth: 0 }}>
@@ -334,7 +334,8 @@ function Identidade({ conta, funcao }: { conta: Conta; funcao: string | null }) 
               {funcao}
             </Texto>
           ) : null}
-          <Texto variante="legenda" cor="textoSuave" selectable>
+          {/* Uma linha só: o e-mail partido no meio da palavra ("...invali / d") lê pior que o corte. */}
+          <Texto variante="legenda" cor="textoSuave" selectable numberOfLines={1}>
             {conta.email}
           </Texto>
         </View>

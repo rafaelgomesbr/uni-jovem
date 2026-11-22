@@ -36,7 +36,7 @@ export const EQUIPE_GERAL = 'geral'
 /** O chip da resposta da pessoa: palavra, ícone e cor juntos (a cor nunca é o único sinal). */
 export function ChipDaResposta({ estado }: { estado: Atribuicao['estado'] }) {
   if (estado === 'confirmada') return <Chip situacao="aceitou" texto="Aceitou" />
-  if (estado === 'pendente') return <Chip situacao="aguardando" texto="Aguardando resposta" />
+  if (estado === 'pendente') return <Chip situacao="aguardando" texto="Aguardando" />
   if (estado === 'recusada') return <Chip situacao="naoPode" texto="Não pode ir" />
   return <Chip texto="Pediu troca" tom="info" icone="trocar" />
 }

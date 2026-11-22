@@ -22,7 +22,7 @@ import { PilulasDeFiltro } from '@/ui/PilulasDeFiltro'
 import { Secao } from '@/ui/Secao'
 import { Sol } from '@/ui/Sol'
 import { Tela } from '@/ui/Tela'
-import { Texto } from '@/ui/Texto'
+import { TextoAnunciado } from '@/ui/TextoAnunciado'
 import { mostrarToast } from '@/ui/Toast'
 import { mostrarDesfazer } from '@/ui/ToastComDesfazer'
 import {
@@ -109,11 +109,31 @@ function Conferencia({
   const montada = useRef(true)
   const iniciou = useRef(false)
 
+  // Quem sai da tela sem "Salvar rascunho" nem "Publicar" não quis o encontro: o rascunho que a
+  // abertura criou sairia solto na Agenda ("Rascunhos (8)" nas capturas de 22/11/2026). O que
+  // foi salvo ou está na espera de 10 s da publicação fica.
+  const manter = useRef(false)
+  const rascunhoAtual = useRef<string | null>(null)
+  const comunidade = useRef(comunidadeId)
+  const invalidarAoSair = useRef(invalidar)
+  useEffect(() => {
+    rascunhoAtual.current = rascunho?.id ?? null
+    comunidade.current = comunidadeId
+    invalidarAoSair.current = invalidar
+  })
+
   // A tela pode ser deixada antes dos 10 s: depois disso, nada de navegar por ela.
   useEffect(() => {
     montada.current = true
     return () => {
       montada.current = false
+      const id = rascunhoAtual.current
+      if (!id || manter.current) return
+      api
+        .delete(`${naComunidade(comunidade.current)}/eventos/${id}`)
+        .catch(() => null)
+        .then(() => invalidarAoSair.current())
+        .catch(() => null)
     }
   }, [])
 
@@ -193,6 +213,7 @@ function Conferencia({
   }
 
   function salvarRascunho() {
+    manter.current = true
     mostrarToast({ texto: 'Rascunho salvo. Ninguém foi avisado.' })
     irParaOEncontro()
   }
@@ -203,9 +224,14 @@ function Conferencia({
     const n = pessoas
     setErroAoPublicar(null)
     setPublicando(true)
+    // Durante os 10 s a publicação é de quem pediu: sair da tela não pode apagar o rascunho.
+    manter.current = true
     mostrarDesfazer({
       texto: n > 0 ? `Publicando e avisando ${quantasPessoas(n)}.` : 'Publicando o encontro.',
-      aoDesfazer: () => setPublicando(false),
+      aoDesfazer: () => {
+        manter.current = false
+        setPublicando(false)
+      },
       aoConfirmar: () => {
         api
           .post(`${naComunidade(comunidadeId)}/eventos/${id}/status`, { status: 'publicado' })
@@ -399,9 +425,9 @@ function Conferencia({
             </View>
           ) : null}
           {ocupada ? (
-            <Texto variante="legenda" cor="textoSuave" accessibilityLiveRegion="polite">
+            <TextoAnunciado variante="legenda" cor="textoSuave">
               Atualizando a cópia...
-            </Texto>
+            </TextoAnunciado>
           ) : null}
         </CartaoDeVidro>
       </Secao>

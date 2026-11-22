@@ -87,7 +87,7 @@ export function LeitorDeCifra({ cifra, tomOriginal, tomDoDia, tamanhoInicial, aj
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
         <Controle>
           <Botao
-            titulo="Tom −"
+            titulo="Tom −"
             variante="secundario"
             tamanho="medio"
             rotuloAcessivel="Descer meio tom"
@@ -97,7 +97,7 @@ export function LeitorDeCifra({ cifra, tomOriginal, tomDoDia, tamanhoInicial, aj
         </Controle>
         <Controle>
           <Botao
-            titulo="Tom +"
+            titulo="Tom +"
             variante="secundario"
             tamanho="medio"
             rotuloAcessivel="Subir meio tom"

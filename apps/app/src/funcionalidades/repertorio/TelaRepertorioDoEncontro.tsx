@@ -217,8 +217,11 @@ function Repertorio({ comunidadeId, evento }: { comunidadeId: string; evento: De
                   publicado={publicado}
                   tamanho="grande"
                 />
+                {/* "Adicionar" no botão e "músicas" no rótulo: ao lado de "Avisar a banda" o texto longo
+                    quebrava em duas linhas a 390 pt (capturas de 22/11/2026). */}
                 <Botao
-                  titulo="Adicionar músicas"
+                  titulo="Adicionar"
+                  rotuloAcessivel="Adicionar músicas"
                   icone="adicionar"
                   tamanho="grande"
                   aoPressionar={() => setAdicionando(true)}

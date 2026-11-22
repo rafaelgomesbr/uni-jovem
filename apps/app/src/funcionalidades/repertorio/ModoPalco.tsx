@@ -15,6 +15,8 @@ import { usePreferenciasDeAcessibilidade } from '@/ui/acessibilidade'
 import { Aviso } from '@/ui/Aviso'
 import { Botao, BotaoIcone } from '@/ui/Botao'
 import { Texto } from '@/ui/Texto'
+import { TextoAnunciado } from '@/ui/TextoAnunciado'
+import { useAnunciar } from '@/ui/useAnunciar'
 import { ProvedorDeTemaForcado, useTema } from '@/ui/tema'
 
 import { CifraNaTela } from './CifraNaTela'
@@ -92,6 +94,10 @@ function Palco({
     ? `Tom ${soa}${comCapo ? ` · Capotraste ${a.capotraste} (toque em ${toca})` : ''}`
     : null
 
+  // A mão está no instrumento e o foco do leitor de tela fica no botão tocado: quem troca de música
+  // ou de tom ouve o resultado, porque nada na tela se anuncia sozinho.
+  useAnunciar(`${titulo}, ${posicao} de ${total}`, { soMudancas: true })
+
   function rolar(sentido: 'cima' | 'baixo') {
     const y = proximoPontoDeRolagem({ ...medidas.current, sentido })
     rolagem.current?.scrollTo({ y, animated: !reduzirMovimento })
@@ -149,9 +155,9 @@ function Palco({
         >
           <Texto variante="tituloTela">{titulo}</Texto>
           {sobreOTom ? (
-            <Texto variante="rotulo" cor="textoSuave">
+            <TextoAnunciado soMudancas variante="rotulo" cor="textoSuave">
               {sobreOTom}
-            </Texto>
+            </TextoAnunciado>
           ) : null}
           {!cifra || !cifra.trim() ? (
             <Aviso tipo="info" titulo="Esta música ainda não tem cifra">
@@ -232,13 +238,13 @@ function Palco({
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
           {[
             {
-              titulo: 'Tom −',
+              titulo: 'Tom −',
               rotulo: 'Descer meio tom',
               aoPressionar: a.descerMeioTom,
               desabilitado: !pronta.transpoe,
             },
             {
-              titulo: 'Tom +',
+              titulo: 'Tom +',
               rotulo: 'Subir meio tom',
               aoPressionar: a.subirMeioTom,
               desabilitado: !pronta.transpoe,

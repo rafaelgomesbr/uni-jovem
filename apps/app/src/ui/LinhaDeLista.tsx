@@ -5,6 +5,7 @@ import { Pressable, View, type ViewStyle } from 'react-native'
 import { usePreferenciasDeAcessibilidade } from './acessibilidade'
 import { Avatar, type DadosDoAvatar } from './Avatar'
 import { useNoCartaoLista } from './CartaoDeVidro'
+import { palavraDoChip } from './Chip'
 import { Icone, type NomeDoIcone } from './Icone'
 import { Texto } from './Texto'
 import { useTema } from './tema'
@@ -272,7 +273,10 @@ export function LinhaDeLista({
     <Pressable
       // Linha que marca e desmarca (presença no check-in) é uma caixa de marcar para o leitor de tela.
       accessibilityRole={marcada !== undefined ? 'checkbox' : externo ? 'link' : 'button'}
-      accessibilityLabel={rotuloAcessivel ?? [titulo, descricao, valor].filter(Boolean).join('. ')}
+      accessibilityLabel={
+        rotuloAcessivel ??
+        [titulo, descricao, valor, palavraDoChip(extra)].filter(Boolean).join('. ')
+      }
       accessibilityHint={dica}
       {...(selecionado !== undefined ? { 'aria-selected': selecionado } : {})}
       {...(marcada !== undefined ? { accessibilityState: { checked: marcada } } : {})}

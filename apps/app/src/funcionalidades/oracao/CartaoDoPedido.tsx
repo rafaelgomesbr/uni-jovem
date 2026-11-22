@@ -229,34 +229,39 @@ export function CartaoDoPedido({
         ? {}
         : {
             acoes: (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e12 }}>
-                {/* Alternável (3.7.1): marcado, vira "Orando" com o check; o sinal é o rótulo e o ícone. */}
-                <Botao
-                  titulo={pedido.orando.euEstouOrando ? 'Orando' : 'Estou orando'}
-                  icone={pedido.orando.euEstouOrando ? 'check' : 'oracao'}
-                  variante="secundario"
-                  marcado={pedido.orando.euEstouOrando}
-                  rotuloAcessivel={
-                    pedido.orando.euEstouOrando
-                      ? `Deixar de marcar que estou orando pelo ${autor.toLowerCase()}`
-                      : `Estou orando pelo ${autor.toLowerCase()}`
-                  }
-                  carregando={orar.isPending}
-                  aoPressionar={() =>
-                    orar.mutate({ id: pedido.id, orando: !pedido.orando.euEstouOrando })
-                  }
-                />
-                <Texto variante="legenda" cor="textoSuave" style={{ flex: 1 }}>
+              <View style={{ gap: ESPACO.e8 }}>
+                {/* Botão e "Mais" na mesma linha; o número de quem ora vai embaixo: lado a lado
+                    ele espremia o texto em três linhas e empurrava o "Mais" para fora do cartão. */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e12 }}>
+                  {/* Alternável (3.7.1): marcado, vira "Orando" com o check; o sinal é o rótulo e o ícone. */}
+                  <Botao
+                    titulo={pedido.orando.euEstouOrando ? 'Orando' : 'Estou orando'}
+                    icone={pedido.orando.euEstouOrando ? 'check' : 'oracao'}
+                    variante="secundario"
+                    marcado={pedido.orando.euEstouOrando}
+                    rotuloAcessivel={
+                      pedido.orando.euEstouOrando
+                        ? `Deixar de marcar que estou orando pelo ${autor.toLowerCase()}`
+                        : `Estou orando pelo ${autor.toLowerCase()}`
+                    }
+                    carregando={orar.isPending}
+                    aoPressionar={() =>
+                      orar.mutate({ id: pedido.id, orando: !pedido.orando.euEstouOrando })
+                    }
+                  />
+                  <View style={{ flex: 1 }} />
+                  {temMaisAcoes ? (
+                    <BotaoIcone
+                      icone="maisAcoes"
+                      texto="Mais"
+                      rotulo={`Mais ações do ${autor.toLowerCase()}`}
+                      aoPressionar={() => setFolhaAberta(true)}
+                    />
+                  ) : null}
+                </View>
+                <Texto variante="legenda" cor="textoSuave">
                   {quantosOrando(pedido)}
                 </Texto>
-                {temMaisAcoes ? (
-                  <BotaoIcone
-                    icone="maisAcoes"
-                    texto="Mais"
-                    rotulo={`Mais ações do ${autor.toLowerCase()}`}
-                    aoPressionar={() => setFolhaAberta(true)}
-                  />
-                ) : null}
               </View>
             ),
           })}

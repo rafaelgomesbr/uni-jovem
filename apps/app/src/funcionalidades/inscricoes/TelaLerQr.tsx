@@ -13,7 +13,7 @@ import { Botao, BotaoIcone } from '@/ui/Botao'
 import { voltar } from '@/ui/CabecalhoDeTela'
 import { EstadoVazio } from '@/ui/EstadoVazio'
 import { Tela } from '@/ui/Tela'
-import { Texto } from '@/ui/Texto'
+import { TextoAnunciado } from '@/ui/TextoAnunciado'
 import { mostrarToast, registrarRodape } from '@/ui/Toast'
 import { ProvedorDeTemaForcado, useTema } from '@/ui/tema'
 import { Vidro } from '@/ui/Vidro'
@@ -265,9 +265,9 @@ function Moldura({
               borderRadius: RAIO.pilula,
             }}
           >
-            <Texto variante="botao" accessibilityRole="text" accessibilityLiveRegion="polite">
+            <TextoAnunciado variante="botao" accessibilityRole="text">
               {instrucao}
-            </Texto>
+            </TextoAnunciado>
           </Vidro>
         </View>
         <View style={{ flex: 1, justifyContent: 'center', gap: RITMO.entreSecoes }}>

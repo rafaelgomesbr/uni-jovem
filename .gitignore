@@ -39,3 +39,7 @@ __pycache__/
 
 # Capturas cruas das lojas: saem de novo com scripts/lojas/capturas.ts.
 docs/lojas/capturas/cru/
+
+# Capturas de QA: só 390 escuro e 375 claro vão ao git (as outras regeram com o script)
+docs/qa/v3/*--375-escuro*.jpg
+docs/qa/v3/*--390-claro*.jpg

@@ -279,9 +279,10 @@ function LinhaDaNotificacao({
     <LinhaDeLista
       icone={ICONE_DO_TIPO[n.tipo] ?? 'sino'}
       titulo={n.titulo}
-      descricao={descricao}
+      // O "há 6 dias" na frente da descrição: ao lado do chip "Nova" ele espremia o texto numa coluna
+      // de 95 pt (capturas de 22/11/2026), e na frente nunca some no corte das 3 linhas.
+      descricao={`${quando} · ${descricao}`}
       linhasDaDescricao={3}
-      valor={quando}
       extra={n.lida ? undefined : <Chip tom="quente" texto="Nova" />}
       rotuloAcessivel={[
         n.lida ? null : 'Nova.',

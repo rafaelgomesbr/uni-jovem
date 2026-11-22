@@ -106,6 +106,8 @@ export function PilulaDaComunidade({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={rotulo}
+      // A versão compacta tem 36 de altura: os 4 de cima e de baixo completam os 44 de alvo.
+      {...(compacta ? { hitSlop: { top: ESPACO.e4, bottom: ESPACO.e4 } } : {})}
       onPress={aoPressionar}
       style={{ flexShrink: 1, minWidth: 0 }}
     >
