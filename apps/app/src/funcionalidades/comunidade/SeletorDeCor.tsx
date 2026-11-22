@@ -74,7 +74,9 @@ export function SeletorDeCor({
                   variante="legenda"
                   cor={marcada ? 'texto' : 'textoSuave'}
                   peso={marcada ? 'forte' : 'regular'}
-                  numberOfLines={1}
+                  // Duas linhas: com fonte grande o nome da cor não pode ser cortado ("Azul-céu...").
+                  numberOfLines={2}
+                  style={{ textAlign: 'center' }}
                 >
                   {c.rotulo}
                 </Texto>

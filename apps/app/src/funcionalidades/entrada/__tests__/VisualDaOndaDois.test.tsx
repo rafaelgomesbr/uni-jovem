@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
 import { router } from 'expo-router'
+import { Share } from 'react-native'
 
 import { renderizarTela, respostaEu } from '@/testes/telas'
 
@@ -91,7 +92,6 @@ describe('VazioComSol', () => {
 
 describe('Como conseguir um convite', () => {
   test('mostra a mensagem pronta, pede por mensagem e leva a "Tenho um código"', async () => {
-    const { Share } = jest.requireActual('react-native') as typeof import('react-native')
     const compartilhar = jest
       .spyOn(Share, 'share')
       .mockResolvedValue({ action: 'sharedAction', activityType: undefined })

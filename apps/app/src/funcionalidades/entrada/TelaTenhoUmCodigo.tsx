@@ -296,6 +296,8 @@ interface PropsDoBlocoDaPrevia {
   aoTentarDeNovo: () => void
   /** Sem sessão a folha "Como conseguir um convite" não existe: a saída é só o texto. */
   semSaida?: boolean
+  /** A tela já tem o título "Código não encontrado": o aviso traz só a explicação. */
+  semTitulo?: boolean
 }
 
 /**
@@ -310,6 +312,7 @@ export function BlocoDaPrevia({
   tipoDoErro,
   aoTentarDeNovo,
   semSaida = false,
+  semTitulo = false,
 }: PropsDoBlocoDaPrevia) {
   if (carregando) {
     return (
@@ -323,7 +326,7 @@ export function BlocoDaPrevia({
     return (
       <Aviso
         tipo="erro"
-        titulo="Código não encontrado"
+        {...(semTitulo ? {} : { titulo: 'Código não encontrado' })}
         {...(semSaida
           ? {}
           : {

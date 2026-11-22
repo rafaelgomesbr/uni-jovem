@@ -4,15 +4,17 @@
  */
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { DESFAZER } from '@uj/tokens'
-import { StyleSheet } from 'react-native'
+import { AccessibilityInfo, StyleSheet } from 'react-native'
 
 import { HospedeiroDeToast } from '../Toast'
 import {
   aoMudarEstadoDoApp,
+  conhecerOLeitorDeTela,
   confirmarAgora,
   desfazerAgora,
   haDesfazerPendente,
   mostrarDesfazer,
+  segundosDoDesfazer,
 } from '../ToastComDesfazer'
 import { anunciar } from '../anunciar'
 
@@ -201,5 +203,68 @@ describe('toast com Desfazer: acessibilidade e movimento', () => {
     expect(screen.getByText('10 s')).toBeOnTheScreen()
     await passar(2_000)
     expect(screen.getByText('8 s')).toBeOnTheScreen()
+  })
+})
+
+describe('toast com Desfazer: tempo estendido com leitor de tela', () => {
+  /** Liga ou desliga o leitor de tela e deixa o módulo saber (como a raiz do app faz ao montar). */
+  async function leitor(ligado: boolean) {
+    jest.spyOn(AccessibilityInfo, 'isScreenReaderEnabled').mockResolvedValue(ligado)
+    await act(async () => conhecerOLeitorDeTela())
+  }
+  afterEach(async () => {
+    await leitor(false)
+    jest.restoreAllMocks()
+  })
+
+  test('o tempo dobra com leitor de tela: 20 s em vez de 10 (e o dobro de qualquer tempo pedido)', () => {
+    expect(segundosDoDesfazer(10, false)).toBe(10)
+    expect(segundosDoDesfazer(10, true)).toBe(20)
+    expect(segundosDoDesfazer(6, true)).toBe(12)
+  })
+
+  test('com leitor ligado a contagem começa em 20 s, o anúncio diz 20 e o envio só sai aos 20 s', async () => {
+    await leitor(true)
+    const aoConfirmar = jest.fn()
+    await render(<HospedeiroDeToast />)
+    await act(async () => {
+      mostrarDesfazer({ texto: 'Convocado.', aoConfirmar })
+    })
+    expect(screen.getByText('20 s')).toBeOnTheScreen()
+    expect(anunciar).toHaveBeenCalledWith(`Convocado. ${DESFAZER.anuncio(20)}`)
+
+    await passar(10_000)
+    expect(aoConfirmar).not.toHaveBeenCalled()
+    expect(screen.getByText('10 s')).toBeOnTheScreen()
+    await passar(10_000)
+    expect(aoConfirmar).toHaveBeenCalledTimes(1)
+  })
+
+  test('sem leitor de tela o tempo segue de 10 s', async () => {
+    await leitor(false)
+    const aoConfirmar = jest.fn()
+    await render(<HospedeiroDeToast />)
+    await act(async () => {
+      mostrarDesfazer({ texto: 'Convocado.', aoConfirmar })
+    })
+    expect(screen.getByText('10 s')).toBeOnTheScreen()
+    await passar(10_000)
+    expect(aoConfirmar).toHaveBeenCalledTimes(1)
+  })
+
+  test('o leitor só se revela depois de a espera começar: a espera em curso é estendida, sem perder o que já passou', async () => {
+    await leitor(false)
+    jest.spyOn(AccessibilityInfo, 'isScreenReaderEnabled').mockResolvedValue(true)
+    const aoConfirmar = jest.fn()
+    await render(<HospedeiroDeToast />)
+    await act(async () => {
+      mostrarDesfazer({ texto: 'Convocado.', aoConfirmar })
+    })
+    // A resposta do sistema chegou logo depois do início: 20 s no total.
+    expect(screen.getByText('20 s')).toBeOnTheScreen()
+    await passar(19_000)
+    expect(aoConfirmar).not.toHaveBeenCalled()
+    await passar(1_000)
+    expect(aoConfirmar).toHaveBeenCalledTimes(1)
   })
 })

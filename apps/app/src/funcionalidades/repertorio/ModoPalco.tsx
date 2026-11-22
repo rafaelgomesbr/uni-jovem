@@ -130,7 +130,9 @@ function Palco({
         </Texto>
       </View>
 
-      <View style={{ flex: 1 }}>
+      {/* A letra e os botões de rolar lado a lado: a coluna dos botões tem o próprio espaço, então
+          nenhum botão fica sobre a letra, qualquer que seja o tamanho dela. */}
+      <View style={{ flex: 1, flexDirection: 'row' }}>
         <ScrollView
           ref={rolagem}
           scrollEventThrottle={32}
@@ -144,11 +146,11 @@ function Palco({
             medidas.current.conteudo = altura
           }}
           showsVerticalScrollIndicator={false}
+          style={{ flex: 1 }}
           contentContainerStyle={{
             gap: ESPACO.e12,
             paddingLeft: ESPACO.e24,
-            // Espaço dos botões de rolar: a letra nunca fica por baixo deles.
-            paddingRight: ESPACO.e24 + 64,
+            paddingRight: ESPACO.e8,
             paddingTop: ESPACO.e8,
             paddingBottom: ESPACO.e32,
           }}
@@ -179,24 +181,21 @@ function Palco({
         {/* Rolar com um toque (a mão está no instrumento): uma página para cima ou para baixo. */}
         <View
           style={{
-            position: 'absolute',
-            right: ESPACO.e12,
-            top: 0,
-            bottom: 0,
             justifyContent: 'center',
             gap: ESPACO.e12,
+            paddingHorizontal: ESPACO.e8,
           }}
         >
           <BotaoIcone
             icone="subir"
             rotulo="Rolar a cifra para cima"
-            lado={56}
+            lado={48}
             aoPressionar={() => rolar('cima')}
           />
           <BotaoIcone
             icone="descer"
             rotulo="Rolar a cifra para baixo"
-            lado={56}
+            lado={48}
             aoPressionar={() => rolar('baixo')}
           />
         </View>

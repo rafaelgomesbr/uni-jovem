@@ -123,11 +123,9 @@ function DetalheDoPedido({ comunidadeId, pedidoId }: PropsDoPedido) {
                   icone={p.orando.euEstouOrando ? 'confirmado' : 'oracao'}
                   variante={p.orando.euEstouOrando ? 'secundario' : 'primario'}
                   tamanho="grande"
-                  rotuloAcessivel={
-                    p.orando.euEstouOrando
-                      ? `Deixar de marcar que estou orando pelo ${autor}`
-                      : `Estou orando pelo ${autor}`
-                  }
+                  // O nome não muda ao marcar: quem ouve o botão ouve o estado ("pressionado").
+                  marcado={p.orando.euEstouOrando}
+                  rotuloAcessivel={`Estou orando pelo ${autor}`}
                   carregando={orar.isPending}
                   aoPressionar={() => orar.mutate({ id: p.id, orando: !p.orando.euEstouOrando })}
                 />

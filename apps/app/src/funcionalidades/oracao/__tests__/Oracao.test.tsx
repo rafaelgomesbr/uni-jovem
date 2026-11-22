@@ -233,6 +233,29 @@ describe('lista e pedido', () => {
     expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeOnTheScreen()
   })
 
+  test('"Estou orando" mantém o nome ao marcar: o estado vai em "pressionado", não no texto falado', async () => {
+    const marcado = {
+      ...DE_OUTRA,
+      id: '55555555-5555-4555-8555-000000000003',
+      orando: { total: 1, euEstouOrando: true, pessoas: [] },
+    }
+    await renderizarTela(<TelaOracao />, {
+      papel: 'membro',
+      rotas: {
+        [`GET ${BASE}/oracao`]: () => ({
+          status: 200,
+          corpo: { pedidos: [PEDIDO, DE_OUTRA, marcado] },
+        }),
+      },
+    })
+    const botoes = await screen.findAllByRole('button', {
+      name: 'Estou orando pelo pedido de bruno lima',
+    })
+    // Um sem marca e outro marcado: o mesmo nome, o estado só em `aria-pressed`.
+    expect(botoes.map((b) => b.props['aria-pressed'])).toEqual([false, true])
+    expect(screen.queryByRole('button', { name: /Deixar de marcar/ })).toBeNull()
+  })
+
   test('"Estou orando" em pedido de outra pessoa e denúncia só no que é da comunidade', async () => {
     const { servidor } = await renderizarTela(<TelaOracao />, {
       papel: 'membro',

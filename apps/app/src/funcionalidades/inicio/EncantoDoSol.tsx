@@ -18,6 +18,7 @@ import { Icone } from '@/ui/Icone'
 import { useRevelar } from '@/ui/primitivasDeMovimento'
 import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
+import { useAnunciar } from '@/ui/useAnunciar'
 
 import { DURACAO_DO_ENCANTO_MS, reivindicarEncanto, type TipoDeEncanto } from './encantos'
 
@@ -75,6 +76,8 @@ export function FaixaDoEncanto({ texto, aoTerminar }: { texto: string; aoTermina
   const { cores } = useTema()
   const [visivel, setVisivel] = useState(true)
   const estilo = useRevelar(visivel)
+  // No iOS a região `status` não fala sozinha: a frase é anunciada uma vez, ao aparecer.
+  useAnunciar(texto)
 
   // O relógio da faixa é externo à tela: a faixa some sozinha e depois avisa quem a montou.
   useEffect(() => {

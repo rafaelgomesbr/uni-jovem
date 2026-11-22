@@ -69,12 +69,13 @@ export interface PropsDoItemDaBarra {
  * além da cor. Celular: papel `tab` com estado selecionado; web: link com
  * `aria-current="page"`.
  *
- * Perfil: só o avatar, maior (32, o da pílula) e centrado na altura dos
- * outros itens, sem a legenda embaixo. O leitor de tela continua ouvindo
+ * Perfil: o avatar (24, na vaga do ícone) mais a palavra "Perfil", como os
+ * outros itens (UX 8.1: "avatar mais texto"). O leitor de tela ouve
  * "Perfil de {nome}" e o estado selecionado; o anel muda de forma no ativo.
  *
  * O rótulo cresce com a fonte do sistema até 1,6. Se não couber, a barra
- * passa `semRotulo`: o item fica só com o ícone, nunca com o texto cortado.
+ * passa `semRotulo`: o item fica só com o ícone (no Perfil, o avatar de 32),
+ * nunca com o texto cortado.
  */
 export function ItemDaBarraDeAbas({
   rotulo,
@@ -116,14 +117,36 @@ export function ItemDaBarraDeAbas({
       })}
     >
       {!icone && avatar ? (
-        <Avatar
-          nome={avatar.nome}
-          avatar={avatar.dados ?? null}
-          proprio
-          tamanho="pilula"
-          anel={ativo ? 'ativo' : 'inativo'}
-          decorativo
-        />
+        <>
+          {/* A vaga do ícone (24), como nos outros itens: o rótulo fica na mesma linha de base. */}
+          <View
+            style={{
+              height: semRotulo ? undefined : 24,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 0,
+            }}
+          >
+            <Avatar
+              nome={avatar.nome}
+              avatar={avatar.dados ?? null}
+              proprio
+              tamanho={semRotulo ? 'pilula' : 'aba'}
+              anel={ativo ? 'ativo' : 'inativo'}
+              decorativo
+            />
+          </View>
+          {semRotulo ? null : (
+            <Texto
+              variante="aba"
+              peso={ativo ? 'forte' : 'medio'}
+              numberOfLines={1}
+              style={{ color: cor }}
+            >
+              {rotulo}
+            </Texto>
+          )}
+        </>
       ) : (
         <>
           <ItemComIcone icone={icone} cor={cor} ativo={ativo} />

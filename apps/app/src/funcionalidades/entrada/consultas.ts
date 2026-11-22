@@ -166,8 +166,12 @@ export function tipoDoErroDaPrevia(erro: unknown): 'nao_encontrado' | 'limite' |
   return 'falha'
 }
 
+/**
+ * A explicação do código que não entra (a mesma para tudo que não entra: sem enumeração). Não repete
+ * o título "Código não encontrado": quem mostra a frase já tem o título na tela, uma vez só.
+ */
 export const CODIGO_NAO_ENCONTRADO =
-  'Código não encontrado. Confira as letras e os números, ou peça outro à liderança.'
+  'Não achamos uma comunidade com este código. Confira as letras e os números, ou peça outro à liderança.'
 
 /** Logotipo de uma comunidade achada na busca (público só para quem escolheu aparecer). */
 export function caminhoDoLogotipoPublico(idPublico: string): string {

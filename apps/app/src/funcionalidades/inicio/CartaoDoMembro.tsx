@@ -153,7 +153,7 @@ export function CartaoDoMembro({
       dica="Abre o encontro."
       acoes={
         <View style={{ gap: ESPACO.e8 }}>
-          <ParDeBotoes>{botoes}</ParDeBotoes>
+          <ParDeBotoes larguraMinima={150}>{botoes}</ParDeBotoes>
           {semInternet && respondendo ? (
             <LinhaDoMotivo texto={MOTIVO_SEM_INTERNET_PARA_RESPONDER} />
           ) : null}

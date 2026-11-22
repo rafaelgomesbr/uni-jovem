@@ -254,11 +254,7 @@
     },
     {
       "nome": "82-leitor-de-cifra",
-      "arquivos": [
-        "82-leitor-de-cifra--390-escuro.jpg",
-        "82-leitor-de-cifra--390-escuro-p2.jpg",
-        "82-leitor-de-cifra--390-escuro-p3.jpg"
-      ]
+      "arquivos": ["82-leitor-de-cifra--390-escuro.jpg", "82-leitor-de-cifra--390-escuro-p2.jpg"]
     },
     {
       "nome": "83-modo-palco",

@@ -25,7 +25,7 @@ export interface PropsDoCabecalhoDeTela {
   linhaDoTopo?: ReactNode
   /** Raiz: só ícone de 44 à direita do título ("+", "Convidar"). */
   acaoDoTitulo?: ReactNode
-  /** Pilha: ações de 44 à direita do voltar, com intervalo de 8. */
+  /** Pilha: ações de 44 à direita do voltar, com intervalo de 12 (chip e botão não se encostam). */
   acoes?: ReactNode
   /** Pilha sem voltar (o link é a entrada, como no convite). */
   semVoltar?: boolean
@@ -97,7 +97,7 @@ export function CabecalhoDeTela({
       >
         {semVoltar ? <View /> : <BotaoDeSaida modal={modal} aoPressionar={aoVoltar} />}
         {acoes ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e12 }}>
             {acoes}
           </View>
         ) : null}

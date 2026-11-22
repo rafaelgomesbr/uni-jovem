@@ -83,6 +83,7 @@ function ConviteDoLink({ codigo }: { codigo: string }) {
         tipoDoErro={tipoDoErro}
         aoTentarDeNovo={() => void previa.refetch()}
         semSaida
+        semTitulo
       />
       {recusado ? null : (
         <Texto variante="corpo" cor="textoSuave">

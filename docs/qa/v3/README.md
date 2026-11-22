@@ -30,4 +30,4 @@ Capturas de 22/11/2026, tiradas da prévia local (`npm run previa`, dados fictí
 - A prévia não tem o Google nem a Apple configurados: o login já abre no painel de e-mail.
 - Os cinco estados do cartão do momento são simulados; o relógio do servidor não foi mexido.
 - Chromium apenas. WebKit e Firefox, aparelho, VoiceOver, TalkBack, Aumentar contraste, fonte grande e Reduzir movimento não foram verificados.
-- Os botões "Tom −" e "Tom +" (leitor e palco) ganharam espaço sem quebra depois da última rodada de capturas: nas imagens ainda aparecem em duas linhas.
+- Rodada de 22/11/2026 (depois das correções de QA e de acessibilidade): as variantes `375-escuro` e `390-escuro` foram **refeitas** (Modo palco com a linha quebrando por palavra e os botões de rolar fora da letra, aba Perfil com a palavra "Perfil", cartão do líder com os botões empilhados em vez de quebrar, "Conectado" e "Mais" separados no Ao vivo, link de código inválido com o título uma vez só e "Acontecendo agora." fora do cartão do líder). As variantes `390-claro` e `375-claro` ainda são da rodada anterior e mostram os problemas antigos; refaça com o script antes de julgá-las.

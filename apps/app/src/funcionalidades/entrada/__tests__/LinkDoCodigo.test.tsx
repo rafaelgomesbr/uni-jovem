@@ -105,10 +105,12 @@ describe('link do código /entrar/<codigo> (D58)', () => {
     await renderRouter(rotas, { initialUrl: '/entrar/XPHVYHFS' })
     expect(
       await screen.findByText(
-        'Código não encontrado. Confira as letras e os números, ou peça outro à liderança.',
+        'Não achamos uma comunidade com este código. Confira as letras e os números, ou peça outro à liderança.',
       ),
     ).toBeOnTheScreen()
     expect(screen.getByRole('button', { name: 'Ir para o login' })).toBeOnTheScreen()
+    // O título aparece uma vez só (o do cabeçalho); o aviso traz a explicação e a saída é o botão.
+    expect(screen.getAllByText(/Código não encontrado/)).toHaveLength(1)
     expect(tomarDestino()).toBeNull()
   })
 

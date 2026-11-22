@@ -220,9 +220,11 @@ describe('Tenho um código', () => {
     await fireEvent.changeText(await screen.findByLabelText('Código ou link'), 'ABCD2345')
     expect(
       await screen.findByText(
-        'Código não encontrado. Confira as letras e os números, ou peça outro à liderança.',
+        'Não achamos uma comunidade com este código. Confira as letras e os números, ou peça outro à liderança.',
       ),
     ).toBeOnTheScreen()
+    // O título "Código não encontrado" aparece uma vez só, com a explicação logo abaixo.
+    expect(screen.getAllByText(/Código não encontrado/)).toHaveLength(1)
     // Sem o consentimento nem o botão ativo: não há o que enviar.
     expect(screen.queryByText('Sobre a sua fé')).toBeNull()
     expect(screen.getByRole('button', { name: 'Entrar na comunidade' })).toBeDisabled()

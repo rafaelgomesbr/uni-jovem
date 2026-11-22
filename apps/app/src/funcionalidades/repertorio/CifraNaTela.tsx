@@ -1,4 +1,4 @@
-import { simbolosDeAcidente, type LinhaDaCifra } from '@uj/dominio'
+import { simbolosDeAcidente, type LinhaDaCifra, type Trecho } from '@uj/dominio'
 import { ESPACO, TIPO } from '@uj/tokens'
 import { View } from 'react-native'
 
@@ -11,10 +11,41 @@ function acordesDaLinha(linha: Extract<LinhaDaCifra, { tipo: 'texto' }>): string
   return linha.trechos.flatMap((t) => (t.acorde ? [simbolosDeAcidente(t.acorde)] : []))
 }
 
+/** Um pedaço da letra com o acorde que muda nele (se houver): a coluna "acorde em cima, letra embaixo". */
+export interface Coluna {
+  acorde: string | null
+  letra: string
+}
+
+/**
+ * Parte a linha em PALAVRAS, cada uma com as suas colunas. A palavra é a unidade que quebra: o
+ * acorde nunca se separa da sílaba em que muda (uma palavra com acorde no meio, "Che[G]gamos", fica
+ * inteira), e a linha de acordes e a de letra quebram juntas quando não cabem. O acorde fica sobre
+ * a primeira sílaba do trecho em que foi escrito.
+ */
+export function palavrasDaLinha(trechos: readonly Trecho[]): Coluna[][] {
+  const palavras: Coluna[][] = []
+  // A última coluna terminou sem espaço: a palavra segue no próximo pedaço.
+  let aberta = false
+  for (const t of trechos) {
+    const pedacos = t.letra === '' ? [''] : (t.letra.match(/\S+\s*|\s+/g) ?? [t.letra])
+    for (const [i, letra] of pedacos.entries()) {
+      const coluna: Coluna = { acorde: i === 0 ? t.acorde : null, letra }
+      const continua = aberta && (letra === '' || !/^\s/.test(letra))
+      const atual = palavras[palavras.length - 1]
+      if (continua && atual) atual.push(coluna)
+      else palavras.push([coluna])
+      if (letra !== '') aberta = !/\s$/.test(letra)
+    }
+  }
+  return palavras
+}
+
 /**
  * A cifra desenhada: cada acorde fica ACIMA da sílaba em que muda, em negrito (nunca só em cor),
  * e as seções (Verso, Refrão) têm rótulo em texto. Cada linha é um bloco para o leitor de tela: a
- * letra e depois os acordes. A cor vem do tema em vigor: dentro do painel escuro de leitura e do
+ * letra e depois os acordes. Com a letra grande a linha quebra por palavra, levando o acorde junto
+ * (`palavrasDaLinha`). A cor vem do tema em vigor: dentro do painel escuro de leitura e do
  * Modo palco é a paleta escura, com contraste AA (acorde `#FFB199` sobre `#07061A`: 11,43).
  *
  * `tetoDaEscala` limita quanto a fonte do sistema ainda aumenta a letra: no Modo palco a pessoa já
@@ -30,6 +61,11 @@ export function CifraNaTela({
   tetoDaEscala?: number
 }) {
   const altura = Math.round(tamanho * 1.45)
+  // Acorde e letra bem juntos (um par) e as linhas do par bem separadas entre si: o olho lê o
+  // acorde SOBRE a sílaba, e não como uma linha solta entre duas de letra.
+  const alturaDoAcorde = Math.round(tamanho * 0.9 * 1.15)
+  const alturaDaLetra = Math.round(tamanho * 1.2)
+  const respiroEntreLinhas = Math.round(tamanho * 0.4)
   const tamanhoDoAcorde = Math.round(tamanho * 0.9)
   const teto = tetoDaEscala === undefined ? {} : { maxFontSizeMultiplier: tetoDaEscala }
   return (
@@ -65,28 +101,40 @@ export function CifraNaTela({
             key={i}
             accessible
             accessibilityLabel={`${letra.trim() || 'Só acordes'}${acordes.length ? `. Acordes: ${acordes.join(', ')}` : ''}`}
-            style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end' }}
+            style={{
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              alignItems: 'flex-end',
+              // Quando a linha quebra, cada par acorde/letra se separa do seguinte.
+              rowGap: temAcorde ? respiroEntreLinhas : 0,
+              marginBottom: temAcorde ? respiroEntreLinhas : 0,
+            }}
           >
-            {linha.trechos.map((t, j) => (
-              <View key={j}>
-                {temAcorde ? (
-                  <Texto
-                    variante="leitura"
-                    cor="destaque"
-                    peso="forte"
-                    {...teto}
-                    style={{ fontSize: tamanhoDoAcorde, lineHeight: altura }}
-                  >
-                    {t.acorde ? `${simbolosDeAcidente(t.acorde)} ` : ' '}
-                  </Texto>
-                ) : null}
-                <Texto
-                  variante="leitura"
-                  {...teto}
-                  style={{ fontSize: tamanho, lineHeight: altura }}
-                >
-                  {t.letra === '' ? ' ' : t.letra}
-                </Texto>
+            {palavrasDaLinha(linha.trechos).map((palavra, j) => (
+              // Uma palavra nunca quebra por dentro: só entre palavras.
+              <View key={j} style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+                {palavra.map((c, k) => (
+                  <View key={k}>
+                    {temAcorde ? (
+                      <Texto
+                        variante="leitura"
+                        cor="destaque"
+                        peso="forte"
+                        {...teto}
+                        style={{ fontSize: tamanhoDoAcorde, lineHeight: alturaDoAcorde }}
+                      >
+                        {c.acorde ? `${simbolosDeAcidente(c.acorde)} ` : ' '}
+                      </Texto>
+                    ) : null}
+                    <Texto
+                      variante="leitura"
+                      {...teto}
+                      style={{ fontSize: tamanho, lineHeight: temAcorde ? alturaDaLetra : altura }}
+                    >
+                      {c.letra === '' ? ' ' : c.letra}
+                    </Texto>
+                  </View>
+                ))}
               </View>
             ))}
           </View>

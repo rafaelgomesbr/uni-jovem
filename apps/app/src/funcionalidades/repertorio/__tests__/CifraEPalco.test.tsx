@@ -1,5 +1,6 @@
 import { onlineManager } from '@tanstack/react-query'
-import { render, screen, userEvent, waitFor } from '@testing-library/react-native'
+import { render, screen, userEvent, waitFor, within } from '@testing-library/react-native'
+import { lerCifra } from '@uj/dominio'
 import { useKeepAwake } from 'expo-keep-awake'
 import { router, useLocalSearchParams } from 'expo-router'
 
@@ -16,10 +17,11 @@ import {
 } from '@/testes/repertorio'
 import { BASE, COMUNIDADE, renderizarTela } from '@/testes/telas'
 
+import { CifraNaTela, palavrasDaLinha } from '../CifraNaTela'
 import { ModoPalco } from '../ModoPalco'
 import { proximoPontoDeRolagem } from '../rolagem'
 import { TelaCifraDoRepertorio } from '../TelaCifraDoRepertorio'
-import type { useAjustesDaCifra } from '../useAjustesDaCifra'
+import { TAMANHO_PADRAO_DO_PALCO, type useAjustesDaCifra } from '../useAjustesDaCifra'
 
 jest.mock('expo-router', () => ({
   router: {
@@ -171,7 +173,7 @@ describe('Modo palco', () => {
     await renderizarTela(<TelaCifraDoRepertorio />, { papel: 'membro', rotas: rotas() })
     const usuario = userEvent.setup()
     const tamanho = () => {
-      const trecho = screen.getByText('rocha de manhã')
+      const trecho = screen.getByText('manhã')
       const estilo = ([] as object[]).concat(trecho.props.style).flat(3)
       return Object.assign({}, ...estilo).fontSize as number
     }
@@ -181,7 +183,7 @@ describe('Modo palco', () => {
     await usuario.press(screen.getByRole('button', { name: 'Aumentar a letra' }))
     expect(tamanho()).toBeGreaterThan(inicial)
     await waitFor(async () =>
-      expect(await lerPreferenciaLocal<number>('uj.palco.tamanho')).toBe(42),
+      expect(await lerPreferenciaLocal<number>('uj.palco.tamanho')).toBe(32),
     )
 
     await usuario.press(screen.getByRole('button', { name: 'Diminuir a letra' }))
@@ -233,6 +235,57 @@ describe('Modo palco', () => {
     // Sem música antes nem depois, os dois botões ficam desligados, com o nome certo.
     expect(screen.getByRole('button', { name: 'Música anterior' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Próxima música' })).toBeDisabled()
+  })
+})
+
+describe('a linha da cifra quebra com o acorde junto da palavra', () => {
+  const linhaDe = (texto: string) => {
+    const linha = lerCifra(texto)[0]
+    if (linha?.tipo !== 'texto') throw new Error('a linha deveria ter texto')
+    return linha.trechos
+  }
+
+  test('cada palavra é uma unidade: o acorde fica na primeira palavra do trecho e a seguinte vai sem ele', () => {
+    const palavras = palavrasDaLinha(linhaDe('[G]Chegamos juntos [D]nesta manhã'))
+    expect(palavras.map((p) => p.map((c) => [c.acorde, c.letra]))).toEqual([
+      [['G', 'Chegamos ']],
+      [[null, 'juntos ']],
+      [['D', 'nesta ']],
+      [[null, 'manhã']],
+    ])
+  })
+
+  test('acorde no meio da palavra não separa a sílaba: a palavra continua inteira', () => {
+    const palavras = palavrasDaLinha(linhaDe('Che[G]gamos [D]juntos'))
+    expect(palavras.map((p) => p.map((c) => [c.acorde, c.letra]))).toEqual([
+      [
+        [null, 'Che'],
+        ['G', 'gamos '],
+      ],
+      [['D', 'juntos']],
+    ])
+  })
+
+  test('na tela, as palavras são blocos que quebram inteiros e o acorde segue sobre a sua', async () => {
+    const linhas = lerCifra('[G]Chegamos juntos [D]nesta manhã')
+    await render(<CifraNaTela linhas={linhas} tamanho={56} />)
+    const linha = screen.getByLabelText('Chegamos juntos nesta manhã. Acordes: G, D')
+    const estiloDe = (no: { props: { style?: unknown } }) =>
+      Object.assign({}, ...([] as object[]).concat(no.props.style as object).flat(3)) as {
+        flexWrap?: string
+      }
+    // A linha quebra (acorde e letra juntos, por palavra) em vez de empilhar acorde e letra.
+    expect(estiloDe(linha).flexWrap).toBe('wrap')
+    expect(linha.children).toHaveLength(4)
+    // O acorde G e a palavra "Chegamos" moram no mesmo bloco; "juntos" tem o seu, sem acorde.
+    expect(within(linha.children[0] as never).getByText('G')).toBeOnTheScreen()
+    expect(within(linha.children[0] as never).getByText('Chegamos')).toBeOnTheScreen()
+    expect(within(linha.children[1] as never).queryByText('G')).toBeNull()
+    expect(within(linha.children[1] as never).getByText('juntos')).toBeOnTheScreen()
+  })
+
+  test('o tamanho padrão do palco cabe na linha mais comum de uma tela de 375 pt', () => {
+    expect(TAMANHO_PADRAO_DO_PALCO).toBeLessThanOrEqual(28)
   })
 })
 

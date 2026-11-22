@@ -239,11 +239,8 @@ export function CartaoDoPedido({
                     icone={pedido.orando.euEstouOrando ? 'check' : 'oracao'}
                     variante="secundario"
                     marcado={pedido.orando.euEstouOrando}
-                    rotuloAcessivel={
-                      pedido.orando.euEstouOrando
-                        ? `Deixar de marcar que estou orando pelo ${autor.toLowerCase()}`
-                        : `Estou orando pelo ${autor.toLowerCase()}`
-                    }
+                    // O nome não muda ao marcar: quem ouve o botão ouve o estado ("pressionado").
+                    rotuloAcessivel={`Estou orando pelo ${autor.toLowerCase()}`}
                     carregando={orar.isPending}
                     aoPressionar={() =>
                       orar.mutate({ id: pedido.id, orando: !pedido.orando.euEstouOrando })

@@ -1,6 +1,6 @@
 import { ALVO_MINIMO, DESFAZER, ESPACO, RAIO, TOAST } from '@uj/tokens'
 import { useEffect, useSyncExternalStore } from 'react'
-import { AppState, Platform, Pressable, View } from 'react-native'
+import { AccessibilityInfo, AppState, Platform, Pressable, View } from 'react-native'
 import Animated, {
   cancelAnimation,
   Easing,
@@ -26,7 +26,10 @@ export interface PedidoDeDesfazer {
   aoConfirmar: () => void
   /** A pessoa tocou em "Desfazer": volte a tela ao estado anterior. `aoConfirmar` não roda. */
   aoDesfazer?: () => void
-  /** Quanto tempo a pessoa tem (10 s por padrão: WCAG 2.2.1 e o catálogo de interação 5.2). */
+  /**
+   * Quanto tempo a pessoa tem (10 s por padrão: WCAG 2.2.1 e o catálogo de interação 5.2). Com
+   * leitor de tela ligado o tempo dobra (10 vira 20), como no toast comum: ele precisa ler antes.
+   */
   segundos?: number
   /** "Tentar de novo" numa falha de ação; "Desfazer" no resto. */
   rotuloDoBotao?: string
@@ -38,6 +41,10 @@ interface Pendente {
   rotuloDoBotao: string
   total: number
   restante: number
+  /** O tempo pedido, sem a extensão do leitor de tela. */
+  base: number
+  /** O tempo já foi estendido para o leitor de tela? */
+  estendido: boolean
   aoConfirmar: () => void
   aoDesfazer: (() => void) | undefined
 }
@@ -50,6 +57,8 @@ let pendente: Pendente | null = null
 let proximoId = 1
 let relogio: ReturnType<typeof setInterval> | null = null
 let vigiaDoAppIniciada = false
+let leitorDeTela = false
+let vigiaDoLeitorIniciada = false
 const ouvintes = new Set<() => void>()
 const avisar = () => ouvintes.forEach((o) => o())
 
@@ -76,26 +85,67 @@ function passar() {
   else avisar()
 }
 
+/** O tempo da espera: o dobro com leitor de tela (WCAG 2.2.1; o toast comum faz o mesmo). */
+export function segundosDoDesfazer(segundos: number, comLeitorDeTela: boolean): number {
+  return comLeitorDeTela ? segundos * 2 : segundos
+}
+
 /**
- * Mostra o toast com Desfazer e a contagem regressiva (10 s). O ato já aparece feito na
+ * Lê se o leitor de tela está ligado e acompanha as mudanças. O valor é guardado: `mostrarDesfazer`
+ * é síncrona e precisa dele na hora. Se a resposta chega depois de a espera começar (primeiro uso
+ * do app), a espera em curso é estendida.
+ */
+function vigiarOLeitorDeTela() {
+  void AccessibilityInfo.isScreenReaderEnabled()
+    .catch(() => false)
+    .then(definirLeitorDeTela)
+  if (vigiaDoLeitorIniciada) return
+  vigiaDoLeitorIniciada = true
+  AccessibilityInfo.addEventListener('screenReaderChanged', definirLeitorDeTela)
+}
+
+function definirLeitorDeTela(ligado: boolean) {
+  leitorDeTela = ligado
+  if (!ligado || !pendente || pendente.estendido) return
+  const total = segundosDoDesfazer(pendente.base, true)
+  pendente = {
+    ...pendente,
+    total,
+    restante: pendente.restante + (total - pendente.total),
+    estendido: true,
+  }
+  avisar()
+}
+
+/** Para a raiz do app: já deixa o estado do leitor de tela à mão antes do primeiro Desfazer. */
+export function conhecerOLeitorDeTela(): void {
+  vigiarOLeitorDeTela()
+}
+
+/**
+ * Mostra o toast com Desfazer e a contagem regressiva (10 s, 20 com leitor de tela). O ato já aparece feito na
  * tela; o envio (`aoConfirmar`) só sai ao fim. Um segundo `mostrarDesfazer` com o primeiro
  * ainda em contagem CONFIRMA o primeiro (nunca se perde um envio) e começa o novo.
  */
 export function mostrarDesfazer(pedido: PedidoDeDesfazer): void {
   if (pendente) finalizar('confirmar')
-  const total = pedido.segundos ?? DESFAZER.segundos
+  const base = pedido.segundos ?? DESFAZER.segundos
+  const total = segundosDoDesfazer(base, leitorDeTela)
   pendente = {
     id: proximoId++,
     texto: pedido.texto,
     rotuloDoBotao: pedido.rotuloDoBotao ?? 'Desfazer',
     total,
     restante: total,
+    base,
+    estendido: leitorDeTela,
     aoConfirmar: pedido.aoConfirmar,
     aoDesfazer: pedido.aoDesfazer,
   }
   parar()
   relogio = setInterval(passar, 1000)
   vigiarOApp()
+  vigiarOLeitorDeTela()
   avisar()
 }
 

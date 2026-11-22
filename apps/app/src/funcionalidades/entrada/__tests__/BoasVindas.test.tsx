@@ -133,7 +133,7 @@ describe('boas-vindas depois de entrar numa comunidade (UX v3, fluxo a)', () => 
     jest.mocked(useLocalSearchParams).mockReturnValue({ comunidade: 'Jovens da Vila' })
     const { unmount } = await abrir(<TelaBoasVindas />)
     expect(await screen.findByText('Você entrou em Jovens da Vila.')).toBeOnTheScreen()
-    unmount()
+    await unmount()
     jest.mocked(useLocalSearchParams).mockReturnValue({})
     await abrir(<TelaBoasVindas />)
     expect(await screen.findByText('Você entrou em Jovens Centro.')).toBeOnTheScreen()

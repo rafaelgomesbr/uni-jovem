@@ -7,9 +7,12 @@ import { gravarPreferenciaLocal, lerPreferenciaLocal } from '@/estado/preferenci
 export const TAMANHOS_DA_LETRA = [14, 16, 18, 20, 24, 28, 32] as const
 export const TAMANHO_PADRAO_DA_LETRA = 20
 
-/** Tamanhos da letra no Modo palco: maiores, para ler de um passo atrás da estante. */
+/**
+ * Tamanhos da letra no Modo palco: maiores, para ler de um passo atrás da estante. O padrão (28)
+ * é o que cabe com acorde e letra na mesma linha numa tela de 375 pt; quem quer mais aumenta.
+ */
 export const TAMANHOS_DO_PALCO = [24, 28, 32, 36, 42, 48, 56] as const
-export const TAMANHO_PADRAO_DO_PALCO = 36
+export const TAMANHO_PADRAO_DO_PALCO = 28
 
 export const CHAVE_DO_TAMANHO_NA_LEITURA = 'uj.cifra.tamanho'
 export const CHAVE_DO_TAMANHO_NO_PALCO = 'uj.palco.tamanho'

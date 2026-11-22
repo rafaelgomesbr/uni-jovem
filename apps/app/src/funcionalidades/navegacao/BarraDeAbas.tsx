@@ -29,8 +29,8 @@ export function espacoDaBarra(margemDeBaixo: number): number {
   return distanciaDaBarra(margemDeBaixo) + ALTURA_DA_BARRA
 }
 
-/** Os rótulos escritos (a aba Perfil mostra o avatar, sem rótulo). */
-const ROTULOS_ESCRITOS = ABAS.filter((a) => a.icone !== 'avatar').map((a) => a.rotulo)
+/** Os rótulos escritos de todas as abas, a do Perfil inclusive (avatar mais texto). */
+const ROTULOS_ESCRITOS = ABAS.map((a) => a.rotulo)
 
 /** Reexportado daqui porque a barra e quem a monta leem o teclado juntos. */
 export { useTecladoAberto }

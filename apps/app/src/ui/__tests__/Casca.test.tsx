@@ -36,7 +36,7 @@ describe('casca', () => {
     expect(screen.getByRole('tab', { name: 'Perfil de Ana Lima' })).toBeOnTheScreen()
   })
 
-  test('aba Perfil: só o avatar, sem a legenda, e o leitor de tela ouve nome e estado', async () => {
+  test('aba Perfil: avatar e a palavra "Perfil", e o leitor de tela ouve nome e estado', async () => {
     await render(
       <View accessibilityRole="tablist">
         <ItemDaBarraDeAbas rotulo="Início" icone="abaInicio" ativo={false} />
@@ -52,9 +52,24 @@ describe('casca', () => {
     expect(
       screen.getByRole('tab', { name: 'Perfil de Ana Lima', selected: true }),
     ).toBeOnTheScreen()
-    // As outras abas mantêm a legenda; o Perfil não escreve "Perfil" embaixo do avatar.
+    // Todas as abas têm a legenda, o Perfil também (o avatar não é o único sinal).
     expect(screen.getByText('Início')).toBeOnTheScreen()
+    expect(screen.getByText('Perfil')).toBeOnTheScreen()
+  })
+
+  test('aba Perfil com fonte grande (sem rótulo): só o avatar, mantendo o nome para o leitor', async () => {
+    await render(
+      <ItemDaBarraDeAbas
+        rotulo="Perfil"
+        icone={null}
+        avatar={{ nome: 'Ana Lima' }}
+        nomeAcessivel="Perfil de Ana Lima"
+        ativo={false}
+        semRotulo
+      />,
+    )
     expect(screen.queryByText('Perfil')).toBeNull()
+    expect(screen.getByRole('tab', { name: 'Perfil de Ana Lima' })).toBeOnTheScreen()
   })
 
   test('cabeçalho de pilha: voltar circular chamado "Voltar" e título de nível 1', async () => {

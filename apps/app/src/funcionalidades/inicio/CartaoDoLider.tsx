@@ -354,14 +354,16 @@ export function CartaoDoLider({
     meta = [dataEHorario(evento.inicio, evento.duracaoMin, evento.fuso), evento.local?.nome]
       .filter(Boolean)
       .join('\n')
+    // Sem andamento nem presentes não há o que dizer: a etiqueta do cartão já é "Acontecendo agora".
+    const linhaDoAndamento = textoDoAndamento(andamento, lider?.presentes ?? 0, evento.fuso)
     corpo = (
       <View style={{ gap: ESPACO.e8 }}>
         {evento.status === 'rascunho' ? (
           <Texto variante="rotulo">Ainda não publicado. Ninguém foi avisado.</Texto>
         ) : dia === 'agora' ? (
-          <Texto variante="rotulo">
-            {textoDoAndamento(andamento, lider?.presentes ?? 0, evento.fuso)}
-          </Texto>
+          linhaDoAndamento ? (
+            <Texto variante="rotulo">{linhaDoAndamento}</Texto>
+          ) : null
         ) : naHoraDoCheckin ? (
           <Texto variante="rotulo">{`${confirmados(lider?.confirmados ?? 0)} ${lider?.inscritos ?? 0} ${
             (lider?.inscritos ?? 0) === 1 ? 'inscrito' : 'inscritos'
@@ -448,7 +450,7 @@ export function CartaoDoLider({
       rotuloAcessivel={[etiqueta, titulo, meta.replace('\n', ', ')].join('. ')}
       acoes={
         <View style={{ gap: ESPACO.e8 }}>
-          <ParDeBotoes>{botoes}</ParDeBotoes>
+          <ParDeBotoes larguraMinima={150}>{botoes}</ParDeBotoes>
           {semInternetParaAvisar ? <LinhaDoMotivo texto={MOTIVO_SEM_INTERNET_PARA_AVISAR} /> : null}
         </View>
       }
@@ -461,17 +463,18 @@ export function CartaoDoLider({
   )
 }
 
-/** "Agora: Louvor, até 16:20. Depois: Oração intercessora." (ou o resumo simples sem andamento). */
+/**
+ * "Agora: Louvor, até 16:20. Depois: Oração intercessora." Sem andamento, só os presentes (a
+ * etiqueta do cartão já diz "Acontecendo agora"); sem eles, `null`.
+ */
 function textoDoAndamento(
   andamento: RetratoAoVivo | undefined,
   presentes: number,
   fuso: string,
-): string {
+): string | null {
   const atual = andamento?.etapas.find((e) => e.situacao === 'atual')
   if (!andamento || !atual) {
-    return presentes > 0
-      ? `Acontecendo agora. ${presentes} ${presentes === 1 ? 'presente' : 'presentes'}.`
-      : 'Acontecendo agora.'
+    return presentes > 0 ? `${presentes} ${presentes === 1 ? 'presente' : 'presentes'}.` : null
   }
   const proxima = andamento.etapas.find((e) => e.situacao === 'proxima')
   return `Agora: ${atual.titulo}, até ${formatarHora(atual.fimPrevisto, fuso)}. Depois: ${proxima?.titulo ?? 'Fim do roteiro'}.`

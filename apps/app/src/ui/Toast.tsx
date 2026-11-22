@@ -9,7 +9,7 @@ import { Botao } from './Botao'
 import { Icone, type NomeDoIcone } from './Icone'
 import { Texto } from './Texto'
 import { ProvedorDeTemaInverso, sombra, useTema } from './tema'
-import { CaixaDoDesfazer, useDesfazerPendente } from './ToastComDesfazer'
+import { CaixaDoDesfazer, conhecerOLeitorDeTela, useDesfazerPendente } from './ToastComDesfazer'
 
 export interface PedidoDeToast {
   texto: string
@@ -110,6 +110,8 @@ export function HospedeiroDeToast() {
   const espaco = useSyncExternalStore(assinar, lerRodape, lerRodape)
   const comDesfazer = useDesfazerPendente()
   const margens = useSafeAreaInsets()
+  // O leitor de tela é sistema externo: já se sabe se está ligado quando o primeiro Desfazer chegar.
+  useEffect(() => conhecerOLeitorDeTela(), [])
   if (!atual && !comDesfazer) return null
   return (
     <View
