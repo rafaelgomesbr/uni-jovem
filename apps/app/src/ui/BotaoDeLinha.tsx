@@ -1,4 +1,4 @@
-import { ALTURA, ESPACO, RAIO } from '@uj/tokens'
+import { ALTURA, BORDA, ESPACO, RAIO } from '@uj/tokens'
 import { View } from 'react-native'
 
 import { usePreferenciasDeAcessibilidade } from './acessibilidade'
@@ -7,12 +7,15 @@ import { useTema } from './tema'
 
 /**
  * O DESENHO de um botão pequeno dentro de uma linha tocável ("Chegou" no
- * check-in). Quando a linha inteira é o alvo (44 pt ou mais, com fila na
+ * check-in). Quando a linha inteira é o alvo (48 pt ou mais, com fila na
  * porta), não pode haver botão de verdade dentro dela: botão dentro de botão
  * some do leitor de tela. A linha leva o nome acessível e a ação; isto só
  * mostra, em texto, o que o toque faz.
  *
- * Mesma gramática do `Botao` (D64): cápsula tonal de 40, sem contorno.
+ * D75 (teste do dono, 22/11/2026: "Chegou parece etiqueta, não botão"): cápsula de 48 com fundo
+ * quente e CONTORNO de 2 na cor de destaque, que é o que faz um botão parecer botão. O estado
+ * "Presente" é o oposto (verde, com ícone de check e a palavra), então um toque troca uma coisa
+ * que se vê pela outra.
  */
 export function BotaoDeLinha({ texto }: { texto: string }) {
   const { cores, solido } = useTema()
@@ -23,14 +26,16 @@ export function BotaoDeLinha({ texto }: { texto: string }) {
         minHeight: ALTURA.botao.compacto,
         paddingHorizontal: ESPACO.e16,
         borderRadius: RAIO.pilula,
-        backgroundColor: reduzirTransparencia ? cores.botaoTonalOpaco : solido(cores.botaoTonal),
-        borderWidth: aumentarContraste ? 2 : 0,
-        borderColor: aumentarContraste ? cores.texto : 'transparent',
+        backgroundColor: reduzirTransparencia ? cores.botaoTonalOpaco : solido(cores.quenteFundo),
+        borderWidth: BORDA.contraste,
+        borderColor: aumentarContraste ? cores.texto : cores.destaque,
         alignItems: 'center',
         justifyContent: 'center',
       }}
     >
-      <Texto variante="botao">{texto}</Texto>
+      <Texto variante="botao" style={{ color: cores.destaque }}>
+        {texto}
+      </Texto>
     </View>
   )
 }

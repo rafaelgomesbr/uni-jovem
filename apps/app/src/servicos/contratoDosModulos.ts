@@ -5,6 +5,8 @@
  */
 import type { TipoDeNotificacao, VisibilidadeDeOracao } from '@uj/dominio'
 
+import type { ResumoDoPdf } from './contratoDoPdf'
+
 // ------------------------------------------------------------ oração
 
 export type FiltroDeOracao = 'todos' | 'meus' | 'outros'
@@ -70,6 +72,9 @@ export interface Musica extends Base {
   cifra?: string | null
   /** A lista traz só isto (o selo "Sem cifra"), nunca o texto da cifra. Opcional: API antiga não manda. */
   temCifra?: boolean
+  /** PDF anexado (D76): o resumo, sem os bytes. Opcional: API antiga não manda. */
+  temPdf?: boolean
+  pdf?: ResumoDoPdf | null
   andamentoBpm?: number | null
   duracaoSeg?: number | null
   observacoes: string | null

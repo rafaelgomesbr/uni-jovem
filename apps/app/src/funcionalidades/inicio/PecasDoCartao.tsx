@@ -21,7 +21,7 @@ export function LinhaDoMotivo({ texto }: { texto: string }) {
       testID="motivo-do-botao"
       style={{ flexDirection: 'row', alignItems: 'flex-start', gap: ESPACO.e8 }}
     >
-      <Icone nome="cadeado" cor={cores.textoSuave} tamanho={14} />
+      <Icone nome="cadeado" cor={cores.textoSuave} tamanho={16} />
       <Texto variante="legenda" cor="textoSuave" style={{ flex: 1 }}>
         {texto}
       </Texto>
@@ -124,8 +124,8 @@ export function useDestinosDoEncontro(
         ? router.push('/meu-repertorio')
         : router.push({ pathname: '/evento/[eventoId]/repertorio', params: alvo }),
     rotuloDoRepertorio: rotuloDoRepertorio(repertorio),
-    marcarProximo: () =>
-      router.push({ pathname: '/evento/novo', params: { modelo: 'sabado_padrao' } }),
+    /** A conferência "Igual ao último encontro" (ela mesma oferece o modelo padrão ou o zero, sem anterior). */
+    marcarProximo: () => router.push('/evento/igual-ao-ultimo'),
   }
 }
 
@@ -133,15 +133,18 @@ export type DestinosDoEncontro = ReturnType<typeof useDestinosDoEncontro>
 
 /**
  * Os botões que não guardam estado (só levam a uma tela). Devolve `null` para as ações que a
- * tela do cartão trata por conta própria (aceitar, publicar, lembrar...).
+ * tela do cartão trata por conta própria (aceitar, publicar, lembrar...). `comoLink`: o caminho
+ * secundário do cartão (D75), só texto com 48 de altura, para o cartão ter UMA ação em destaque.
  */
 export function botaoComum(
   acao: AcaoDoMomento,
   principal: boolean,
   evento: { titulo: string },
   destinos: DestinosDoEncontro,
+  comoLink = false,
 ): ReactElement | null {
-  const variante = principal ? 'primario' : 'secundario'
+  const variante = principal ? 'primario' : comoLink ? 'terciario' : 'secundario'
+  const aparencia = comoLink && !principal ? { alinhado: true as const } : {}
   switch (acao) {
     case 'ver':
       return (
@@ -149,6 +152,7 @@ export function botaoComum(
           key={acao}
           titulo="Ver o encontro"
           variante={variante}
+          {...aparencia}
           aoPressionar={destinos.abrirEncontro}
         />
       )
@@ -158,6 +162,7 @@ export function botaoComum(
           key={acao}
           titulo="Ver o próximo encontro"
           variante={variante}
+          {...aparencia}
           aoPressionar={destinos.abrirEncontro}
         />
       )
@@ -168,6 +173,7 @@ export function botaoComum(
           key={acao}
           titulo="Inscrever-me"
           variante={variante}
+          {...aparencia}
           aoPressionar={destinos.abrirEncontro}
         />
       )
@@ -177,6 +183,7 @@ export function botaoComum(
           key={acao}
           titulo="Como chegar"
           variante={variante}
+          {...aparencia}
           icone="local"
           rotuloAcessivel={`Como chegar a ${evento.titulo}`}
           aoPressionar={destinos.comoChegar}
@@ -188,6 +195,7 @@ export function botaoComum(
           key={acao}
           titulo={destinos.rotuloDoRepertorio}
           variante={variante}
+          {...aparencia}
           icone="musica"
           rotuloAcessivel={`${destinos.rotuloDoRepertorio}: ${evento.titulo}`}
           aoPressionar={destinos.repertorio}
@@ -199,6 +207,7 @@ export function botaoComum(
           key={acao}
           titulo={principal ? 'Acompanhar ao vivo' : 'Abrir ao vivo'}
           variante={variante}
+          {...aparencia}
           aoPressionar={destinos.aoVivo}
         />
       )
@@ -208,6 +217,7 @@ export function botaoComum(
           key={acao}
           titulo="Conduzir ao vivo"
           variante={variante}
+          {...aparencia}
           aoPressionar={destinos.aoVivo}
         />
       )
@@ -215,8 +225,9 @@ export function botaoComum(
       return (
         <Botao
           key={acao}
-          titulo={principal ? 'Fazer check-in' : 'Check-in'}
+          titulo="Marcar quem chegou"
           variante={variante}
+          {...aparencia}
           aoPressionar={destinos.checkin}
         />
       )
@@ -224,8 +235,9 @@ export function botaoComum(
       return (
         <Botao
           key={acao}
-          titulo="Ver convocados"
+          titulo="Ver quem vai"
           variante={variante}
+          {...aparencia}
           aoPressionar={destinos.verConvocados}
         />
       )
@@ -235,8 +247,9 @@ export function botaoComum(
       return (
         <Botao
           key={acao}
-          titulo="Marcar o próximo sábado"
+          titulo="Marcar o próximo encontro"
           variante={variante}
+          {...aparencia}
           aoPressionar={destinos.marcarProximo}
         />
       )

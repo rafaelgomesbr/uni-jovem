@@ -20,7 +20,14 @@ export function metaDoEvento(evento: Pick<DetalheDoEvento, 'inicio' | 'fuso' | '
  * Logo abaixo do título: a data e o horário e a linha de chips (a situação, se não estiver
  * publicado; "Aberto ao público" ou "Só para a comunidade"; "Em 5 dias"; a repetição).
  */
-export function MetaDoEvento({ evento }: { evento: DetalheDoEvento }) {
+export function MetaDoEvento({
+  evento,
+  publicando = null,
+}: {
+  evento: DetalheDoEvento
+  /** "Publicando em 9 s": no lugar da situação enquanto a publicação espera. Nunca "Rascunho" dizendo o contrário. */
+  publicando?: string | null
+}) {
   return (
     <View style={{ gap: ESPACO.e8 }}>
       <Texto
@@ -32,7 +39,11 @@ export function MetaDoEvento({ evento }: { evento: DetalheDoEvento }) {
         {metaDoEvento(evento)}
       </Texto>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
-        <ChipDoStatus status={evento.status} />
+        {publicando ? (
+          <Chip texto={publicando} tom="alerta" icone="relogio" />
+        ) : (
+          <ChipDoStatus status={evento.status} />
+        )}
         <Chip
           texto={evento.visibilidade === 'publica' ? 'Aberto ao público' : 'Só para a comunidade'}
           tom={evento.visibilidade === 'publica' ? 'info' : 'neutro'}

@@ -1,4 +1,4 @@
-import { ALTURA, ESPACO } from '@uj/tokens'
+import { ALTURA, ESPACO, TIPO } from '@uj/tokens'
 import { Children, createContext, useContext, useEffect, useId, type ReactNode } from 'react'
 import { View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -81,7 +81,7 @@ export function BarraDeAcao({ children, aviso }: { children: ReactNode; aviso?: 
         </View>
         {motivos.length ? (
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: ESPACO.e6 }}>
-            <View style={{ height: 20, justifyContent: 'center' }}>
+            <View style={{ height: TIPO.legenda.altura, justifyContent: 'center' }}>
               <Icone nome="cadeado" cor={cores.textoSuave} tamanho={14} />
             </View>
             <Texto variante="legenda" cor="textoSuave" nativeID={idDoMotivo} style={{ flex: 1 }}>

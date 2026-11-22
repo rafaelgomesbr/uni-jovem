@@ -37,7 +37,14 @@ import {
   resumoDosErros,
   useRefsDosCampos,
 } from './CamposDoEvento'
-import { naComunidade, useInvalidarEventos, useModelos } from './consultas'
+import {
+  avisoDeDataOcupada,
+  naComunidade,
+  perguntaDeDataOcupada,
+  useEncontrosNoDia,
+  useInvalidarEventos,
+  useModelos,
+} from './consultas'
 import { EditorDeRegra } from './EditorDeRegra'
 import { dataJaPassou } from './regras'
 import {
@@ -152,6 +159,9 @@ function NovoEvento({
   const [erroDoFim, setErroDoFim] = useState<string | null>(null)
 
   const ehSerie = regra.repeticao !== 'nao'
+  const primeira = lerDataDigitada(rascunho.data)
+  // Já existe encontro nesse dia? A pessoa fica sabendo antes de criar outro por cima (D74).
+  const noMesmoDia = useEncontrosNoDia(comunidadeId, ehSerie ? null : primeira, fuso)
   const mudar = <K extends keyof RascunhoDoEvento>(campo: K, valor: RascunhoDoEvento[K]) =>
     setRascunho((r) => ({ ...r, [campo]: valor }))
 
@@ -262,12 +272,19 @@ function NovoEvento({
       })
       if (!ok) return
     }
+    if (noMesmoDia.length > 0) {
+      const ok = await confirmar({
+        titulo: 'Já existe um encontro neste dia',
+        mensagem: perguntaDeDataOcupada(noMesmoDia),
+        confirmar: 'Criar outro mesmo assim',
+      })
+      if (!ok) return
+    }
     // Uma programação por envio: o segundo toque, antes da resposta, não cria outra.
     if (!trava.pegar()) return
     salvar.mutate({ dados, publicar })
   }
 
-  const primeira = lerDataDigitada(rascunho.data)
   const resumo = resumoDosErros(Object.keys(erros).length + (erroDoFim ? 1 : 0))
 
   return (
@@ -309,6 +326,11 @@ function NovoEvento({
         <AvisoDeFalha titulo={resumo} mensagem="As mensagens estão junto de cada campo." />
       ) : null}
       {salvar.error ? <AvisoDeFalha erro={salvar.error} titulo="O encontro não foi salvo" /> : null}
+      {noMesmoDia.length > 0 ? (
+        <Aviso tipo="alerta" titulo="Já existe encontro neste dia">
+          {`${avisoDeDataOcupada(noMesmoDia)} Se criar este também, a Agenda terá os dois.`}
+        </Aviso>
+      ) : null}
 
       {escolherModelo ? (
         <Secao titulo="Começar de">

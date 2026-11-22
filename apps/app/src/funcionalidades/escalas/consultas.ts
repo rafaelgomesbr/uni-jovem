@@ -152,21 +152,16 @@ export const TEXTO_DE_FALHA_AO_RESPONDER = 'Não deu para registrar sua resposta
 export function useResponderComDesfazer(comunidadeId: string) {
   const invalidar = useInvalidarEscalas(comunidadeId)
 
+  /**
+   * O envio. A resposta já aparece feita e fica assim enquanto o envio tenta (D74): sai ao fim da
+   * contagem, ao sair da tela ou do app, e repete sozinho se a rede falhar. Se falhar de vez, a
+   * convocação volta a "Aguardando sua resposta" e a faixa oferece "Tentar de novo".
+   */
   async function enviar(parte: ParteParaResponder, resposta: Resposta) {
-    try {
-      await api.post(`${naComunidade(comunidadeId)}/atribuicoes/${parte.atribuicaoId}/${resposta}`)
-      await invalidar()
-      limparResposta(parte.atribuicaoId)
-    } catch {
-      limparResposta(parte.atribuicaoId)
-      mostrarDesfazer({
-        texto: TEXTO_DE_FALHA_AO_RESPONDER,
-        rotuloDoBotao: 'Tentar de novo',
-        // O botão do toast repete o envio; sem toque, a convocação segue pendente.
-        aoConfirmar: () => undefined,
-        aoDesfazer: () => responder(parte, resposta),
-      })
-    }
+    definirResposta(parte.atribuicaoId, resposta === 'confirmar' ? 'confirmada' : 'recusada')
+    await api.post(`${naComunidade(comunidadeId)}/atribuicoes/${parte.atribuicaoId}/${resposta}`)
+    await invalidar()
+    limparResposta(parte.atribuicaoId)
   }
 
   function responder(parte: ParteParaResponder, resposta: Resposta) {
@@ -176,8 +171,10 @@ export function useResponderComDesfazer(comunidadeId: string) {
         resposta === 'confirmar'
           ? `Você está ${emOnde(parte)}, ${diaDoToast(parte.eventoInicio, parte.fuso)}.`
           : 'Você avisou que não pode ir.',
+      textoDaFalha: `${TEXTO_DE_FALHA_AO_RESPONDER} Toque em Tentar de novo.`,
       aoDesfazer: () => limparResposta(parte.atribuicaoId),
-      aoConfirmar: () => void enviar(parte, resposta),
+      aoFalhar: () => limparResposta(parte.atribuicaoId),
+      aoConfirmar: () => enviar(parte, resposta),
     })
   }
 
@@ -214,15 +211,14 @@ export function useAssumirComDesfazer(comunidadeId: string) {
     mostrarDesfazer({
       texto: `Você assumiu ${pedido.etapa ?? pedido.funcao}, ${dia}.`,
       aoDesfazer: () => tirar(pedido.id),
-      aoConfirmar: () => {
-        api
-          .post(`${naComunidade(comunidadeId)}/substituicoes/${pedido.id}/assumir`)
-          .then(() => invalidar())
-          .then(() => tirar(pedido.id))
-          .catch(() => {
-            tirar(pedido.id)
-            mostrarToast({ texto: 'Não deu para assumir. Tente de novo.', tipo: 'erro' })
-          })
+      textoDaFalha: 'Não deu para assumir. Ninguém foi avisado. Toque em Tentar de novo.',
+      aoFalhar: () => tirar(pedido.id),
+      // Sai ao fim da contagem, ao sair da tela ou do app (D74), e repete se a rede falhar.
+      aoConfirmar: async () => {
+        setAssumidos((atual) => new Set(atual).add(pedido.id))
+        await api.post(`${naComunidade(comunidadeId)}/substituicoes/${pedido.id}/assumir`)
+        await invalidar()
+        tirar(pedido.id)
       },
     })
   }

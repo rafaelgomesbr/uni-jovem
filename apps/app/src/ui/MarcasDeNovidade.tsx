@@ -25,10 +25,11 @@ export function SeloDeContagem({ valor }: { valor: number }) {
         position: 'absolute',
         top: 4,
         right: 2,
-        minWidth: 18,
-        height: 18,
+        // Cresce com a fonte do sistema (D75): o número nunca é cortado nem fica sem a bolinha.
+        minWidth: 22,
+        minHeight: 22,
         paddingHorizontal: 4,
-        borderRadius: 9,
+        borderRadius: 999,
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: cores.primaria,
@@ -41,8 +42,7 @@ export function SeloDeContagem({ valor }: { valor: number }) {
         variante="chip"
         peso="forte"
         tabular
-        maxFontSizeMultiplier={1.3}
-        style={{ color: cores.sobrePrimaria, fontSize: 11, lineHeight: 14 }}
+        style={{ color: cores.sobrePrimaria, fontSize: 14, lineHeight: 18 }}
       >
         {valor > TETO_DO_SELO ? `${TETO_DO_SELO}+` : String(valor)}
       </Texto>

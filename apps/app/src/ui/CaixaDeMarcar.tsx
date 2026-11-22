@@ -1,4 +1,4 @@
-import { ESPACO, RAIO } from '@uj/tokens'
+import { ESPACO, RAIO, TIPO } from '@uj/tokens'
 import type { Ref } from 'react'
 import { Pressable, View } from 'react-native'
 
@@ -121,7 +121,7 @@ export function CaixaDeMarcar({
               marginTop: ESPACO.e6,
             }}
           >
-            <View style={{ height: 20, justifyContent: 'center' }}>
+            <View style={{ height: TIPO.legenda.altura, justifyContent: 'center' }}>
               <Icone nome="erroDeCampo" cor={cores.erro} tamanho={16} />
             </View>
             <Texto variante="meta" peso="forte" cor={corDoErro} style={{ flex: 1 }}>

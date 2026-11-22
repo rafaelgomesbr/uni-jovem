@@ -2,6 +2,7 @@
  * Formato das respostas da API do repertório do encontro e do Meu repertório
  * (D61). Só tipos: as regras moram na API e em `@uj/dominio`. Datas chegam como ISO.
  */
+import type { ResumoDoPdf } from './contratoDoPdf'
 import type { EstadoDaAtribuicao } from './contratoDosEventos'
 
 /** Item da lista do repertório de um encontro (sem o texto da cifra). */
@@ -21,6 +22,9 @@ export interface ItemDoRepertorio {
   duracaoSeg: number | null
   arquivada: boolean
   temCifra: boolean
+  /** PDF anexado (D76): o resumo, sem os bytes. Opcional: API antiga não manda. */
+  temPdf?: boolean
+  pdf?: ResumoDoPdf | null
 }
 
 /** Item do Meu repertório: traz a cifra inteira, para transpor e ler no aparelho. */
@@ -37,6 +41,9 @@ export interface ItemDoMeuRepertorio {
   duracaoSeg: number | null
   link: string | null
   cifra: string | null
+  /** PDF anexado (D76): o resumo, sem os bytes. Opcional: API antiga não manda. */
+  temPdf?: boolean
+  pdf?: ResumoDoPdf | null
 }
 
 export interface ConvocacaoDeLouvor {

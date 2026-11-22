@@ -19,8 +19,10 @@ import { TextoAnunciado } from '@/ui/TextoAnunciado'
 import { useAnunciar } from '@/ui/useAnunciar'
 import { ProvedorDeTemaForcado, useTema } from '@/ui/tema'
 
+import { PdfNoPalco, type PdfDoPalco } from '../pdf/PdfNoPalco'
 import { CifraNaTela } from './CifraNaTela'
 import { proximoPontoDeRolagem } from './rolagem'
+import { MOTIVO_PDF_NAO_TRANSPOE } from './TomDoPdf'
 import type { AjustesDaCifra } from './useAjustesDaCifra'
 
 interface Props {
@@ -35,6 +37,8 @@ interface Props {
   aoSair: () => void
   aoAnterior: (() => void) | null
   aoProxima: (() => void) | null
+  /** PDF anexado à música (D76): o palco oferece "Abrir PDF" em tela cheia, ao lado da cifra em texto. */
+  pdf?: PdfDoPalco | null
 }
 
 /** Largura mínima de cada botão da fileira de controles: abaixo disso, a fileira quebra. */
@@ -73,6 +77,7 @@ function Palco({
   aoSair,
   aoAnterior,
   aoProxima,
+  pdf = null,
 }: Props) {
   const { cores } = useTema()
   const margens = useSafeAreaInsets()
@@ -89,6 +94,8 @@ function Palco({
   })
   const soa = pronta.tomQueSoa ? simbolosDeAcidente(pronta.tomQueSoa) : null
   const toca = pronta.tomQueSeToca ? simbolosDeAcidente(pronta.tomQueSeToca) : null
+  // Só PDF, sem cifra em texto: não há o que transpor nem o que aumentar (o motivo vai escrito).
+  const soPdf = pdf !== null && (!cifra || !cifra.trim())
   const comCapo = a.capotraste > 0 && toca !== null
   const sobreOTom = soa
     ? `Tom ${soa}${comCapo ? ` · Capotraste ${a.capotraste} (toque em ${toca})` : ''}`
@@ -161,10 +168,13 @@ function Palco({
               {sobreOTom}
             </TextoAnunciado>
           ) : null}
+          {pdf ? <PdfNoPalco pdf={pdf} titulo={titulo} /> : null}
           {!cifra || !cifra.trim() ? (
-            <Aviso tipo="info" titulo="Esta música ainda não tem cifra">
-              Quem organiza pode cadastrar a cifra na Biblioteca.
-            </Aviso>
+            pdf ? null : (
+              <Aviso tipo="info" titulo="Esta música ainda não tem cifra">
+                Quem organiza pode cadastrar a cifra na Biblioteca.
+              </Aviso>
+            )
           ) : pronta.transpoe ? (
             <CifraNaTela linhas={pronta.linhas} tamanho={a.palco.tamanho} tetoDaEscala={1.3} />
           ) : (
@@ -234,6 +244,11 @@ function Palco({
             />
           </View>
         </View>
+        {soPdf ? (
+          <Texto variante="legenda" cor="textoSuave">
+            {MOTIVO_PDF_NAO_TRANSPOE}
+          </Texto>
+        ) : null}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
           {[
             {
@@ -252,13 +267,13 @@ function Palco({
               titulo: 'A−',
               rotulo: 'Diminuir a letra',
               aoPressionar: a.palco.menor,
-              desabilitado: a.palco.noMinimo,
+              desabilitado: a.palco.noMinimo || soPdf,
             },
             {
               titulo: 'A+',
               rotulo: 'Aumentar a letra',
               aoPressionar: a.palco.maior,
-              desabilitado: a.palco.noMaximo,
+              desabilitado: a.palco.noMaximo || soPdf,
             },
           ].map((c) => (
             <View key={c.titulo} style={{ flexGrow: 1, flexBasis: LARGURA_MINIMA_DO_CONTROLE }}>

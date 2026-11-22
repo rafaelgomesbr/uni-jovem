@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { ehConvocacaoDeLouvor, ehEtapaDeLouvor, nomeDoTom } from '@uj/dominio'
 import { ErroHttp, NAO_ENCONTRADO, traduzirErroDoBanco, validar } from '../http.ts'
 import { auditar, exigir, idDoCaminho, naComunidade } from './contexto.ts'
+import { RESUMO_DO_PDF, TEM_PDF } from './musica-pdf.ts'
 
 /**
  * Repertório do encontro e "Meu repertório" (D61, fatia 1 do modo músico).
@@ -67,7 +68,8 @@ const SELECAO_DO_ITEM = `r.id, r.ordem, r.musica_id as "musicaId", r.etapa_id as
        r.tom_do_dia as "tomDoDia", r.nota, r.versao,
        m.titulo, m.artista, m.tom as "tomOriginal", m.andamento_bpm as "andamentoBpm",
        m.duracao_seg as "duracaoSeg", m.arquivada,
-       (m.cifra is not null and btrim(m.cifra) <> '') as "temCifra"`
+       (m.cifra is not null and btrim(m.cifra) <> '') as "temCifra",
+       ${TEM_PDF('m.id')}, ${RESUMO_DO_PDF('m.id')}`
 
 export function registrarRotasDeRepertorio(app: FastifyInstance, api: pg.Pool): void {
   const naCom = { preHandler: app.comComunidade }
@@ -379,7 +381,8 @@ export function registrarRotasDeRepertorio(app: FastifyInstance, api: pg.Pool): 
         await c.query(
           `select r.id, r.ordem, r.musica_id as "musicaId", r.tom_do_dia as "tomDoDia", r.nota,
                   m.titulo, m.artista, m.tom as "tomOriginal", m.andamento_bpm as "andamentoBpm",
-                  m.duracao_seg as "duracaoSeg", m.link, m.cifra
+                  m.duracao_seg as "duracaoSeg", m.link, m.cifra,
+                  ${TEM_PDF('m.id')}, ${RESUMO_DO_PDF('m.id')}
              from uj.repertorio_itens r join uj.musicas m on m.id = r.musica_id
             where r.evento_id = $1 and r.comunidade_id = $2
             order by r.ordem`,
@@ -475,7 +478,8 @@ export function registrarRotasDeRepertorio(app: FastifyInstance, api: pg.Pool): 
           `select r.evento_id as "eventoId", r.id, r.ordem, r.musica_id as "musicaId",
                   r.tom_do_dia as "tomDoDia", r.nota,
                   m.titulo, m.artista, m.tom as "tomOriginal", m.andamento_bpm as "andamentoBpm",
-                  m.duracao_seg as "duracaoSeg", m.link, m.cifra
+                  m.duracao_seg as "duracaoSeg", m.link, m.cifra,
+                  ${TEM_PDF('m.id')}, ${RESUMO_DO_PDF('m.id')}
              from uj.repertorio_itens r join uj.musicas m on m.id = r.musica_id
             where r.comunidade_id = $1 and r.evento_id = any ($2::uuid[])
             order by r.evento_id, r.ordem`,

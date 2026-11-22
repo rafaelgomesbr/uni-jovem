@@ -14,6 +14,7 @@ import { Platform } from 'react-native'
 import { plataformaAtual } from './aparelho'
 import { criarArmazenamentoDoRefresh } from './armazenamentoDoRefresh'
 import type { Plataforma, SessaoAberta } from './contrato'
+import { emDescarga } from './descarga'
 import { ErroDaApi, MENSAGEM_GENERICA, SemConexao } from './erros'
 
 export interface ArmazenamentoDoRefresh {
@@ -36,8 +37,22 @@ export interface OpcoesDoPedido {
    * (`depoisDaVersao=`) e envio grande ganham mais (ver `tempoLimitePara`).
    */
   tempoLimiteMs?: number
-  /** `texto`: devolve o corpo cru (ex.: CSV de uma exportação). Padrão: JSON. */
-  formato?: 'json' | 'texto'
+  /**
+   * `texto`: devolve o corpo cru (ex.: CSV de uma exportação). `binario`: devolve `RespostaBinaria`
+   * (ex.: o PDF de uma música). Padrão: JSON.
+   */
+  formato?: 'json' | 'texto' | 'binario'
+  /** Corpo binário (ex.: um PDF) no lugar do JSON: vai como está, com o `content-type` dado. */
+  corpoBinario?: { dados: Uint8Array; tipo: string }
+  /** Cabeçalhos a mais (ex.: `if-none-match`). O token e o tipo do corpo o cliente já põe. */
+  cabecalhos?: Record<string, string>
+}
+
+/** O que `formato: 'binario'` devolve. `bytes` é nulo quando o servidor respondeu 304 (nada mudou). */
+export interface RespostaBinaria {
+  bytes: Uint8Array | null
+  /** ETag sem as aspas (no PDF da música, é o SHA-256 do arquivo). */
+  etag: string | null
 }
 
 export interface OpcoesDoCliente {
@@ -200,6 +215,8 @@ export function criarClienteDaApi(opcoes: OpcoesDoCliente): ClienteDaApi {
         signal: controle.signal,
         // Mesma origem na web: o cookie de refresh só viaja para /api/auth.
         ...(ehWeb ? { credentials: 'include' as const } : {}),
+        // A página está fechando e há envio pendente: só `keepalive` termina depois do fechamento.
+        ...(ehWeb && emDescarga() ? { keepalive: true } : {}),
       })
       return { resposta, corpo: await ler(resposta) }
     } catch (erro) {
@@ -273,21 +290,40 @@ export function criarClienteDaApi(opcoes: OpcoesDoCliente): ClienteDaApi {
 
     for (let tentativa = 0; ; tentativa++) {
       const acessoUsado = acesso
-      const headers: Record<string, string> = { accept: 'application/json' }
+      const binario = op.formato === 'binario'
+      const headers: Record<string, string> = {
+        accept: binario ? 'application/pdf, application/json' : 'application/json',
+        ...(op.cabecalhos ?? {}),
+      }
       if (op.corpo !== undefined) headers['content-type'] = 'application/json'
+      if (op.corpoBinario) headers['content-type'] = op.corpoBinario.tipo
       if (autenticado && acessoUsado) headers.authorization = `Bearer ${acessoUsado}`
 
-      const { resposta, corpo: texto } = await chamar(
+      const { resposta, corpo: lido } = await chamar<string | Uint8Array>(
         caminho,
         {
           method: metodo,
           headers,
-          ...(op.corpo !== undefined ? { body: JSON.stringify(op.corpo) } : {}),
+          ...(op.corpoBinario
+            ? { body: op.corpoBinario.dados as unknown as BodyInit }
+            : op.corpo !== undefined
+              ? { body: JSON.stringify(op.corpo) }
+              : {}),
           ...(op.sinal ? { sinal: op.sinal } : {}),
           ...(op.tempoLimiteMs !== undefined ? { tempoLimiteMs: op.tempoLimiteMs } : {}),
         },
-        (r) => r.text(),
+        // O corpo só é lido como bytes quando a resposta é o arquivo: erro e 304 seguem como texto.
+        async (r) =>
+          binario && r.ok && r.status !== 304 ? new Uint8Array(await r.arrayBuffer()) : r.text(),
       )
+      if (binario && (resposta.ok || resposta.status === 304)) {
+        const etag = resposta.headers.get('etag')?.replace(/^W\//, '').replace(/^"|"$/g, '') ?? null
+        return {
+          bytes: typeof lido === 'string' ? null : lido,
+          etag,
+        } satisfies RespostaBinaria as T
+      }
+      const texto = typeof lido === 'string' ? lido : ''
       if (resposta.ok && op.formato === 'texto') return texto as T
       const dados = interpretar(texto)
       if (resposta.ok) return dados as T

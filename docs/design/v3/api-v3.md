@@ -23,6 +23,9 @@ Convenções que valem em todas:
 | `GET /eu/notificacoes/caixa` (campos novos) e `.../caixa/nao-lidas` | sessão                                          | Sino com título real e quebra por assunto                  |
 | `POST /api/auth/codigo/previa`                                      | pública (sem sessão)                            | Prévia da comunidade ao digitar o código                   |
 | `GET /c/:id/eventos/:eventoId/repertorio/pacote`                    | `evento.ler_pacote_offline` e tocar no encontro | Modo palco e uso sem internet                              |
+| `PUT /c/:id/conteudos/musicas/:musicaId/pdf` (D76, migração 0029)   | `conteudo.gerenciar` (organizador)              | Anexar ou trocar o PDF da música                           |
+| `GET /c/:id/conteudos/musicas/:musicaId/pdf` (D76)                  | `conteudo.ler` (todo membro)                    | Baixar o PDF da música, com ETag                           |
+| `DELETE /c/:id/conteudos/musicas/:musicaId/pdf` (D76)               | `conteudo.gerenciar` (organizador)              | Remover o PDF da música                                    |
 
 ## `GET /c/:id/inicio`: campo `momento`
 
@@ -176,9 +179,23 @@ Fatia 2 do modo músico: o repertório do encontro inteiro, para o aparelho guar
 - **Validade:** `validoAte` usa `validade_offline_dias` da comunidade, a mesma do pacote do encontro. O `pacote-offline` do encontro não mudou e **continua sem cifra**.
 - **Direitos autorais:** só dentro da comunidade, `Cache-Control: no-store`, leitura não auditada, cifra nunca em log. O aparelho guarda no mesmo cofre cifrado do pacote e apaga junto (saída da comunidade, troca de conta).
 
+## PDF da música: `PUT`, `GET` e `DELETE /c/:id/conteudos/musicas/:musicaId/pdf` (D76)
+
+Migração `0029_pdf_da_musica.sql` (tabela `uj.musica_pdfs`, `bytea` no Postgres, sem armazenamento externo). Tipos e chamadas no app: `apps/app/src/servicos/contratoDoPdf.ts`. Código: `apps/api/src/rotas/musica-pdf.ts`.
+
+- **Enviar:** `PUT .../pdf?nome=<arquivo.pdf>&direitosConfirmados=true`, **corpo bruto** (`Content-Type: application/pdf`), sem multipart. Sessão, comunidade, papel e cota (30 por hora e conta) são conferidos **antes** de o corpo ser lido. Resposta `200 { temPdf: true, pdf: { nome, tamanho, versao } }`; `versao` é o SHA-256 do arquivo em hexadecimal, calculado no banco.
+- **Erros:** **404** `nao_encontrado` (música de outra comunidade, id inválido; vem antes de qualquer conferência do corpo); **400** `direitos_nao_confirmados` (sem `direitosConfirmados=true`; o gatilho UJ100 do banco é a segunda camada); **415** `arquivo_nao_e_pdf` (tipo diferente de `application/pdf`, corpo vazio ou que não começa com `%PDF-` e um número de versão); **413** `grande_demais` (acima de **10 MB**, o mesmo teto do CHECK do banco); **403** (membro); **409** `comunidade_suspensa`.
+- **O servidor não abre o PDF:** só confere a assinatura e o tamanho e grava os bytes como vieram. O nome vira só o último pedaço do caminho, sem caracteres de controle nem de direção de texto, até 120 letras, terminando em `.pdf`.
+- **Ler:** `GET .../pdf` responde os bytes com `Content-Type: application/pdf`, `Content-Disposition: attachment`, `X-Content-Type-Options: nosniff`, `Cache-Control: private, no-cache` e `ETag` (o SHA-256). `If-None-Match` igual recebe **304** sem corpo. Sem PDF: **404**. O app baixa com o token no cabeçalho (nunca por endereço aberto no navegador) e entrega os bytes ao visualizador.
+- **Remover:** `DELETE .../pdf` responde `200 { temPdf: false, pdf: null }`, também quando já não havia PDF (idempotente); música de outra comunidade: 404.
+- **Um PDF por música:** enviar de novo troca o arquivo (e a versão). Apagar a música apaga o PDF.
+- **Indicadores sem bytes, em quem já devolvia a música:** `GET .../conteudos/musicas` e `.../musicas/:id`, `GET .../eventos/:eventoId/repertorio`, `GET .../meu-repertorio` e `GET .../repertorio/pacote` trazem `temPdf` (boolean) e `pdf` (`{ nome, tamanho, versao }` ou `null`). No pacote o PDF vai **por referência**: a `versao` do pacote muda quando o PDF muda, e o aparelho baixa o binário só se a versão guardada for outra (`If-None-Match` com a versão que tem, 304 se igual).
+- **Log e auditoria:** só o id da música (`conteudo.pdf_anexado`, `conteudo.pdf_trocado`, `conteudo.pdf_removido`). Nome e conteúdo nunca vão a log, auditoria nem log de mudanças; o nome viaja na consulta, que o registro técnico descarta.
+- **Permissão nova:** nenhuma (`conteudo.gerenciar` e `conteudo.ler`); `docs/matriz-permissoes.md` não mudou. Inventário do isolamento: 3 rotas novas em `isolamento.test.ts`.
+
 ## O que não foi criado, e por quê
 
 - **Envio com espera e "Desfazer" no servidor:** não é preciso; é só do app (acima).
 - **Histórico "tocada há 2 semanas":** é a fatia 3 do modo músico; fica para depois.
 - **Rota própria para recusar e aceitar com desfazer:** `POST /atribuicoes/:id/confirmar` e `/recusar` já existem; o desfazer é segurar a chamada por 10 s. Depois de enviada, aceitar de novo ou recusar de novo funciona (o estado pode mudar de recusada para confirmada).
-- **Permissão nova:** nenhuma. As rotas usam `evento.criar`, `escala.atribuir`, `aviso.ler`, `evento.ler_pacote_offline` e a regra de "toca neste encontro".
+- **Permissão nova:** nenhuma. As rotas usam `evento.criar`, `escala.atribuir`, `aviso.ler`, `evento.ler_pacote_offline` e a regra de "toca neste encontro". O PDF da música (D76) também não criou permissão.

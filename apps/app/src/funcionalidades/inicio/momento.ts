@@ -217,6 +217,8 @@ export interface SituacaoDoLider {
   pendentes: number
   /** Funções já convocadas sem ninguém que aceitou. */
   faltaFuncao: readonly string[]
+  /** O repertório do encontro está vazio (sem nenhuma música). */
+  semMusicas: boolean
   /** Faltam 2 h ou menos para começar: hora do check-in. */
   naHoraDoCheckin: boolean
   /** O cartão é o do encontro que terminou há menos de 24 h. */
@@ -228,11 +230,20 @@ export interface SituacaoDoLider {
 }
 
 /**
- * A tabela do líder (3.2 do UX). Sem encontro, ou terminado sem outro marcado: "Marcar o
- * próximo sábado". Rascunho: "Publicar e avisar N pessoas". Publicado e longe: lembrar quem
- * não respondeu, ou convocar a função que falta, ou só ver o encontro quando está tudo
- * respondido. Véspera: "Ver convocados". No dia, de 2 h antes: "Fazer check-in".
- * Acontecendo: "Conduzir ao vivo".
+ * A tabela do líder, UMA próxima ação (D75, "fácil de usar": o Início diz o que fazer agora e, ao
+ * fazer, o botão passa para a seguinte). A primeira condição verdadeira vence, nesta ordem:
+ *
+ * 1. não há encontro, ou o último terminou e não há outro: "Marcar o próximo encontro";
+ * 2. rascunho: "Publicar e avisar N pessoas";
+ * 3. acontecendo: "Conduzir ao vivo" (e "Marcar quem chegou" ao lado);
+ * 4. de 2 h antes até começar: "Marcar quem chegou" (e "Abrir ao vivo");
+ * 5. falta gente responder: "Lembrar os N";
+ * 6. falta uma função da banda: "Convocar bateria";
+ * 7. repertório vazio: "Montar o repertório";
+ * 8. tudo certo: véspera e dia, "Ver quem vai"; longe, "Ver o encontro".
+ *
+ * O secundário é sempre um caminho, nunca uma segunda decisão: o cartão o mostra como link, exceto
+ * o check-in, que durante o encontro é botão.
  */
 export function acoesDoLider(s: SituacaoDoLider): AcoesDoCartao {
   if (s.semEncontro || (s.terminou && s.proximoAMarcar)) {
@@ -241,12 +252,64 @@ export function acoesDoLider(s: SituacaoDoLider): AcoesDoCartao {
   if (s.rascunho) return { primaria: 'publicar', secundaria: 'editar' }
   if (s.momento === 'agora') return { primaria: 'conduzir', secundaria: 'checkin' }
   if (s.momento === 'dia' && s.naHoraDoCheckin) return { primaria: 'checkin', secundaria: 'aoVivo' }
+  if (s.lembraveis > 0) return { primaria: 'lembrar', secundaria: 'verConvocados' }
+  if (s.faltaFuncao.length > 0) return { primaria: 'convocarFuncao', secundaria: 'verConvocados' }
+  if (s.semMusicas) return { primaria: 'repertorio', secundaria: 'verConvocados' }
   if (s.momento === 'vespera' || s.momento === 'dia') {
     return { primaria: 'verConvocados', secundaria: 'ver' }
   }
-  // Longe e publicado.
-  if (s.lembraveis > 0) return { primaria: 'lembrar', secundaria: 'verConvocados' }
-  if (s.faltaFuncao.length > 0) return { primaria: 'convocarFuncao', secundaria: 'verConvocados' }
-  if (s.pendentes > 0) return { primaria: 'verConvocados', secundaria: 'ver' }
-  return { primaria: 'ver', secundaria: 'repertorio' }
+  // Longe, publicado e sem pendência: ver o encontro; havendo gente sem responder (já lembrada), a lista.
+  return { primaria: 'ver', secundaria: s.pendentes > 0 ? 'verConvocados' : 'repertorio' }
+}
+
+/** Uma frase do "o que falta" do cartão; `alerta` ganha o ícone de atenção (cor não é o único sinal). */
+export interface FraseDoQueFalta {
+  texto: string
+  alerta: boolean
+}
+
+export interface EntradaDoQueFalta {
+  /** Quantos foram convocados. */
+  convocados: number
+  /** Convocados sem resposta (inclui quem já foi lembrado). */
+  pendentes: number
+  /** "Faltam: Bruno e Camila", pronto; vazio se não há quem listar. */
+  quemFalta: string
+  /** "Você lembrou Bruno e Camila, hoje às 11:07.", pronto, logo depois de lembrar. */
+  lembrou: string | null
+  faltaFuncao: readonly string[]
+  /** O repertório do encontro está vazio. */
+  semMusicas: boolean
+}
+
+/** "Falta: bateria", "Falta: bateria, teclado": a banda que ainda não tem quem toque. */
+export function textoDaFuncaoQueFalta(funcoes: readonly string[]): string {
+  return `Falta: ${funcoes.map((f) => f.toLocaleLowerCase('pt-BR')).join(', ')}`
+}
+
+/**
+ * O que falta resolver num encontro publicado, em no MÁXIMO 2 frases (D75): o resto do cartão fica
+ * recolhido em "Ver detalhes". Ordem de importância: quem não respondeu, a função da banda sem
+ * ninguém, o repertório vazio. Sem nada faltando, uma frase só de "tudo certo". "Todos responderam"
+ * aparece uma vez (aqui), nunca de novo no resumo nem nos detalhes.
+ */
+export function frasesDoQueFalta(e: EntradaDoQueFalta): FraseDoQueFalta[] {
+  const frases: FraseDoQueFalta[] = []
+  if (e.convocados === 0) {
+    frases.push({ texto: 'Ninguém foi convocado ainda.', alerta: false })
+  } else if (e.lembrou) {
+    frases.push({ texto: e.lembrou, alerta: false })
+  } else if (e.pendentes === 0) {
+    frases.push({ texto: 'Todos responderam ✓', alerta: false })
+  } else {
+    frases.push({
+      texto: e.quemFalta || 'Quem falta já foi lembrado hoje.',
+      alerta: false,
+    })
+  }
+  if (e.faltaFuncao.length > 0) {
+    frases.push({ texto: textoDaFuncaoQueFalta(e.faltaFuncao), alerta: true })
+  }
+  if (e.semMusicas) frases.push({ texto: 'O repertório está vazio.', alerta: true })
+  return frases.slice(0, 2)
 }

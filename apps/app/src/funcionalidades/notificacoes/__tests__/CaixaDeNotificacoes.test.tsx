@@ -63,6 +63,19 @@ describe('sino de notificações', () => {
     expect(router.push).toHaveBeenCalledWith('/caixa-de-notificacoes')
   })
 
+  test('o sino traz a palavra "Notificações" ao lado do ícone, menos no cabeçalho compacto (D75)', async () => {
+    await renderizarTela(
+      <>
+        <SinoDeNotificacoes />
+        <SinoDeNotificacoes comTexto={false} />
+      </>,
+      { rotas: { [NAO_LIDAS]: () => ({ status: 200, corpo: { naoLidas: 0 } }) } },
+    )
+    await screen.findAllByRole('button', { name: 'Notificações' })
+    // Um só texto visível: o do sino com palavra (o compacto fica só com o ícone).
+    expect(screen.getAllByText('Notificações', { includeHiddenElements: true })).toHaveLength(1)
+  })
+
   test('sem não lidas, nenhum selo; acima de 99, "99+" e o número inteiro no rótulo', async () => {
     let n = 0
     const { consultas } = await renderizarTela(<SinoDeNotificacoes />, {
@@ -376,7 +389,7 @@ describe('caixa de notificações (o sino, D68)', () => {
     expect(await screen.findByText('Nenhuma novidade.')).toBeOnTheScreen()
     expect(screen.getByText('Avisos, convocações e lembretes aparecem aqui.')).toBeOnTheScreen()
     // Os ajustes abrem pelo ícone do cabeçalho.
-    await fireEvent.press(screen.getByRole('button', { name: 'Quando o app me avisa' }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Ajustes: quando o app me avisa' }))
     expect(router.push).toHaveBeenCalledWith('/notificacoes')
   })
 

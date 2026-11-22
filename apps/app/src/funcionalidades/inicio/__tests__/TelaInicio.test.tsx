@@ -397,7 +397,10 @@ describe('Para responder: as convocações de outros encontros', () => {
   test('"Para responder (1)" com os dois botões sempre visíveis; a pendência do cartão não repete aqui', async () => {
     await comoMembro(undefined, { [`GET ${BASE}/inicio`]: ok(comOutro()) })
     expect(await screen.findByText('Para responder (1)')).toBeOnTheScreen()
-    expect(screen.getByText('Recepção')).toBeOnTheScreen()
+    // O título é o encontro (nunca só a função), e a descrição diz o dia, a hora e a parte da pessoa.
+    expect(screen.getAllByText('Sábado Jovem').length).toBeGreaterThan(0)
+    expect(screen.getByText(/ · \d{2}:\d{2} · Você: Recepção$/)).toBeOnTheScreen()
+    expect(screen.queryByText('Recepção')).toBeNull()
     expect(screen.getAllByRole('button', { name: 'Aceitar' }).length).toBeGreaterThan(0)
     expect(screen.getAllByRole('button', { name: 'Não posso ir' }).length).toBeGreaterThan(0)
   })
@@ -472,16 +475,32 @@ describe('"Seu resumo": acordeão fechado', () => {
 describe('Início do líder: o cartão do momento (3.2 do UX)', () => {
   const lider = (parcial = {}) => liderDoMomento(parcial)
 
-  test('publicado, falta resposta: "9 de 11 responderam", quem falta, a função e "Lembrar os 2"', async () => {
+  test('publicado, falta resposta: UMA ação ("Lembrar os 2"), no máximo 2 frases e o resto recolhido', async () => {
     await comoLider(momentoDeTeste({ lider: lider() }))
 
-    expect(await screen.findByText('9 de 11 responderam')).toBeOnTheScreen()
-    expect(screen.getByText('Faltam: Bruno e Camila')).toBeOnTheScreen()
+    // As duas frases: quem falta e a função. Não aparece uma terceira ("O repertório está vazio.").
+    expect(await screen.findByText('Faltam: Bruno e Camila')).toBeOnTheScreen()
     expect(screen.getByText('Falta: bateria')).toBeOnTheScreen()
-    expect(screen.getByText('Louvor: 0 músicas')).toBeOnTheScreen()
+    expect(screen.queryByText('O repertório está vazio.')).toBeNull()
+    // UMA ação em destaque: "Lembrar os 2". O outro caminho é um link de texto.
     expect(screen.getByRole('button', { name: /^Lembrar Bruno e Camila/ })).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Ver convocados' })).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Ver quem vai' })).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: 'Ver o encontro' })).toBeNull()
+    // O resto está recolhido: nada de barra de progresso nem do "9 de 11" até abrir os detalhes.
+    expect(screen.queryByText('9 de 11 responderam')).toBeNull()
+    expect(screen.queryByRole('progressbar')).toBeNull()
+    expect(screen.getByRole('button', { name: /^Ver detalhes/ })).toBeCollapsed()
+    await userEvent.setup().press(screen.getByRole('button', { name: /^Ver detalhes/ }))
+    expect(await screen.findByText('9 de 11 responderam')).toBeOnTheScreen()
     expect(screen.getByRole('progressbar', { name: '9 de 11 responderam' })).toBeOnTheScreen()
+    expect(screen.getByText('Louvor: 0 músicas')).toBeOnTheScreen()
+  })
+
+  test('uma ação só: não há segundo botão cheio no cartão do líder', async () => {
+    await comoLider(momentoDeTeste({ lider: lider() }))
+    await screen.findByText('Faltam: Bruno e Camila')
+    expect(screen.queryByRole('button', { name: 'Editar' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Ver o resumo' })).toBeNull()
   })
 
   test('"Lembrar os 2": espera 10 s com Desfazer, chama a API e vira "Lembrete enviado"', async () => {
@@ -527,7 +546,7 @@ describe('Início do líder: o cartão do momento (3.2 do UX)', () => {
     })
   })
 
-  test('tudo respondido: "Todos responderam ✓" (uma vez só), "Ver o encontro" e "Montar o repertório"', async () => {
+  test('tudo respondido e a banda completa: a ação é "Montar o repertório" (vazio); "Todos responderam ✓" aparece uma vez só', async () => {
     await comoLider(
       momentoDeTeste({
         lider: lider({
@@ -545,11 +564,15 @@ describe('Início do líder: o cartão do momento (3.2 do UX)', () => {
     expect(screen.queryByText('11 de 11 responderam')).toBeNull()
     expect(screen.queryByText('Todos responderam')).toBeNull()
     expect(screen.getAllByText(/Todos responderam/)).toHaveLength(1)
-    expect(screen.getByRole('button', { name: 'Ver o encontro' })).toBeOnTheScreen()
-    // O líder não toca e o encontro não tem músicas: o botão é de montar o repertório.
+    // Respostas e banda em dia: o próximo passo é o repertório vazio (o líder não toca: "Montar").
+    expect(screen.getByText('O repertório está vazio.')).toBeOnTheScreen()
     expect(
       screen.getByRole('button', { name: 'Montar o repertório: Sábado Jovem' }),
     ).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: /^Lembrar/ })).toBeNull()
+    // Abrindo os detalhes o "Todos responderam" também não se repete.
+    await userEvent.setup().press(screen.getByRole('button', { name: /^Ver detalhes/ }))
+    expect(screen.getAllByText(/Todos responderam/)).toHaveLength(1)
   })
 
   test('rascunho: "Ainda não publicado", "Publicar e avisar 11 pessoas" com Desfazer, e Editar', async () => {
@@ -575,23 +598,52 @@ describe('Início do líder: o cartão do momento (3.2 do UX)', () => {
     })
   })
 
-  test('véspera: "AMANHÃ · 16:00", quantos confirmaram e "Ver convocados"', async () => {
+  test('véspera: "AMANHÃ · 16:00", a pendência manda: "Lembrar os 2", com "Ver quem vai" como link', async () => {
     await comoLider(momentoDeTeste({ ...RELOGIO.vespera, lider: lider() }))
     expect(await screen.findByText('AMANHÃ · 16:00')).toBeOnTheScreen()
-    expect(screen.getByText('9 confirmados. Falta: bateria.')).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Ver convocados' })).toBeOnTheScreen()
+    expect(screen.getByText('Faltam: Bruno e Camila')).toBeOnTheScreen()
+    expect(screen.getByText('Falta: bateria')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: /^Lembrar Bruno e Camila/ })).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Ver quem vai' })).toBeOnTheScreen()
+  })
+
+  test('véspera, tudo certo: "Ver quem vai" é a ação e "Ver o encontro" o caminho', async () => {
+    await comoLider(
+      momentoDeTeste({
+        ...RELOGIO.vespera,
+        evento: eventoDoMomento({ musicas: 3 }),
+        lider: lider({
+          pendentes: 0,
+          responderam: 11,
+          faltamResponder: [],
+          faltamResponderTotal: 0,
+          faltaFuncao: [],
+          lembraveis: 0,
+          musicas: 3,
+        }),
+      }),
+    )
+    expect(await screen.findByText('Todos responderam ✓')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Ver quem vai' })).toBeOnTheScreen()
     expect(screen.getByRole('button', { name: 'Ver o encontro' })).toBeOnTheScreen()
   })
 
-  test('no dia, de 2 h antes: "Fazer check-in" e "Abrir ao vivo"', async () => {
+  test('no dia, de 2 h antes: "Marcar quem chegou" é o botão (vence lembrar e banda) e leva ao check-in', async () => {
     await comoLider(momentoDeTeste({ ...RELOGIO.diaCheckin, lider: lider() }))
     expect(await screen.findByText('9 confirmados. 12 inscritos.')).toBeOnTheScreen()
-    await userEvent.setup().press(screen.getByRole('button', { name: 'Fazer check-in' }))
+    await userEvent.setup().press(screen.getByRole('button', { name: 'Marcar quem chegou' }))
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/evento/[eventoId]/checkin',
       params: { eventoId: 'e1' },
     })
     expect(screen.getByRole('button', { name: 'Abrir ao vivo' })).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: /^Lembrar/ })).toBeNull()
+  })
+
+  test('no dia, antes das 2 h: o check-in ainda não é o botão (a pendência vem primeiro)', async () => {
+    await comoLider(momentoDeTeste({ ...RELOGIO.dia, lider: lider() }))
+    expect(await screen.findByRole('button', { name: /^Lembrar Bruno e Camila/ })).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: 'Marcar quem chegou' })).toBeNull()
   })
 
   test('acontecendo: "Agora: Louvor, até 16:20. Depois: ..." e "Conduzir ao vivo"', async () => {
@@ -625,10 +677,12 @@ describe('Início do líder: o cartão do momento (3.2 do UX)', () => {
       await screen.findByText('Agora: Louvor, até 16:20. Depois: Oração intercessora.'),
     ).toBeOnTheScreen()
     expect(screen.getByRole('button', { name: 'Conduzir ao vivo' })).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Check-in' })).toBeOnTheScreen()
+    // Durante o encontro o check-in é um botão ao lado, nunca atrás de "Mais".
+    expect(screen.getByRole('button', { name: 'Marcar quem chegou' })).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: /^Mais/ })).toBeNull()
   })
 
-  test('terminou: "Sábado Jovem terminou. 12 presentes." e "Marcar o próximo sábado"', async () => {
+  test('terminou: "Sábado Jovem terminou. 12 presentes." e "Marcar o próximo encontro"', async () => {
     await comoLider(
       momentoDeTeste({
         evento: null,
@@ -648,25 +702,25 @@ describe('Início do líder: o cartão do momento (3.2 do UX)', () => {
     )
     expect(await screen.findByText('TERMINOU')).toBeOnTheScreen()
     expect(screen.getByText('Sábado Jovem terminou. 12 presentes.')).toBeOnTheScreen()
-    await userEvent.setup().press(screen.getByRole('button', { name: 'Marcar o próximo sábado' }))
-    expect(router.push).toHaveBeenCalledWith({
-      pathname: '/evento/novo',
-      params: { modelo: 'sabado_padrao' },
-    })
+    await userEvent.setup().press(screen.getByRole('button', { name: 'Marcar o próximo encontro' }))
+    // A conferência "Igual ao último encontro" (ela mesma oferece o modelo padrão quando não há anterior).
+    expect(router.push).toHaveBeenCalledWith('/evento/igual-ao-ultimo')
     expect(screen.getByRole('button', { name: 'Ver o resumo' })).toBeOnTheScreen()
   })
 
-  test('nada marcado: "NADA MARCADO" e "Marcar o próximo sábado"', async () => {
+  test('nada marcado: "NADA MARCADO" e "Marcar o próximo encontro"', async () => {
     await comoLider(momentoDeTeste({ evento: null, estado: null, minutosParaInicio: null }))
     expect(await screen.findByText('NADA MARCADO')).toBeOnTheScreen()
     expect(screen.getByText('Nenhum encontro marcado.')).toBeOnTheScreen()
-    expect(screen.getByText('O Sábado padrão já vem com o roteiro de sempre.')).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Marcar o próximo sábado' })).toBeOnTheScreen()
+    expect(
+      screen.getByText('Marque o próximo para a comunidade ver e responder.'),
+    ).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Marcar o próximo encontro' })).toBeOnTheScreen()
   })
 
   test('sem seletor "Minha visão | Da comunidade": o mesmo Início, com os dois grupos no resumo', async () => {
     await comoLider(momentoDeTeste({ lider: lider() }))
-    await screen.findByText('9 de 11 responderam')
+    await screen.findByText('Faltam: Bruno e Camila')
     expect(screen.queryByText('Minha visão')).toBeNull()
     expect(screen.queryByText('Da comunidade')).toBeNull()
   })
@@ -729,7 +783,7 @@ describe('estados do Início: carregando, vazio, erro e sem internet', () => {
     expect(await screen.findByText('EM 5 DIAS')).toBeOnTheScreen()
   })
 
-  test('erro, líder: "Não deu para carregar o sábado."', async () => {
+  test('erro, líder: "Não deu para carregar o encontro."', async () => {
     await renderizarTela(<TelaInicio />, {
       papel: 'organizador',
       rotas: {
@@ -737,7 +791,7 @@ describe('estados do Início: carregando, vazio, erro e sem internet', () => {
         [`GET ${BASE}/inicio`]: () => ({ status: 500, corpo: { erro: 'interno', mensagem: 'x' } }),
       },
     })
-    expect(await screen.findByText('Não deu para carregar o sábado.')).toBeOnTheScreen()
+    expect(await screen.findByText('Não deu para carregar o encontro.')).toBeOnTheScreen()
   })
 
   test('sem internet com a cópia: faixa, "Última versão" e os botões que precisam de rede desabilitados com o motivo', async () => {

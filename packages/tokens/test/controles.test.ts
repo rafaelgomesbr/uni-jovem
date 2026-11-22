@@ -34,8 +34,8 @@ function medir(tema: NomeDoTema, nome: string) {
 }
 
 describe('medidas dos controles', () => {
-  it('botão: 56 grande, 48 médio, 40 compacto; campo 56; cápsula no botão e raio 16 no campo', () => {
-    expect(ALTURA.botao).toEqual({ grande: 56, medio: 48, compacto: 40 })
+  it('botão: 56 grande, 48 médio, 48 compacto (D75); campo 56; cápsula no botão e raio 16 no campo', () => {
+    expect(ALTURA.botao).toEqual({ grande: 56, medio: 48, compacto: 48 })
     expect(ALTURA.campo).toBe(56)
     expect(RAIO.pilula).toBe(999)
     expect(RAIO.campo).toBe(16)
@@ -63,7 +63,7 @@ describe('medidas dos controles', () => {
     expect(ALTURA.interruptorAltura).toBe(32)
     expect(ALTURA.trilho).toBe(48)
     expect(ALTURA.polegar).toBe(40)
-    expect(ALTURA.filtro).toBe(40)
+    expect(ALTURA.filtro).toBe(48)
   })
 
   it('movimento: foco 160 ms (saída 120), toque 90 ms, escala 0,98; MOVIMENTO_DE_ACESSO é apelido', () => {

@@ -1,9 +1,10 @@
-import { ALTURA, RAIO } from '@uj/tokens'
+import { ALTURA, ESPACO, RAIO } from '@uj/tokens'
 import { router } from 'expo-router'
-import { Pressable } from 'react-native'
+import { Pressable, View } from 'react-native'
 
 import { Icone } from '@/ui/Icone'
 import { SeloDeContagem } from '@/ui/MarcasDeNovidade'
+import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
 
 import { textoDeNaoLidas, useNaoLidas } from './caixa'
@@ -13,11 +14,13 @@ export function rotuloDoSino(naoLidas: number | undefined): string {
 }
 
 /**
- * Sino da linha do topo das raízes de aba (D42): só ícone, alvo de 44, e o
- * selo com o número de não lidas. O rótulo falado diz o número inteiro
- * ("Notificações, 3 não lidas"). Abre a caixa de notificações.
+ * Sino da linha do topo das raízes de aba (D42): alvo de 48, o selo com o número de não lidas e, a
+ * partir da D75 (passada do vovô), a palavra "Notificações" ao lado do ícone: um sino sozinho não
+ * diz o que abre. No cabeçalho compacto (a rolagem já escondeu o título) volta a ser só o ícone, que
+ * ali tem a mesma ação e economiza a linha. O rótulo falado diz o número inteiro ("Notificações, 3
+ * não lidas"). Abre a caixa de notificações.
  */
-export function SinoDeNotificacoes() {
+export function SinoDeNotificacoes({ comTexto = true }: { comTexto?: boolean }) {
   const { cores } = useTema()
   const { data: naoLidas } = useNaoLidas()
   return (
@@ -27,16 +30,29 @@ export function SinoDeNotificacoes() {
       accessibilityHint="Abre a caixa de notificações."
       onPress={() => router.push('/caixa-de-notificacoes')}
       style={({ pressed }) => ({
-        width: ALTURA.iconeSo,
-        height: ALTURA.iconeSo,
+        minWidth: ALTURA.iconeSo,
+        minHeight: ALTURA.iconeSo,
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: RAIO.controle,
+        gap: ESPACO.e2,
+        paddingLeft: comTexto ? ESPACO.e4 : 0,
+        paddingRight: comTexto ? ESPACO.e14 : 0,
+        borderRadius: comTexto ? RAIO.pilula : RAIO.controle,
         backgroundColor: pressed ? cores.pressionado : 'transparent',
       })}
     >
-      <Icone nome="sino" cor={cores.texto} tamanho={22} />
-      <SeloDeContagem valor={naoLidas ?? 0} />
+      {/* Mesma caixa de 40 de antes: o selo continua no canto do ícone. */}
+      <View style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
+        <Icone nome="sino" cor={cores.texto} tamanho={22} />
+        <SeloDeContagem valor={naoLidas ?? 0} />
+      </View>
+      {comTexto ? (
+        // O nome falado já é o rótulo do botão: o texto é só para quem enxerga.
+        <Texto variante="botao" accessibilityElementsHidden importantForAccessibility="no">
+          Notificações
+        </Texto>
+      ) : null}
     </Pressable>
   )
 }

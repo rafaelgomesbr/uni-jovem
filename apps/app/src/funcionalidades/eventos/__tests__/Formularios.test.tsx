@@ -5,7 +5,7 @@ import { Alert } from 'react-native'
 import { DIA_DO_INICIO, EVENTO_ID, eventoDeTeste, INICIO } from '@/testes/fixturas'
 import { BASE, pedidosPara, renderizarTela } from '@/testes/telas'
 import { HospedeiroDeToast } from '@/ui/Toast'
-import { confirmarAgora } from '@/ui/ToastComDesfazer'
+import { confirmarAgora, reiniciarDesfazer } from '@/ui/ToastComDesfazer'
 
 import { TelaEditarEvento } from '../TelaEditarEvento'
 import { TelaMudarStatus } from '../TelaMudarStatus'
@@ -189,6 +189,57 @@ describe('criar encontro', () => {
     alerta.mockRestore()
   })
 
+  test('já existe encontro nessa data: a tela avisa e salvar pergunta "Criar outro mesmo assim?" (D74)', async () => {
+    parametros.mockReturnValue({ data: '2026-12-05' })
+    const alerta = jest
+      .spyOn(Alert, 'alert')
+      .mockImplementation((_t, _m, botoes) => botoes?.[0]?.onPress?.())
+    await renderizarTela(<TelaNovoEvento />, {
+      rotas: {
+        ...ROTAS_DO_FORMULARIO,
+        [`GET ${BASE}/eventos`]: () => ({
+          status: 200,
+          corpo: {
+            eventos: [
+              {
+                id: 'ja-existe',
+                titulo: 'Sábado Jovem',
+                categoria: 'Encontro',
+                inicio: '2026-12-05T19:00:00.000Z',
+                duracaoMin: 60,
+                fuso: 'America/Sao_Paulo',
+                status: 'publicado',
+                visibilidade: 'publica',
+                serieId: null,
+                versao: 1,
+                localNome: null,
+                localTipo: null,
+                quantidadeDeEtapas: 3,
+              },
+            ],
+          },
+        }),
+        [`POST ${BASE}/eventos`]: () => ({ status: 200, corpo: { id: 'novo-1', versao: 1 } }),
+      },
+    })
+    expect(
+      await screen.findByText(
+        'Já existe um encontro neste dia: Sábado Jovem, 16:00. Se criar este também, a Agenda terá os dois.',
+      ),
+    ).toBeOnTheScreen()
+    await fireEvent.changeText(screen.getByLabelText('Título'), 'Outro encontro')
+    await escolher(/^Hora:/, HORA_ESCOLHIDA)
+    await userEvent.setup().press(screen.getByRole('button', { name: 'Salvar rascunho' }))
+    // O diálogo pergunta antes; o primeiro botão ("Criar outro mesmo assim") confirma, então cria.
+    await waitFor(() => expect(alerta).toHaveBeenCalled())
+    expect(alerta.mock.calls[0]![0]).toBe('Já existe um encontro neste dia')
+    expect(alerta.mock.calls[0]![1]).toBe(
+      'Já existe um encontro neste dia: Sábado Jovem, 16:00. Criar outro mesmo assim?',
+    )
+    expect(JSON.stringify(alerta.mock.calls[0]![2])).toContain('Criar outro mesmo assim')
+    alerta.mockRestore()
+  })
+
   test('com algo mudado, fechar o formulário pergunta antes de descartar', async () => {
     parametros.mockReturnValue({})
     await renderizarTela(<TelaNovoEvento />, { rotas: ROTAS_DO_FORMULARIO })
@@ -321,7 +372,72 @@ describe('editar encontro', () => {
 })
 
 describe('cancelar ou adiar', () => {
-  beforeEach(() => jest.clearAllMocks())
+  beforeEach(() => {
+    jest.clearAllMocks()
+    reiniciarDesfazer()
+  })
+  afterEach(() => reiniciarDesfazer())
+
+  test('abre SEM escolha feita: "Adiar" e "Cancelar" lado a lado, cada um com o que faz, e o botão pede a escolha (D74)', async () => {
+    parametros.mockReturnValue({ eventoId: EVENTO_ID })
+    const { servidor } = await renderizarTela(<TelaMudarStatus />, {
+      rotas: {
+        [`GET ${CAMINHO}`]: () => ({ status: 200, corpo: eventoDeTeste() }),
+        [`POST ${CAMINHO}/status`]: () => ({ status: 200, corpo: { id: EVENTO_ID } }),
+      },
+    })
+    const adiar = await screen.findByRole('radio', { name: 'Adiar' })
+    const cancelar = screen.getByRole('radio', { name: 'Cancelar' })
+    expect(adiar).not.toBeChecked()
+    expect(cancelar).not.toBeChecked()
+    // O que cada um faz, escrito antes de escolher.
+    expect(
+      screen.getByText(/o encontro continua, em outra data\. Quem participa é avisado\./),
+    ).toBeOnTheScreen()
+    expect(
+      screen.getByText(
+        /o encontro termina e não volta\. Quem participa é avisado\. Isto não se desfaz\./,
+      ),
+    ).toBeOnTheScreen()
+    // Nenhum botão de ação da frente: só o pedido para escolher, desabilitado, e sem formulário.
+    expect(screen.queryByRole('button', { name: 'Adiar o encontro' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Cancelar o encontro' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Escolha adiar ou cancelar' })).toBeDisabled()
+    expect(screen.queryByLabelText('Motivo')).toBeNull()
+    expect(pedidosPara(servidor, 'POST', `${CAMINHO}/status`)).toHaveLength(0)
+  })
+
+  test('escolher "Cancelar": diz "Isto não se desfaz", quantas pessoas serão avisadas e pede o motivo', async () => {
+    parametros.mockReturnValue({ eventoId: EVENTO_ID })
+    await renderizarTela(<TelaMudarStatus />, {
+      rotas: { [`GET ${CAMINHO}`]: () => ({ status: 200, corpo: eventoDeTeste() }) },
+    })
+    const usuario = userEvent.setup()
+    await usuario.press(await screen.findByRole('radio', { name: 'Cancelar' }))
+    expect(screen.getByText('Isto não se desfaz')).toBeOnTheScreen()
+    expect(
+      screen.getByText(/Vai avisar 1 pessoa convocada e quem se inscreveu\./),
+    ).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Cancelar o encontro' })).toBeEnabled()
+    expect(screen.getByLabelText('Motivo')).toBeOnTheScreen()
+  })
+
+  test('escolher "Adiar": o texto da contagem diz o mesmo número de segundos que a faixa conta', async () => {
+    parametros.mockReturnValue({ eventoId: EVENTO_ID })
+    await renderizarTela(
+      <>
+        <TelaMudarStatus />
+        <HospedeiroDeToast />
+      </>,
+      { rotas: { [`GET ${CAMINHO}`]: () => ({ status: 200, corpo: eventoDeTeste() }) } },
+    )
+    const usuario = userEvent.setup()
+    await usuario.press(await screen.findByRole('radio', { name: 'Adiar' }))
+    expect(screen.getByText(/Você tem 10 segundos para desfazer\./)).toBeOnTheScreen()
+    await fireEvent.changeText(screen.getByLabelText('Motivo'), 'Falta de energia')
+    await usuario.press(screen.getByRole('button', { name: 'Adiar o encontro' }))
+    expect(await screen.findByText('10 s')).toBeOnTheScreen()
+  })
 
   test('motivo é obrigatório; com ele, cancela e volta', async () => {
     parametros.mockReturnValue({ eventoId: EVENTO_ID, acao: 'cancelar' })

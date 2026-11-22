@@ -10,6 +10,8 @@ interface DadosDaMusica {
   cifra?: string | null
   /** Só a informação de que há cifra (lista do repertório, que não traz o texto). */
   temCifra?: boolean
+  /** PDF anexado (D76): com PDF a música não está "sem cifra", e a linha diz "PDF" em texto. */
+  temPdf?: boolean
 }
 
 /**
@@ -33,7 +35,8 @@ export function descricaoDaMusica(d: DadosDaMusica, { artista = false } = {}): s
   if (duracao) partes.push(duracao)
   if (artista && d.artista) partes.push(d.artista)
   const semCifra = d.cifra !== undefined ? !(d.cifra && d.cifra.trim()) : d.temCifra === false
-  if (semCifra) partes.push('Sem cifra')
+  if (d.temPdf) partes.push(semCifra ? 'PDF' : 'Cifra e PDF')
+  else if (semCifra) partes.push('Sem cifra')
   return partes.join(' · ')
 }
 

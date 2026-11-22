@@ -17,8 +17,9 @@ import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { AvisoDeFalha, ErroDaTela } from '@/ui/Falha'
 import { Segmentos } from '@/ui/Segmentos'
 import { Tela } from '@/ui/Tela'
+import { Texto } from '@/ui/Texto'
 import { mostrarToast } from '@/ui/Toast'
-import { mostrarDesfazer } from '@/ui/ToastComDesfazer'
+import { frasePraDesfazer, mostrarDesfazer, useSegundosDoDesfazer } from '@/ui/ToastComDesfazer'
 import { instanteDeDataEHora, lerDataDigitada, lerHoraDigitada } from '@/utilidades/datas'
 import { parametro } from '@/utilidades/parametros'
 import { voltarOu } from '@/ui/navegacao'
@@ -40,19 +41,23 @@ function consequencia(evento: DetalheDoEvento): string {
 }
 
 /**
- * Rota `/evento/[eventoId]/status?acao=cancelar|adiar` ("Cancelar ou adiar", D69): a escolha entre
- * adiar e cancelar, o aviso com a consequência escrita ("Vai avisar 11 pessoas"), o motivo
- * (obrigatório: ele vai para quem participa) e, no adiamento, a nova data e hora. "Adiar o
- * encontro" avisa as pessoas só depois de 10 s, com Desfazer. "Cancelar o encontro" é um dos
- * poucos diálogos de verdade: desfaz o que outras pessoas já organizaram e não volta atrás.
+ * Rota `/evento/[eventoId]/status?acao=cancelar|adiar` ("Cancelar ou adiar", D69, D74): a tela
+ * abre SEM escolha feita (antes abria em "Adiar", e quem queria cancelar tocava no botão grande da
+ * frente achando que tinha cancelado). "Adiar" e "Cancelar" aparecem lado a lado, cada um com o que
+ * faz; só depois da escolha vêm o aviso com a consequência escrita ("Vai avisar 11 pessoas"), o motivo
+ * (obrigatório: ele vai para quem participa) e, no adiamento, a nova data e hora. "Adiar o encontro"
+ * avisa as pessoas só depois da contagem, com Desfazer. "Cancelar o encontro" diz "Isto não se desfaz".
  */
 export function TelaMudarStatus() {
   const { comunidadeAtiva } = useSessao()
   const params = useLocalSearchParams<{ eventoId: string; acao: string }>()
   const eventoId = parametro(params.eventoId)
-  const [acaoPedida, setAcao] = useState<Acao>(
-    parametro(params.acao) === 'adiar' ? 'adiar' : 'cancelar',
-  )
+  // Sem escolha de partida: só vale o que um link pediu de propósito (`?acao=`).
+  const [acaoPedida, setAcao] = useState<Acao | null>(() => {
+    const pedida = parametro(params.acao)
+    return pedida === 'adiar' || pedida === 'cancelar' ? pedida : null
+  })
+  const segundos = useSegundosDoDesfazer()
   const evento = useEvento(comunidadeAtiva?.id ?? null, eventoId)
   const pode = usePode()
   const invalidar = useInvalidarEventos(comunidadeAtiva?.id ?? '')
@@ -97,15 +102,17 @@ export function TelaMudarStatus() {
   }
   const e = evento.data
   const { adiar: podeAdiar, cancelar: podeCancelar } = acoesDeStatus(e.status)
-  // Se a situação do encontro só permite uma das duas, a tela já abre nela.
-  const acao: Acao =
-    acaoPedida === 'adiar'
-      ? podeAdiar
-        ? 'adiar'
-        : 'cancelar'
-      : podeCancelar
+  // Se a situação do encontro só permite uma das duas, não há o que escolher: a tela já abre nela.
+  const acao: Acao | null =
+    podeAdiar && !podeCancelar
+      ? 'adiar'
+      : podeCancelar && !podeAdiar
         ? 'cancelar'
-        : 'adiar'
+        : acaoPedida === 'adiar' && podeAdiar
+          ? 'adiar'
+          : acaoPedida === 'cancelar' && podeCancelar
+            ? 'cancelar'
+            : null
   const permitido = pode('evento', 'cancelar_ou_adiar') && (podeAdiar || podeCancelar)
 
   if (!permitido) {
@@ -121,6 +128,7 @@ export function TelaMudarStatus() {
   }
 
   function confirmarEnvio() {
+    if (!acao) return
     const novos: typeof erros = {}
     if (motivo.trim().length < 3) novos.motivo = 'Explique o motivo: ele vai para quem participa.'
     let novoInicio: string | null = null
@@ -142,22 +150,26 @@ export function TelaMudarStatus() {
       enviar.mutate(corpo)
       return
     }
-    // Adiar avisa gente: o app volta ao encontro e o aviso espera 10 s, com Desfazer.
+    // Adiar avisa gente: o app volta ao encontro e o aviso espera a contagem, com Desfazer. Sai também
+    // se a pessoa sair da tela ou do app (D74) e repete se a rede falhar.
     const id = e.id
     const comunidadeId = comunidadeAtiva!.id
     const quantas = pessoasDistintas(e.atribuicoes)
     mostrarDesfazer({
       texto: quantas > 0 ? `Adiando e avisando ${quantasPessoas(quantas)}.` : 'Adiando o encontro.',
-      aoConfirmar: () => {
-        api
-          .post(`${naComunidade(comunidadeId)}/eventos/${id}/status`, corpo)
-          .then(async () => {
-            await invalidar(id)
-            mostrarToast({ texto: 'Encontro adiado.' })
-          })
-          .catch(() =>
-            mostrarToast({ texto: 'Não deu para adiar o encontro. Tente de novo.', tipo: 'erro' }),
-          )
+      textoDaFalha:
+        'Não deu para adiar o encontro. Nada foi enviado nem ninguém foi avisado. Toque em Tentar de novo.',
+      // A própria ação leva a pessoa de volta ao encontro: essa navegação não envia na hora.
+      seguePeloCaminho: true,
+      aoConfirmar: async () => {
+        await api.post(`${naComunidade(comunidadeId)}/eventos/${id}/status`, corpo)
+        await invalidar(id)
+        mostrarToast({
+          texto:
+            quantas > 0
+              ? `Encontro adiado. ${quantasPessoas(quantas)} ${quantas === 1 ? 'foi avisada' : 'foram avisadas'}.`
+              : 'Encontro adiado.',
+        })
       },
     })
     voltarOu({ pathname: '/evento/[eventoId]', params: { eventoId: id } })
@@ -173,76 +185,106 @@ export function TelaMudarStatus() {
       barraDeAcao={
         <BarraDeAcao>
           <Botao
-            titulo={acao === 'adiar' ? 'Adiar o encontro' : 'Cancelar o encontro'}
+            titulo={
+              acao === 'adiar'
+                ? 'Adiar o encontro'
+                : acao === 'cancelar'
+                  ? 'Cancelar o encontro'
+                  : 'Escolha adiar ou cancelar'
+            }
             tamanho="grande"
-            variante={acao === 'adiar' ? 'primario' : 'destrutivoCheio'}
+            variante={acao === 'cancelar' ? 'destrutivoCheio' : 'primario'}
             carregando={enviar.isPending}
+            desabilitado={acao === null}
+            {...(acao === null ? { motivo: 'Escolha acima o que fazer com o encontro.' } : {})}
             aoPressionar={confirmarEnvio}
           />
         </BarraDeAcao>
       }
     >
       {podeAdiar && podeCancelar ? (
-        <Segmentos
-          rotulo="O que fazer com o encontro"
-          valor={acao}
-          aoMudar={setAcao}
-          segmentos={[
-            { valor: 'adiar', rotulo: 'Adiar' },
-            { valor: 'cancelar', rotulo: 'Cancelar' },
-          ]}
-        />
+        <>
+          <Segmentos
+            rotulo="O que fazer com o encontro"
+            valor={acao}
+            aoMudar={setAcao}
+            segmentos={[
+              { valor: 'adiar', rotulo: 'Adiar' },
+              { valor: 'cancelar', rotulo: 'Cancelar' },
+            ]}
+          />
+          {acao === null ? (
+            <View style={{ gap: ESPACO.e12 }}>
+              <Texto variante="corpo">
+                <Texto variante="corpo" peso="forte">
+                  Adiar:{' '}
+                </Texto>
+                o encontro continua, em outra data. Quem participa é avisado.
+              </Texto>
+              <Texto variante="corpo">
+                <Texto variante="corpo" peso="forte">
+                  Cancelar:{' '}
+                </Texto>
+                o encontro termina e não volta. Quem participa é avisado. Isto não se desfaz.
+              </Texto>
+            </View>
+          ) : null}
+        </>
       ) : null}
-      <Aviso
-        tipo="alerta"
-        titulo={acao === 'adiar' ? 'Quem participa é avisado' : 'Isto não se desfaz'}
-      >
-        {acao === 'adiar'
-          ? `O encontro fica como adiado até ser publicado de novo. ${consequencia(e)} Dá para desfazer por 10 segundos.`
-          : `Vai cancelar ${e.titulo}. ${consequencia(e)} Um encontro cancelado não volta a ser publicado.`}
-      </Aviso>
+      {acao === null ? null : (
+        <Aviso
+          tipo="alerta"
+          titulo={acao === 'adiar' ? 'Quem participa é avisado' : 'Isto não se desfaz'}
+        >
+          {acao === 'adiar'
+            ? `O encontro fica como adiado até ser publicado de novo. ${consequencia(e)} ${frasePraDesfazer(segundos)}`
+            : `Vai cancelar ${e.titulo}. ${consequencia(e)} Um encontro cancelado não volta a ser publicado.`}
+        </Aviso>
+      )}
       {enviar.error ? (
         <AvisoDeFalha
           erro={enviar.error}
           titulo={acao === 'adiar' ? 'O encontro não foi adiado' : 'O encontro não foi cancelado'}
         />
       ) : null}
-      <CartaoDeVidro opaco intervalo={ESPACO.e16}>
-        <Campo
-          rotulo="Motivo"
-          value={motivo}
-          onChangeText={setMotivo}
-          erro={erros.motivo ?? null}
-          ajuda="Escreva como você diria para quem vinha."
-          multiline
-          maxLength={500}
-        />
-        {acao === 'adiar' ? (
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: ESPACO.e12 }}>
-            <View style={{ flex: 1.4 }}>
-              <CampoDeData
-                rotulo="Nova data"
-                opcional
-                valor={data}
-                aoMudar={setData}
-                erro={erros.data ?? null}
-                ajuda="Em branco, fica sem data nova por enquanto."
-                reservarApoio
-              />
+      {acao === null ? null : (
+        <CartaoDeVidro opaco intervalo={ESPACO.e16}>
+          <Campo
+            rotulo="Motivo"
+            value={motivo}
+            onChangeText={setMotivo}
+            erro={erros.motivo ?? null}
+            ajuda="Escreva como você diria para quem vinha."
+            multiline
+            maxLength={500}
+          />
+          {acao === 'adiar' ? (
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: ESPACO.e12 }}>
+              <View style={{ flex: 1.4 }}>
+                <CampoDeData
+                  rotulo="Nova data"
+                  opcional
+                  valor={data}
+                  aoMudar={setData}
+                  erro={erros.data ?? null}
+                  ajuda="Em branco, fica sem data nova por enquanto."
+                  reservarApoio
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <CampoDeHora
+                  rotulo="Nova hora"
+                  opcional
+                  valor={hora}
+                  aoMudar={setHora}
+                  erro={erros.hora ?? null}
+                  reservarApoio={erroDaData}
+                />
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <CampoDeHora
-                rotulo="Nova hora"
-                opcional
-                valor={hora}
-                aoMudar={setHora}
-                erro={erros.hora ?? null}
-                reservarApoio={erroDaData}
-              />
-            </View>
-          </View>
-        ) : null}
-      </CartaoDeVidro>
+          ) : null}
+        </CartaoDeVidro>
+      )}
     </Tela>
   )
 }

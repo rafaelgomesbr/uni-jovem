@@ -11,6 +11,7 @@
  */
 import { api } from './api'
 import type { StatusDoEvento } from '@uj/dominio'
+import type { ResumoDoPdf } from './contratoDoPdf'
 import type { EstadoDaAtribuicao } from './contratoDosEventos'
 
 const daComunidade = (comunidadeId: string) => `/api/v1/c/${comunidadeId}`
@@ -291,6 +292,9 @@ export interface ItemDoPacoteDoRepertorio {
   duracaoSeg: number | null
   link: string | null
   cifra: string | null
+  /** PDF anexado (D76): o resumo, sem os bytes. Opcional: API antiga não manda. */
+  temPdf?: boolean
+  pdf?: ResumoDoPdf | null
 }
 
 export interface PacoteDoRepertorio {

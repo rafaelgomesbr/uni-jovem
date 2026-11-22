@@ -17,7 +17,7 @@ export type TipoDeEncanto = 'aceitar' | 'presenca' | 'publicou' | 'tudoEmDia' | 
 /** O texto de cada momento (também é o que a pessoa lê com Reduzir movimento). */
 export const TEXTO_DO_ENCANTO: Readonly<Record<TipoDeEncanto, string>> = {
   aceitar: 'Que bom ter você {onde}.',
-  presenca: 'Primeira presença marcada. Bom sábado!',
+  presenca: 'Primeira presença marcada. Bom encontro!',
   publicou: 'Seu primeiro encontro está no ar.',
   tudoEmDia: 'Tudo em dia.',
   banda: 'Banda completa: {n} de {n}.',

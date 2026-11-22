@@ -25,7 +25,13 @@ import { usePode } from '../comunidade/permissoes'
 import { DetalheLocalDoEvento } from '../offline/DetalheLocalDoEvento'
 import { useEstaOnline, usePacoteDoEvento } from '../offline/ProvedorOffline'
 import { CartaoDoRepertorioNoEncontro } from '../repertorio/CartaoDoRepertorioNoEncontro'
-import { AcoesNoPainel, BarraDoEvento, useAcoesDoEvento, useBaixarSozinho } from './BarraDoEvento'
+import {
+  AcoesNoPainel,
+  BarraDoEvento,
+  textoDePublicado,
+  useAcoesDoEvento,
+  useBaixarSozinho,
+} from './BarraDoEvento'
 import { useEvento } from './consultas'
 import { MetaDoEvento } from './MetaDoEvento'
 import {
@@ -39,8 +45,8 @@ import {
   temPreparacao,
 } from './PartesDaPagina'
 import { faseDoEncontro, momentoDaFase } from './regras'
+import { QuemVai } from './QuemVai'
 import { ResumoDoEncontro } from './ResumoDoEncontro'
-import { SecaoEquipe } from './SecaoEquipe'
 import { SecaoEtapas } from './SecaoEtapas'
 import { SuaParte } from './SuaParte'
 import { useLembrete } from './useLembrete'
@@ -55,8 +61,10 @@ interface Props {
   aoSair?: () => void
   /** No painel da direita (web larga): sem tela própria nem barra fixa. */
   painel?: boolean
-  /** A aba que abre primeiro ("Faltam: Bruno e Camila" do Início abre os Convocados). */
+  /** A aba que abre primeiro ("Faltam: Bruno e Camila" do Início abre os Quem vai). */
   abaInicial?: Visao | undefined
+  /** Acabou de publicar em outra tela ("Igual ao último sábado"): quantas pessoas foram avisadas. */
+  avisadasAoPublicar?: number | undefined
 }
 
 /**
@@ -72,6 +80,7 @@ export function DetalheDoEvento({
   aoSair = () => voltarOu('/agenda'),
   painel = false,
   abaInicial,
+  avisadasAoPublicar,
 }: Props) {
   const pode = usePode()
   // Baixar para usar sem internet é coisa de quem organiza ou conduz (D57).
@@ -134,6 +143,7 @@ export function DetalheDoEvento({
       aoSair={aoSair}
       painel={painel}
       abaInicial={abaInicial}
+      avisadasAoPublicar={avisadasAoPublicar}
     />
   )
 }
@@ -176,12 +186,14 @@ function Conteudo({
   aoSair,
   painel,
   abaInicial,
+  avisadasAoPublicar,
 }: {
   evento: Evento
   comunidadeId: string
   aoSair: () => void
   painel: boolean
   abaInicial: Visao | undefined
+  avisadasAoPublicar: number | undefined
 }) {
   const { comunidadeAtiva } = useSessao()
   const eu = useMeuVinculo()
@@ -215,15 +227,19 @@ function Conteudo({
   const abas: Segmento<Visao>[] = [
     { valor: 'resumo', rotulo: 'Resumo' },
     { valor: 'roteiro', rotulo: 'Roteiro' },
-    { valor: 'convocados', rotulo: 'Convocados' },
+    { valor: 'convocados', rotulo: 'Quem vai' },
   ]
   const publicado = e.status === 'publicado'
+  const mensagemFinal =
+    acoes.mensagemFinal ??
+    (avisadasAoPublicar !== undefined && publicado ? textoDePublicado(avisadasAoPublicar) : null)
   const doTopo =
     publicado || (!acoes.organiza && acoes.temMenu) ? (
       <>
         {publicado ? (
           <BotaoIcone
             icone="compartilhar"
+            texto="Compartilhar"
             rotulo="Compartilhar"
             dica="Manda o dia, a hora e o local do encontro."
             circular
@@ -250,6 +266,12 @@ function Conteudo({
         </Aviso>
       ) : null}
       {acoes.erro ? <AvisoDeFalha erro={acoes.erro} /> : null}
+      {/* Depois de publicar a tela diz o que houve, em frase inteira, e não some sozinha. */}
+      {mensagemFinal ? (
+        <Aviso tipo="sucesso" anunciar>
+          {mensagemFinal}
+        </Aviso>
+      ) : null}
       <SuaParte evento={e} comunidadeId={comunidadeId} />
       {acoes.organiza ? (
         <>
@@ -259,6 +281,7 @@ function Conteudo({
               evento={e}
               comunidadeId={comunidadeId}
               aoVerConvocados={() => setAba('convocados')}
+              outrasCoisas={acoes.itens}
             />
           ) : aba === 'roteiro' ? (
             <>
@@ -270,7 +293,7 @@ function Conteudo({
               <CartaoDoRepertorioNoEncontro evento={e} comunidadeId={comunidadeId} />
             </>
           ) : (
-            <SecaoEquipe evento={e} comunidadeId={comunidadeId} lembrete={lembrete} />
+            <QuemVai evento={e} comunidadeId={comunidadeId} lembrete={lembrete} />
           )}
         </>
       ) : (
@@ -299,7 +322,7 @@ function Conteudo({
           </Texto>
           {doTopo}
         </View>
-        <MetaDoEvento evento={e} />
+        <MetaDoEvento evento={e} publicando={acoes.textoPublicando} />
         <AcoesNoPainel acoes={acoes} />
         {corpo}
       </View>
@@ -309,7 +332,7 @@ function Conteudo({
     <Moldura
       painel={false}
       titulo={e.titulo}
-      abaixoDoTitulo={<MetaDoEvento evento={e} />}
+      abaixoDoTitulo={<MetaDoEvento evento={e} publicando={acoes.textoPublicando} />}
       momento={momentoDaFase(faseDoEncontro(e))}
       {...(doTopo ? { acoes: doTopo } : {})}
       {...(acoes.organiza ? { barra: <BarraDoEvento acoes={acoes} /> } : {})}

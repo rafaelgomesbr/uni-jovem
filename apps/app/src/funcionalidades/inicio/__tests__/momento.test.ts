@@ -13,10 +13,12 @@ import {
   emOnde,
   estaNoLouvor,
   etiquetaDoMomento,
+  frasesDoQueFalta,
   momentoDoDia,
   quandoFoiSalva,
   textoDaDespedida,
   tocaNoLouvor,
+  type EntradaDoQueFalta,
   type SituacaoDoLider,
   type SituacaoDoMembro,
 } from '../momento'
@@ -236,13 +238,14 @@ describe('o botão do cartão do MEMBRO (tabela 3.1 do UX)', () => {
   })
 })
 
-describe('o botão do cartão do LÍDER (tabela 3.2 do UX)', () => {
+describe('a UMA próxima ação do cartão do LÍDER (D75, ordem do documento de UX)', () => {
   const base: SituacaoDoLider = {
     momento: 'longe',
     rascunho: false,
     lembraveis: 0,
     pendentes: 0,
     faltaFuncao: [],
+    semMusicas: false,
     naHoraDoCheckin: false,
     terminou: false,
     proximoAMarcar: false,
@@ -250,63 +253,170 @@ describe('o botão do cartão do LÍDER (tabela 3.2 do UX)', () => {
   }
   const acao = (s: Partial<SituacaoDoLider>) => acoesDoLider({ ...base, ...s })
 
-  test('sem encontro marcado: "Marcar o próximo sábado", sem secundário', () => {
+  test('1. sem encontro marcado: "Marcar o próximo encontro", sem secundário', () => {
     expect(acao({ semEncontro: true })).toEqual({ primaria: 'marcarProximo', secundaria: null })
   })
 
-  test('terminou e nada marcado depois: "Marcar o próximo sábado" e "Ver o resumo"', () => {
+  test('1. terminou e nada marcado depois: marcar o próximo e "Ver o resumo"', () => {
     expect(acao({ momento: 'fim', terminou: true, proximoAMarcar: true })).toEqual({
       primaria: 'marcarProximo',
       secundaria: 'verResumo',
     })
   })
 
-  test('rascunho: Publicar e Editar', () => {
-    expect(acao({ rascunho: true })).toEqual({ primaria: 'publicar', secundaria: 'editar' })
+  test('2. rascunho: Publicar vence tudo (e Editar é o caminho)', () => {
+    expect(
+      acao({ rascunho: true, lembraveis: 3, faltaFuncao: ['Bateria'], semMusicas: true }),
+    ).toEqual({ primaria: 'publicar', secundaria: 'editar' })
   })
 
-  test('publicado e longe, falta resposta: Lembrar os N e Ver convocados', () => {
-    expect(acao({ lembraveis: 2, pendentes: 2 })).toEqual({
-      primaria: 'lembrar',
-      secundaria: 'verConvocados',
-    })
+  test('3. falta gente responder: Lembrar os N, longe, na véspera e no dia antes das 2 h', () => {
+    for (const momento of ['longe', 'vespera', 'dia'] as const) {
+      expect(acao({ momento, lembraveis: 2, pendentes: 2 })).toEqual({
+        primaria: 'lembrar',
+        secundaria: 'verConvocados',
+      })
+    }
   })
 
-  test('publicado e longe, ninguém a lembrar mas falta uma função: Convocar a função', () => {
-    expect(acao({ lembraveis: 0, faltaFuncao: ['Bateria'] })).toEqual({
+  test('4. ninguém a lembrar mas falta uma função: Convocar a função', () => {
+    expect(acao({ lembraveis: 0, faltaFuncao: ['Bateria'], semMusicas: true })).toEqual({
       primaria: 'convocarFuncao',
       secundaria: 'verConvocados',
     })
   })
 
-  test('publicado e longe, já lembrou quem falta: Ver convocados', () => {
-    expect(acao({ lembraveis: 0, pendentes: 2 })).toEqual({
-      primaria: 'verConvocados',
-      secundaria: 'ver',
+  test('5. banda e respostas em dia, repertório vazio: Montar o repertório', () => {
+    expect(acao({ semMusicas: true })).toEqual({
+      primaria: 'repertorio',
+      secundaria: 'verConvocados',
+    })
+    expect(acao({ momento: 'vespera', semMusicas: true }).primaria).toBe('repertorio')
+  })
+
+  test('6. de 2 h antes até começar: o check-in é o botão (e vence lembrar, banda e repertório)', () => {
+    expect(
+      acao({
+        momento: 'dia',
+        naHoraDoCheckin: true,
+        lembraveis: 2,
+        faltaFuncao: ['Bateria'],
+        semMusicas: true,
+      }),
+    ).toEqual({ primaria: 'checkin', secundaria: 'aoVivo' })
+  })
+
+  test('7. acontecendo: Conduzir ao vivo, com o check-in ao lado (a hora de marcar quem chegou)', () => {
+    expect(acao({ momento: 'agora', lembraveis: 2 })).toEqual({
+      primaria: 'conduzir',
+      secundaria: 'checkin',
     })
   })
 
-  test('publicado, tudo respondido: Ver o encontro e Abrir o repertório', () => {
-    expect(acao({})).toEqual({ primaria: 'ver', secundaria: 'repertorio' })
-  })
-
-  test('véspera: Ver convocados e Ver o encontro; no dia antes das 2 h, o mesmo', () => {
+  test('8. tudo certo: véspera e dia veem os convocados; longe, o encontro e o repertório', () => {
     expect(acao({ momento: 'vespera' })).toEqual({ primaria: 'verConvocados', secundaria: 'ver' })
     expect(acao({ momento: 'dia', naHoraDoCheckin: false })).toEqual({
       primaria: 'verConvocados',
       secundaria: 'ver',
     })
+    expect(acao({})).toEqual({ primaria: 'ver', secundaria: 'repertorio' })
+    // Já lembrou quem falta: o caminho é a lista, e não um segundo lembrete.
+    expect(acao({ lembraveis: 0, pendentes: 2 })).toEqual({
+      primaria: 'ver',
+      secundaria: 'verConvocados',
+    })
   })
 
-  test('no dia, de 2 h antes: Fazer check-in e Abrir ao vivo; acontecendo: Conduzir e Check-in', () => {
-    expect(acao({ momento: 'dia', naHoraDoCheckin: true })).toEqual({
-      primaria: 'checkin',
-      secundaria: 'aoVivo',
-    })
-    expect(acao({ momento: 'agora' })).toEqual({ primaria: 'conduzir', secundaria: 'checkin' })
+  test('nenhum estado devolve duas ações em destaque: o secundário é sempre um caminho diferente', () => {
+    const estados: Partial<SituacaoDoLider>[] = [
+      { semEncontro: true },
+      { rascunho: true },
+      { momento: 'agora' },
+      { momento: 'dia', naHoraDoCheckin: true },
+      { lembraveis: 2, pendentes: 2 },
+      { faltaFuncao: ['Bateria'] },
+      { semMusicas: true },
+      { momento: 'vespera' },
+      {},
+    ]
+    for (const e of estados) {
+      const r = acao(e)
+      expect(r.primaria).not.toBe(r.secundaria)
+    }
   })
 
   test('o líder do teste tem 2 pessoas a lembrar (a fixture bate com a tabela)', () => {
     expect(liderDoMomento().lembraveis).toBe(2)
+  })
+})
+
+describe('"o que falta" do cartão: no máximo 2 frases (D75)', () => {
+  const base: EntradaDoQueFalta = {
+    convocados: 11,
+    pendentes: 2,
+    quemFalta: 'Faltam: Bruno e Camila',
+    lembrou: null,
+    faltaFuncao: ['Bateria'],
+    semMusicas: true,
+  }
+
+  test('quem não respondeu, a banda e o repertório vazio: só as 2 mais importantes aparecem', () => {
+    const frases = frasesDoQueFalta(base)
+    expect(frases.map((f) => f.texto)).toEqual(['Faltam: Bruno e Camila', 'Falta: bateria'])
+    expect(frases.map((f) => f.alerta)).toEqual([false, true])
+  })
+
+  test('todos responderam: "Todos responderam ✓" uma vez só, depois o que ainda falta', () => {
+    const frases = frasesDoQueFalta({ ...base, pendentes: 0, quemFalta: '' })
+    expect(frases.map((f) => f.texto)).toEqual(['Todos responderam ✓', 'Falta: bateria'])
+    expect(frases.filter((f) => /Todos responderam/.test(f.texto))).toHaveLength(1)
+  })
+
+  test('tudo certo: uma frase só', () => {
+    expect(
+      frasesDoQueFalta({
+        ...base,
+        pendentes: 0,
+        quemFalta: '',
+        faltaFuncao: [],
+        semMusicas: false,
+      }),
+    ).toEqual([{ texto: 'Todos responderam ✓', alerta: false }])
+  })
+
+  test('depois de lembrar, a frase é o que o líder fez (nunca a mesma coisa duas vezes)', () => {
+    const frases = frasesDoQueFalta({
+      ...base,
+      lembrou: 'Você lembrou Bruno e Camila, hoje às 11:07.',
+      faltaFuncao: [],
+      semMusicas: false,
+    })
+    expect(frases.map((f) => f.texto)).toEqual(['Você lembrou Bruno e Camila, hoje às 11:07.'])
+  })
+
+  test('ninguém convocado e o repertório vazio', () => {
+    expect(
+      frasesDoQueFalta({
+        ...base,
+        convocados: 0,
+        pendentes: 0,
+        quemFalta: '',
+        faltaFuncao: [],
+      }).map((f) => f.texto),
+    ).toEqual(['Ninguém foi convocado ainda.', 'O repertório está vazio.'])
+  })
+
+  test('nunca passa de 2 frases, qualquer que seja a combinação', () => {
+    for (const convocados of [0, 5]) {
+      for (const pendentes of [0, 2]) {
+        for (const faltaFuncao of [[], ['Bateria', 'Teclado']]) {
+          for (const semMusicas of [true, false]) {
+            expect(
+              frasesDoQueFalta({ ...base, convocados, pendentes, faltaFuncao, semMusicas }).length,
+            ).toBeLessThanOrEqual(2)
+          }
+        }
+      }
+    }
   })
 })

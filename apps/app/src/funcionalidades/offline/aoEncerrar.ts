@@ -1,5 +1,6 @@
 import { registrarAoEncerrarSessao } from '@/estado/aoEncerrarSessao'
 
+import { limparPdfsAbertos } from '../pdf/abrirPdf'
 import { guardarDescarte } from './descartadas'
 import type { DepositoLocal, OperacaoNaFila } from './tipos'
 
@@ -17,5 +18,7 @@ export function ligarLimpezaAoSair(deposito: DepositoLocal): () => void {
     }
     guardarDescarte('sessao', naoEnviadas)
     await deposito.apagarTudo()
+    // O PDF aberto para ler fica no cache do app: sai junto com a conta (D76).
+    limparPdfsAbertos()
   })
 }

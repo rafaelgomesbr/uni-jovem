@@ -138,24 +138,24 @@ describe('entrada.inicio: a tabela 2.3 do desenho de UI', () => {
 })
 
 describe('entrada.email com o teclado aberto: a tabela 2.4', () => {
-  test('iPhone SE, teclado de 260: ritmo compacto e sobra de 15 acima do teclado', () => {
+  test('iPhone SE, teclado de 260: ritmo compacto e sobra de 11 acima do teclado (o Voltar passou de 44 para 48, D75)', () => {
     const m = calcularMedidasDoPainel({ altura: 667, topo: 20, teclado: 260, fonte: 1 })
     expect(m).toMatchObject({
       ritmo: 'compacto',
       tituloVisivel: true,
-      sobraAcimaDoTeclado: 15,
+      sobraAcimaDoTeclado: 11,
       rola: false,
     })
   })
 
-  test('iPhone 15 e 16, teclado de 336: ritmo confortável e sobra de 73', () => {
+  test('iPhone 15 e 16, teclado de 336: ritmo confortável e sobra de 69', () => {
     const m = calcularMedidasDoPainel({ altura: 852, topo: 59, teclado: 336, fonte: 1 })
-    expect(m).toMatchObject({ ritmo: 'confortavel', sobraAcimaDoTeclado: 73, rola: false })
+    expect(m).toMatchObject({ ritmo: 'confortavel', sobraAcimaDoTeclado: 69, rola: false })
   })
 
-  test('Android, teclado de 300: ritmo confortável e sobra de 92', () => {
+  test('Android, teclado de 300: ritmo confortável e sobra de 88', () => {
     const m = calcularMedidasDoPainel({ altura: 800, topo: 24, teclado: 300, fonte: 1 })
-    expect(m).toMatchObject({ ritmo: 'confortavel', sobraAcimaDoTeclado: 92 })
+    expect(m).toMatchObject({ ritmo: 'confortavel', sobraAcimaDoTeclado: 88 })
   })
 
   test('web (sem teclado virtual): cabe de sobra', () => {

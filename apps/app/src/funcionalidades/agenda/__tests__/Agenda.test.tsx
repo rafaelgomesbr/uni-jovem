@@ -547,16 +547,23 @@ describe('Agenda', () => {
       expect(
         screen.getByText('Quando a liderança marcar o próximo, ele aparece aqui.'),
       ).toBeOnTheScreen()
-      expect(screen.queryByRole('button', { name: 'Marcar o próximo sábado' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Novo encontro' })).toBeNull()
     })
 
-    test('vazio para a organização: "Marcar o próximo sábado" leva à conferência', async () => {
+    test('vazio para a organização: a ação é o MESMO "Novo encontro" do topo (um caminho só, D75)', async () => {
       await renderizarTela(<TelaAgenda />, { papel: 'organizador', rotas: rotas([]) })
       expect(
-        await screen.findByText('O Sábado padrão já vem com o roteiro de sempre.'),
+        await screen.findByText('Marque o próximo para a comunidade ver e responder.'),
       ).toBeOnTheScreen()
-      await userEvent.setup().press(screen.getByRole('button', { name: 'Marcar o próximo sábado' }))
-      expect(router.push).toHaveBeenCalledWith('/evento/igual-ao-ultimo')
+      // Dois botões com o mesmo nome e o mesmo destino: o do topo e o do estado vazio.
+      const botoes = screen.getAllByRole('button', { name: 'Novo encontro' })
+      expect(botoes).toHaveLength(2)
+      const antes = screen.getAllByText('Novo encontro').length
+      await userEvent.setup().press(botoes[1]!)
+      // Abre a folha "Novo encontro" (a mesma do botão do topo): o título dela passa a existir.
+      await waitFor(() =>
+        expect(screen.getAllByText('Novo encontro').length).toBeGreaterThan(antes),
+      )
     })
 
     test('erro: texto humano e "Tentar de novo" que recarrega', async () => {

@@ -108,7 +108,7 @@ export default function LayoutAutenticado() {
         <Stack.Screen name="meu-repertorio/index" options={{ title: 'Meu repertório' }} />
         <Stack.Screen name="meu-repertorio/[eventoId]/[itemId]" options={{ title: 'Cifra' }} />
         <Stack.Screen name="evento/[eventoId]/inscricoes" options={{ title: 'Inscrições' }} />
-        <Stack.Screen name="evento/[eventoId]/checkin" options={{ title: 'Check-in' }} />
+        <Stack.Screen name="evento/[eventoId]/checkin" options={{ title: 'Marcar quem chegou' }} />
         <Stack.Screen name="evento/[eventoId]/ler-qr" options={{ title: 'Ler QR', ...telaCheia }} />
         <Stack.Screen name="serie/[serieId]" options={{ title: 'Repetição' }} />
         <Stack.Screen name="agenda/[data]" options={{ title: 'Linha do tempo do dia' }} />

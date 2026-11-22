@@ -51,21 +51,6 @@ function traduzir(e: unknown): never {
   traduzirErroDoBanco(e)
 }
 
-/** Datas (no fuso) dos encontros com este título que ainda contam: não cancelados, de ontem em diante. */
-async function datasOcupadas(
-  c: pg.PoolClient,
-  comunidadeId: string,
-  titulo: string,
-): Promise<Set<string>> {
-  const { rows } = await c.query<{ inicio: Date; fuso: string }>(
-    `select inicio, fuso from uj.eventos
-      where comunidade_id = $1 and status <> 'cancelado'
-        and lower(btrim(titulo)) = lower(btrim($2)) and inicio > now() - interval '2 days'`,
-    [comunidadeId, titulo],
-  )
-  return new Set(rows.map((r) => dataNoFuso(r.inicio, r.fuso)))
-}
-
 interface Origem {
   id: string
   titulo: string
@@ -130,11 +115,10 @@ export function registrarRotasDeMontarEncontro(app: FastifyInstance, api: pg.Poo
       const agora = new Date()
       const opcoes = []
       for (const o of rows) {
-        const ocupadas = await datasOcupadas(c, comunidadeId, o.titulo)
+        // O próximo dia da semana do encontro anterior a partir de hoje: nunca pula para longe (D74).
         const data = proximaDataParaCopiar({
           dataDaOrigem: dataNoFuso(o.inicio, o.fuso),
           hoje: dataNoFuso(agora, o.fuso),
-          ocupadas,
         })
         const hora = horaNoFuso(o.inicio, o.fuso)
         opcoes.push({
@@ -179,7 +163,6 @@ export function registrarRotasDeMontarEncontro(app: FastifyInstance, api: pg.Poo
         proximaDataParaCopiar({
           dataDaOrigem: dataNoFuso(origem.inicio, origem.fuso),
           hoje: dataNoFuso(agora, origem.fuso),
-          ocupadas: await datasOcupadas(c, comunidadeId, origem.titulo),
         })
       const inicio = instanteNoFuso(data, hora, origem.fuso)
       if (inicio.getTime() <= agora.getTime()) {

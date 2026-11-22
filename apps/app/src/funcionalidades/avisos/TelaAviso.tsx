@@ -21,7 +21,7 @@ import { useConfirmarDescarte, voltarOu } from '@/ui/navegacao'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { mostrarToast } from '@/ui/Toast'
-import { mostrarDesfazer } from '@/ui/ToastComDesfazer'
+import { frasePraDesfazer, mostrarDesfazer, useSegundosDoDesfazer } from '@/ui/ToastComDesfazer'
 
 import { useFusoDaComunidade } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
@@ -145,7 +145,8 @@ function Gestao({ comunidadeId, aviso }: { comunidadeId: string; aviso: Aviso })
   const excluir = useExcluirAviso(comunidadeId)
   const publicado = aviso.estado === 'publicado'
   const aAvisar = usePessoasAAvisar(comunidadeId)
-  // O rascunho já aparece "publicando" na tela e espera os 10 s do Desfazer (o envio só sai ao fim).
+  const segundosDoDesfazer = useSegundosDoDesfazer()
+  // O rascunho já aparece "publicando" na tela e espera a contagem do Desfazer (o envio só sai ao fim).
   const [esperando, setEsperando] = useState(false)
   const erro = editar.error ?? publicacao.error ?? excluir.error
   // Editando com algo mudado, sair pergunta antes (A5). Salvo, o aviso novo é a base: nada a perder.
@@ -294,7 +295,7 @@ function Gestao({ comunidadeId, aviso }: { comunidadeId: string; aviso: Aviso })
               tamanho="grande"
               carregando={publicacao.isPending}
               desabilitado={esperando}
-              dica="Membros veem o aviso e recebem notificação, se tiverem ligado. Você tem 10 segundos para desfazer."
+              dica={`Membros veem o aviso e recebem notificação, se tiverem ligado. ${frasePraDesfazer(segundosDoDesfazer)}`}
               aoPressionar={publicar}
             />
           )}

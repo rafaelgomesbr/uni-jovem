@@ -28,6 +28,7 @@ import { registrarRotasDePlataforma } from './rotas/plataforma.ts'
 import { registrarRotasDeOracao } from './rotas/oracao.ts'
 import { registrarRotasDeSugestoes } from './rotas/sugestoes.ts'
 import { registrarRotasDeConteudos } from './rotas/conteudos.ts'
+import { registrarRotasDePdfDaMusica } from './rotas/musica-pdf.ts'
 import { registrarRotasDeAvisos } from './rotas/avisos.ts'
 import { registrarRotasDeRelatorios } from './rotas/relatorios.ts'
 import { registrarRotasDeNotificacoes } from './rotas/notificacoes.ts'
@@ -226,6 +227,7 @@ export function criarServidor(
       registrarRotasDeOracao(app, { api: recursos.api, config })
       registrarRotasDeSugestoes(app, recursos.api)
       registrarRotasDeConteudos(app, recursos.api)
+      registrarRotasDePdfDaMusica(app, recursos.api)
       registrarRotasDeAvisos(app, recursos.api)
       registrarRotasDeRelatorios(app, recursos.api)
       registrarRotasDeNotificacoes(app, recursos.api)

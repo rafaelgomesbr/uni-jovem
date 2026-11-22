@@ -22,6 +22,7 @@ import type {
   PacoteGuardado,
   PacoteOffline,
   Particao,
+  PdfGuardado,
   ParticaoVencida,
   RegistroDaParticao,
   RepertorioGuardado,
@@ -67,6 +68,17 @@ create table if not exists repertorios (
   conteudo text not null,
   baixado_em text not null,
   valido_ate text not null
+);
+-- PDFs das músicas dos repertórios guardados (D76): na mesma partição cifrada, sob a mesma
+-- validade. Saem junto com o repertório do encontro, com a partição e com a conta.
+create table if not exists repertorio_pdfs (
+  evento_id text not null,
+  musica_id text not null,
+  versao text not null,
+  nome text not null,
+  conteudo blob not null,
+  baixado_em text not null,
+  primary key (evento_id, musica_id)
 );
 `
 
@@ -316,20 +328,74 @@ class ParticaoSqlite implements Particao {
   }
 
   async resumoDosRepertorios(): Promise<ResumoDoRepertorioGuardado[]> {
-    return (await this.repertorios()).map((r) => ({
-      eventoId: r.eventoId,
-      versao: r.pacote.versao,
-      titulo: r.pacote.evento.titulo,
-      inicio: r.pacote.evento.inicio,
-      fuso: r.pacote.evento.fuso,
-      musicas: r.pacote.itens.length,
-      baixadoEm: r.baixadoEm,
-      validoAte: r.validoAte,
-    }))
+    const resumos: ResumoDoRepertorioGuardado[] = []
+    for (const r of await this.repertorios()) {
+      const guardados = await this.versoesDosPdfs(r.eventoId)
+      const comPdf = r.pacote.itens.filter((i) => i.pdf)
+      resumos.push({
+        eventoId: r.eventoId,
+        versao: r.pacote.versao,
+        titulo: r.pacote.evento.titulo,
+        inicio: r.pacote.evento.inicio,
+        fuso: r.pacote.evento.fuso,
+        musicas: r.pacote.itens.length,
+        pdfs: comPdf.length,
+        // "Pronto" só vale com o PDF na versão que o pacote pede: um PDF antigo não conta.
+        pdfsBaixados: comPdf.filter((i) => guardados[i.musicaId] === i.pdf!.versao).length,
+        baixadoEm: r.baixadoEm,
+        validoAte: r.validoAte,
+      })
+    }
+    return resumos
   }
 
   async removerRepertorio(eventoId: string): Promise<void> {
     await this.db.runAsync('delete from repertorios where evento_id = ?', [eventoId])
+    await this.db.runAsync('delete from repertorio_pdfs where evento_id = ?', [eventoId])
+  }
+
+  async gravarPdf(
+    eventoId: string,
+    musicaId: string,
+    pdf: { versao: string; nome: string },
+    bytes: Uint8Array,
+    baixadoEm: string = new Date().toISOString(),
+  ): Promise<void> {
+    await this.db.runAsync(
+      `insert into repertorio_pdfs (evento_id, musica_id, versao, nome, conteudo, baixado_em)
+       values (?, ?, ?, ?, ?, ?)
+       on conflict(evento_id, musica_id) do update set versao = excluded.versao,
+         nome = excluded.nome, conteudo = excluded.conteudo, baixado_em = excluded.baixado_em`,
+      [eventoId, musicaId, pdf.versao, pdf.nome, bytes, baixadoEm],
+    )
+  }
+
+  async lerPdf(musicaId: string, versao = ''): Promise<PdfGuardado | null> {
+    const l = await this.db.getFirstAsync<{ versao: string; nome: string; conteudo: Uint8Array }>(
+      `select versao, nome, conteudo from repertorio_pdfs where musica_id = ?
+        order by (versao = ?) desc, baixado_em desc limit 1`,
+      [musicaId, versao],
+    )
+    return l ? { versao: l.versao, nome: l.nome, bytes: new Uint8Array(l.conteudo) } : null
+  }
+
+  async versoesDosPdfs(eventoId: string): Promise<Record<string, string>> {
+    const linhas = await this.db.getAllAsync<{ musica_id: string; versao: string }>(
+      'select musica_id, versao from repertorio_pdfs where evento_id = ?',
+      [eventoId],
+    )
+    return Object.fromEntries(linhas.map((l) => [l.musica_id, l.versao]))
+  }
+
+  async removerPdfsForaDe(eventoId: string, manter: readonly string[]): Promise<void> {
+    const atuais = await this.versoesDosPdfs(eventoId)
+    for (const musicaId of Object.keys(atuais)) {
+      if (manter.includes(musicaId)) continue
+      await this.db.runAsync('delete from repertorio_pdfs where evento_id = ? and musica_id = ?', [
+        eventoId,
+        musicaId,
+      ])
+    }
   }
 }
 

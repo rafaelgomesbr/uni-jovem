@@ -213,12 +213,15 @@ function ListaDoTipo({
               {visiveis.map((registro) => {
                 const nome = String(registro[def.principal] ?? '')
                 const arquivado = estaArquivado(def, registro)
-                const semCifra = def.tipo === 'musicas' && registro['temCifra'] === false
-                // "Sem cifra" na frente do texto, não num chip à direita: o chip tomava 90 pt da linha
+                const temPdf = def.tipo === 'musicas' && registro['temPdf'] === true
+                // Com PDF anexado a música não está "sem cifra": o selo é o texto "PDF" (D76).
+                const semCifra = def.tipo === 'musicas' && registro['temCifra'] === false && !temPdf
+                // O selo na frente do texto, não num chip à direita: o chip tomava 90 pt da linha
                 // e cortava "Ninguém escalado para tocar" (capturas de 22/11/2026).
+                const selo = temPdf ? 'PDF' : semCifra ? 'Sem cifra' : null
                 const descricao =
-                  semCifra && !arquivado
-                    ? `Sem cifra · ${descricaoDoItem(def, registro)}`
+                  selo && !arquivado
+                    ? `${selo} · ${descricaoDoItem(def, registro)}`
                     : descricaoDoItem(def, registro)
                 return (
                   <LinhaDeLista
@@ -231,7 +234,7 @@ function ListaDoTipo({
                       nome,
                       descricao,
                       arquivado ? def.arquivo.selo : null,
-                      semCifra && arquivado ? 'Sem cifra' : null,
+                      selo && arquivado ? (temPdf ? 'Tem PDF anexado' : selo) : null,
                     ]
                       .filter(Boolean)
                       .join('. ')}

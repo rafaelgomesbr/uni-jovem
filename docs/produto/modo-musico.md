@@ -4,6 +4,8 @@ Proposta de produto escrita em 21/11/2026, a partir do pedido do dono: "O app po
 
 **Estado em 21/11/2026:** a **fatia 1 foi construída** (decisão D61 em [DECISOES.md](../DECISOES.md), migração 0027), com as respostas padrão às perguntas 1 a 3 da seção 10: só organizador e administrador editam o repertório, todo membro lê a cifra e não há músico convidado sem conta. A seção 9 diz o que a fatia 1 entregou e o que ficou para as fatias seguintes. O resto deste documento continua sendo o desenho: o que não é da fatia 1 segue como proposta, sem construção nem decisão, e a pergunta 4 (sinal de internet) decide se a fatia 2 sobe de prioridade.
 
+**Estado em 22/11/2026 (PDF):** a música aceita um **PDF anexado** (cifra ou partitura que o músico já tem em arquivo), decisão D76, migração 0029 e a seção 12 abaixo. O item "PDF" da fatia 6 foi antecipado por pedido do dono, dentro do teto de R$ 0 (o arquivo mora no Postgres).
+
 **Estado em 22/11/2026:** a **fatia 2 foi construída** (Modo palco e uso sem internet; decisão D71, direção visual A) e, da fatia 3, só o bloco da banda na tela do repertório. O desenho de telas das seções 6.3 a 6.6 está no app: Meu repertório, leitor de cifra, Modo palco, Repertório do encontro e Banda. A seção 9 diz o que cada fatia entregou e o que ficou pendente.
 
 ## 1. Resumo e para quem é
@@ -377,7 +379,7 @@ Ordem pelo que prova o valor mais cedo. Esforço: pequena (poucos dias), média 
 
 ### Fatia 6 (Luxo): pedido de música, rolagem automática, PDF, acompanhamento ao vivo
 
-- Pedido de música pela comunidade via Sugestões; rolagem automática; partitura em PDF (só com decisão de armazenamento dentro do teto de R$ 0); banda acompanhando o regente em tempo real.
+- Pedido de música pela comunidade via Sugestões; rolagem automática; ~~partitura em PDF~~ (feita em 22/11/2026, D76, seção 12: o armazenamento é o Postgres, dentro do teto de R$ 0); banda acompanhando o regente em tempo real.
 - **Esforço:** cada item é pequeno a médio; o acompanhamento ao vivo é grande.
 - **Depende de:** uso real das fatias anteriores. Cada item só entra se alguém pedir.
 
@@ -411,4 +413,26 @@ Só as que mudam o desenho.
 4. **Pedir a revisão jurídica do aviso de direitos autorais** junto da pendência PH-11, antes de liberar o cadastro de cifra para as comunidades.
 5. **Construir só a fatia 1:** transposição e conversão de cifra em `packages/dominio` (com testes), migração pequena, repertório do encontro, bloco por função na convocação e Meu repertório.
 6. **Usar em 3 sábados reais** na comunidade do dono, e só então decidir entre fatia 2 (offline e palco) e fatia 3 (histórico e materiais) pelo que a banda reclamar.
-7. **Manter fora, por escrito:** catálogo de músicas, importação de sites, gravação de áudio, metrônomo, acompanhamento em tempo real e PDF enviado ao servidor, até haver pedido real.
+7. **Manter fora, por escrito:** catálogo de músicas, importação de sites, gravação de áudio, metrônomo e acompanhamento em tempo real, até haver pedido real. (O PDF enviado ao servidor saiu desta lista em 22/11/2026: o dono pediu, ver a seção 12.)
+
+## 12. PDF anexado à música (D76, 22/11/2026)
+
+Pedido do dono: "faz o repertório aceitar PDF também". Músicos e líderes têm cifras e partituras em PDF e querem anexá-las à música e abri-las no repertório. A cifra em texto (ChordPro, D61) continua, e a música pode ter **as duas coisas**.
+
+**O que o usuário vê**
+
+- **Quem organiza**, na Biblioteca (música nova ou em edição): "Anexar PDF". O aviso de direitos autorais e a caixa do aceite são **os mesmos da cifra em texto** (sem texto legal novo): ao tocar em "Anexar PDF" sem o aceite, o app mostra o aviso e a caixa e diz o que falta; com o aceite, abre a escolha do arquivo. Depois: "PDF anexado (nome, tamanho)", "Trocar o PDF" e "Remover o PDF" (confirmação clara, porque remover apaga o arquivo do servidor). Na música nova o PDF escolhido espera o "Salvar".
+- **Mensagens em palavras:** arquivo acima de 10 MB ("Este PDF tem 14 MB e o limite é de 10 MB..."), arquivo que não é PDF, sem internet, e a mensagem da API quando ela recusa.
+- **Todos**, no repertório do encontro, no Meu repertório e na Biblioteca: o selo **"PDF" em texto** na linha da música (sem PDF e sem cifra, continua "Sem cifra"), e o cartão **"PDF da música"** com o botão **"Abrir PDF"**, que abre no visualizador do sistema (Quick Look no iPhone, aplicativo de PDF no Android, aba nova na web). Música com cifra em texto e PDF mostra as duas opções.
+- **O PDF não transpõe tom.** Em música só com PDF, "Tom −" e "Tom +" ficam desabilitados e a tela escreve o motivo ("O PDF não muda de tom: ele abre do jeito que foi anexado. Para transpor, peça à organização a cifra em texto."). O tom do dia aparece em texto.
+- **Modo palco com PDF:** botão grande "Abrir PDF" (tela cheia, sem barra) e a tela acesa que o palco já mantém. No Android o PDF abre em outro aplicativo, então a tela acesa depende dele.
+- **Sem internet (quem toca):** "Deixar pronto sem internet" baixa o PDF junto, só se a versão mudou, e guarda na mesma partição cifrada. **"Pronto para tocar sem internet" só aparece com todos os PDFs baixados**; antes disso o cartão diz "Quase pronto: falta 1 PDF" e oferece "Baixar o que falta". O PDF abre sem rede e sai junto com a cópia (sair da comunidade ou da conta, 403 ou 404, 36 h depois do início do encontro).
+
+**Regras de produto**
+
+- Um PDF por música, até 10 MB. Trocar substitui; remover apaga.
+- Anexar, trocar e remover: organizador e administrador (`conteudo.gerenciar`). Ler: toda a comunidade (`conteudo.ler`, D73). O músico que não organiza não anexa: dar esse direito pede papel novo e ADR, e a matriz não mudou.
+- Direitos: o mesmo aceite da cifra; o banco recusa PDF sem aceite mesmo com a rota contornada. O arquivo fica só dentro da comunidade (sem link público, sem exportação, fora de log).
+- Quem só lê (não toca) abre o PDF pela rede, sem cópia no aparelho: o pacote offline segue 403 para quem não toca (D73).
+
+**Fora desta rodada:** várias versões do arquivo por música, miniatura da primeira página, busca dentro do PDF, anotação do músico sobre o PDF e baixar o PDF sem o repertório. Detalhes técnicos e rotas em [../design/v3/api-v3.md](../design/v3/api-v3.md).

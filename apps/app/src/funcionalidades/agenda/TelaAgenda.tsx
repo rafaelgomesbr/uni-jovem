@@ -150,7 +150,6 @@ function AgendaDaComunidade({ comunidadeId }: { comunidadeId: string }) {
     router.push({ pathname: '/evento/[eventoId]', params: { eventoId: e.id } })
   const abrirCalendario = (ajuda: boolean) =>
     setCalendario((c) => ({ aberto: true, ajuda, chave: c.chave + 1 }))
-  const marcarOProximo = () => router.push('/evento/igual-ao-ultimo')
 
   const linha = (e: ResumoDoEvento) => (
     <LinhaDoEncontro
@@ -192,7 +191,7 @@ function AgendaDaComunidade({ comunidadeId }: { comunidadeId: string }) {
     <Botao
       titulo="Novo encontro"
       icone="adicionar"
-      variante="secundario"
+      variante="primario"
       tamanho="medio"
       aoPressionar={() => setNovoAberto(true)}
     />
@@ -273,7 +272,7 @@ function AgendaDaComunidade({ comunidadeId }: { comunidadeId: string }) {
               filtro={filtro}
               dia={dia}
               podeCriar={podeCriar}
-              aoMarcar={marcarOProximo}
+              aoMarcar={() => setNovoAberto(true)}
               aoAjudar={() => abrirCalendario(true)}
               aoVerTodos={() => {
                 setDia(null)
@@ -415,11 +414,19 @@ function Vazio({
         titulo="Nenhum encontro marcado."
         descricao={
           podeCriar
-            ? 'O Sábado padrão já vem com o roteiro de sempre.'
+            ? 'Marque o próximo para a comunidade ver e responder.'
             : 'Quando a liderança marcar o próximo, ele aparece aqui.'
         }
         {...(podeCriar
-          ? { acao: { titulo: 'Marcar o próximo sábado', aoPressionar: aoMarcar } }
+          ? {
+              // O mesmo "Novo encontro" do topo (um caminho só, D75); aqui secundário para a tela não ter dois primários.
+              acao: {
+                titulo: 'Novo encontro',
+                icone: 'adicionar',
+                variante: 'secundario' as const,
+                aoPressionar: aoMarcar,
+              },
+            }
           : {})}
       />
     </View>

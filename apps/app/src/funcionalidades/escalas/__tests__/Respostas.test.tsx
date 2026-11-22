@@ -127,7 +127,7 @@ describe('aceitar e "Não posso ir" com Desfazer', () => {
         [`POST ${BASE}/atribuicoes/a1/confirmar`]: () => {
           tentativas += 1
           return tentativas === 1
-            ? { status: 500, corpo: { erro: 'erro_interno', mensagem: 'Falhou.' } }
+            ? { status: 409, corpo: { erro: 'conflito', mensagem: 'Falhou.' } }
             : { status: 200, corpo: { estado: 'confirmada' } }
         },
         [`GET ${BASE}/minhas-escalas`]: () => ({ status: 200, corpo: { escalas: [] } }),
@@ -136,11 +136,12 @@ describe('aceitar e "Não posso ir" com Desfazer', () => {
     await userEvent.setup().press(await screen.findByText('aceitar'))
     await act(async () => confirmarAgora())
     expect(await screen.findByRole('button', { name: 'Tentar de novo' })).toBeOnTheScreen()
-    expect(screen.getByText('Não deu para registrar sua resposta.')).toBeOnTheScreen()
+    expect(
+      screen.getByText('Não deu para registrar sua resposta. Toque em Tentar de novo.'),
+    ).toBeOnTheScreen()
     expect(screen.getByText('estado: pendente')).toBeOnTheScreen()
-    // "Tentar de novo" refaz o ato (aceita de novo na tela) e o envio sai.
-    await act(async () => desfazerAgora())
-    await act(async () => confirmarAgora())
+    // "Tentar de novo" envia de novo na hora (D74: sem outra contagem) e a resposta vale.
+    await userEvent.setup().press(screen.getByRole('button', { name: 'Tentar de novo' }))
     await waitFor(() =>
       expect(pedidosPara(servidor, 'POST', `${BASE}/atribuicoes/a1/confirmar`)).toHaveLength(2),
     )

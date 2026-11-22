@@ -1,5 +1,5 @@
 /* eslint-disable no-restricted-syntax -- opacidade aqui é a camada animada de toque e o indicador, não estado (D64) */
-import { ALTURA, ESPACO, MOVIMENTO_DOS_CONTROLES, RAIO } from '@uj/tokens'
+import { ALTURA, ESPACO, MOVIMENTO_DOS_CONTROLES, RAIO, TIPO } from '@uj/tokens'
 import {
   Children,
   createContext,
@@ -331,7 +331,7 @@ export function Botao({
             marginTop: ESPACO.e8,
           }}
         >
-          <View style={{ height: 20, justifyContent: 'center' }}>
+          <View style={{ height: TIPO.legenda.altura, justifyContent: 'center' }}>
             <Icone nome="cadeado" cor={cores.textoSuave} tamanho={14} />
           </View>
           <Texto variante="legenda" cor="textoSuave" nativeID={idDoMotivo} style={{ flex: 1 }}>
@@ -456,8 +456,8 @@ export function BotaoIcone({
             variante={disposicao === 'lado' ? 'botao' : 'legenda'}
             peso="forte"
             centralizado
-            // Embaixo do ícone, o texto cresce até 1,6: mais que isso, a barra do Ao vivo não comporta.
-            {...(disposicao === 'embaixo' ? { maxFontSizeMultiplier: 1.6 } : {})}
+            // Embaixo do ícone o texto cresce até 2 como o resto (D75); a caixa do botão cresce junto.
+            {...(disposicao === 'embaixo' ? { maxFontSizeMultiplier: 2 } : {})}
             style={{ color: cor }}
           >
             {texto}

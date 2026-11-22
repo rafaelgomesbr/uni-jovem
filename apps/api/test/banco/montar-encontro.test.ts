@@ -316,8 +316,8 @@ describe('"Igual ao último sábado": copiar', () => {
     expect(await notificacoesDe(camila.id, 'Nova convocação')).toHaveLength(0)
   })
 
-  it('a data sugerida pula a semana que já tem o encontro; "incluirMusicas" leva o repertório', async () => {
-    // Já existe a cópia anterior no sábado sugerido: a próxima sugestão é uma semana depois.
+  it('a data sugerida é sempre a mais próxima, mesmo com encontro nela (o app avisa); "incluirMusicas" leva o repertório', async () => {
+    // Já existe a cópia anterior no sábado sugerido: a sugestão NÃO pula para a semana seguinte (D74).
     const antes = (
       await b.su.query<{ inicio: Date }>('select inicio from uj.eventos where id = $1', [
         v['copia'],
@@ -327,7 +327,13 @@ describe('"Igual ao último sábado": copiar', () => {
       incluirMusicas: true,
     })
     expect(r.statusCode).toBe(200)
-    expect(new Date(r.json().inicio).getTime() - antes.getTime()).toBe(7 * DIA)
+    expect(new Date(r.json().inicio).getTime() - antes.getTime()).toBe(0)
+    // A lista de onde copiar também não empurra a sugestão para longe por causa dos rascunhos.
+    const lista = (await req('GET', comA, '/eventos/anteriores-para-copiar', orgA)).json() as {
+      opcoes: { eventoId: string; inicioSugerido: string }[]
+    }
+    const daOrigem = lista.opcoes.find((o) => o.eventoId === v['ultimoJovem'])!
+    expect(new Date(daOrigem.inicioSugerido).getTime()).toBe(antes.getTime())
     expect(r.json().resumo.musicas).toEqual({ copiadas: 1, naOrigem: 1 })
     const item = (
       await b.su.query(

@@ -100,8 +100,8 @@ function larguras(rotulos: readonly string[], nivel: Nivel, escala: number): num
 /**
  * Como os rótulos cabem num trilho desta largura, sem cortar nenhum: iguais,
  * depois proporcionais, no normal e depois no compacto (com 4 opções, só no
- * compacto); com 4, ainda a grade de duas linhas. `null`: nem assim; vira
- * pílulas roláveis. `soGrade`: com fonte grande, uma linha só não serve.
+ * compacto); com 4, ainda a grade de duas linhas; senão, empilhadas. `null`: mais de 6 opções
+ * que não cabem; vira pílulas roláveis. `soGrade`: com fonte grande, uma linha só não serve.
  */
 export function escolherDisposicao(
   rotulos: readonly string[],
@@ -119,16 +119,16 @@ export function escolherDisposicao(
     if (Math.max(...medidas) * n <= util) return { nivel, proporcional: false }
     if (medidas.reduce((a, b) => a + b, 0) <= util) return { nivel, proporcional: true }
   }
-  // Fonte grande: nunca pílulas roláveis; as opções empilham (a grade só vale para quatro).
-  if (soGrade && n !== 4) return { nivel: 'normal', proporcional: false, pilha: true }
-  if (n !== 4) return null
+  // D75: até 6 opções NUNCA rolam de lado, com fonte grande ou não; as opções empilham (a grade só
+  // vale para quatro). Acima de 6, o `null` mantém as pílulas roláveis, que é uma lista, não um controle.
+  if (n !== 4) return n <= 6 ? { nivel: 'normal', proporcional: false, pilha: true } : null
   const celula = (largura - 2 * (PADDING_DO_TRILHO + borda) - INTERVALO) / 2
   for (const nivel of ['normal', 'compacto'] as const) {
     if (Math.max(...larguras(rotulos, nivel, escala)) <= celula) {
       return { nivel, proporcional: false, grade: true }
     }
   }
-  return soGrade ? { nivel: 'normal', proporcional: false, pilha: true } : null
+  return { nivel: 'normal', proporcional: false, pilha: true }
 }
 
 /**

@@ -152,7 +152,7 @@ function Inicio({
           erro={inicio.error}
           titulo={
             organiza
-              ? 'Não deu para carregar o sábado.'
+              ? 'Não deu para carregar o encontro.'
               : 'Não deu para carregar o próximo encontro.'
           }
           mensagem="Confira a internet e tente de novo."

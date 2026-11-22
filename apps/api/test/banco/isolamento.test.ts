@@ -170,6 +170,10 @@ const CASOS: Record<string, Record<string, unknown> | undefined> = {
   'PATCH /api/v1/c/:comunidadeId/conteudos/musicas/:musicaId': { versao: 1, titulo: 'Tomada' },
   'DELETE /api/v1/c/:comunidadeId/conteudos/musicas/:musicaId': undefined,
   'PUT /api/v1/c/:comunidadeId/conteudos/musicas/:musicaId/musicos': { musicoIds: [] },
+  // D76: PDF anexado à música (o corpo de verdade é bruto; a rota responde 404 antes de olhar o corpo)
+  'GET /api/v1/c/:comunidadeId/conteudos/musicas/:musicaId/pdf': undefined,
+  'PUT /api/v1/c/:comunidadeId/conteudos/musicas/:musicaId/pdf': { pdf: 'invasao' },
+  'DELETE /api/v1/c/:comunidadeId/conteudos/musicas/:musicaId/pdf': undefined,
   'GET /api/v1/c/:comunidadeId/conteudos/musicos': undefined,
   'POST /api/v1/c/:comunidadeId/conteudos/musicos': { nome: 'Invasor' },
   'GET /api/v1/c/:comunidadeId/conteudos/musicos/:musicoId': undefined,
@@ -389,6 +393,12 @@ beforeAll(async () => {
     "insert into uj.musicas (comunidade_id, titulo, criado_por) values ($1, 'Música de B', $2) returning id",
     [comB, adminB.id],
   )
+  // D76: a música de B tem um PDF (gravado pelo dono do banco, que não precisa do aceite).
+  await b.dono.query(
+    `insert into uj.musica_pdfs (comunidade_id, musica_id, nome, conteudo, tamanho, hash, direito_confirmado_em)
+     values ($1, $2, 'pdf-de-b.pdf', $3::bytea, 9, sha256($3::bytea), now())`,
+    [comB, idsDeB['musicaId'], Buffer.from('%PDF-1.4\n', 'latin1')],
+  )
   idsDeB['musicoId'] = await um(
     "insert into uj.musicos (comunidade_id, nome, criado_por) values ($1, 'Músico de B', $2) returning id",
     [comB, adminB.id],
@@ -526,6 +536,7 @@ async function estadoDeB() {
             (select json_agg(row(titulo, versao) order by id) from uj.musicas where comunidade_id = $1) as mu,
             (select json_agg(row(nome, versao) order by id) from uj.musicos where comunidade_id = $1) as mo,
             (select count(*) from uj.musica_musicos where comunidade_id = $1) as mm,
+            (select json_agg(row(musica_id, nome, encode(hash, 'hex')) order by id) from uj.musica_pdfs where comunidade_id = $1) as pf,
             (select json_agg(row(musica_id, ordem, tom_do_dia, nota, versao) order by id) from uj.repertorio_itens where comunidade_id = $1) as rp,
             (select count(*) from uj.notificacoes where comunidade_id = $1) as nt,
             (select json_agg(row(nome, versao) order by id) from uj.palestrantes where comunidade_id = $1) as pa,

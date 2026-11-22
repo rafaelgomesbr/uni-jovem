@@ -45,7 +45,7 @@ export interface ResumoDaSincronizacao extends ResumoDoEnvio {
   validoAte: string
 }
 
-type Cliente = Pick<ClienteDaApi, 'get' | 'post'>
+type Cliente = Pick<ClienteDaApi, 'get' | 'post'> & Partial<Pick<ClienteDaApi, 'pedir'>>
 
 export const caminhoDoPacote = (comunidadeId: string, eventoId: string) =>
   `/api/v1/c/${comunidadeId}/eventos/${eventoId}/pacote-offline`

@@ -34,7 +34,7 @@ export function BotaoAvisarABanda({
 }) {
   const pode = usePode()
   const avisar = useAvisarABanda(comunidadeId, eventoId)
-  // Durante os 10 s de espera o botão não se repete: um segundo toque enviaria o primeiro na hora.
+  // Durante a contagem o botão não se repete: um segundo toque enviaria o primeiro na hora.
   const [esperando, setEsperando] = useState(false)
   if (!pode('escala', 'atribuir')) return null
 
@@ -42,19 +42,20 @@ export function BotaoAvisarABanda({
     setEsperando(true)
     mostrarDesfazer({
       texto: 'Avisando a banda de que o repertório mudou.',
+      textoDaFalha: 'Não deu para avisar a banda. Ninguém foi avisado. Toque em Tentar de novo.',
       aoDesfazer: () => setEsperando(false),
-      aoConfirmar: () => {
+      aoFalhar: () => setEsperando(false),
+      // Sai ao fim da contagem, ao sair da tela ou do app (D74), e repete se a rede falhar.
+      aoConfirmar: async () => {
+        const r = await avisar.mutateAsync()
         setEsperando(false)
-        avisar.mutate(undefined, {
-          onSuccess: (r) =>
-            mostrarToast({
-              texto:
-                r.convocadas === 0
-                  ? 'Ninguém foi convocado ao louvor ainda. Convoque a banda no encontro.'
-                  : r.avisadas > 0
-                    ? `Aviso enviado a ${r.avisadas} ${r.avisadas === 1 ? 'pessoa' : 'pessoas'} da banda.`
-                    : 'Ninguém novo para avisar agora: a banda já foi avisada há pouco, ou desligou os avisos.',
-            }),
+        mostrarToast({
+          texto:
+            r.convocadas === 0
+              ? 'Ninguém foi convocado ao louvor ainda. Convoque a banda no encontro.'
+              : r.avisadas > 0
+                ? `Pronto. Aviso enviado a ${r.avisadas} ${r.avisadas === 1 ? 'pessoa' : 'pessoas'} da banda.`
+                : 'Ninguém novo para avisar agora: a banda já foi avisada há pouco, ou desligou os avisos.',
         })
       },
     })

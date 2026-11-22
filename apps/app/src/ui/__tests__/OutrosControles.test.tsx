@@ -81,26 +81,39 @@ describe('Interruptor com trilho próprio (o Switch nativo desligado sumia a 1,2
 })
 
 describe('Botão de ícone e botão de linha', () => {
-  test('o botão de ícone é circular, tonal e sem borda; 44 de lado (alvo de 44)', async () => {
+  test('o botão de ícone é circular, tonal e sem borda; 48 de lado (alvo de 48, D75)', async () => {
     await render(<BotaoIcone icone="voltar" rotulo="Voltar" aoPressionar={() => {}} />)
     expect(estilo(screen.getByRole('button', { name: 'Voltar' }))).toMatchObject({
-      width: 44,
-      height: 44,
+      width: 48,
+      height: 48,
       borderRadius: 999,
       backgroundColor: C.botaoTonal,
       borderWidth: 0,
     })
   })
 
-  test('o botão de linha é a cápsula tonal compacta de 40, sem contorno', async () => {
+  test('o botão de linha parece botão: cápsula de 48 com contorno de 2 e texto em destaque (D75)', async () => {
     await render(<BotaoDeLinha texto="Chegou" />)
     const caixa = screen.getByText('Chegou').parent as never
     expect(estilo(caixa)).toMatchObject({
-      minHeight: 40,
+      minHeight: 48,
       borderRadius: 999,
-      backgroundColor: C.botaoTonal,
-      borderWidth: 0,
+      borderWidth: 2,
+      borderColor: C.destaque,
     })
+    expect(screen.getByText('Chegou')).toHaveStyle({ color: C.destaque })
+  })
+
+  test('o botão de ícone com palavra: "Voltar" e "Fechar" ao lado do ícone, com 48 de altura (D75)', async () => {
+    await render(
+      <>
+        <BotaoIcone icone="voltar" texto="Voltar" rotulo="Voltar" aoPressionar={() => {}} />
+        <BotaoIcone icone="fechar" texto="Fechar" rotulo="Fechar" aoPressionar={() => {}} />
+      </>,
+    )
+    expect(screen.getByText('Voltar')).toBeOnTheScreen()
+    expect(screen.getByText('Fechar')).toBeOnTheScreen()
+    expect(estilo(screen.getByRole('button', { name: 'Voltar' })).minHeight).toBe(48)
   })
 })
 
@@ -170,10 +183,10 @@ describe('Pílula de filtro tonal (D64)', () => {
     )
   }
 
-  test('40 de altura em cápsula, tonal sem contorno; a ativa tem fundo quente, `destaque` e check', async () => {
+  test('48 de altura (D75) em cápsula, tonal sem contorno; a ativa tem fundo quente, `destaque` e check', async () => {
     await render(<Filtro />)
     expect(estilo(screen.getByRole('radio', { name: 'Minhas' }))).toMatchObject({
-      minHeight: 40,
+      minHeight: 48,
       borderRadius: 999,
       backgroundColor: C.botaoTonal,
       borderWidth: 0,

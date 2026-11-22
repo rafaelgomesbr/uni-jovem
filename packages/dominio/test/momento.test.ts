@@ -63,19 +63,18 @@ describe('data do "Igual ao último sábado"', () => {
       proximaDataParaCopiar({
         dataDaOrigem: '2026-11-21',
         hoje: '2026-11-22',
-        ocupadas: new Set(),
       }),
     ).toBe('2026-11-28')
   })
 
-  it('pula a data que já tem encontro do mesmo título', () => {
-    expect(
-      proximaDataParaCopiar({
-        dataDaOrigem: '2026-11-21',
-        hoje: '2026-11-22',
-        ocupadas: new Set(['2026-11-28']),
-      }),
-    ).toBe('2026-12-05')
+  it('nunca pula para longe: a data é a mais próxima, mesmo que já tenha encontro (o app avisa)', () => {
+    // Meses de encontros no mesmo dia da semana não empurram a sugestão para abril (D74).
+    expect(proximaDataParaCopiar({ dataDaOrigem: '2026-11-21', hoje: '2026-11-22' })).toBe(
+      '2026-11-28',
+    )
+    expect(proximaDataParaCopiar({ dataDaOrigem: '2026-11-14', hoje: '2026-11-22' })).toBe(
+      '2026-11-28',
+    )
   })
 
   it('origem antiga: o primeiro mesmo dia da semana depois de hoje', () => {
@@ -83,7 +82,6 @@ describe('data do "Igual ao último sábado"', () => {
       proximaDataParaCopiar({
         dataDaOrigem: '2026-09-05',
         hoje: '2026-11-22',
-        ocupadas: new Set(),
       }),
     ).toBe('2026-11-28')
   })
@@ -93,7 +91,6 @@ describe('data do "Igual ao último sábado"', () => {
       proximaDataParaCopiar({
         dataDaOrigem: '2026-11-21',
         hoje: '2026-11-28',
-        ocupadas: new Set(),
       }),
     ).toBe('2026-12-05')
   })
@@ -103,7 +100,6 @@ describe('data do "Igual ao último sábado"', () => {
       proximaDataParaCopiar({
         dataDaOrigem: '2026-12-26',
         hoje: '2026-12-27',
-        ocupadas: new Set(),
       }),
     ).toBe('2027-01-02')
   })

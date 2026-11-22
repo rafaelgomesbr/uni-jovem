@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 
 import { useSessao } from '@/estado/sessao'
+import type { ResumoDoPdf } from '@/servicos/contratoDoPdf'
 import type { Musica, TipoDeConteudo } from '@/servicos/contratoDosModulos'
 import { mensagemDoErro, SemConexao } from '@/servicos/erros'
 import { abrirLink } from '@/utilidades/compartilhar'
@@ -28,15 +29,20 @@ import { voltarOu } from '@/ui/navegacao'
 
 import { usePode } from '../comunidade/permissoes'
 import { SemComunidade } from '../navegacao/SemComunidade'
+import { CartaoDoPdf } from '../pdf/CartaoDoPdf'
+import { conferirPdfEscolhido, seletorDePdf, type PdfConferido } from '../pdf/seletorDePdf'
 import { LeitorDeCifra } from '../repertorio/LeitorDeCifra'
 import { CampoDeCifra } from './CampoDeCifra'
+import { CampoDePdf, MENSAGEM_DE_CONFIRMAR_O_PDF } from './CampoDePdf'
 import {
+  useAnexarPdf,
   useConteudo,
   useConteudos,
   useCriarConteudo,
   useDefinirMusicos,
   useEditarConteudo,
   useExcluirConteudo,
+  useRemoverPdf,
 } from './consultas'
 import {
   CAMPO_DA_CONFIRMACAO,
@@ -174,11 +180,26 @@ function Erro({ titulo, erro }: { titulo: string; erro: unknown }) {
   )
 }
 
+/**
+ * Escolhe o arquivo, confere (tamanho e tipo) e devolve o PDF lido, ou a mensagem humana do que
+ * deu errado. `null` sem mensagem: a pessoa cancelou a escolha.
+ */
+async function escolherEConferirPdf(): Promise<{ pdf: PdfConferido } | { erro: string } | null> {
+  const arquivo = await seletorDePdf.escolher()
+  if (!arquivo) return null
+  const r = await conferirPdfEscolhido(arquivo)
+  return r.ok ? { pdf: r.pdf } : { erro: r.mensagem }
+}
+
 function Novo({ comunidadeId, def }: { comunidadeId: string; def: DefinicaoDoTipo }) {
   const pode = usePode()
   const [valores, setValores] = useState<Valores>({})
   const [erros, setErros] = useState<Record<string, string>>({})
+  // O PDF escolhido espera a música ser salva (só então ela tem um id para receber o arquivo).
+  const [pdf, setPdf] = useState<PdfConferido | null>(null)
+  const [erroDoPdf, setErroDoPdf] = useState<string | null>(null)
   const criar = useCriarConteudo(comunidadeId, def.tipo)
+  const anexar = useAnexarPdf(comunidadeId)
   const titulo = `Nov${def.artigo} ${def.singular}`
   if (!pode('conteudo', 'gerenciar')) {
     return (
@@ -190,11 +211,28 @@ function Novo({ comunidadeId, def }: { comunidadeId: string; def: DefinicaoDoTip
     )
   }
 
+  async function escolherPdf() {
+    setErroDoPdf(null)
+    const r = await escolherEConferirPdf()
+    if (!r) return
+    if ('erro' in r) setErroDoPdf(r.erro)
+    else setPdf(r.pdf)
+  }
+
   function salvar() {
     const r = montarCorpo(def, valores)
     const direitos = conferirDireitos(def, valores, null)
-    if ('erros' in r || 'erros' in direitos) {
-      setErros({ ...('erros' in r ? r.erros : {}), ...('erros' in direitos ? direitos.erros : {}) })
+    // O PDF pede o mesmo aceite de direitos da cifra em texto.
+    const direitosDoPdf: Record<string, string> =
+      pdf && valores[CAMPO_DA_CONFIRMACAO] !== 'sim'
+        ? { [CAMPO_DA_CONFIRMACAO]: MENSAGEM_DE_CONFIRMAR_O_PDF }
+        : {}
+    if ('erros' in r || 'erros' in direitos || Object.keys(direitosDoPdf).length) {
+      setErros({
+        ...('erros' in r ? r.erros : {}),
+        ...('erros' in direitos ? direitos.erros : {}),
+        ...direitosDoPdf,
+      })
       return
     }
     setErros({})
@@ -205,16 +243,30 @@ function Novo({ comunidadeId, def }: { comunidadeId: string; def: DefinicaoDoTip
       ),
       ...direitos.corpo,
     }
-    criar.mutate(corpo, {
-      onSuccess: (criado) => {
-        mostrarToast({
-          texto: `${def.artigo === 'a' ? 'Nova' : 'Novo'} ${def.singular} salv${def.artigo}`,
-        })
-        router.replace({
-          pathname: '/conteudos/[tipo]/[itemId]',
-          params: { tipo: def.tipo, itemId: criado.id },
-        })
-      },
+    void criarEAnexar(corpo)
+  }
+
+  /** Cria e, se houve PDF escolhido, anexa a ele a música recém-criada (que só agora tem um id). */
+  async function criarEAnexar(corpo: Record<string, unknown>) {
+    let criado: { id: string }
+    try {
+      criado = await criar.mutateAsync(corpo)
+    } catch {
+      return // `criar.error` mostra o motivo na tela.
+    }
+    let texto = `${def.artigo === 'a' ? 'Nova' : 'Novo'} ${def.singular} salv${def.artigo}`
+    if (pdf) {
+      try {
+        await anexar.mutateAsync({ musicaId: criado.id, pdf })
+      } catch {
+        // A música já existe: não se perde o trabalho. A pessoa anexa de novo na edição.
+        texto = 'A música foi salva, mas o PDF não foi anexado. Abra a música e anexe de novo.'
+      }
+    }
+    mostrarToast({ texto })
+    router.replace({
+      pathname: '/conteudos/[tipo]/[itemId]',
+      params: { tipo: def.tipo, itemId: criado.id },
     })
   }
 
@@ -230,7 +282,7 @@ function Novo({ comunidadeId, def }: { comunidadeId: string; def: DefinicaoDoTip
           <Botao
             titulo="Salvar"
             tamanho="grande"
-            carregando={criar.isPending}
+            carregando={criar.isPending || anexar.isPending}
             aoPressionar={salvar}
           />
         </BarraDeAcao>
@@ -239,6 +291,29 @@ function Novo({ comunidadeId, def }: { comunidadeId: string; def: DefinicaoDoTip
       <CartaoDeVidro opaco intervalo={ESPACO.e16}>
         <Formulario def={def} valores={valores} aoMudar={setValores} erros={erros} />
       </CartaoDeVidro>
+      {def.tipo === 'musicas' ? (
+        <CampoDePdf
+          atual={null}
+          escolhido={pdf ? { nome: pdf.nome, tamanho: pdf.bytes.length } : null}
+          ocupado={anexar.isPending ? 'enviando' : null}
+          erro={erroDoPdf}
+          confirmada={valores[CAMPO_DA_CONFIRMACAO] === 'sim'}
+          aoConfirmar={(sim) =>
+            setValores({ ...valores, [CAMPO_DA_CONFIRMACAO]: sim ? 'sim' : 'nao' })
+          }
+          erroDaConfirmacao={erros[CAMPO_DA_CONFIRMACAO] ?? null}
+          aoSemAceite={() =>
+            setErros({ ...erros, [CAMPO_DA_CONFIRMACAO]: MENSAGEM_DE_CONFIRMAR_O_PDF })
+          }
+          avisoJaNaTela={(valores['cifra'] ?? '').trim() !== ''}
+          caixaJaNaTela={exigeConfirmarDireitos(def, valores, null)}
+          aoEscolher={() => void escolherPdf()}
+          aoRemover={() => {
+            setPdf(null)
+            setErroDoPdf(null)
+          }}
+        />
+      ) : null}
       {criar.error ? <Erro titulo="Não deu para salvar" erro={criar.error} /> : null}
     </Tela>
   )
@@ -313,7 +388,12 @@ function Item({
     >
       {estaArquivado(def, registro) ? <Chip texto={def.arquivo.selo} tom="neutro" /> : null}
       {/* Quem gerencia escolhe os músicos no cartão próprio; para os demais, é uma linha dos detalhes. */}
-      <Leitura def={def} registro={registro} musica={gerencia ? null : musica} />
+      <Leitura
+        comunidadeId={comunidadeId}
+        def={def}
+        registro={registro}
+        musica={gerencia ? null : musica}
+      />
       {musica && gerencia ? <QuemToca comunidadeId={comunidadeId} musica={musica} /> : null}
     </Tela>
   )
@@ -328,10 +408,12 @@ const ehCurto = (c: DefinicaoDeCampo) =>
  * `arrow.up.right` e quem toca) e um cartão por texto longo, em `leitura`.
  */
 function Leitura({
+  comunidadeId,
   def,
   registro,
   musica,
 }: {
+  comunidadeId: string
   def: DefinicaoDoTipo
   registro: Record<string, unknown>
   /** Música lida por quem não gerencia: "Quem toca" entra como linha dos detalhes. */
@@ -343,8 +425,21 @@ function Leitura({
   const detalhes = preenchidos.filter((c) => !c.multilinha)
   const textos = preenchidos.filter((c) => c.multilinha)
   const quemToca = musica
+  // PDF anexado (D76): primeiro na tela, porque é o que o músico abre. A cifra em texto, se houver,
+  // vem logo abaixo: as duas opções ficam à mão.
+  const pdf =
+    def.tipo === 'musicas' ? ((registro['pdf'] as ResumoDoPdf | null | undefined) ?? null) : null
+  const cartaoDoPdf = pdf ? (
+    <CartaoDoPdf
+      comunidadeId={comunidadeId}
+      musicaId={String(registro['id'])}
+      titulo={String(registro[def.principal] ?? '')}
+      pdf={pdf}
+    />
+  ) : null
 
   if (!preenchidos.length && !quemToca) {
+    if (cartaoDoPdf) return cartaoDoPdf
     return (
       <Texto variante="corpo" cor="textoSuave">
         Sem mais detalhes cadastrados.
@@ -354,6 +449,7 @@ function Leitura({
 
   return (
     <>
+      {cartaoDoPdf}
       {detalhes.length || quemToca ? (
         <Secao titulo="Detalhes">
           <CartaoDeVidro lista>
@@ -438,6 +534,11 @@ function Edicao({
   const [erros, setErros] = useState<Record<string, string>>({})
   const editar = useEditarConteudo(comunidadeId, def.tipo)
   const excluir = useExcluirConteudo(comunidadeId, def.tipo)
+  const anexar = useAnexarPdf(comunidadeId)
+  const removerPdf = useRemoverPdf(comunidadeId)
+  const [erroDoPdf, setErroDoPdf] = useState<string | null>(null)
+  const pdfAtual =
+    def.tipo === 'musicas' ? ((registro['pdf'] as ResumoDoPdf | null | undefined) ?? null) : null
   const id = String(registro['id'])
   const versao = Number(registro['versao'])
   const arquivado = estaArquivado(def, registro)
@@ -463,6 +564,40 @@ function Edicao({
         },
       },
     )
+  }
+
+  /** Anexar e trocar o PDF são ações à parte do "Salvar alterações": valem na hora, com o aceite. */
+  async function escolherPdf() {
+    setErroDoPdf(null)
+    const r = await escolherEConferirPdf()
+    if (!r) return
+    if ('erro' in r) {
+      setErroDoPdf(r.erro)
+      return
+    }
+    anexar.mutate(
+      { musicaId: id, pdf: r.pdf },
+      {
+        onSuccess: () => mostrarToast({ texto: pdfAtual ? 'PDF trocado' : 'PDF anexado' }),
+        onError: (e) => setErroDoPdf(mensagemDoErro(e)),
+      },
+    )
+  }
+
+  async function pedirRemocaoDoPdf() {
+    setErroDoPdf(null)
+    const ok = await confirmar({
+      titulo: 'Remover o PDF?',
+      mensagem:
+        'O PDF sai desta música para toda a comunidade. A cifra em texto continua, se houver. Para voltar a ter o PDF, será preciso anexá-lo de novo.',
+      confirmar: 'Remover o PDF',
+      destrutivo: true,
+    })
+    if (!ok) return
+    removerPdf.mutate(id, {
+      onSuccess: () => mostrarToast({ texto: 'PDF removido' }),
+      onError: (e) => setErroDoPdf(mensagemDoErro(e)),
+    })
   }
 
   function alternarArquivo() {
@@ -523,6 +658,26 @@ function Edicao({
           cifraSalva={cifraSalva}
         />
       </CartaoDeVidro>
+      {def.tipo === 'musicas' ? (
+        <CampoDePdf
+          atual={pdfAtual}
+          escolhido={null}
+          ocupado={anexar.isPending ? 'enviando' : removerPdf.isPending ? 'removendo' : null}
+          erro={erroDoPdf}
+          confirmada={valores[CAMPO_DA_CONFIRMACAO] === 'sim'}
+          aoConfirmar={(sim) =>
+            setValores({ ...valores, [CAMPO_DA_CONFIRMACAO]: sim ? 'sim' : 'nao' })
+          }
+          erroDaConfirmacao={erros[CAMPO_DA_CONFIRMACAO] ?? null}
+          aoSemAceite={() =>
+            setErros({ ...erros, [CAMPO_DA_CONFIRMACAO]: MENSAGEM_DE_CONFIRMAR_O_PDF })
+          }
+          avisoJaNaTela={(valores['cifra'] ?? '').trim() !== ''}
+          caixaJaNaTela={exigeConfirmarDireitos(def, valores, cifraSalva)}
+          aoEscolher={() => void escolherPdf()}
+          aoRemover={() => void pedirRemocaoDoPdf()}
+        />
+      ) : null}
       {editar.error ? <Erro titulo="Não deu para salvar" erro={editar.error} /> : null}
       {excluir.error ? <Erro titulo="Não deu para excluir" erro={excluir.error} /> : null}
       <CartaoDeVidro lista opaco>

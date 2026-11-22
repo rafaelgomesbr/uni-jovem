@@ -55,8 +55,8 @@ export function PilulaDaComunidade({ compacta = false }: { compacta?: boolean })
 /**
  * Linha do topo das raízes de aba (M): pílula à esquerda e, à direita, o
  * status e o sino das notificações (D42), `space-between`, intervalo de 12.
- * Sem comunidade, não há status nem sino. Com fonte grande, a direita desce
- * para a linha de baixo.
+ * Sem comunidade, não há status nem sino. O sino traz a palavra "Notificações" (D75) e, quando
+ * a linha não comporta, a direita desce para a linha de baixo, encostada à margem direita.
  */
 export function CabecalhoDaComunidade({ compacto = false }: { compacto?: boolean }) {
   const { comunidades } = useSessao()
@@ -74,9 +74,12 @@ export function CabecalhoDaComunidade({ compacto = false }: { compacto?: boolean
     >
       <PilulaDaComunidade compacta={compacto} />
       {comunidades.length ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}>
+        // `marginLeft: 'auto'` mantém o sino à direita mesmo quando quebra para a linha de baixo.
+        <View
+          style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8, marginLeft: 'auto' }}
+        >
           <IndicadorDeSincronizacao />
-          <SinoDeNotificacoes />
+          <SinoDeNotificacoes comTexto={!compacto} />
         </View>
       ) : null}
     </View>

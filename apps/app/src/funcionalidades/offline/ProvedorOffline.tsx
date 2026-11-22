@@ -28,6 +28,8 @@ import type { DetalheDaComunidade } from '@/servicos/contrato'
 import type { EncontroDoMeuRepertorio } from '@/servicos/contratoDoRepertorio'
 import { ErroLocal, mensagemDoErro, SemConexao } from '@/servicos/erros'
 
+import { limparPdfsAbertos } from '../pdf/abrirPdf'
+
 import { ligarLimpezaAoSair } from './aoEncerrar'
 import { depositoPadrao } from './deposito'
 import { guardarDescarte, type MotivoDoDescarte } from './descartadas'
@@ -48,6 +50,7 @@ import type {
   PacoteGuardado,
   PacoteOffline,
   Particao,
+  PdfGuardado,
   RepertorioGuardado,
   ResumoDoPacote,
   ResumoDoRepertorioGuardado,
@@ -84,9 +87,15 @@ export interface Offline {
   lerPacote(eventoId: string): Promise<PacoteGuardado | null>
   lerRepertorio(eventoId: string): Promise<RepertorioGuardado | null>
   lerRepertorios(): Promise<RepertorioGuardado[]>
-  /** Baixa (ou confere a versão de) o repertório do encontro para tocar sem internet. */
-  baixarRepertorio(eventoId: string): Promise<ResultadoDoDownload>
+  /**
+   * Baixa (ou confere a versão de) o repertório do encontro para tocar sem internet. `faltam_pdfs`:
+   * a cifra em texto chegou, mas algum PDF ainda não (sem internet no meio do caminho, por exemplo):
+   * a tela não pode dizer "pronto".
+   */
+  baixarRepertorio(eventoId: string): Promise<ResultadoDoDownload | 'faltam_pdfs'>
   removerRepertorio(eventoId: string): Promise<void>
+  /** O PDF da música guardado neste aparelho (a `versao` pedida, ou o mais recente), sem rede. */
+  lerPdf(musicaId: string, versao?: string): Promise<PdfGuardado | null>
   sincronizarAgora(): Promise<void>
   prepararEvento(eventoId: string): Promise<void>
   removerPacote(eventoId: string): Promise<void>
@@ -132,6 +141,7 @@ const INDISPONIVEL: Omit<Offline, 'online'> = {
   lerRepertorios: async () => [],
   baixarRepertorio: semModoOffline,
   removerRepertorio: async () => undefined,
+  lerPdf: async () => null,
   sincronizarAgora: async () => undefined,
   prepararEvento: semModoOffline,
   removerPacote: async () => undefined,
@@ -155,7 +165,7 @@ interface Props {
   children: ReactNode
   /** Injetáveis para testes. */
   deposito?: DepositoLocal
-  cliente?: Pick<ClienteDaApi, 'get' | 'post'>
+  cliente?: Pick<ClienteDaApi, 'get' | 'post'> & Partial<Pick<ClienteDaApi, 'pedir'>>
 }
 
 export function ProvedorOffline({ children, deposito = depositoPadrao, cliente = api }: Props) {
@@ -423,7 +433,9 @@ export function ProvedorOffline({ children, deposito = depositoPadrao, cliente =
       if (!contaId || !comunidadeId) throw new ErroLocal('Escolha uma comunidade primeiro.')
       const p = await garantirParticao(null, { semVinculo: true })
       try {
-        return await baixarRepertorio(p, cliente, eventoId)
+        const resultado = await baixarRepertorio(p, cliente, eventoId)
+        const resumo = (await p.resumoDosRepertorios()).find((r) => r.eventoId === eventoId)
+        return resumo && resumo.pdfsBaixados < resumo.pdfs ? 'faltam_pdfs' : resultado
       } finally {
         await invalidarLocais()
       }
@@ -431,6 +443,10 @@ export function ProvedorOffline({ children, deposito = depositoPadrao, cliente =
     async removerRepertorio(eventoId) {
       await (await particaoAtiva())?.removerRepertorio(eventoId)
       await invalidarLocais()
+    },
+    async lerPdf(musicaId, versao) {
+      const p = await particaoAtiva()
+      return p ? p.lerPdf(musicaId, versao) : null
     },
     sincronizarAgora: sincronizarTudo,
     async prepararEvento(eventoId) {
@@ -482,6 +498,8 @@ export function ProvedorOffline({ children, deposito = depositoPadrao, cliente =
     async apagarComunidade(alvo) {
       if (!contaId) return
       await deposito.apagar(contaId, alvo)
+      // Os PDFs abertos para ler também saem do cache do aparelho.
+      limparPdfsAbertos()
       await invalidarLocais()
     },
   }

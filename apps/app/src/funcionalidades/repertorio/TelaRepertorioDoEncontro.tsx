@@ -24,7 +24,7 @@ import { EntradaEmCascata } from '@/ui/primitivasDeMovimento'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { mostrarToast } from '@/ui/Toast'
-import { mostrarDesfazer } from '@/ui/ToastComDesfazer'
+import { frasePraDesfazer, mostrarDesfazer, useSegundosDoDesfazer } from '@/ui/ToastComDesfazer'
 import { momentoDoEncontro } from '@/utilidades/momentoDoEncontro'
 import { parametro } from '@/utilidades/parametros'
 
@@ -45,6 +45,7 @@ import {
 } from './consultas'
 import { descricaoDaMusica } from './rotulosDoRepertorio'
 import { UsoSemInternet } from './UsoSemInternet'
+import { SeloDePdf } from '../pdf/CartaoDoPdf'
 
 /** Busca sem acento e sem caixa. */
 function normalizar(texto: string): string {
@@ -61,6 +62,7 @@ export function descricaoDoItem(item: ItemDoRepertorio): string {
       duracaoSeg: item.duracaoSeg,
       artista: item.artista,
       temCifra: item.temCifra,
+      temPdf: item.temPdf === true,
     },
     { artista: true },
   )
@@ -131,6 +133,7 @@ function Repertorio({ comunidadeId, evento }: { comunidadeId: string; evento: De
   const [menuDoItem, setMenuDoItem] = useState<ItemDoRepertorio | null>(null)
   // Músicas que a pessoa tirou e ainda esperam os 10 s do Desfazer: somem da lista na hora.
   const [tirados, setTirados] = useState<ReadonlySet<string>>(new Set())
+  const segundosDoDesfazer = useSegundosDoDesfazer()
 
   const etapaDoLouvor = evento.etapas.find((e) => ehEtapaDeLouvor(e.titulo)) ?? null
   const euToco = (meu.data ?? []).some((e) => e.evento.id === evento.id)
@@ -188,7 +191,7 @@ function Repertorio({ comunidadeId, evento }: { comunidadeId: string; evento: De
     )
   }
 
-  /** Tirar não pede "tem certeza?": some da lista e o servidor só é avisado depois dos 10 s. */
+  /** Tirar não pede "tem certeza?": some da lista e o servidor só é avisado depois da contagem. */
   function tirarComDesfazer(item: ItemDoRepertorio) {
     setTirados((atual) => new Set(atual).add(item.id))
     const soltar = () =>
@@ -199,8 +202,15 @@ function Repertorio({ comunidadeId, evento }: { comunidadeId: string; evento: De
       })
     mostrarDesfazer({
       texto: `${item.titulo} saiu do repertório.`,
+      textoDaFalha: `Não deu para tirar ${item.titulo}. A música continua no repertório. Toque em Tentar de novo.`,
       aoDesfazer: soltar,
-      aoConfirmar: () => remover.mutate(item.id, { onSettled: soltar }),
+      aoFalhar: soltar,
+      // Sai ao fim da contagem, ao sair da tela ou do app (D74), e repete se a rede falhar.
+      aoConfirmar: async () => {
+        setTirados((atual) => new Set(atual).add(item.id))
+        await remover.mutateAsync(item.id)
+        soltar()
+      },
     })
   }
 
@@ -316,7 +326,7 @@ function Repertorio({ comunidadeId, evento }: { comunidadeId: string; evento: De
                   hora={String(i + 1)}
                   titulo={item.titulo}
                   descricao={descricaoDoItem(item)}
-                  rotuloAcessivel={`Música ${i + 1} de ${lista.length}: ${item.titulo}. ${descricaoDoItem(item)}.${item.nota ? ` Observação: ${item.nota}.` : ''} Abrir a cifra.`}
+                  rotuloAcessivel={`Música ${i + 1} de ${lista.length}: ${item.titulo}. ${descricaoDoItem(item)}.${item.nota ? ` Observação: ${item.nota}.` : ''} Abrir a cifra${item.temPdf ? ' e o PDF' : ''}.`}
                   aoPressionar={() => abrirCifraDaBiblioteca(item)}
                 />
               ))}
@@ -360,7 +370,7 @@ function Repertorio({ comunidadeId, evento }: { comunidadeId: string; evento: De
                       aoPressionar: () => setTomEscolhido(menuDoItem),
                     },
                     {
-                      titulo: 'Abrir a cifra',
+                      titulo: menuDoItem.temPdf ? 'Abrir a cifra e o PDF' : 'Abrir a cifra',
                       icone: 'conteudo',
                       navega: true,
                       aoPressionar: () => abrirCifraDaBiblioteca(menuDoItem),
@@ -369,8 +379,7 @@ function Repertorio({ comunidadeId, evento }: { comunidadeId: string; evento: De
                       titulo: 'Tirar do repertório',
                       icone: 'excluir',
                       destrutiva: true,
-                      descricao:
-                        'A música continua na biblioteca. Você tem 10 segundos para desfazer.',
+                      descricao: `A música continua na biblioteca. ${frasePraDesfazer(segundosDoDesfazer)}`,
                       aoPressionar: () => tirarComDesfazer(menuDoItem),
                     },
                   ]
@@ -417,7 +426,11 @@ function MusicaParaOrganizar({
   return (
     <Cartao
       sobrancelha={`Música ${posicao + 1}`}
-      {...(!item.temCifra ? { extra: <Chip texto="Sem cifra" tom="neutro" /> } : {})}
+      {...(item.temPdf
+        ? { extra: <SeloDePdf /> }
+        : !item.temCifra
+          ? { extra: <Chip texto="Sem cifra" tom="neutro" /> }
+          : {})}
       acoes={
         <View style={{ gap: ESPACO.e8 }}>
           <View

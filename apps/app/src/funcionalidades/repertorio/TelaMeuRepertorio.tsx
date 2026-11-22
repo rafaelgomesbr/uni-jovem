@@ -259,7 +259,7 @@ function Encontro({
       <Cartao lista>
         <Lista recuo={RECUO_DA_LISTA.hora}>
           {itens.map((item, i) => {
-            const descricao = descricaoDaMusica(item)
+            const descricao = descricaoDaMusica({ ...item, temPdf: Boolean(item.pdf) })
             return (
               <LinhaDeLista
                 key={item.id}
@@ -273,7 +273,7 @@ function Encontro({
                 }
                 titulo={item.titulo}
                 descricao={descricao}
-                rotuloAcessivel={`Música ${i + 1} de ${itens.length}: ${item.titulo}. ${descricao}. Abrir a cifra.`}
+                rotuloAcessivel={`Música ${i + 1} de ${itens.length}: ${item.titulo}. ${descricao}. Abrir a cifra${item.pdf ? ' e o PDF' : ''}.`}
                 aoPressionar={() => abrirMusica(evento.id, item.id)}
               />
             )

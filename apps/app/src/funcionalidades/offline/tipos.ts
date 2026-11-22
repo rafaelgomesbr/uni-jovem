@@ -225,8 +225,18 @@ export interface ResumoDoRepertorioGuardado {
   inicio: string
   fuso: string
   musicas: number
+  /** Quantas músicas do repertório têm PDF e quantos deles já estão guardados na versão atual. */
+  pdfs: number
+  pdfsBaixados: number
   baixadoEm: string
   validoAte: string
+}
+
+/** Um PDF de música guardado no banco cifrado (D76). Traz os bytes: nunca vai a log. */
+export interface PdfGuardado {
+  versao: string
+  nome: string
+  bytes: Uint8Array
 }
 
 // ------------------------------------------------------------ partições
@@ -277,7 +287,22 @@ export interface Particao {
   repertorios(): Promise<RepertorioGuardado[]>
   /** Só o resumo de cada um, sem a cifra. */
   resumoDosRepertorios(): Promise<ResumoDoRepertorioGuardado[]>
+  /** Tira o repertório e os PDFs dele (a cópia inteira sai junto). */
   removerRepertorio(eventoId: string): Promise<void>
+  /** Guarda (ou troca) o PDF de uma música deste repertório. */
+  gravarPdf(
+    eventoId: string,
+    musicaId: string,
+    pdf: { versao: string; nome: string },
+    bytes: Uint8Array,
+    baixadoEm?: string,
+  ): Promise<void>
+  /** O PDF guardado da música: o da `versao` pedida, ou o mais recente que houver. Sem a rede. */
+  lerPdf(musicaId: string, versao?: string): Promise<PdfGuardado | null>
+  /** Música e versão de cada PDF guardado deste encontro (sem ler os bytes). */
+  versoesDosPdfs(eventoId: string): Promise<Record<string, string>>
+  /** Apaga os PDFs deste encontro que não são de nenhuma das músicas em `manter`. */
+  removerPdfsForaDe(eventoId: string, manter: readonly string[]): Promise<void>
 }
 
 export interface ParticaoVencida {

@@ -1,8 +1,10 @@
 import { act, fireEvent, screen, userEvent, waitFor } from '@testing-library/react-native'
 import { router, useLocalSearchParams } from 'expo-router'
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 
 import { EVENTO_ID, eventoDeTeste } from '@/testes/fixturas'
 import { BASE, pedidosPara, PESSOAS, renderizarTela } from '@/testes/telas'
+import { SITUACOES_DO_CHIP } from '@/ui/Chip'
 import { mostrarToast } from '@/ui/Toast'
 
 import { TelaCheckin } from '../TelaCheckin'
@@ -128,6 +130,26 @@ describe('check-in: feito para quem está em pé', () => {
     // Quem já chegou mostra "Presente" em texto e ícone, nunca só cor.
     expect(screen.getByText('Presente')).toBeOnTheScreen()
     expect(screen.getAllByText('Chegou')).toHaveLength(3)
+  })
+
+  test('"Chegou" parece botão (contorno e 48 de altura) e "Presente" é outra coisa, com ícone e texto (D75)', async () => {
+    await montar()
+    await screen.findByText('Convocados e inscritos (4)')
+    const chegou = screen.getAllByText('Chegou')[0]!.parent!
+    const estilo = StyleSheet.flatten(chegou.props.style as StyleProp<ViewStyle>) as {
+      minHeight: number
+      borderWidth: number
+      borderColor: string
+    }
+    expect(estilo.minHeight).toBeGreaterThanOrEqual(48)
+    // O contorno é o que faz uma etiqueta virar botão (o teste do dono: "Chegou parece etiqueta").
+    expect(estilo.borderWidth).toBeGreaterThanOrEqual(2)
+    expect(estilo.borderColor).not.toBe('transparent')
+    // Quem já chegou: palavra "Presente" (o chip também traz o ícone de check, ver `Chip`).
+    expect(screen.getByText('Presente')).toBeOnTheScreen()
+    expect(SITUACOES_DO_CHIP.aceitou.icone).toBe('check')
+    // A tela se chama "Marcar quem chegou", a mesma palavra do botão que leva até ela.
+    expect(screen.getAllByText('Marcar quem chegou').length).toBeGreaterThan(0)
   })
 
   test('membros sem convocação nem inscrição ficam em "Outras pessoas"', async () => {
@@ -311,11 +333,10 @@ describe('Marcar todos que aceitaram', () => {
   })
 })
 
-describe('Mais: código de entrada e quem chegou sem inscrição', () => {
+describe('Ações à vista (D75, sem "Mais"): código de entrada e quem chegou sem inscrição', () => {
   test('código com formato errado não vai à rede', async () => {
     const { servidor } = await montar()
     const usuario = userEvent.setup()
-    await usuario.press(await screen.findByRole('button', { name: 'Mais opções do check-in' }))
     await usuario.press(await screen.findByRole('button', { name: /^Pelo código de entrada/ }))
 
     await fireEvent.changeText(await screen.findByLabelText('Código de entrada'), 'XYZ')
@@ -332,7 +353,6 @@ describe('Mais: código de entrada e quem chegou sem inscrição', () => {
       }),
     })
     const usuario = userEvent.setup()
-    await usuario.press(await screen.findByRole('button', { name: 'Mais opções do check-in' }))
     await usuario.press(await screen.findByRole('button', { name: /^Pelo código de entrada/ }))
     await fireEvent.changeText(await screen.findByLabelText('Código de entrada'), 'abcdef1234')
     await usuario.press(screen.getByRole('button', { name: 'Marcar presença pelo código' }))
@@ -357,7 +377,6 @@ describe('Mais: código de entrada e quem chegou sem inscrição', () => {
       }),
     })
     const usuario = userEvent.setup()
-    await usuario.press(await screen.findByRole('button', { name: 'Mais opções do check-in' }))
     await usuario.press(await screen.findByRole('button', { name: /^Chegou sem inscrição/ }))
 
     await usuario.press(
@@ -376,15 +395,29 @@ describe('Mais: código de entrada e quem chegou sem inscrição', () => {
   test('"Ver as inscrições" leva à lista de inscrições do encontro', async () => {
     await montar()
     const usuario = userEvent.setup()
-    await usuario.press(await screen.findByRole('button', { name: 'Mais opções do check-in' }))
     await usuario.press(await screen.findByRole('button', { name: /^Ver as inscrições/ }))
-    // A folha fecha primeiro; só depois a tela abre.
     await waitFor(() =>
       expect(router.push).toHaveBeenCalledWith({
         pathname: '/evento/[eventoId]/inscricoes',
         params: { eventoId: EVENTO_ID },
       }),
     )
+  })
+})
+
+describe('as ações do dia estão à vista, nenhuma atrás de "Mais" (D75)', () => {
+  test('chegou sem inscrição, pelo código, as inscrições, o QR e "marcar todos" aparecem juntos', async () => {
+    await montar()
+    for (const nome of [
+      'Chegou sem inscrição',
+      'Pelo código de entrada',
+      'Ver as inscrições',
+      'Ler QR',
+      'Marcar todos que aceitaram',
+    ]) {
+      expect(await screen.findByRole('button', { name: nome })).toBeOnTheScreen()
+    }
+    expect(screen.queryByRole('button', { name: /^Mais/ })).toBeNull()
   })
 })
 

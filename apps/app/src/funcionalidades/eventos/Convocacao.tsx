@@ -1,6 +1,7 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import {
   ehEtapaDeLouvor,
+  ehFuncaoDaBanda,
   FUNCOES_DA_BANDA,
   mesmaFuncao,
   normalizarFuncaoDaBanda,
@@ -18,35 +19,44 @@ import type {
   EstadoDaAtribuicao,
   Etapa,
 } from '@/servicos/contratoDosEventos'
+import { ehErroDaApi } from '@/servicos/erros'
 import { Botao } from '@/ui/Botao'
 import { Campo, CampoDeBusca } from '@/ui/Campo'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { AvisoDeFalha } from '@/ui/Falha'
-import { FolhaNaTela, MenuDeAcoes } from '@/ui/FolhaNaTela'
+import { FolhaNaTela } from '@/ui/FolhaNaTela'
 import { Icone } from '@/ui/Icone'
 import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
 import { PilulasDeFiltro } from '@/ui/PilulasDeFiltro'
-import { Segmentos } from '@/ui/Segmentos'
 import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
 import { mostrarToast } from '@/ui/Toast'
-import { mostrarDesfazer } from '@/ui/ToastComDesfazer'
-import { confirmar } from '@/utilidades/confirmar'
+import { frasePraDesfazer, mostrarDesfazer, useSegundosDoDesfazer } from '@/ui/ToastComDesfazer'
 
 import { usePessoasAtivas } from '../comunidade/consultas'
 import {
+  devolverRemovidas,
   esperarConvocados,
+  esperarRemocao,
   tirarConvocadosEmEspera,
   useConvocadosEmEspera,
+  useRemovidasEmEspera,
 } from './convocadosOtimistas'
 import { naComunidade, useInvalidarEventos } from './consultas'
+import {
+  jaTemNaFuncao,
+  primeiroNome,
+  rotuloDoPapel,
+  type PapelDaPessoa,
+  type PessoaNaLista,
+} from './listaDeQuemVai'
 
 /**
- * Convocação (D54, D69): a organização convoca, a pessoa aceita ou avisa que não pode ir. Na API
- * e no banco continua sendo "atribuição" e "escala"; só a interface fala em convocação.
+ * Convocação (D54, D69, D74): a organização convoca, a pessoa aceita ou avisa que não pode ir. Na
+ * API e no banco continua sendo "atribuição" e "escala"; só a interface fala em convocação.
  */
 
-/** Aviso fixo dos Convocados enquanto o encontro é rascunho (membro não vê rascunho). */
+/** Aviso fixo do Quem vai enquanto o encontro é rascunho (membro não vê rascunho). */
 export const AVISO_DE_RASCUNHO = 'Rascunho: ninguém recebe a convocação até você publicar.'
 
 /**
@@ -98,8 +108,6 @@ export function pessoasDistintas(atribuicoes: readonly Pick<Atribuicao, 'vinculo
   return new Set(atribuicoes.filter((a) => a.estado !== 'recusada').map((a) => a.vinculoId)).size
 }
 
-type Funcao = 'responsável' | 'integrante' | 'outra'
-
 /** Máximo de pessoas por chamada (o servidor recusa mais que isso). */
 const MAXIMO_POR_LOTE = 30
 
@@ -141,50 +149,82 @@ export function ondeJaEsta(
   return `${nomeDoBloco(a.etapaId, etapas)} (${rotuloDaFuncao(a.funcao)})`
 }
 
-/**
- * Quem já está no bloco, em uma frase: "Na banda: Ana (violão), Bruno (bateria)." no Louvor e
- * "No encontro inteiro: Ana, Bruno." nos demais. Quem recusou não conta. Uma pessoa com duas
- * funções aparece uma vez, com as duas.
- */
-export function quemJaEstaNoBloco(
-  atribuicoes: readonly Pick<Atribuicao, 'etapaId' | 'funcao' | 'estado' | 'vinculoId' | 'nome'>[],
+// ------------------------------------------------------------------ o papel
+
+type FuncaoDaEquipe = 'responsável' | 'integrante' | 'outra'
+
+/** O que a pessoa vai fazer: uma função da banda ou uma da equipe (D74: o app descobre "onde"). */
+export type Papel =
+  { tipo: 'banda'; funcao: FuncaoDaBanda } | { tipo: 'equipe'; funcao: FuncaoDaEquipe }
+
+const PAPEIS_DA_EQUIPE: readonly { valor: FuncaoDaEquipe; rotulo: string }[] = [
+  { valor: 'responsável', rotulo: 'Quem conduz' },
+  { valor: 'integrante', rotulo: 'Quem ajuda' },
+  { valor: 'outra', rotulo: 'Outra função' },
+]
+
+function papelInicial(
+  funcaoInicial: string | null,
+  etapa: Pick<Etapa, 'titulo'> | null,
+): { papel: Papel | null; outra: string } {
+  const noLouvor = etapa !== null && ehEtapaDeLouvor(etapa.titulo)
+  if (funcaoInicial) {
+    if (noLouvor || ehFuncaoDaBanda(funcaoInicial)) {
+      const funcao = normalizarFuncaoDaBanda(funcaoInicial)
+      return {
+        papel: { tipo: 'banda', funcao },
+        outra: funcao === 'Outro' ? funcaoInicial : '',
+      }
+    }
+    if (funcaoInicial === 'responsável' || funcaoInicial === 'integrante') {
+      return { papel: { tipo: 'equipe', funcao: funcaoInicial }, outra: '' }
+    }
+    return { papel: { tipo: 'equipe', funcao: 'outra' }, outra: funcaoInicial }
+  }
+  if (noLouvor) return { papel: null, outra: '' }
+  return { papel: { tipo: 'equipe', funcao: etapa ? 'responsável' : 'integrante' }, outra: '' }
+}
+
+/** O nome do papel como a API o guarda (a função da banda é a da lista padrão). */
+function nomeDoPapel(papel: Papel | null, outra: string): string {
+  if (!papel) return ''
+  if (papel.tipo === 'banda') return papel.funcao === 'Outro' ? outra.trim() : papel.funcao
+  return papel.funcao === 'outra' ? outra.trim() : papel.funcao
+}
+
+/** Como o papel aparece nos títulos: "Violão", "ajudar", "Som da igreja". */
+function papelEmPalavras(papel: Papel, nome: string): string {
+  if (papel.tipo === 'equipe' && papel.funcao === 'responsável') return 'conduzir'
+  if (papel.tipo === 'equipe' && papel.funcao === 'integrante') return 'ajudar'
+  return nome
+}
+
+/** O encontro já saiu do rascunho e ainda vai acontecer: convocar avisa a pessoa. */
+function avisaAoConvocar(evento: Pick<DetalheDoEvento, 'status' | 'inicio'>): boolean {
+  return evento.status === 'publicado' && new Date(evento.inicio).getTime() > Date.now()
+}
+
+/** Para onde a convocação vai, em uma expressão: "o Louvor", "o encontro", "Boas-vindas". */
+function destinoDaConvocacao(
+  papel: Papel | null,
   etapaId: string | null,
   etapas: readonly Pick<Etapa, 'id' | 'titulo'>[],
 ): string {
   const etapa = etapas.find((e) => e.id === etapaId)
-  const banda = !!etapa && ehEtapaDeLouvor(etapa.titulo)
-  const bloco = banda
-    ? 'na banda'
-    : etapaId === null
-      ? 'no encontro inteiro'
-      : `em ${etapa?.titulo ?? 'esta etapa'}`
-  const porPessoa = new Map<string, { nome: string; funcoes: string[] }>()
-  for (const a of atribuicoes) {
-    if (a.etapaId !== etapaId || a.estado === 'recusada') continue
-    const atual = porPessoa.get(a.vinculoId) ?? {
-      nome: a.nome.split(' ')[0] ?? a.nome,
-      funcoes: [],
-    }
-    atual.funcoes.push(a.funcao.toLocaleLowerCase('pt-BR'))
-    porPessoa.set(a.vinculoId, atual)
-  }
-  if (porPessoa.size === 0) return `Ninguém ${bloco} ainda.`
-  const nomes = [...porPessoa.values()].map((p) =>
-    banda ? `${p.nome} (${p.funcoes.join(', ')})` : p.nome,
-  )
-  return `${bloco.charAt(0).toLocaleUpperCase('pt-BR')}${bloco.slice(1)}: ${nomes.join(', ')}.`
+  if (papel?.tipo === 'banda') return 'o Louvor'
+  return etapa ? etapa.titulo : 'o encontro'
 }
 
 /**
- * Folha "Convocar" (D69, seção 3.5): várias pessoas de uma vez. A função vem preenchida do bloco
- * onde o toque saiu ("Convocar" em Bateria já traz Bateria); "Sugeridas" primeiro (quem serviu
- * nessa função e quem avisou que pode neste dia, pela API de sugestões); "Todas as pessoas" com a
- * busca pelo nome. O bloqueio "Já convocado" vale só para a MESMA combinação de bloco (encontro
- * inteiro, etapa ou Louvor) e função (D73): quem já serve o encontro inteiro aparece marcável para o
- * Louvor, com "Já está em: Encontro inteiro (quem ajuda)", e a mesma pessoa pode ter duas funções na
- * banda. Quem avisou que não pode neste dia fica travado, com o motivo escrito. "Convocar 2
- * pessoas" fecha a folha, o bloco mostra as duas como "aguardando" e o aviso a elas só sai depois
- * de 10 s, com Desfazer.
+ * Folha "Convocar" (D69, D73, D74). Dois passos numa tela só: o que a pessoa vai fazer (o título
+ * muda com a escolha: "Convocar para Violão") e quem. O app descobre sozinho onde o papel mora (a
+ * banda vai para a etapa do Louvor; o resto, para o encontro, ou para a etapa de onde a folha foi
+ * aberta). Cada pessoa aparece UMA vez ("Sugeridas" primeiro, depois as outras). Trocar o papel
+ * limpa as marcações: nada vaza de um papel para o outro. O bloqueio vale só para a MESMA combinação
+ * de etapa e função, e diz o motivo; função que já tem gente explica ("Bateria: já tem Bruno.") em
+ * vez de esconder o caminho. "Convocar 2 pessoas para o Louvor" diz o que acontece: o rascunho não
+ * avisa ninguém; o publicado avisa depois da contagem do Desfazer, e o envio sai também se a
+ * pessoa sair da tela ou do app (D74).
  */
 export function FolhaDeConvocar({
   evento,
@@ -193,54 +233,47 @@ export function FolhaDeConvocar({
   aberta,
   aoFechar,
   funcaoInicial = null,
-  escolherEtapa = false,
+  semPapelInicial = false,
 }: {
   evento: DetalheDoEvento
+  /** A etapa fixa (a tela da etapa). Sem ela, o app descobre pelo papel. */
   etapa: Etapa | null
   comunidadeId: string
   aberta: boolean
   aoFechar: () => void
-  /** A função do bloco de onde o toque saiu ("Bateria"). Sem ela, o primeiro passo é escolher. */
+  /** O papel de onde o toque saiu ("Bateria"). Sem ele, a folha abre em "Quem ajuda". */
   funcaoInicial?: string | null
-  /** O toque geral ("Convocar pessoas"): oferece onde servir (o encontro inteiro ou uma etapa). */
-  escolherEtapa?: boolean
+  /** Abre sem nenhum papel escolhido: quem convoca diz qual (a banda, por exemplo). */
+  semPapelInicial?: boolean
 }) {
   const { cores } = useTema()
   const invalidar = useInvalidarEventos(comunidadeId)
-  // Etapa do Louvor (D61): a função vem da lista padrão da banda, não de texto livre.
-  const [etapaId, setEtapaId] = useState<string | null>(etapa?.id ?? null)
-  const etapaAtual = evento.etapas.find((e) => e.id === etapaId) ?? null
-  const louvor = etapaAtual !== null && ehEtapaDeLouvor(etapaAtual.titulo)
-  const [funcao, setFuncao] = useState<Funcao>(() => {
-    if (funcaoInicial && !(etapa !== null && ehEtapaDeLouvor(etapa.titulo))) {
-      return funcaoInicial === 'responsável' || funcaoInicial === 'integrante'
-        ? funcaoInicial
-        : 'outra'
-    }
-    return etapa ? 'responsável' : 'integrante'
-  })
-  const [funcaoDaBanda, setFuncaoDaBanda] = useState<FuncaoDaBanda | null>(() =>
-    louvor && funcaoInicial ? normalizarFuncaoDaBanda(funcaoInicial) : null,
-  )
-  const [outra, setOutra] = useState(() =>
-    funcaoInicial && !louvor && funcao === 'outra' ? funcaoInicial : '',
-  )
-
-  function trocarEtapa(id: string | null) {
-    setEtapaId(id)
-    // A função da banda e a do resto são listas diferentes: recomeça pela padrão da etapa nova.
-    setFuncaoDaBanda(null)
-    setFuncao(id ? 'responsável' : 'integrante')
-    setOutra('')
-    setMarcadas([])
-  }
+  const segundos = useSegundosDoDesfazer()
+  const inicio = semPapelInicial ? { papel: null, outra: '' } : papelInicial(funcaoInicial, etapa)
+  const [papel, setPapel] = useState<Papel | null>(inicio.papel)
+  const [outra, setOutra] = useState(inicio.outra)
   const [busca, setBusca] = useState('')
   const [marcadas, setMarcadas] = useState<readonly string[]>([])
 
-  const pedeNome = louvor ? funcaoDaBanda === 'Outro' : funcao === 'outra'
-  const nomeDaFuncao = pedeNome ? outra.trim() : louvor ? (funcaoDaBanda ?? '') : funcao
+  const noLouvor = etapa !== null && ehEtapaDeLouvor(etapa.titulo)
+  const mostraEquipe = !noLouvor
+  const mostraBanda = etapa === null || noLouvor
+  const louvor = evento.etapas.find((e) => ehEtapaDeLouvor(e.titulo)) ?? null
+  // A banda mora na etapa do Louvor (ou no encontro inteiro, se não houver); o resto, onde a folha abriu.
+  const etapaId = etapa ? etapa.id : papel?.tipo === 'banda' ? (louvor?.id ?? null) : null
+
+  const pedeNome = papel !== null && papel.funcao === (papel.tipo === 'banda' ? 'Outro' : 'outra')
+  const nomeDaFuncao = nomeDoPapel(papel, outra)
   const pronta = nomeDaFuncao.length >= 2
   const emEspera = useConvocadosEmEspera(evento.id)
+  const removidas = useRemovidasEmEspera()
+
+  function escolherPapel(novo: Papel) {
+    setPapel(novo)
+    setOutra('')
+    // Quem estava marcado para o papel anterior não vem junto: a marcação é deste papel.
+    setMarcadas([])
+  }
 
   const pessoas = usePessoasAtivas(comunidadeId)
   const sugestoes = useQuery({
@@ -260,8 +293,9 @@ export function FolhaDeConvocar({
 
   // Tudo o que já existe neste encontro, com quem está na espera do Desfazer (também conta).
   const existentes = [
-    ...evento.atribuicoes,
+    ...evento.atribuicoes.filter((a) => !removidas.has(a.id)),
     ...emEspera.map((c) => ({
+      id: c.chave,
       etapaId: c.etapaId,
       vinculoId: c.vinculoId,
       funcao: c.funcao,
@@ -269,24 +303,32 @@ export function FolhaDeConvocar({
       nome: c.nome,
     })),
   ]
-  // O bloqueio é só da MESMA combinação (bloco e função): estar no encontro inteiro não impede de
+  // O bloqueio é só da MESMA combinação (etapa e função): estar no encontro inteiro não impede de
   // tocar no Louvor, nem tocar violão impede de cantar (D73).
-  const naMesmaCombinacao = (vinculoId: string) =>
-    pronta
-      ? existentes.find(
-          (a) =>
-            a.vinculoId === vinculoId &&
-            a.etapaId === etapaId &&
-            mesmaFuncao(a.funcao, nomeDaFuncao),
-        )
-      : undefined
+  const naMesmaFuncao = (a: (typeof existentes)[number]) =>
+    pronta && a.etapaId === etapaId && mesmaFuncao(a.funcao, nomeDaFuncao)
   const jaPelaApi = new Set(sugestoes.data?.jaConvocadas ?? [])
   const naoPodem = new Set((sugestoes.data?.indisponiveis ?? []).map((i) => i.vinculoId))
-  const quemJaEsta = quemJaEstaNoBloco(existentes, etapaId, evento.etapas)
+  const quemTem = [
+    ...new Set(
+      existentes
+        .filter((a) => naMesmaFuncao(a) && a.estado !== 'recusada')
+        .map((a) => primeiroNome(a.nome)),
+    ),
+  ]
+  const rotuloDoPapelEscolhido = pronta
+    ? rotuloDoPapel({ funcao: nomeDaFuncao, etapaId }, evento.etapas)
+    : ''
+  const jaTem = pronta ? jaTemNaFuncao(rotuloDoPapelEscolhido, quemTem) : null
+
   const termo = semAcento(busca.trim())
   const passaNaBusca = (nome: string) => !termo || semAcento(nome).includes(termo)
   const sugeridas = (sugestoes.data?.sugeridas ?? []).filter((s) => passaNaBusca(s.nome))
-  const todas = (pessoas.pessoas ?? []).filter((p) => passaNaBusca(p.nome))
+  const idsDasSugeridas = new Set(sugeridas.map((s) => s.vinculoId))
+  // Cada pessoa aparece UMA vez: quem já está em "Sugeridas" não se repete nas outras.
+  const outras = (pessoas.pessoas ?? []).filter(
+    (p) => passaNaBusca(p.nome) && !idsDasSugeridas.has(p.vinculoId),
+  )
 
   function alternar(vinculoId: string) {
     setMarcadas((atual) =>
@@ -299,6 +341,7 @@ export function FolhaDeConvocar({
   }
 
   function convocar() {
+    if (!papel) return
     const alvo = marcadas.flatMap((id) => {
       const p = (pessoas.pessoas ?? []).find((x) => x.vinculoId === id)
       return p ? [{ vinculoId: id, nome: p.nome, funcao: nomeDaFuncao, etapaId }] : []
@@ -306,31 +349,37 @@ export function FolhaDeConvocar({
     if (alvo.length === 0 || !pronta) return
     const n = alvo.length
     const corpo = { funcao: nomeDaFuncao, etapaId, vinculoIds: alvo.map((a) => a.vinculoId) }
-    const chaves = esperarConvocados(evento.id, alvo)
+    const emPalavras = papelEmPalavras(papel, nomeDaFuncao)
+    const avisa = avisaAoConvocar(evento)
+    let chaves = esperarConvocados(evento.id, alvo)
 
-    async function enviar(chavesDaEspera: string[]) {
-      try {
-        await chamadasV3.convocarEmLote(comunidadeId, evento.id, corpo)
-        await invalidar(evento.id)
-      } catch {
-        mostrarDesfazer({
-          texto: 'Não deu para convocar. Ninguém foi avisado.',
-          rotuloDoBotao: 'Tentar de novo',
-          aoConfirmar: () => undefined,
-          aoDesfazer: () => {
-            // Repetir: as pessoas voltam à espera e o envio sai de novo, sem outro Desfazer.
-            void enviar(esperarConvocados(evento.id, alvo))
-          },
-        })
-      } finally {
-        tirarConvocadosEmEspera(chavesDaEspera)
-      }
+    // Sai ao fim da contagem, ao sair da tela ou do app, e de novo se a rede falhar (D74).
+    async function enviar() {
+      if (chaves.length === 0) chaves = esperarConvocados(evento.id, alvo)
+      await chamadasV3.convocarEmLote(comunidadeId, evento.id, corpo)
+      await invalidar(evento.id)
+      tirarConvocadosEmEspera(chaves)
+      chaves = []
+      const quem = n === 1 ? primeiroNome(alvo[0]!.nome) : quantasPessoas(n)
+      mostrarToast({
+        texto: avisa
+          ? `Pronto. ${quem} ${n === 1 ? 'foi' : 'foram'} convocad${n === 1 ? 'a' : 'as'} para ${emPalavras} e ${n === 1 ? 'recebeu o aviso' : 'receberam o aviso'}.`
+          : `Salvo. Ninguém foi avisado ainda: ${quem} ${n === 1 ? 'recebe' : 'recebem'} a convocação quando você publicar.`,
+      })
     }
 
     mostrarDesfazer({
-      texto: `${quantasPessoas(n)} ${n === 1 ? 'convocada' : 'convocadas'}.`,
-      aoDesfazer: () => tirarConvocadosEmEspera(chaves),
-      aoConfirmar: () => void enviar(chaves),
+      texto: `Convocando ${quantasPessoas(n)} para ${emPalavras}.`,
+      textoDaFalha: `Não deu para convocar para ${emPalavras}. Ninguém foi avisado. Toque em Tentar de novo.`,
+      aoDesfazer: () => {
+        tirarConvocadosEmEspera(chaves)
+        chaves = []
+      },
+      aoFalhar: () => {
+        tirarConvocadosEmEspera(chaves)
+        chaves = []
+      },
+      aoConfirmar: enviar,
     })
     setMarcadas([])
     setBusca('')
@@ -338,19 +387,19 @@ export function FolhaDeConvocar({
   }
 
   const n = marcadas.length
-  const titulo = funcaoInicial
-    ? `Convocar para ${louvor ? normalizarFuncaoDaBanda(funcaoInicial) : funcaoInicial}`
-    : 'Convocar pessoas'
+  const titulo =
+    papel && pronta ? `Convocar para ${papelEmPalavras(papel, nomeDaFuncao)}` : 'Convocar pessoas'
+  const destino = destinoDaConvocacao(papel, etapaId, evento.etapas)
 
   function linhaDaPessoa(vinculoId: string, nome: string, apoio: string) {
-    const igual = naMesmaCombinacao(vinculoId)
+    const igual = existentes.find((a) => a.vinculoId === vinculoId && naMesmaFuncao(a))
     const outros = existentes.filter((a) => a.vinculoId === vinculoId && a !== igual)
     const travada = igual
-      ? `Já convocado: ${ondeJaEsta(igual, evento.etapas)}${
+      ? `Já está como ${rotuloDoPapel(igual, evento.etapas)}${
           igual.estado === 'recusada' ? '. Avisou que não pode ir' : ''
         }`
       : jaPelaApi.has(vinculoId)
-        ? 'Já convocado nesta função'
+        ? 'Já está nesta função'
         : naoPodem.has(vinculoId)
           ? 'Avisou que não pode neste dia'
           : null
@@ -381,61 +430,78 @@ export function FolhaDeConvocar({
     )
   }
 
+  const botao = !papel
+    ? 'Escolha o que a pessoa vai fazer'
+    : !pronta
+      ? 'Diga a função'
+      : n === 0
+        ? 'Marque quem convocar'
+        : `Convocar ${quantasPessoas(n)} para ${destino}`
+  const legenda =
+    evento.status === 'rascunho'
+      ? AVISO_DE_RASCUNHO
+      : avisaAoConvocar(evento)
+        ? `${n === 1 ? 'A pessoa será avisada' : 'Elas serão avisadas'} depois da contagem. ${frasePraDesfazer(segundos)}`
+        : 'Este encontro já passou ou não está no ar: a convocação fica salva, sem aviso.'
+
   return (
     <FolhaNaTela aberta={aberta} titulo={titulo} aoFechar={aoFechar}>
-      {escolherEtapa && evento.etapas.length > 0 ? (
-        <PilulasDeFiltro
-          rotulo="Onde"
-          sangrar={false}
-          quebrar
-          pilulas={[
-            { valor: 'geral', rotulo: 'Encontro inteiro' },
-            ...evento.etapas.map((e) => ({ valor: e.id, rotulo: e.titulo })),
-          ]}
-          selecionadas={[etapaId ?? 'geral']}
-          aoMudar={(v) => trocarEtapa(!v[0] || v[0] === 'geral' ? null : v[0])}
-        />
+      <Texto variante="tituloItem" nivel={3} accessibilityRole="header">
+        O que a pessoa vai fazer
+      </Texto>
+      {mostraEquipe ? (
+        <View style={{ gap: ESPACO.e8 }}>
+          <Texto variante="meta" cor="textoSuave">
+            Na equipe
+          </Texto>
+          <PilulasDeFiltro
+            rotulo="Função na equipe"
+            sangrar={false}
+            quebrar
+            pilulas={PAPEIS_DA_EQUIPE.map((p) => ({ valor: p.valor, rotulo: p.rotulo }))}
+            selecionadas={papel?.tipo === 'equipe' ? [papel.funcao] : []}
+            aoMudar={(v) => v[0] && escolherPapel({ tipo: 'equipe', funcao: v[0] })}
+          />
+        </View>
       ) : null}
-      {louvor ? (
-        <PilulasDeFiltro
-          rotulo="Função na banda"
-          sangrar={false}
-          quebrar
-          pilulas={FUNCOES_DA_BANDA.map((f) => ({ valor: f, rotulo: f }))}
-          selecionadas={funcaoDaBanda ? [funcaoDaBanda] : []}
-          aoMudar={(v) => setFuncaoDaBanda(v[0] ?? null)}
-        />
-      ) : (
-        <Segmentos
-          rotulo="Função"
-          valor={funcao}
-          aoMudar={setFuncao}
-          segmentos={[
-            { valor: 'responsável', rotulo: 'Quem conduz' },
-            { valor: 'integrante', rotulo: 'Quem ajuda' },
-            { valor: 'outra', rotulo: 'Outra função' },
-          ]}
-        />
-      )}
+      {mostraBanda ? (
+        <View style={{ gap: ESPACO.e8 }}>
+          <Texto variante="meta" cor="textoSuave">
+            Na banda
+          </Texto>
+          <PilulasDeFiltro
+            rotulo="Função na banda"
+            sangrar={false}
+            quebrar
+            pilulas={FUNCOES_DA_BANDA.map((f) => ({ valor: f, rotulo: f }))}
+            selecionadas={papel?.tipo === 'banda' ? [papel.funcao] : []}
+            aoMudar={(v) => v[0] && escolherPapel({ tipo: 'banda', funcao: v[0] })}
+          />
+        </View>
+      ) : null}
       {pedeNome ? (
         <Campo
           rotulo="Nome da função"
           value={outra}
           onChangeText={setOutra}
-          exemplo={louvor ? 'Regência, percussão, backing' : 'Som, recepção, fotografia'}
+          exemplo={
+            papel?.tipo === 'banda' ? 'Regência, percussão, backing' : 'Som, recepção, fotografia'
+          }
           maxLength={60}
         />
       ) : null}
 
-      <Texto variante="meta" cor="textoSuave" testID="quem-ja-esta-no-bloco">
-        {quemJaEsta}
-      </Texto>
+      {jaTem ? (
+        <Texto variante="meta" cor="textoSuave" testID="ja-tem-na-funcao">
+          {jaTem}
+        </Texto>
+      ) : null}
 
       {!pronta ? (
         <Texto variante="corpo" cor="textoSuave">
-          {louvor
-            ? 'Escolha a função na banda para ver quem convocar.'
-            : 'Diga a função para ver quem convocar.'}
+          {papel
+            ? 'Diga a função para ver quem convocar.'
+            : 'Escolha o que a pessoa vai fazer para ver quem convocar.'}
         </Texto>
       ) : (
         <>
@@ -479,15 +545,15 @@ export function FolhaDeConvocar({
           ) : null}
           <View style={{ gap: ESPACO.e8 }}>
             <Texto variante="tituloItem" nivel={3} accessibilityRole="header">
-              {`Todas as pessoas (${todas.length})`}
+              {`${sugeridas.length > 0 ? 'Outras pessoas' : 'Todas as pessoas'} (${outras.length})`}
             </Texto>
-            {todas.length === 0 && !pessoas.isPending ? (
+            {outras.length === 0 && !pessoas.isPending ? (
               <Texto variante="corpo" cor="textoSuave">
-                Ninguém com esse nome.
+                {termo ? 'Ninguém com esse nome.' : 'Não há mais ninguém para escolher.'}
               </Texto>
             ) : (
               <CartaoDeVidro lista opaco>
-                <Lista>{todas.map((p) => linhaDaPessoa(p.vinculoId, p.nome, ''))}</Lista>
+                <Lista>{outras.map((p) => linhaDaPessoa(p.vinculoId, p.nome, ''))}</Lista>
               </CartaoDeVidro>
             )}
           </View>
@@ -495,22 +561,14 @@ export function FolhaDeConvocar({
       )}
 
       <Botao
-        titulo={
-          !pronta
-            ? 'Escolha a função'
-            : n === 0
-              ? 'Marque quem convocar'
-              : `Convocar ${quantasPessoas(n)}`
-        }
+        titulo={botao}
         tamanho="grande"
         larguraTotal
         desabilitado={!pronta || n === 0}
         aoPressionar={convocar}
       />
       <Texto variante="legenda" cor="textoSuave">
-        {evento.status === 'rascunho'
-          ? AVISO_DE_RASCUNHO
-          : 'As pessoas só são avisadas depois de 10 segundos: dá tempo de desfazer.'}
+        {legenda}
       </Texto>
       {n >= MAXIMO_POR_LOTE ? (
         <Texto variante="legenda" cor="textoSuave">
@@ -521,62 +579,47 @@ export function FolhaDeConvocar({
   )
 }
 
-/**
- * Menu de uma pessoa convocada (para quem convoca): "Tirar da convocação",
- * com confirmação. Aberto ao tocar na linha da pessoa.
- */
-export function MenuDaPessoaConvocada({
-  evento,
-  comunidadeId,
-  escolhida,
-  aoFechar,
-}: {
-  evento: DetalheDoEvento
-  comunidadeId: string
-  escolhida: Atribuicao | null
-  aoFechar: () => void
-}) {
-  const invalidar = useInvalidarEventos(comunidadeId)
-  const remover = useMutation({
-    mutationFn: (id: string) =>
-      api.delete(`${naComunidade(comunidadeId)}/eventos/${evento.id}/atribuicoes/${id}`),
-    onSuccess: async () => {
-      mostrarToast({ texto: 'A pessoa saiu da convocação.' })
-      await invalidar(evento.id)
-    },
-  })
+// ------------------------------------------------------------------ tirar da convocação
 
-  async function pedirRemocao(a: Atribuicao) {
-    const ok = await confirmar({
-      titulo: `Tirar ${a.nome} da convocação?`,
-      mensagem: 'A pessoa deixa de ver esta convocação entre as suas.',
-      confirmar: 'Tirar da convocação',
-      destrutivo: true,
+/**
+ * "Tirar" da convocação, sem diálogo (D74): a pessoa some da lista na hora, a faixa diz quem saiu e
+ * tem Desfazer, e o servidor só é chamado ao fim da contagem (ou antes, se a pessoa sair da tela ou
+ * do app). Falhou: ela volta à lista e a faixa oferece "Tentar de novo".
+ */
+export function useTirarDaConvocacao(evento: DetalheDoEvento, comunidadeId: string) {
+  const invalidar = useInvalidarEventos(comunidadeId)
+
+  /** Tira os papéis dados (só os que o servidor já conhece). */
+  function tirar(pessoa: Pick<PessoaNaLista, 'nome'>, papeis: readonly PapelDaPessoa[]) {
+    const ids = papeis.filter((p) => !p.emEspera).map((p) => p.id)
+    if (ids.length === 0) return
+    esperarRemocao(ids)
+    const nome = primeiroNome(pessoa.nome)
+    mostrarDesfazer({
+      texto:
+        papeis.length === 1
+          ? `${nome} saiu da convocação: ${papeis[0]!.rotulo}.`
+          : `${nome} saiu da convocação.`,
+      textoDaFalha: `Não deu para tirar ${nome}. A pessoa continua na lista. Toque em Tentar de novo.`,
+      aoDesfazer: () => devolverRemovidas(ids),
+      aoFalhar: () => devolverRemovidas(ids),
+      aoConfirmar: async () => {
+        esperarRemocao(ids)
+        await Promise.all(
+          ids.map((id) =>
+            api
+              .delete(`${naComunidade(comunidadeId)}/eventos/${evento.id}/atribuicoes/${id}`)
+              // Já tinha saído (por outra pessoa ou por outro aparelho): o resultado é o mesmo.
+              .catch((erro: unknown) => {
+                if (!(ehErroDaApi(erro) && erro.status === 404)) throw erro
+              }),
+          ),
+        )
+        await invalidar(evento.id)
+        devolverRemovidas(ids)
+      },
     })
-    if (ok) remover.mutate(a.id)
   }
 
-  return (
-    <>
-      {remover.error ? <AvisoDeFalha erro={remover.error} titulo="A convocação não mudou" /> : null}
-      <MenuDeAcoes
-        aberto={escolhida !== null}
-        titulo={escolhida?.nome ?? 'Pessoa'}
-        aoFechar={aoFechar}
-        acoes={
-          escolhida
-            ? [
-                {
-                  titulo: 'Tirar da convocação',
-                  icone: 'excluir',
-                  descricao: escolhida.funcao,
-                  destrutiva: true,
-                  aoPressionar: () => void pedirRemocao(escolhida),
-                },
-              ]
-            : []
-        }
-      />
-    </>
-  )
+  return tirar
 }

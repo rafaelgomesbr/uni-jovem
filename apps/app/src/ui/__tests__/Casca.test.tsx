@@ -78,6 +78,19 @@ describe('casca', () => {
     expect(screen.getByRole('header', { name: 'Sábado Jovem' })).toBeOnTheScreen()
   })
 
+  test('"Voltar" e "Fechar" têm a palavra à vista ao lado do ícone, nunca o ícone sozinho (D75)', async () => {
+    const fechar = jest.fn()
+    await render(
+      <>
+        <CabecalhoDeTela tipo="pilha" titulo="Sábado Jovem" />
+        <CabecalhoDeTela tipo="pilha" modal titulo="Nova programação" aoVoltar={fechar} />
+        <CabecalhoDeTela tipo="folha" titulo="Convocar" aoFechar={fechar} />
+      </>,
+    )
+    expect(screen.getByText('Voltar')).toBeOnTheScreen()
+    expect(screen.getAllByText('Fechar')).toHaveLength(2)
+  })
+
   test('cabeçalho de modal: "Fechar" no lugar de "Voltar", que fecha o modal', async () => {
     const fechar = jest.fn()
     await render(<CabecalhoDeTela tipo="pilha" modal titulo="Nova programação" aoVoltar={fechar} />)

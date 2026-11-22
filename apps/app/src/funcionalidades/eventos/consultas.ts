@@ -10,6 +10,13 @@ import type {
   RespostaDeModelos,
   ResumoDoEvento,
 } from '@/servicos/contratoDosEventos'
+import {
+  dataDoInstante,
+  formatarHora,
+  instanteDeDataEHora,
+  somarDias,
+  type DataLocal,
+} from '@/utilidades/datas'
 
 /** Caminho base das rotas de uma comunidade. */
 export const naComunidade = (comunidadeId: string) => `/api/v1/c/${comunidadeId}`
@@ -39,6 +46,62 @@ export function useEventosNoPeriodo(
         .then((r) => r.eventos),
     enabled: comunidadeId !== null,
   })
+}
+
+/** Um encontro que já existe num dia, para avisar antes de criar outro por cima (D74). */
+export interface EncontroDoDia {
+  id: string
+  titulo: string
+  /** "16:00". */
+  hora: string
+  status: ResumoDoEvento['status']
+}
+
+/**
+ * Os encontros (menos os cancelados) que já existem num dia. `ignorarId` é o próprio rascunho da
+ * tela. Sem data, não pergunta nada.
+ */
+export function useEncontrosNoDia(
+  comunidadeId: string | null,
+  data: DataLocal | null,
+  fuso: string,
+  ignorarId: string | null = null,
+): EncontroDoDia[] {
+  const de = data ? instanteDeDataEHora(data, '00:00', fuso) : null
+  const ate = data ? instanteDeDataEHora(somarDias(data, 1), '00:00', fuso) : null
+  const lista = useEventosNoPeriodo(data ? comunidadeId : null, de, ate)
+  return (lista.data ?? [])
+    .filter(
+      (e) =>
+        e.status !== 'cancelado' &&
+        e.id !== ignorarId &&
+        data !== null &&
+        dataDoInstante(e.inicio, e.fuso) === data,
+    )
+    .map((e) => ({
+      id: e.id,
+      titulo: e.titulo,
+      hora: formatarHora(e.inicio, e.fuso),
+      status: e.status,
+    }))
+}
+
+/** "Sábado Jovem, 16:00" ou "Sábado Jovem, 16:00 (rascunho)". */
+function descreverEncontroDoDia(e: EncontroDoDia): string {
+  return `${e.titulo}, ${e.hora}${e.status === 'rascunho' ? ' (rascunho)' : ''}`
+}
+
+/** O aviso de data ocupada: "Já existe um encontro neste dia: Sábado Jovem, 16:00." */
+export function avisoDeDataOcupada(encontros: readonly EncontroDoDia[]): string {
+  const lista = encontros.map(descreverEncontroDoDia).join('; ')
+  return encontros.length === 1
+    ? `Já existe um encontro neste dia: ${lista}.`
+    : `Já existem ${encontros.length} encontros neste dia: ${lista}.`
+}
+
+/** A pergunta antes de criar outro por cima. */
+export function perguntaDeDataOcupada(encontros: readonly EncontroDoDia[]): string {
+  return `${avisoDeDataOcupada(encontros)} Criar outro mesmo assim?`
 }
 
 export function useEvento(comunidadeId: string | null, eventoId: string | null) {

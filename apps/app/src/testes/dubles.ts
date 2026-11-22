@@ -11,18 +11,38 @@ export interface PedidoRegistrado {
   metodo: string
   cabecalhos: Record<string, string>
   corpo: unknown
+  /** Corpo binário (ex.: um PDF enviado como bytes), quando o pedido não é JSON. */
+  bytes?: Uint8Array
   credenciais: RequestCredentials | undefined
 }
 
-type Resposta = { status: number; corpo?: unknown }
+/** `bytes` e `cabecalhos`: resposta binária (ex.: o PDF de uma música, com o ETag). */
+type Resposta = {
+  status: number
+  corpo?: unknown
+  bytes?: Uint8Array
+  cabecalhos?: Record<string, string>
+}
 export type Rota = (pedido: PedidoRegistrado) => Resposta | Promise<Resposta>
 
-export function resposta(status: number, corpo?: unknown): Response {
+export function resposta(
+  status: number,
+  corpo?: unknown,
+  extra: { bytes?: Uint8Array; cabecalhos?: Record<string, string> } = {},
+): Response {
+  const cabecalhos = Object.fromEntries(
+    Object.entries(extra.cabecalhos ?? {}).map(([k, v]) => [k.toLowerCase(), v]),
+  )
   return {
     ok: status >= 200 && status < 300,
     status,
+    headers: { get: (nome: string) => cabecalhos[nome.toLowerCase()] ?? null },
     text: async () => (corpo === undefined ? '' : JSON.stringify(corpo)),
-  } as Response
+    arrayBuffer: async () => {
+      const b = extra.bytes ?? new Uint8Array()
+      return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)
+    },
+  } as unknown as Response
 }
 
 /** `fetch` falso: cada chave é "MÉTODO /caminho". Registra todos os pedidos. */
@@ -34,6 +54,7 @@ export function servidorFalso(rotas: Record<string, Rota>) {
       metodo: init.method ?? 'GET',
       cabecalhos: (init.headers ?? {}) as Record<string, string>,
       corpo: typeof init.body === 'string' ? JSON.parse(init.body) : undefined,
+      ...(init.body instanceof Uint8Array ? { bytes: init.body } : {}),
       credenciais: init.credentials,
     }
     pedidos.push(pedido)
@@ -43,7 +64,10 @@ export function servidorFalso(rotas: Record<string, Rota>) {
       rotas[`${pedido.metodo} ${caminho}`] ?? rotas[`${pedido.metodo} ${caminho.split('?')[0]}`]
     if (!rota) return resposta(404, { erro: 'nao_encontrado', mensagem: 'Rota não simulada.' })
     const r = await rota(pedido)
-    return resposta(r.status, r.corpo)
+    return resposta(r.status, r.corpo, {
+      ...(r.bytes ? { bytes: r.bytes } : {}),
+      ...(r.cabecalhos ? { cabecalhos: r.cabecalhos } : {}),
+    })
   })
   return {
     fetch: executar as unknown as typeof fetch,

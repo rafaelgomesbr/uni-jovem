@@ -71,12 +71,25 @@ export function CabecalhoDeTela({
 }: PropsDoCabecalhoDeTela) {
   if (tipo === 'folha') {
     return (
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e12, minHeight: 44 }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: ESPACO.e12,
+          minHeight: ALTURA.iconeSo,
+        }}
+      >
         <Texto variante="tituloCartao" nivel={1} ref={refDoTitulo} style={{ flex: 1 }}>
           {titulo}
         </Texto>
         {aoFechar ? (
-          <BotaoIcone icone="fechar" rotulo="Fechar" circular aoPressionar={aoFechar} />
+          <BotaoIcone
+            icone="fechar"
+            texto="Fechar"
+            rotulo="Fechar"
+            circular
+            aoPressionar={aoFechar}
+          />
         ) : null}
       </View>
     )
@@ -145,7 +158,10 @@ export function CabecalhoDeTela({
   )
 }
 
-/** O botão da esquerda da pilha: "Voltar" (`chevron.left`) ou, no modal, "Fechar" (`xmark`). */
+/**
+ * O botão da esquerda da pilha: "Voltar" (`chevron.left`) ou, no modal, "Fechar" (`xmark`). Com a
+ * palavra ao lado do ícone (D75): um ícone sozinho não diz "voltar" para todo mundo.
+ */
 export function BotaoDeSaida({
   modal,
   aoPressionar,
@@ -154,9 +170,21 @@ export function BotaoDeSaida({
   aoPressionar: () => void
 }) {
   return modal ? (
-    <BotaoIcone icone="fechar" rotulo="Fechar" circular aoPressionar={aoPressionar} />
+    <BotaoIcone
+      icone="fechar"
+      texto="Fechar"
+      rotulo="Fechar"
+      circular
+      aoPressionar={aoPressionar}
+    />
   ) : (
-    <BotaoIcone icone="voltar" rotulo="Voltar" circular aoPressionar={aoPressionar} />
+    <BotaoIcone
+      icone="voltar"
+      texto="Voltar"
+      rotulo="Voltar"
+      circular
+      aoPressionar={aoPressionar}
+    />
   )
 }
 

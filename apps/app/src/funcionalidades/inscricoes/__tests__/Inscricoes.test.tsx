@@ -124,9 +124,9 @@ describe('inscrições no visual A (D71)', () => {
     )
   })
 
-  test('"Fazer check-in" na barra leva ao check-in do encontro', async () => {
+  test('"Marcar quem chegou" na barra leva ao check-in do encontro', async () => {
     await montar()
-    await userEvent.setup().press(await screen.findByRole('button', { name: 'Fazer check-in' }))
+    await userEvent.setup().press(await screen.findByRole('button', { name: 'Marcar quem chegou' }))
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/evento/[eventoId]/checkin',
       params: { eventoId: EVENTO_ID },

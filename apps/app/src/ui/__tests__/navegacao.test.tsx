@@ -4,7 +4,7 @@ import { Text } from 'react-native'
 
 import { confirmar } from '@/utilidades/confirmar'
 
-import { ItemDaBarraDeAbas, rotulosCabemNaBarra } from '../ItemDaBarraDeAbas'
+import { escalaDoRotuloDaBarra, ItemDaBarraDeAbas, rotulosCabemNaBarra } from '../ItemDaBarraDeAbas'
 import { useConfirmarDescarte, useTravaDeEnvio, voltarOu } from '../navegacao'
 import { DURACAO_COM_ACAO, duracaoDoToast } from '../Toast'
 
@@ -100,18 +100,51 @@ describe('toast com "Desfazer" (U-13)', () => {
   })
 })
 
-describe('barra de abas com fonte grande (U-09)', () => {
-  test('até 1,3 os rótulos sempre aparecem; acima, só se couberem no item', () => {
-    const rotulos = ['Início', 'Agenda', 'Escalas', 'Comunidade']
-    expect(rotulosCabemNaBarra(rotulos, 5, 360, 1)).toBe(true)
-    expect(rotulosCabemNaBarra(rotulos, 5, 360, 1.3)).toBe(true)
-    // "Comunidade" a 1,6 não cabe num item de 390: a barra fica só com os ícones.
-    expect(rotulosCabemNaBarra(rotulos, 5, 390, 1.6)).toBe(false)
-    // Numa tela larga, cabe.
-    expect(rotulosCabemNaBarra(rotulos, 5, 1024, 1.6)).toBe(true)
+describe('barra de abas com fonte grande (U-09, D75)', () => {
+  const rotulos = ['Início', 'Agenda', 'Comunidade', 'Perfil']
+
+  test('o rótulo nunca some: a escala fica entre 1 e o menor de (sistema, teto 2, altura da barra)', () => {
+    for (const largura of [360, 375, 390, 430, 1024]) {
+      for (const fonte of [1, 1.3, 1.6, 2, 3]) {
+        const escala = escalaDoRotuloDaBarra(rotulos, 4, largura, fonte)
+        expect(escala).toBeGreaterThanOrEqual(1)
+        expect(escala).toBeLessThanOrEqual(Math.max(1, Math.min(fonte, 2, 1.5)))
+      }
+    }
   })
 
-  test('sem rótulo, o item mantém o nome para o leitor de tela', async () => {
+  test('tela larga: o rótulo acompanha a fonte do sistema até onde a barra comporta (1,5)', () => {
+    expect(escalaDoRotuloDaBarra(rotulos, 4, 1024, 1)).toBe(1)
+    expect(escalaDoRotuloDaBarra(rotulos, 4, 1024, 1.3)).toBeCloseTo(1.3)
+    expect(escalaDoRotuloDaBarra(rotulos, 4, 1024, 2)).toBe(1.5)
+  })
+
+  test('celular com fonte a 200%: "Comunidade" não cabe maior, então o rótulo fica em 1, nunca some', () => {
+    expect(escalaDoRotuloDaBarra(rotulos, 4, 390, 2)).toBeLessThan(1.05)
+    expect(rotulosCabemNaBarra(rotulos, 4, 390, 2)).toBe(false)
+    expect(rotulosCabemNaBarra(rotulos, 4, 1024, 1.3)).toBe(true)
+  })
+
+  test('o rótulo escrito aparece com o nome para o leitor de tela e se ajusta ao item', async () => {
+    await render(
+      <>
+        <ItemDaBarraDeAbas
+          rotulo="Comunidade"
+          icone="abaComunidade"
+          ativo={false}
+          escalaDoRotulo={1}
+        />
+        <Text>fim</Text>
+      </>,
+    )
+    const rotulo = screen.getByText('Comunidade')
+    expect(rotulo).toBeOnTheScreen()
+    expect(rotulo).toHaveProp('adjustsFontSizeToFit', true)
+    expect(rotulo).toHaveProp('maxFontSizeMultiplier', 1)
+    expect(screen.getByLabelText('Comunidade')).toBeOnTheScreen()
+  })
+
+  test('sem rótulo (barra sem espaço), o item mantém o nome para o leitor de tela', async () => {
     await render(
       <>
         <ItemDaBarraDeAbas rotulo="Escalas" icone="abaEscalas" ativo={false} semRotulo />

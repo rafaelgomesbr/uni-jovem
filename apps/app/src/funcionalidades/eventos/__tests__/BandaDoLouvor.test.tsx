@@ -56,7 +56,7 @@ function montar(
   })
 }
 
-describe('banda do encontro nos Convocados (D61)', () => {
+describe('banda do encontro no Quem vai (D61, D74)', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     desfazerAgora()
@@ -68,15 +68,17 @@ describe('banda do encontro nos Convocados (D61)', () => {
       pessoa(2, 'violao', 'confirmada', 'Carla Dias'),
       pessoa(3, 'Bateria', 'recusada', 'Ana Souza'),
     ])
-    await userEvent.setup().press(await screen.findByRole('radio', { name: 'Convocados' }))
-    // O texto original ("violao") continua na linha da pessoa, mas o bloco é o de Violão.
-    expect(await screen.findByText('2 de 3 aceitaram. Falta: bateria')).toBeOnTheScreen()
-    expect(screen.getByText('Vocal · 1')).toBeOnTheScreen()
-    expect(screen.getByText('Violão · 1')).toBeOnTheScreen()
-    expect(screen.getByText('Bateria · 1')).toBeOnTheScreen()
+    await userEvent.setup().press(await screen.findByRole('radio', { name: 'Quem vai' }))
+    // A banda é uma seção da lista: cada pessoa com o que faz na mesma linha. O texto original
+    // ("violao") vira a função da lista padrão ("Violão").
+    expect(await screen.findByText('Banda')).toBeOnTheScreen()
     expect(screen.getByText('Carla Dias')).toBeOnTheScreen()
+    // (os nomes das funções também são opções da folha de convocar, fechada: por isso "getAll")
+    expect(screen.getAllByText('Violão').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Vocal').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Bateria').length).toBeGreaterThan(0)
     // As funções sem ninguém ficam à vista, cada uma com o seu "Convocar".
-    expect(screen.getByText('Ninguém convocado')).toBeOnTheScreen()
+    expect(screen.getByText('Sem ninguém ainda')).toBeOnTheScreen()
     expect(screen.getByRole('button', { name: 'Convocar para Guitarra' })).toBeOnTheScreen()
     expect(screen.getByRole('button', { name: 'Convocar para Som' })).toBeOnTheScreen()
     // O resumo de cima conta quem respondeu (quem recusou também respondeu).
@@ -91,22 +93,22 @@ describe('banda do encontro nos Convocados (D61)', () => {
       pessoa(1, 'Vocal', 'confirmada', 'Bruno Lima'),
       pessoa(2, 'Bateria', 'confirmada', 'Carla Dias'),
     ])
-    await userEvent.setup().press(await screen.findByRole('radio', { name: 'Convocados' }))
-    expect(await screen.findByText('2 de 2 aceitaram')).toBeOnTheScreen()
+    await userEvent.setup().press(await screen.findByRole('radio', { name: 'Quem vai' }))
+    expect(await screen.findByText('Todos responderam')).toBeOnTheScreen()
     expect(screen.queryByText(/Falta:/)).toBeNull()
   })
 
   test('o resumo diz "0 de 1 responderam" e quem falta; o chip da pessoa tem a palavra', async () => {
     await montar('organizador', [pessoa(1, 'Vocal', 'pendente', 'Bruno Lima')])
-    await userEvent.setup().press(await screen.findByRole('radio', { name: 'Convocados' }))
+    await userEvent.setup().press(await screen.findByRole('radio', { name: 'Quem vai' }))
     expect(await screen.findByText('0 de 1 responderam')).toBeOnTheScreen()
     expect(screen.getByText('Faltam: Bruno Lima')).toBeOnTheScreen()
     expect(screen.getAllByText('Aguardando').length).toBeGreaterThan(0)
     // Ninguém aceitou ainda: a função que foi convocada aparece como a que falta.
-    expect(screen.getByText('0 de 1 aceitaram. Falta: vocal')).toBeOnTheScreen()
+    expect(screen.getByText('Falta: vocal')).toBeOnTheScreen()
   })
 
-  test('"Avisar a banda" nos Convocados avisa depois do Desfazer', async () => {
+  test('"Avisar a banda" no Quem vai avisa depois do Desfazer', async () => {
     const { servidor } = await montar(
       'organizador',
       [pessoa(1, 'Vocal', 'confirmada', 'Bruno Lima')],
@@ -118,7 +120,7 @@ describe('banda do encontro nos Convocados (D61)', () => {
       },
     )
     const usuario = userEvent.setup()
-    await usuario.press(await screen.findByRole('radio', { name: 'Convocados' }))
+    await usuario.press(await screen.findByRole('radio', { name: 'Quem vai' }))
     await usuario.press(await screen.findByRole('button', { name: 'Avisar a banda' }))
     // D71: avisar gente não pede "tem certeza?": o Desfazer de 10 s segura o envio e só então sai.
     expect(pedidosPara(servidor, 'POST', `${CAMINHO}/repertorio/avisar`)).toHaveLength(0)
@@ -127,17 +129,19 @@ describe('banda do encontro nos Convocados (D61)', () => {
       expect(pedidosPara(servidor, 'POST', `${CAMINHO}/repertorio/avisar`)).toHaveLength(1),
     )
     await waitFor(() =>
-      expect(mostrarToast).toHaveBeenCalledWith({ texto: 'Aviso enviado a 1 pessoa da banda.' }),
+      expect(mostrarToast).toHaveBeenCalledWith({
+        texto: 'Pronto. Aviso enviado a 1 pessoa da banda.',
+      }),
     )
   })
 
   test('folha de convocar no Louvor: a função vem da lista da banda e é preciso escolher uma', async () => {
     await montar('organizador', [])
     const usuario = userEvent.setup()
-    await usuario.press(await screen.findByRole('radio', { name: 'Convocados' }))
-    // Sem ninguém convocado, o vazio convida; a folha pergunta "Onde" e, no Louvor, a função é a da banda.
+    await usuario.press(await screen.findByRole('radio', { name: 'Quem vai' }))
+    // Sem ninguém convocado, o vazio convida; a folha mostra as funções da banda à vista, sem "Onde".
     await usuario.press(screen.getByRole('button', { name: 'Convocar pessoas' }))
-    await usuario.press(await screen.findByRole('radio', { name: 'Louvor' }))
+    expect(screen.queryByRole('radio', { name: 'Louvor' })).toBeNull()
     for (const funcao of [
       'Vocal',
       'Violão',

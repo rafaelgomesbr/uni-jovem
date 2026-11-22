@@ -24,7 +24,8 @@ import { Sol } from '@/ui/Sol'
 import { Tela } from '@/ui/Tela'
 import { TextoAnunciado } from '@/ui/TextoAnunciado'
 import { mostrarToast } from '@/ui/Toast'
-import { mostrarDesfazer } from '@/ui/ToastComDesfazer'
+import { desfazerAgora, mostrarDesfazer, useRestanteDoDesfazer } from '@/ui/ToastComDesfazer'
+import { confirmar } from '@/utilidades/confirmar'
 import {
   dataDoInstante,
   formatarDuracao,
@@ -35,16 +36,26 @@ import {
 import { parametro } from '@/utilidades/parametros'
 
 import { dataCurtaDoDia, dataCurtaDoEncontro } from '../agenda/semanas'
+import { useFusoDaComunidade } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
 import { SemComunidade } from '../navegacao/SemComunidade'
+import { textoDePublicado } from './BarraDoEvento'
 import {
+  avisoDeDataOcupada,
   naComunidade,
+  perguntaDeDataOcupada,
   useAnterioresParaCopiar,
   useCopiarEncontro,
+  useEncontrosNoDia,
   useEvento,
   useInvalidarEventos,
 } from './consultas'
 import { FolhaDeConvocar, pessoasDistintas, quantasPessoas } from './Convocacao'
+import {
+  esquecerProvisorio,
+  limparProvisoriosAbandonados,
+  registrarProvisorio,
+} from './rascunhosProvisorios'
 
 interface Escolhas {
   data?: string
@@ -56,8 +67,11 @@ interface Escolhas {
  * Rota `/evento/igual-ao-ultimo?origem=`: "Igual ao último sábado" e "Marcar o próximo sábado"
  * (D66, D69, fluxo (d) do documento de UX). Abre já na CONFERÊNCIA: o app copia o último encontro
  * (um rascunho, sem avisar ninguém) e mostra o que foi copiado, quem não está disponível naquela
- * data e a opção de levar as músicas. Publicar é o botão do líder, com Desfazer de 10 s: nunca
- * o app publica sozinho. Sem encontro anterior, a tela oferece o Sábado padrão ou o Em branco.
+ * data e a opção de levar as músicas. A data padrão é o próximo dia da semana do encontro anterior a
+ * partir de hoje (nunca uma data longe e sem sentido); "Outra data" fica sempre à vista; se já existe
+ * encontro nesse dia, a tela avisa e a publicação pergunta "Criar outro mesmo assim?". Publicar é o
+ * botão da pessoa, com Desfazer: o botão e o cabeçalho dizem "Publicando em 9 s" e, no fim, "Publicado.
+ * 9 pessoas foram avisadas." (D74). Sem encontro anterior, a tela oferece o Sábado padrão ou o Em branco.
  */
 export function TelaIgualAoUltimo() {
   const { comunidadeAtiva } = useSessao()
@@ -98,7 +112,8 @@ function Conferencia({
   const [sugerida, setSugerida] = useState<string | null>(null)
   const [outraData, setOutraData] = useState(false)
   const [publicando, setPublicando] = useState(false)
-  const [erroAoPublicar, setErroAoPublicar] = useState<unknown>(null)
+  const restante = useRestanteDoDesfazer()
+  const fusoDaComunidade = useFusoDaComunidade()
   const [convocar, setConvocar] = useState<{
     aberta: boolean
     funcao: string
@@ -122,7 +137,7 @@ function Conferencia({
     invalidarAoSair.current = invalidar
   })
 
-  // A tela pode ser deixada antes dos 10 s: depois disso, nada de navegar por ela.
+  // A tela pode ser deixada antes da contagem: depois disso, nada de navegar por ela.
   useEffect(() => {
     montada.current = true
     return () => {
@@ -131,11 +146,19 @@ function Conferencia({
       if (!id || manter.current) return
       api
         .delete(`${naComunidade(comunidade.current)}/eventos/${id}`)
+        .then(() => esquecerProvisorio(id))
         .catch(() => null)
         .then(() => invalidarAoSair.current())
         .catch(() => null)
     }
   }, [])
+
+  // O que sobrou de uma vez em que o app ou a aba fecharam no meio: rascunhos soltos na Agenda.
+  useEffect(() => {
+    void limparProvisoriosAbandonados(comunidadeId, (id) =>
+      api.delete(`${naComunidade(comunidadeId)}/eventos/${id}`),
+    ).then((n) => (n > 0 ? invalidarAoSair.current() : undefined))
+  }, [comunidadeId])
 
   const opcoes = anteriores.data?.opcoes ?? []
   const origemEfetiva = origem ?? opcoes[0]?.eventoId ?? null
@@ -159,6 +182,8 @@ function Conferencia({
         onSuccess: (r) => {
           setRascunho(r)
           setSugerida((s) => s ?? dataDoInstante(r.inicio, r.fuso))
+          // Anota que este rascunho ainda não foi mantido: se o app fechar, a próxima abertura o apaga.
+          void registrarProvisorio(comunidadeId, r.id)
         },
       },
     )
@@ -180,6 +205,14 @@ function Conferencia({
       : dataAtual === depois
         ? 'depois'
         : 'sugerida'
+
+  // Já existe encontro nesse dia? A pessoa fica sabendo antes de publicar (D74).
+  const noMesmoDia = useEncontrosNoDia(
+    comunidadeId,
+    dataAtual,
+    rascunho?.fuso ?? fusoDaComunidade,
+    rascunho?.id ?? null,
+  )
 
   const detalhe = evento.data ?? null
   const pessoas = detalhe
@@ -207,48 +240,60 @@ function Conferencia({
     }))
   }
 
-  function irParaOEncontro() {
+  function irParaOEncontro(avisadas?: number) {
     if (!rascunho || !montada.current) return
-    router.replace({ pathname: '/evento/[eventoId]', params: { eventoId: rascunho.id } })
+    router.replace({
+      pathname: '/evento/[eventoId]',
+      params: {
+        eventoId: rascunho.id,
+        ...(avisadas !== undefined ? { publicado: String(avisadas) } : {}),
+      },
+    })
   }
 
   function salvarRascunho() {
     manter.current = true
+    if (rascunho) void esquecerProvisorio(rascunho.id)
     mostrarToast({ texto: 'Rascunho salvo. Ninguém foi avisado.' })
     irParaOEncontro()
   }
 
-  function publicar() {
+  async function publicar() {
     if (!rascunho) return
+    // Já existe encontro nesse dia: a pergunta vem ANTES de a contagem começar.
+    if (noMesmoDia.length > 0) {
+      const ok = await confirmar({
+        titulo: 'Já existe um encontro neste dia',
+        mensagem: perguntaDeDataOcupada(noMesmoDia),
+        confirmar: 'Criar outro mesmo assim',
+      })
+      if (!ok) return
+    }
     const id = rascunho.id
     const n = pessoas
-    setErroAoPublicar(null)
     setPublicando(true)
-    // Durante os 10 s a publicação é de quem pediu: sair da tela não pode apagar o rascunho.
+    // Durante a contagem a publicação é de quem pediu: sair da tela não pode apagar o rascunho.
     manter.current = true
     mostrarDesfazer({
       texto: n > 0 ? `Publicando e avisando ${quantasPessoas(n)}.` : 'Publicando o encontro.',
+      textoDaFalha:
+        'Não deu para publicar. Nada foi enviado nem ninguém foi avisado. O rascunho continua salvo. Toque em Tentar de novo.',
       aoDesfazer: () => {
         manter.current = false
         setPublicando(false)
       },
-      aoConfirmar: () => {
-        api
-          .post(`${naComunidade(comunidadeId)}/eventos/${id}/status`, { status: 'publicado' })
-          .then(async () => {
-            mostrarToast({
-              texto:
-                n > 0
-                  ? `Publicado. ${quantasPessoas(n)} ${n === 1 ? 'avisada' : 'avisadas'}.`
-                  : 'Encontro publicado.',
-            })
-            await invalidar(id)
-            irParaOEncontro()
-          })
-          .catch((erro: unknown) => {
-            setErroAoPublicar(erro)
-            setPublicando(false)
-          })
+      aoFalhar: () => setPublicando(false),
+      // Sai ao fim da contagem, ao sair da tela ou do app, e de novo se a rede falhar (D74).
+      aoConfirmar: async () => {
+        setPublicando(true)
+        await api.post(`${naComunidade(comunidadeId)}/eventos/${id}/status`, {
+          status: 'publicado',
+        })
+        void esquecerProvisorio(id)
+        await invalidar(id)
+        mostrarToast({ texto: textoDePublicado(n) })
+        setPublicando(false)
+        irParaOEncontro(n)
       },
     })
   }
@@ -323,11 +368,19 @@ function Conferencia({
 
   const resumo = rascunho.resumo
   const hora = formatarHora(rascunho.inicio, rascunho.fuso)
+  // Estado único e honesto: durante a contagem o botão é o Desfazer e o cabeçalho diz que ainda não saiu.
   const rotuloDoPublicar = publicando
-    ? 'Publicado'
+    ? restante !== null
+      ? `Publicando em ${restante} s · Desfazer`
+      : 'Publicando...'
     : pessoas > 0
       ? `Publicar e avisar ${quantasPessoas(pessoas)}`
       : 'Publicar'
+  const etiquetaDoCabecalho = publicando
+    ? restante !== null
+      ? `Publicando em ${restante} s · ninguém foi avisado ainda`
+      : 'Publicando...'
+    : 'Rascunho · ninguém foi avisado'
 
   return (
     <Tela
@@ -346,16 +399,13 @@ function Conferencia({
           <Botao
             titulo={rotuloDoPublicar}
             tamanho="grande"
-            {...(publicando ? { icone: 'check' as const } : {})}
-            desabilitado={ocupada || publicando}
-            aoPressionar={publicar}
+            {...(publicando ? { icone: 'relogio' as const } : {})}
+            desabilitado={ocupada || (publicando && restante === null)}
+            aoPressionar={publicando ? desfazerAgora : () => void publicar()}
           />
         </BarraDeAcao>
       }
     >
-      {erroAoPublicar ? (
-        <AvisoDeFalha erro={erroAoPublicar} titulo="O encontro não foi publicado" />
-      ) : null}
       {copiar.error ? (
         <AvisoDeFalha
           erro={copiar.error}
@@ -366,10 +416,16 @@ function Conferencia({
 
       <CartaoDoMomento
         momento="longe"
-        etiqueta="Rascunho · ninguém foi avisado"
+        etiqueta={etiquetaDoCabecalho}
         titulo={resumo.origem.titulo}
         meta={`${dataCurtaDoEncontro(rascunho.inicio, rascunho.fuso)} · ${hora}${detalhe?.local ? ` · ${detalhe.local.nome}` : ''}`}
       />
+
+      {noMesmoDia.length > 0 ? (
+        <Aviso tipo="alerta" titulo="Já existe encontro neste dia">
+          {`${avisoDeDataOcupada(noMesmoDia)} Se publicar este também, a Agenda terá os dois.`}
+        </Aviso>
+      ) : null}
 
       {opcoes.length > 1 && origemPedida === null ? (
         <ListaDeOpcoes
@@ -389,6 +445,7 @@ function Conferencia({
           <PilulasDeFiltro
             rotulo="Data do encontro"
             sangrar={false}
+            quebrar
             pilulas={[
               {
                 valor: 'sugerida',

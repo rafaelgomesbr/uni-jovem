@@ -233,6 +233,12 @@ describe('exclusão de comunidade ao fim da carência', () => {
       'insert into uj.repertorio_itens (comunidade_id, evento_id, musica_id, ordem) values ($1, $2, $3, 0) returning id',
       [x, evento, musica],
     )
+    // D76: o PDF da música também sai com a comunidade (a música o leva por `on delete cascade`).
+    await um(
+      `insert into uj.musica_pdfs (comunidade_id, musica_id, nome, conteudo, tamanho, hash, direito_confirmado_em)
+       values ($1, $2, 'cifra.pdf', $3::bytea, 9, sha256($3::bytea), now()) returning id`,
+      [x, musica, Buffer.from('%PDF-1.4\n', 'latin1')],
+    )
     await um(
       "insert into uj.palestrantes (comunidade_id, nome, criado_por) values ($1, 'Palestrante', $2) returning id",
       [x, admin.id],

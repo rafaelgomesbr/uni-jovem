@@ -40,10 +40,11 @@ describe('disposição dos segmentos (nenhum rótulo cortado)', () => {
     })
   })
 
-  test('quatro rótulos curtos em 360: compacto, com a largura de cada rótulo', () => {
+  test('quatro rótulos curtos em 360: com letra de 16 (D75) não cabem numa linha e vão para a grade', () => {
     expect(escolherDisposicao(['Visão geral', 'Etapas', 'Equipe', 'Preparação'], 320)).toEqual({
-      nivel: 'compacto',
-      proporcional: true,
+      nivel: 'normal',
+      proporcional: false,
+      grade: true,
     })
   })
 
@@ -78,15 +79,25 @@ describe('disposição dos segmentos (nenhum rótulo cortado)', () => {
     )
   })
 
-  test('três rótulos longos descem para o compacto antes de virar pílulas', () => {
+  test('três rótulos longos que não cabem numa linha empilham, em vez de rolar de lado (D75)', () => {
     expect(escolherDisposicao(['Abertas', 'Procedentes', 'Improcedentes'], 320)).toEqual({
-      nivel: 'compacto',
-      proporcional: true,
+      nivel: 'normal',
+      proporcional: false,
+      pilha: true,
     })
   })
 
-  test('sem espaço nem no compacto: pílulas roláveis (null)', () => {
-    expect(escolherDisposicao(['Disponibilidade', 'Indisponibilidade'], 160)).toBeNull()
+  test('sem espaço nem no compacto: empilha (até 6 opções nunca rolam de lado)', () => {
+    expect(escolherDisposicao(['Disponibilidade', 'Indisponibilidade'], 160)).toEqual({
+      nivel: 'normal',
+      proporcional: false,
+      pilha: true,
+    })
+  })
+
+  test('mais de 6 opções que não cabem: pílulas roláveis (null)', () => {
+    const muitas = ['Um', 'Dois', 'Três', 'Quatro', 'Cinco', 'Seis', 'Sete'].map((r) => r + r)
+    expect(escolherDisposicao(muitas, 160)).toBeNull()
   })
 })
 

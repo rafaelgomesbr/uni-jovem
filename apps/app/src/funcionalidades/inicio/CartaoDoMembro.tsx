@@ -94,8 +94,10 @@ export function CartaoDoMembro({
     temRepertorio: musicas > 0,
   })
 
-  function botao(acao: typeof primaria, principal: boolean) {
-    const variante = principal ? 'primario' : 'secundario'
+  /** `modo`: o botão em destaque, um botão ao lado (a outra resposta) ou só um link de texto. */
+  function botao(acao: typeof primaria, modo: 'primario' | 'secundario' | 'link') {
+    const principal = modo === 'primario'
+    const variante = principal ? 'primario' : modo === 'link' ? 'terciario' : 'secundario'
     if (acao === 'aceitar' && pendente) {
       return (
         <Botao
@@ -120,10 +122,17 @@ export function CartaoDoMembro({
         />
       )
     }
-    return botaoComum(acao, principal, evento, destinos)
+    return botaoComum(acao, principal, evento, destinos, modo === 'link')
   }
 
-  const botoes = ordenarBotoes(botao(primaria, true), secundaria ? botao(secundaria, false) : null)
+  // "Aceitar" e "Não posso ir" são as duas respostas de uma pergunta só: ficam lado a lado. Qualquer
+  // outro caminho é link de texto, para o cartão ter UMA ação em destaque (D75).
+  const secundariaEhResposta = secundaria === 'naoPossoIr'
+  const botoes = ordenarBotoes(
+    botao(primaria, 'primario'),
+    secundaria && secundariaEhResposta ? botao(secundaria, 'secundario') : null,
+  )
+  const linkSecundario = secundaria && !secundariaEhResposta ? botao(secundaria, 'link') : null
   const respondendo = primaria === 'aceitar'
   // O repertório não some por não caber no par: quem toca e quem só quer ver (D73) o têm à mão.
   const repertorioSemBotao =
@@ -162,6 +171,7 @@ export function CartaoDoMembro({
       acoes={
         <View style={{ gap: ESPACO.e8 }}>
           <ParDeBotoes larguraMinima={150}>{botoes}</ParDeBotoes>
+          {linkSecundario}
           {semInternet && respondendo ? (
             <LinhaDoMotivo texto={MOTIVO_SEM_INTERNET_PARA_RESPONDER} />
           ) : null}

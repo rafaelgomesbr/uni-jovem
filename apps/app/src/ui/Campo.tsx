@@ -738,7 +738,7 @@ export function Campo({
 
 /**
  * Botão da senha: o olho mais a palavra ("Mostrar" e "Ocultar"), na cor de
- * destaque, com alvo de 44 de altura. O olho sozinho não diz o que faz.
+ * destaque, com alvo de 48 de altura. O olho sozinho não diz o que faz.
  */
 function BotaoDeSenha({ visivel, aoAlternar }: { visivel: boolean; aoAlternar: () => void }) {
   const { cores } = useTema()
@@ -768,7 +768,7 @@ function BotaoDeSenha({ visivel, aoAlternar }: { visivel: boolean; aoAlternar: (
   )
 }
 
-/** Só ícone de 44×44 na borda direita da caixa (limpar), que entra em 120 ms. */
+/** Só ícone de 48×48 na borda direita da caixa (limpar), que entra em 120 ms. */
 function AcaoDoCampo({
   icone,
   rotulo,

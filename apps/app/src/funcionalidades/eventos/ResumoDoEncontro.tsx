@@ -5,9 +5,11 @@ import { View } from 'react-native'
 
 import type { DetalheDoEvento } from '@/servicos/contratoDosEventos'
 import { Acordeao } from '@/ui/Acordeao'
+import { type AcaoDoMenu } from '@/ui/FolhaNaTela'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Icone } from '@/ui/Icone'
-import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
+import { LinhaDeLista, Lista, SubtituloDaLista } from '@/ui/LinhaDeLista'
+import { Secao } from '@/ui/Secao'
 import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
 import { formatarHora } from '@/utilidades/datas'
@@ -93,10 +95,13 @@ export function ResumoDoEncontro({
   evento,
   comunidadeId,
   aoVerConvocados,
+  outrasCoisas = [],
 }: {
   evento: DetalheDoEvento
   comunidadeId: string
   aoVerConvocados: () => void
+  /** As ações que antes moravam no "Mais": aparecem aqui, sempre visíveis e com texto (D74). */
+  outrasCoisas?: readonly AcaoDoMenu[]
 }) {
   const { cores } = useTema()
   const pode = usePode()
@@ -113,7 +118,7 @@ export function ResumoDoEncontro({
         <Lista>
           <LinhaDeLista
             icone="escalas"
-            titulo="Convocados"
+            titulo="Quem vai"
             descricao={resumoDosConvocadosDoEncontro(evento)}
             linhasDaDescricao={0}
             aoPressionar={aoVerConvocados}
@@ -121,8 +126,8 @@ export function ResumoDoEncontro({
           {registraPresenca && noPeriodoDoCheckin ? (
             <LinhaDeLista
               icone="qr"
-              titulo="Check-in"
-              descricao="Marque quem chegou, pelo nome ou pelo QR"
+              titulo="Marcar quem chegou"
+              descricao="Pelo nome ou pelo QR"
               aoPressionar={() => router.push({ pathname: '/evento/[eventoId]/checkin', params })}
             />
           ) : null}
@@ -156,6 +161,45 @@ export function ResumoDoEncontro({
         <Preparacao evento={evento} comunidadeId={comunidadeId} />
       </Acordeao>
       <SobreOEncontro evento={evento} />
+      <OutrasCoisas itens={outrasCoisas} />
     </>
+  )
+}
+
+/**
+ * "Outras coisas" (D74): Editar, Copiar, Compartilhar, Baixar para usar sem internet, Cancelar ou
+ * adiar... como linhas sempre visíveis, com texto, no fim do Resumo. O que muda a vida de quem
+ * participa ("Cancelar ou adiar") vem por último, com a consequência escrita.
+ */
+function OutrasCoisas({ itens }: { itens: readonly AcaoDoMenu[] }) {
+  if (itens.length === 0) return null
+  const comuns = itens.filter((i) => !i.destrutiva)
+  const grupos = [...new Set(comuns.map((i) => i.grupo ?? ''))]
+  const destrutivas = itens.filter((i) => i.destrutiva)
+  const linha = (i: AcaoDoMenu) => (
+    <LinhaDeLista
+      key={i.titulo}
+      icone={i.icone}
+      titulo={i.titulo}
+      {...((i.motivo ?? i.descricao) ? { descricao: (i.motivo ?? i.descricao)! } : {})}
+      linhasDaDescricao={0}
+      destrutivo={i.destrutiva === true}
+      desabilitada={!!i.motivo}
+      semSeta={!i.navega}
+      aoPressionar={() => void i.aoPressionar()}
+    />
+  )
+  return (
+    <Secao titulo="Outras coisas">
+      <CartaoDeVidro lista>
+        <Lista>
+          {grupos.flatMap((g) => [
+            ...(g ? [<SubtituloDaLista key={`g-${g}`} texto={g} />] : []),
+            ...comuns.filter((i) => (i.grupo ?? '') === g).map(linha),
+          ])}
+          {destrutivas.map(linha)}
+        </Lista>
+      </CartaoDeVidro>
+    </Secao>
   )
 }

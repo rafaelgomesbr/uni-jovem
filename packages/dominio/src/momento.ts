@@ -69,20 +69,22 @@ export function horaNoFuso(instante: Date, fuso: string): HoraLocal {
 // ------------------------------------------------------------------ "Igual ao último sábado"
 
 /**
- * A data do novo encontro quando a pessoa não pediu uma: o mesmo dia da semana
- * do encontro de origem, a primeira data DEPOIS de hoje que ainda não tenha um
- * encontro do mesmo título (`ocupadas`). Origem em 21/11 (sábado), hoje 22/11:
- * 28/11; se 28/11 já tem, 05/12.
+ * A data do novo encontro quando a pessoa não pediu uma: o mesmo dia da semana do encontro de
+ * origem, a primeira data DEPOIS de hoje. Origem em 21/11 (sábado), hoje 22/11: 28/11.
+ *
+ * Nunca pula datas que já têm encontro (D74): pular para o "primeiro sábado livre" levou a sugestão
+ * a 17/04/2027 quando a prévia tinha meses de rascunhos soltos, e a pessoa avisaria 9 pessoas de um
+ * encontro no dia errado. A data é sempre a mais próxima; se já existe encontro nela, o app AVISA
+ * antes de publicar ("Já existe um encontro neste dia. Criar outro mesmo assim?").
  */
 export function proximaDataParaCopiar(entrada: {
   dataDaOrigem: DataLocal
   hoje: DataLocal
-  ocupadas: ReadonlySet<DataLocal>
 }): DataLocal {
   let data = entrada.dataDaOrigem
   for (let i = 0; i < 1000; i++) {
     data = somarDias(data, 7)
-    if (data > entrada.hoje && !entrada.ocupadas.has(data)) return data
+    if (data > entrada.hoje) return data
   }
   // Origem absurdamente antiga: cai no mesmo cálculo a partir de hoje, nunca em loop.
   return somarDias(entrada.hoje, 7)

@@ -271,8 +271,10 @@ describe('ao vivo no visual A (D71)', () => {
         ),
       )
       expect(await screen.findByText('Encontro encerrado.')).toBeOnTheScreen()
-      await userEvent.setup().press(screen.getByRole('button', { name: 'Marcar o próximo sábado' }))
-      expect(router.push).toHaveBeenCalledWith('/evento/novo')
+      await userEvent
+        .setup()
+        .press(screen.getByRole('button', { name: 'Marcar o próximo encontro' }))
+      expect(router.push).toHaveBeenCalledWith('/evento/igual-ao-ultimo')
     })
   })
 

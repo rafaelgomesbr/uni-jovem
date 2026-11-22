@@ -1,4 +1,5 @@
 import {
+  ALTURA,
   ALTURA_DO_ACESSO,
   ALTURA_DO_ACESSO_TERCIARIO,
   ALTURA_DO_LINK_DO_RODAPE,
@@ -172,7 +173,7 @@ export function calcularMedidasDoPainel({
   fonte,
 }: EntradaDoPainel): MedidasDoPainel {
   const livre = altura - topo - teclado
-  const voltar = 44
+  const voltar = ALTURA.iconeSo
   const titulo = crescer(TIPO.tituloTela.altura, fonte, TIPO.tituloTela.teto)
   const base = ESPACO.e8 + voltar + titulo + BLOCO_DO_CAMPO * 2 + ALTURA_DO_ACESSO
   const confortavel = livre - (base + RITMO_DE_ACESSO.tituloParaCampoConfortavel)

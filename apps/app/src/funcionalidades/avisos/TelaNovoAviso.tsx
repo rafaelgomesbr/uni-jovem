@@ -22,7 +22,7 @@ import { useConfirmarDescarte, useTravaDeEnvio, voltarOu } from '@/ui/navegacao'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { mostrarToast } from '@/ui/Toast'
-import { mostrarDesfazer } from '@/ui/ToastComDesfazer'
+import { frasePraDesfazer, mostrarDesfazer, useSegundosDoDesfazer } from '@/ui/ToastComDesfazer'
 
 import { useEstaOnline } from '../offline/ProvedorOffline'
 import { useFusoDaComunidade } from '../comunidade/consultas'
@@ -168,10 +168,11 @@ function Formulario({ comunidadeId }: { comunidadeId: string }) {
   const fuso = useFusoDaComunidade()
   const online = useEstaOnline()
   const aAvisar = usePessoasAAvisar(comunidadeId)
+  const segundosDoDesfazer = useSegundosDoDesfazer()
   const [valores, setValores] = useState(() => valoresIniciais(null, fuso))
   const [fixado, setFixado] = useState(false)
   const [erros, setErros] = useState<Partial<Record<keyof ValoresDoFormulario, string>>>({})
-  // O aviso já foi "publicado" na tela e espera os 10 s do Desfazer.
+  // O aviso já foi "publicado" na tela e espera a contagem do Desfazer.
   const [esperando, setEsperando] = useState(false)
   const criar = useCriarAviso(comunidadeId)
   const trava = useTravaDeEnvio()
@@ -248,7 +249,7 @@ function Formulario({ comunidadeId }: { comunidadeId: string }) {
             desabilitado={ocupado || !online}
             {...(online ? {} : { motivo: 'Precisa de internet para avisar as pessoas.' })}
             aoPressionar={() => salvar(true)}
-            dica="Membros veem o aviso e recebem notificação, se tiverem ligado. Você tem 10 segundos para desfazer."
+            dica={`Membros veem o aviso e recebem notificação, se tiverem ligado. ${frasePraDesfazer(segundosDoDesfazer)}`}
           />
         </BarraDeAcao>
       }

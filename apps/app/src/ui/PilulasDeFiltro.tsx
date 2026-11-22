@@ -196,13 +196,12 @@ function ItemDePilula<T extends string>({
             toque.estiloDaCamada,
           ]}
         />
-        {ativa ? <Icone nome="check" cor={cores.destaque} tamanho={14} peso="forte" /> : null}
+        {ativa ? <Icone nome="check" cor={cores.destaque} tamanho={16} peso="forte" /> : null}
         <Texto
           variante="meta"
           peso={ativa ? 'forte' : 'medio'}
           cor={ativa ? 'destaque' : 'texto'}
           tabular={p.contagem !== undefined}
-          numberOfLines={1}
         >
           {texto}
         </Texto>

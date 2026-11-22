@@ -103,7 +103,7 @@ function Inscricoes({ comunidadeId, eventoId }: { comunidadeId: string; eventoId
             barraDeAcao: (
               <BarraDeAcao>
                 <Botao
-                  titulo="Fazer check-in"
+                  titulo="Marcar quem chegou"
                   tamanho="grande"
                   icone="qr"
                   aoPressionar={() =>

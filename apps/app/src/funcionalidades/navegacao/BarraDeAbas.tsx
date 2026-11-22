@@ -6,7 +6,7 @@ import { Platform, StyleSheet, useWindowDimensions } from 'react-native'
 import { useSessao } from '@/estado/sessao'
 import { definirAbaAtiva } from '@/ui/abaAtiva'
 import type { NomeDoTraco } from '@/ui/IconeDeTraco'
-import { ItemDaBarraDeAbas, rotulosCabemNaBarra } from '@/ui/ItemDaBarraDeAbas'
+import { escalaDoRotuloDaBarra, ItemDaBarraDeAbas } from '@/ui/ItemDaBarraDeAbas'
 import { PilulaDaAba, RECUO_DA_BARRA } from '@/ui/PilulaDaAba'
 import { useTecladoAberto } from '@/ui/teclado'
 import { sombra, useTema } from '@/ui/tema'
@@ -56,7 +56,7 @@ function ItemDaBarra({ rotulo, icone, isFocused, onPress, onLongPress }: PropsDo
   return (
     <ItemDaBarraDeAbas
       rotulo={rotulo}
-      semRotulo={!rotulosCabemNaBarra(ROTULOS_ESCRITOS, ABAS.length, width, fontScale)}
+      escalaDoRotulo={escalaDoRotuloDaBarra(ROTULOS_ESCRITOS, ABAS.length, width, fontScale)}
       icone={icone === 'avatar' ? null : icone}
       avatar={
         icone === 'avatar' && conta

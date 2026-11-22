@@ -90,7 +90,8 @@ export function TelaCaixaDeNotificacoes() {
       acoes={
         <BotaoIcone
           icone="ajustes"
-          rotulo="Quando o app me avisa"
+          texto="Ajustes"
+          rotulo="Ajustes: quando o app me avisa"
           aoPressionar={abrirPreferencias}
         />
       }

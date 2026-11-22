@@ -1,5 +1,6 @@
 import { ALVO_MINIMO, DESFAZER, ESPACO, RAIO, TOAST } from '@uj/tokens'
-import { useEffect, useSyncExternalStore } from 'react'
+import * as Roteador from 'expo-router'
+import { useEffect, useRef, useSyncExternalStore } from 'react'
 import { AccessibilityInfo, AppState, Platform, Pressable, View } from 'react-native'
 import Animated, {
   cancelAnimation,
@@ -9,6 +10,9 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated'
+
+import { marcarDescarga } from '@/servicos/descarga'
+import { ehErroDaApi, SemConexao } from '@/servicos/erros'
 
 import { usePreferenciasDeAcessibilidade } from './acessibilidade'
 import { anunciar } from './anunciar'
@@ -20,19 +24,33 @@ export interface PedidoDeDesfazer {
   /** O verbo no presente, o número de pessoas: "Publicando e avisando 11 pessoas." */
   texto: string
   /**
-   * O envio de verdade. Só roda quando a contagem chega a zero, ou quando outro toast com
-   * Desfazer chega, ou quando o app vai para segundo plano. Roda no máximo uma vez.
+   * O envio de verdade. Roda quando a contagem chega a zero, quando outro toast com Desfazer
+   * chega, quando a pessoa sai da tela, quando o app vai para segundo plano ou a página web é
+   * fechada: a ação pendente nunca se perde em silêncio (D74). Roda no máximo uma vez por
+   * pedido. Devolva a promessa: se ela falhar por rede ou servidor, o envio é repetido sozinho e,
+   * esgotadas as tentativas, a faixa vira "Tentar de novo" e fica até a pessoa tocar.
    */
-  aoConfirmar: () => void
+  aoConfirmar: () => void | Promise<unknown>
   /** A pessoa tocou em "Desfazer": volte a tela ao estado anterior. `aoConfirmar` não roda. */
   aoDesfazer?: () => void
   /**
    * Quanto tempo a pessoa tem (10 s por padrão: WCAG 2.2.1 e o catálogo de interação 5.2). Com
    * leitor de tela ligado o tempo dobra (10 vira 20), como no toast comum: ele precisa ler antes.
+   * Todo texto que cita o tempo usa `segundosDaEsperaAgora` ou `useSegundosDoDesfazer`, nunca um
+   * número escrito à mão.
    */
   segundos?: number
   /** "Tentar de novo" numa falha de ação; "Desfazer" no resto. */
   rotuloDoBotao?: string
+  /** O que a faixa diz se o envio não passar depois das novas tentativas. */
+  textoDaFalha?: string
+  /** O envio falhou de vez (antes da faixa de falha): desfaça o que a tela mostrou como feito. */
+  aoFalhar?: () => void
+  /**
+   * A própria ação leva a pessoa a outra tela logo depois de pedir (ex.: "Adiar" volta ao
+   * encontro): essa primeira navegação não envia na hora. Qualquer outra, sim.
+   */
+  seguePeloCaminho?: boolean
 }
 
 interface Pendente {
@@ -45,7 +63,12 @@ interface Pendente {
   base: number
   /** O tempo já foi estendido para o leitor de tela? */
   estendido: boolean
-  aoConfirmar: () => void
+  /** Sem contagem: é a faixa de falha, que fica até a pessoa tocar, sair ou chegar outro pedido. */
+  fixo: boolean
+  seguePeloCaminho: boolean
+  textoDaFalha: string | undefined
+  aoFalhar: (() => void) | undefined
+  aoConfirmar: () => void | Promise<unknown>
   aoDesfazer: (() => void) | undefined
 }
 
@@ -59,12 +82,77 @@ let relogio: ReturnType<typeof setInterval> | null = null
 let vigiaDoAppIniciada = false
 let leitorDeTela = false
 let vigiaDoLeitorIniciada = false
+/** Falhas que chegaram com outro pedido em curso: a faixa de cada uma espera a sua vez. */
+const filaDeFalhas: Pendente[] = []
+let substituindo = false
 const ouvintes = new Set<() => void>()
 const avisar = () => ouvintes.forEach((o) => o())
+
+/** Esperas entre as novas tentativas de um envio que falhou por rede ou servidor. */
+export const ESPERAS_ENTRE_TENTATIVAS_MS: readonly number[] = [2000, 6000]
 
 function parar() {
   if (relogio) clearInterval(relogio)
   relogio = null
+}
+
+/** Rede fora ou servidor com problema: vale repetir. Recusa do servidor (4xx) repetiria igual. */
+function valeRepetir(erro: unknown): boolean {
+  return erro instanceof SemConexao || (ehErroDaApi(erro) && erro.status >= 500)
+}
+
+/**
+ * Faz o envio e repete se a rede ou o servidor falharem. A primeira chamada é síncrona (o envio
+ * sai na hora do toque, do fim da contagem ou da saída da tela). Falha de vez: a faixa de falha.
+ */
+async function enviar(p: Pendente): Promise<void> {
+  for (let tentativa = 0; ; tentativa++) {
+    try {
+      await p.aoConfirmar()
+      return
+    } catch (erro) {
+      const espera = ESPERAS_ENTRE_TENTATIVAS_MS[tentativa]
+      if (espera === undefined || !valeRepetir(erro)) {
+        p.aoFalhar?.()
+        mostrarFalha(p)
+        return
+      }
+      await new Promise((resolver) => setTimeout(resolver, espera))
+    }
+  }
+}
+
+/** A faixa de falha: sem contagem, "Tentar de novo". Sair ou trocar de pedido repete o envio. */
+function mostrarFalha(original: Pendente) {
+  const tentarOutraVez = () => void enviar(original)
+  const falha: Pendente = {
+    id: proximoId++,
+    texto:
+      original.textoDaFalha ??
+      'Não deu para enviar agora. Nada se perdeu: toque em Tentar de novo.',
+    rotuloDoBotao: 'Tentar de novo',
+    total: 0,
+    restante: 0,
+    base: 0,
+    estendido: false,
+    fixo: true,
+    seguePeloCaminho: false,
+    textoDaFalha: original.textoDaFalha,
+    aoFalhar: undefined,
+    aoConfirmar: tentarOutraVez,
+    aoDesfazer: tentarOutraVez,
+  }
+  if (pendente) filaDeFalhas.push(falha)
+  else abrir(falha)
+}
+
+function abrir(p: Pendente) {
+  pendente = p
+  parar()
+  if (!p.fixo) relogio = setInterval(passar, 1000)
+  vigiarOApp()
+  vigiarOLeitorDeTela()
+  avisar()
 }
 
 /** Fecha o pendente UMA vez: zera o estado antes de chamar o callback, então nada se repete. */
@@ -74,8 +162,13 @@ function finalizar(como: 'confirmar' | 'desfazer') {
   pendente = null
   parar()
   avisar()
-  if (como === 'confirmar') p.aoConfirmar()
+  if (como === 'confirmar') void enviar(p)
   else p.aoDesfazer?.()
+  // A próxima faixa de falha, se houve alguma enquanto este pedido estava no ar.
+  if (!substituindo && !pendente) {
+    const proxima = filaDeFalhas.shift()
+    if (proxima) abrir(proxima)
+  }
 }
 
 function passar() {
@@ -105,16 +198,53 @@ function vigiarOLeitorDeTela() {
 }
 
 function definirLeitorDeTela(ligado: boolean) {
+  const mudou = leitorDeTela !== ligado
   leitorDeTela = ligado
-  if (!ligado || !pendente || pendente.estendido) return
-  const total = segundosDoDesfazer(pendente.base, true)
-  pendente = {
-    ...pendente,
-    total,
-    restante: pendente.restante + (total - pendente.total),
-    estendido: true,
+  if (ligado && pendente && !pendente.estendido && !pendente.fixo) {
+    const total = segundosDoDesfazer(pendente.base, true)
+    pendente = {
+      ...pendente,
+      total,
+      restante: pendente.restante + (total - pendente.total),
+      estendido: true,
+    }
+    avisar()
+  } else if (mudou) {
+    // Os textos que citam "10 segundos" passam a dizer o tempo de verdade.
+    avisar()
   }
-  avisar()
+}
+
+/**
+ * Quantos segundos a pessoa tem de verdade AGORA: o tempo pedido (10 por padrão), dobrado com
+ * leitor de tela. É o número que a faixa conta; todo texto de folha, botão e dica usa este mesmo
+ * (antes a folha dizia 10 s e a faixa contava 20 s).
+ */
+export function segundosDaEsperaAgora(base: number = DESFAZER.segundos): number {
+  return segundosDoDesfazer(base, leitorDeTela)
+}
+
+/** O mesmo número, para a tela que o escreve: acompanha o leitor de tela ligar ou desligar. */
+export function useSegundosDoDesfazer(base: number = DESFAZER.segundos): number {
+  return useSyncExternalStore(
+    assinar,
+    () => segundosDoDesfazer(base, leitorDeTela),
+    () => base,
+  )
+}
+
+/** "Você tem 10 segundos para desfazer." (ou 20, com leitor de tela). */
+export function frasePraDesfazer(segundos: number): string {
+  return `Você tem ${segundos} segundos para desfazer.`
+}
+
+/** Quantos segundos faltam na contagem em curso (ou `null` sem contagem): botões dizem "em 7 s". */
+export function useRestanteDoDesfazer(): number | null {
+  return useSyncExternalStore(
+    assinar,
+    () => (pendente && !pendente.fixo ? pendente.restante : null),
+    () => null,
+  )
 }
 
 /** Para a raiz do app: já deixa o estado do leitor de tela à mão antes do primeiro Desfazer. */
@@ -128,10 +258,17 @@ export function conhecerOLeitorDeTela(): void {
  * ainda em contagem CONFIRMA o primeiro (nunca se perde um envio) e começa o novo.
  */
 export function mostrarDesfazer(pedido: PedidoDeDesfazer): void {
-  if (pendente) finalizar('confirmar')
+  if (pendente) {
+    substituindo = true
+    try {
+      finalizar('confirmar')
+    } finally {
+      substituindo = false
+    }
+  }
   const base = pedido.segundos ?? DESFAZER.segundos
   const total = segundosDoDesfazer(base, leitorDeTela)
-  pendente = {
+  abrir({
     id: proximoId++,
     texto: pedido.texto,
     rotuloDoBotao: pedido.rotuloDoBotao ?? 'Desfazer',
@@ -139,14 +276,13 @@ export function mostrarDesfazer(pedido: PedidoDeDesfazer): void {
     restante: total,
     base,
     estendido: leitorDeTela,
+    fixo: false,
+    seguePeloCaminho: pedido.seguePeloCaminho ?? false,
+    textoDaFalha: pedido.textoDaFalha,
+    aoFalhar: pedido.aoFalhar,
     aoConfirmar: pedido.aoConfirmar,
     aoDesfazer: pedido.aoDesfazer,
-  }
-  parar()
-  relogio = setInterval(passar, 1000)
-  vigiarOApp()
-  vigiarOLeitorDeTela()
-  avisar()
+  })
 }
 
 /** A pessoa tocou em "Desfazer". Para testes e para telas que desfazem por outro caminho. */
@@ -159,24 +295,45 @@ export function confirmarAgora(): void {
   finalizar('confirmar')
 }
 
+/** Só para os testes: zera a espera, a fila de falhas e o relógio, sem enviar nada. */
+export function reiniciarDesfazer(): void {
+  pendente = null
+  filaDeFalhas.length = 0
+  substituindo = false
+  parar()
+  avisar()
+}
+
 /** Há uma espera em curso? */
 export function haDesfazerPendente(): boolean {
   return pendente !== null
 }
 
 /**
- * Se o app for para segundo plano com a espera em curso, o envio sai (a pessoa decidiu). Se for
- * encerrado à força, nada foi enviado: o erro seguro é o de não enviar. Uma vigia para o app todo.
+ * O envio pendente sai na hora (a pessoa já decidiu) quando o app vai para segundo plano ou a
+ * página web é fechada. Se o app for encerrado à força antes disso, o que não saiu não saiu:
+ * por isso a contagem é curta e o estado da tela diz "ainda não enviado". Uma vigia para o app todo.
  */
 function vigiarOApp() {
   if (vigiaDoAppIniciada) return
   vigiaDoAppIniciada = true
   AppState.addEventListener('change', aoMudarEstadoDoApp)
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    // `pagehide` cobre fechar a aba e navegar para outro site; `beforeunload`, os navegadores antigos.
+    window.addEventListener('pagehide', aoFecharAPagina)
+    window.addEventListener('beforeunload', aoFecharAPagina)
+  }
 }
 
-/** O que a vigia faz com cada estado do app: só o segundo plano confirma. */
+/** O que a vigia faz com cada estado do app: só o segundo plano envia. */
 export function aoMudarEstadoDoApp(estado: string): void {
   if (estado === 'background') confirmarAgora()
+}
+
+/** A página web vai sumir: os pedidos feitos agora sobrevivem ao fechamento (`keepalive`). */
+export function aoFecharAPagina(): void {
+  marcarDescarga()
+  confirmarAgora()
 }
 
 function assinar(o: () => void) {
@@ -186,6 +343,13 @@ function assinar(o: () => void) {
   }
 }
 const ler = () => pendente
+
+/**
+ * O caminho da tela, para saber que a pessoa navegou. Escolhido uma vez ao carregar o módulo (o
+ * Hook que roda é sempre o mesmo); onde não há roteador (testes isolados), nunca muda.
+ */
+const useCaminho: () => string | null =
+  typeof Roteador.usePathname === 'function' ? Roteador.usePathname : () => null
 
 /** O pendente de agora (ou `null`), para o hospedeiro desenhar. */
 export function useDesfazerPendente(): Pendente | null {
@@ -205,12 +369,31 @@ export function CaixaDoDesfazer({ pendente: p }: { pendente: Pendente }) {
   const entrada = useRevelar(true)
   const barra = useSharedValue(1)
 
+  // Sair da tela com a ação pendente envia na hora (D74): a pessoa decidiu e foi adiante.
+  const caminho = useCaminho()
+  const caminhoDeAgora = useRef(caminho)
+  const jaSeguiu = useRef(false)
+  useEffect(() => {
+    if (caminho === caminhoDeAgora.current) return
+    if (p.seguePeloCaminho && !jaSeguiu.current) {
+      // A própria ação levou a pessoa para outra tela: esta é a tela de onde ela segue.
+      jaSeguiu.current = true
+      caminhoDeAgora.current = caminho
+      return
+    }
+    confirmarAgora()
+  }, [caminho, p.seguePeloCaminho])
+
   // O anúncio e a barra são sistemas externos: começam ao montar (um toast novo é outra caixa).
   useEffect(() => {
-    anunciar(`${p.texto} ${DESFAZER.anuncio(p.total)}`)
-  }, [p.texto, p.total])
+    anunciar(
+      p.fixo
+        ? `${p.texto} Toque em ${p.rotuloDoBotao}.`
+        : `${p.texto} ${DESFAZER.anuncio(p.total)}`,
+    )
+  }, [p.texto, p.total, p.fixo, p.rotuloDoBotao])
   useEffect(() => {
-    if (reduzirMovimento) return
+    if (reduzirMovimento || p.fixo) return
     barra.set(
       withTiming(0, {
         duration: p.total * 1000,
@@ -219,7 +402,7 @@ export function CaixaDoDesfazer({ pendente: p }: { pendente: Pendente }) {
       }),
     )
     return () => cancelAnimation(barra)
-  }, [reduzirMovimento, p.total, barra])
+  }, [reduzirMovimento, p.fixo, p.total, barra])
 
   const estiloDaBarra = useAnimatedStyle(() => ({
     transform: [{ scaleX: barra.value }],
@@ -253,15 +436,17 @@ export function CaixaDoDesfazer({ pendente: p }: { pendente: Pendente }) {
       >
         {p.texto}
       </Texto>
-      <Texto
-        variante="legenda"
-        tabular
-        accessible={false}
-        importantForAccessibility="no"
-        style={{ color: TOAST.textoSuave }}
-      >
-        {`${p.restante} s`}
-      </Texto>
+      {p.fixo ? null : (
+        <Texto
+          variante="legenda"
+          tabular
+          accessible={false}
+          importantForAccessibility="no"
+          style={{ color: TOAST.textoSuave }}
+        >
+          {`${p.restante} s`}
+        </Texto>
+      )}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={p.rotuloDoBotao}
@@ -280,7 +465,7 @@ export function CaixaDoDesfazer({ pendente: p }: { pendente: Pendente }) {
           {p.rotuloDoBotao}
         </Texto>
       </Pressable>
-      {reduzirMovimento ? null : (
+      {reduzirMovimento || p.fixo ? null : (
         <View
           pointerEvents="none"
           style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 3 }}

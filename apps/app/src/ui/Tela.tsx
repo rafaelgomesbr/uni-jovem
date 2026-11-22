@@ -392,7 +392,7 @@ function CabecalhoCompacto({
           {pilha ? (
             <>
               {semVoltar ? (
-                <View style={{ width: 44 }} />
+                <View style={{ width: ALTURA.iconeSo }} />
               ) : (
                 <BotaoDeSaida modal={modal} aoPressionar={voltar} />
               )}
@@ -405,7 +405,7 @@ function CabecalhoCompacto({
               >
                 {titulo}
               </Texto>
-              <View style={{ width: 44 }} />
+              <View style={{ width: ALTURA.iconeSo }} />
             </>
           ) : (
             <View style={{ flex: 1 }}>{topoCompacto}</View>

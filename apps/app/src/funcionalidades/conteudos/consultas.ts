@@ -2,9 +2,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { api } from '@/servicos/api'
+import { chamadasDoPdf } from '@/servicos/contratoDoPdf'
 import type { ItensPorTipo, TipoDeConteudo } from '@/servicos/contratoDosModulos'
 
 import { naComunidade } from '../eventos/consultas'
+import type { PdfConferido } from '../pdf/seletorDePdf'
 
 const base = (comunidadeId: string, tipo: TipoDeConteudo) =>
   `${naComunidade(comunidadeId)}/conteudos/${tipo}`
@@ -83,4 +85,38 @@ export function useDefinirMusicos(comunidadeId: string) {
         musicoIds: v.musicoIds,
       }),
   )
+}
+
+/**
+ * Depois de anexar, trocar ou remover um PDF: a Biblioteca, o repertório dos encontros e o Meu
+ * repertório recarregam (o selo "PDF" e a versão mudam). A leitura local do aparelho também: o
+ * PDF guardado de uma versão antiga deixa de valer quando o pacote do repertório for baixado.
+ */
+function useInvalidarPdf(comunidadeId: string) {
+  const consultas = useQueryClient()
+  return () =>
+    Promise.all([
+      consultas.invalidateQueries({ queryKey: CHAVES.conteudos(comunidadeId, 'musicas') }),
+      // Todas as listas de repertório da comunidade (o prefixo comum das chaves).
+      consultas.invalidateQueries({ queryKey: ['c', comunidadeId, 'eventos', 'repertorio'] }),
+      consultas.invalidateQueries({ queryKey: CHAVES.meuRepertorio(comunidadeId) }),
+    ])
+}
+
+/** Anexa (ou troca) o PDF da música. Os bytes já foram conferidos pelo seletor; a API confere de novo. */
+export function useAnexarPdf(comunidadeId: string) {
+  const invalidar = useInvalidarPdf(comunidadeId)
+  return useMutation({
+    mutationFn: (v: { musicaId: string; pdf: PdfConferido }) =>
+      chamadasDoPdf.enviar(comunidadeId, v.musicaId, v.pdf.bytes, v.pdf.nome),
+    onSuccess: invalidar,
+  })
+}
+
+export function useRemoverPdf(comunidadeId: string) {
+  const invalidar = useInvalidarPdf(comunidadeId)
+  return useMutation({
+    mutationFn: (musicaId: string) => chamadasDoPdf.remover(comunidadeId, musicaId),
+    onSuccess: invalidar,
+  })
 }

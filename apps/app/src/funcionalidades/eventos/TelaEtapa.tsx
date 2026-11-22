@@ -6,7 +6,7 @@ import { View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
-import type { Atribuicao, DetalheDoEvento, Etapa } from '@/servicos/contratoDosEventos'
+import type { DetalheDoEvento, Etapa } from '@/servicos/contratoDosEventos'
 import { Aviso } from '@/ui/Aviso'
 import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao, BotaoIcone } from '@/ui/Botao'
@@ -28,8 +28,10 @@ import { voltarOu } from '@/ui/navegacao'
 import { usePode } from '../comunidade/permissoes'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { naComunidade, useEvento, useInvalidarEventos } from './consultas'
-import { AVISO_DE_RASCUNHO, FolhaDeConvocar, MenuDaPessoaConvocada } from './Convocacao'
-import { EQUIPE_GERAL, linhaDaPessoaEscalada } from './SecaoEquipe'
+import { AVISO_DE_RASCUNHO, FolhaDeConvocar, useTirarDaConvocacao } from './Convocacao'
+import { useConvocadosEmEspera, useRemovidasEmEspera } from './convocadosOtimistas'
+import { montarQuemVai, type PessoaNaLista } from './listaDeQuemVai'
+import { EQUIPE_GERAL, LinhaDaPessoaNaEquipe } from './QuemVai'
 
 export { EQUIPE_GERAL }
 
@@ -269,9 +271,27 @@ function Equipe({
 }) {
   const pode = usePode()
   const [convocando, setConvocando] = useState(false)
-  const [escolhida, setEscolhida] = useState<Atribuicao | null>(null)
-  const atribuicoes = evento.atribuicoes.filter((a) => a.etapaId === (etapa?.id ?? null))
+  const tirar = useTirarDaConvocacao(evento, comunidadeId)
+  const emEspera = useConvocadosEmEspera(evento.id)
+  const removidas = useRemovidasEmEspera()
   const atribuir = pode('escala', 'atribuir')
+  const daEtapa = [
+    ...evento.atribuicoes
+      .filter((a) => !removidas.has(a.id))
+      .map((a) => ({ ...a, emEspera: false })),
+    ...emEspera.map((c) => ({
+      id: c.chave,
+      etapaId: c.etapaId,
+      vinculoId: c.vinculoId,
+      funcao: c.funcao,
+      estado: 'pendente' as const,
+      nome: c.nome,
+      emEspera: true,
+    })),
+  ].filter((a) => a.etapaId === (etapa?.id ?? null))
+  // Uma linha por pessoa, com todos os papéis dela nesta etapa.
+  const { banda, equipe } = montarQuemVai(daEtapa, evento.etapas)
+  const pessoas: PessoaNaLista[] = [...banda, ...equipe]
 
   const convocar = atribuir ? (
     <Botao
@@ -288,37 +308,33 @@ function Equipe({
       {atribuir && evento.status === 'rascunho' ? (
         <Aviso tipo="info">{AVISO_DE_RASCUNHO}</Aviso>
       ) : null}
-      {atribuicoes.length ? (
-        <CartaoDeVidro sobrancelha="Convocados" lista {...(convocar ? { acoes: convocar } : {})}>
+      {pessoas.length ? (
+        <CartaoDeVidro sobrancelha="Quem vai" lista {...(convocar ? { acoes: convocar } : {})}>
           <Lista>
-            {atribuicoes.map((a) =>
-              linhaDaPessoaEscalada(a, atribuir ? () => setEscolhida(a) : undefined),
-            )}
+            {pessoas.map((p) => (
+              <LinhaDaPessoaNaEquipe
+                key={p.vinculoId}
+                pessoa={p}
+                aoTirar={atribuir ? () => tirar(p, p.papeis) : undefined}
+              />
+            ))}
           </Lista>
         </CartaoDeVidro>
       ) : (
-        <CartaoDeVidro sobrancelha="Convocados" {...(convocar ? { acoes: convocar } : {})}>
+        <CartaoDeVidro sobrancelha="Quem vai" {...(convocar ? { acoes: convocar } : {})}>
           <Texto variante="corpo" cor="textoSuave">
-            Ninguém convocado ainda.
+            Ninguém foi convocado ainda.
           </Texto>
         </CartaoDeVidro>
       )}
       {atribuir ? (
-        <>
-          <FolhaDeConvocar
-            evento={evento}
-            etapa={etapa}
-            comunidadeId={comunidadeId}
-            aberta={convocando}
-            aoFechar={() => setConvocando(false)}
-          />
-          <MenuDaPessoaConvocada
-            evento={evento}
-            comunidadeId={comunidadeId}
-            escolhida={escolhida}
-            aoFechar={() => setEscolhida(null)}
-          />
-        </>
+        <FolhaDeConvocar
+          evento={evento}
+          etapa={etapa}
+          comunidadeId={comunidadeId}
+          aberta={convocando}
+          aoFechar={() => setConvocando(false)}
+        />
       ) : null}
     </>
   )

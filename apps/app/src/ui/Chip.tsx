@@ -92,8 +92,8 @@ export interface PropsDoChip {
 }
 
 /**
- * Chip de estado (seção 2.12.12 e 8.4 da direção A): preenchido, 24 de altura, padding 10 por
- * 4, texto 13/16 600, ícone de 14. Sempre texto; nunca é tocável (o que é tocável é pílula de
+ * Chip de estado (seção 2.12.12 e 8.4 da direção A): preenchido, 28 de altura mínima (D75),
+ * padding 10 por 4, texto 16/20 600, ícone de 16. Sempre texto; nunca é tocável (o que é tocável é pílula de
  * filtro). Dentro do cartão translúcido, o fundo é composto sobre o opaco.
  */
 export function Chip({ texto, tom, situacao, icone, ponto, aparecer }: PropsDoChip) {
@@ -175,6 +175,7 @@ function CorpoDoChip({
     <View
       style={{
         alignSelf: 'flex-start',
+        maxWidth: '100%',
         flexDirection: 'row',
         alignItems: 'center',
         gap: ESPACO.e6,
@@ -188,8 +189,9 @@ function CorpoDoChip({
       }}
     >
       {ponto ? <PontoAoVivo lado={6} cor={cores.primaria} /> : null}
-      {icone ? <Icone nome={icone} cor={cor} tamanho={14} peso="semibold" /> : null}
-      <Texto variante="chip" style={{ color: cor }} numberOfLines={1}>
+      {icone ? <Icone nome={icone} cor={cor} tamanho={16} peso="semibold" /> : null}
+      {/* Sem `numberOfLines`: com fonte grande o texto quebra de linha em vez de ser cortado (D75). */}
+      <Texto variante="chip" style={{ color: cor, flexShrink: 1 }}>
         {texto}
       </Texto>
     </View>

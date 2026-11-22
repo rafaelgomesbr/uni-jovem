@@ -369,7 +369,9 @@ describe('repertório do encontro no visual A (D71)', () => {
         expect(pedidosPara(servidor, 'POST', `${CAMINHO}/repertorio/avisar`)).toHaveLength(1),
       )
       await waitFor(() =>
-        expect(mostrarToast).toHaveBeenCalledWith({ texto: 'Aviso enviado a 2 pessoas da banda.' }),
+        expect(mostrarToast).toHaveBeenCalledWith({
+          texto: 'Pronto. Aviso enviado a 2 pessoas da banda.',
+        }),
       )
     })
 

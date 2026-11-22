@@ -20,28 +20,47 @@ import { Texto } from './Texto'
 import { useTema } from './tema'
 import { soNaWeb } from './web'
 
-/** Até aqui (o teto antigo do rótulo), os rótulos cabem em qualquer tela de 360 ou mais. */
-const ESCALA_QUE_SEMPRE_CABE = 1.3
+/**
+ * A barra tem 68 de altura (a cápsula da direção A): ícone de 24, 2 de intervalo e o rótulo. Acima
+ * de 1,5 vez o rótulo de 16 de linha não cabe mais na altura, então a escala do rótulo para aí
+ * mesmo quando a largura sobra (telas largas). O resto do crescimento fica com o visualizador de
+ * conteúdo grande do iOS (tocar e segurar) e com o nome falado.
+ */
+const ESCALA_MAXIMA_PELA_ALTURA = 1.5
 
 /**
- * Os rótulos cabem nos itens com esta fonte? Até 1,3, sempre (a barra foi
- * medida em 360). Acima, a estimativa do rótulo mais longo (por excesso)
- * contra a largura de um item; o rótulo cresce até o teto de 1,6. Não cabe:
- * todos os itens ficam só com o ícone, nunca um rótulo cortado.
+ * Quanto o rótulo da barra pode crescer com a fonte do sistema (D75, passada do vovô). Antes, quando
+ * a palavra mais longa não cabia no item a 1,3 vez ou mais, o rótulo SUMIA e a barra ficava só com
+ * ícones: justamente para quem mais precisa da palavra. Agora o rótulo nunca some: cresce até o
+ * maior valor, entre 1 e o menor de (escala do sistema, teto do papel, altura da barra), em que a
+ * palavra mais longa ainda cabe no item (estimativa por excesso). Se nem a 1 cabe (telas de 360 com
+ * "Comunidade"), devolve 1 e o texto se ajusta sozinho (`adjustsFontSizeToFit`), sem cortar.
  */
+export function escalaDoRotuloDaBarra(
+  rotulos: readonly string[],
+  itens: number,
+  larguraDaTela: number,
+  fontScale: number,
+): number {
+  const teto = Math.min(fontScale, TIPO.aba.teto ?? fontScale, ESCALA_MAXIMA_PELA_ALTURA)
+  const util =
+    larguraDaTela - 2 * BARRA_DE_ABAS.margemLateral - 2 * (BARRA_DE_ABAS.preenchimento + 1)
+  // O item tem 2 de cada lado (o `paddingHorizontal` dele).
+  const disponivel = util / itens - 2 * ESPACO.e2
+  const maiorEm1 = Math.max(...rotulos.map((r) => larguraEstimada(r, TIPO.aba.tamanho)))
+  if (maiorEm1 <= 0) return Math.max(1, teto)
+  return Math.max(1, Math.min(teto, disponivel / maiorEm1))
+}
+
+/** Os rótulos cabem nos itens na escala do sistema (a de `escalaDoRotuloDaBarra` chega a ela)? */
 export function rotulosCabemNaBarra(
   rotulos: readonly string[],
   itens: number,
   larguraDaTela: number,
   fontScale: number,
 ): boolean {
-  if (fontScale <= ESCALA_QUE_SEMPRE_CABE) return true
-  const escala = Math.min(fontScale, TIPO.aba.teto ?? fontScale)
-  const util =
-    larguraDaTela - 2 * BARRA_DE_ABAS.margemLateral - 2 * (BARRA_DE_ABAS.preenchimento + 1)
-  const maior = Math.max(...rotulos.map((r) => larguraEstimada(r, TIPO.aba.tamanho * escala)))
-  // O item tem 2 de cada lado (o `paddingHorizontal` dele).
-  return maior + 2 * ESPACO.e2 <= util / itens
+  const pedida = Math.min(fontScale, TIPO.aba.teto ?? fontScale, ESCALA_MAXIMA_PELA_ALTURA)
+  return escalaDoRotuloDaBarra(rotulos, itens, larguraDaTela, fontScale) >= Math.max(1, pedida)
 }
 
 export interface PropsDoItemDaBarra {
@@ -53,18 +72,20 @@ export interface PropsDoItemDaBarra {
   /** O que o leitor de tela ouve ("Perfil de Ana Lima"). */
   nomeAcessivel?: string
   /**
-   * Com fonte grande, quando o rótulo não cabe no item: só o ícone. O rótulo
-   * continua no leitor de tela e no visualizador de conteúdo grande do iOS
-   * (tocar e segurar).
+   * Só o ícone. Desde a D75 a barra não usa mais (o rótulo nunca some com fonte grande); fica para
+   * quem monta uma barra sem espaço. O rótulo continua no leitor de tela e no visualizador de
+   * conteúdo grande do iOS (tocar e segurar).
    */
   semRotulo?: boolean
+  /** Até quanto o rótulo cresce com a fonte do sistema (`escalaDoRotuloDaBarra`). */
+  escalaDoRotulo?: number
   onPress?: ((e: GestureResponderEvent) => void) | undefined
   onLongPress?: ((e: GestureResponderEvent) => void) | undefined
 }
 
 /**
  * Item da barra de abas (2.12.17, M): mínimo de 58×48, raio 20, ícone de 22
- * numa vaga de 24, 2 e o rótulo 11/14. O ativo ganha a pílula coral, o
+ * numa vaga de 24, 2 e o rótulo 13/16 (D75). O ativo ganha a pílula coral, o
  * rótulo em 600 e o traço em 2,4 (no Perfil, o anel do avatar): peso e forma
  * além da cor. Celular: papel `tab` com estado selecionado; web: link com
  * `aria-current="page"`.
@@ -73,9 +94,8 @@ export interface PropsDoItemDaBarra {
  * outros itens (UX 8.1: "avatar mais texto"). O leitor de tela ouve
  * "Perfil de {nome}" e o estado selecionado; o anel muda de forma no ativo.
  *
- * O rótulo cresce com a fonte do sistema até 1,6. Se não couber, a barra
- * passa `semRotulo`: o item fica só com o ícone (no Perfil, o avatar de 32),
- * nunca com o texto cortado.
+ * O rótulo cresce com a fonte do sistema até onde a palavra cabe no item
+ * (`escalaDoRotulo`, D75) e nunca some nem é cortado: o texto se ajusta ao item.
  */
 export function ItemDaBarraDeAbas({
   rotulo,
@@ -84,6 +104,7 @@ export function ItemDaBarraDeAbas({
   ativo,
   nomeAcessivel,
   semRotulo = false,
+  escalaDoRotulo,
   onPress,
   onLongPress,
 }: PropsDoItemDaBarra) {
@@ -97,7 +118,7 @@ export function ItemDaBarraDeAbas({
       {...(web
         ? soNaWeb({ 'aria-current': ativo ? 'page' : undefined })
         : { 'aria-selected': ativo })}
-      // Rótulo com teto de 1,6, ou só o ícone: o iOS mostra o visualizador de conteúdo grande.
+      // O iOS mostra o visualizador de conteúdo grande com o rótulo inteiro, qualquer que seja a escala.
       accessibilityShowsLargeContentViewer
       accessibilityLargeContentTitle={rotulo}
       onPress={onPress}
@@ -137,32 +158,45 @@ export function ItemDaBarraDeAbas({
             />
           </View>
           {semRotulo ? null : (
-            <Texto
-              variante="aba"
-              peso={ativo ? 'forte' : 'medio'}
-              numberOfLines={1}
-              style={{ color: cor }}
-            >
-              {rotulo}
-            </Texto>
+            <RotuloDoItem rotulo={rotulo} ativo={ativo} cor={cor} escala={escalaDoRotulo} />
           )}
         </>
       ) : (
         <>
           <ItemComIcone icone={icone} cor={cor} ativo={ativo} />
           {semRotulo ? null : (
-            <Texto
-              variante="aba"
-              peso={ativo ? 'forte' : 'medio'}
-              numberOfLines={1}
-              style={{ color: cor }}
-            >
-              {rotulo}
-            </Texto>
+            <RotuloDoItem rotulo={rotulo} ativo={ativo} cor={cor} escala={escalaDoRotulo} />
           )}
         </>
       )}
     </Pressable>
+  )
+}
+
+/** O rótulo de uma linha só que se ajusta ao item: encolhe até 15% antes de cortar uma palavra. */
+function RotuloDoItem({
+  rotulo,
+  ativo,
+  cor,
+  escala,
+}: {
+  rotulo: string
+  ativo: boolean
+  cor: string
+  escala: number | undefined
+}) {
+  return (
+    <Texto
+      variante="aba"
+      peso={ativo ? 'forte' : 'medio'}
+      numberOfLines={1}
+      adjustsFontSizeToFit
+      minimumFontScale={0.85}
+      {...(escala !== undefined ? { maxFontSizeMultiplier: escala } : {})}
+      style={{ color: cor }}
+    >
+      {rotulo}
+    </Texto>
   )
 }
 

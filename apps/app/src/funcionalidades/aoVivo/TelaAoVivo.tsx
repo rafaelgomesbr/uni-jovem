@@ -24,7 +24,7 @@ import { Secao } from '@/ui/Secao'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { registrarRodape } from '@/ui/Toast'
-import { mostrarDesfazer } from '@/ui/ToastComDesfazer'
+import { frasePraDesfazer, mostrarDesfazer, useSegundosDoDesfazer } from '@/ui/ToastComDesfazer'
 import { sombra, useTema } from '@/ui/tema'
 import { useAnunciar } from '@/ui/useAnunciar'
 import { Vidro } from '@/ui/Vidro'
@@ -222,8 +222,9 @@ function Painel({ r, conexao, comandar, enviando, erro, eventoId }: PropsDoPaine
   const pode = usePode()
   const fuso = useFusoDaComunidade()
   const agora = useAgora()
+  const segundosDoDesfazer = useSegundosDoDesfazer()
   const [menu, setMenu] = useState(false)
-  // "Encerrar" aparece feito na hora; o envio só sai depois dos 10 s do Desfazer.
+  // "Encerrar" aparece feito na hora; o envio só sai depois da contagem do Desfazer.
   const [encerrando, setEncerrando] = useState(false)
   // Relógio do aparelho corrigido pelo do servidor (o que vale é o andamento compartilhado).
   const desvioMs = r.recebidoEm === undefined ? 0 : Date.parse(r.agora) - r.recebidoEm
@@ -317,7 +318,7 @@ function Painel({ r, conexao, comandar, enviando, erro, eventoId }: PropsDoPaine
             titulo: 'Encerrar o ao vivo',
             icone: 'encerrar' as const,
             destrutiva: true,
-            descricao: 'Avisa quem acompanha. Você tem 10 segundos para desfazer.',
+            descricao: `Avisa quem acompanha. ${frasePraDesfazer(segundosDoDesfazer)}`,
             motivo: outroConduz ? recusa('encerrar') : null,
             aoPressionar: () => executar('encerrar'),
           },
@@ -510,10 +511,10 @@ function Painel({ r, conexao, comandar, enviando, erro, eventoId }: PropsDoPaine
 
       {conduz && encerrado && pode('evento', 'criar') ? (
         <Botao
-          titulo="Marcar o próximo sábado"
+          titulo="Marcar o próximo encontro"
           tamanho="grande"
           larguraTotal
-          aoPressionar={() => router.push('/evento/novo')}
+          aoPressionar={() => router.push('/evento/igual-ao-ultimo')}
         />
       ) : null}
 

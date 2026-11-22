@@ -22,10 +22,10 @@ export interface PropsDaPilula {
 }
 
 /**
- * Pílula da comunidade (seção 2.12.14, M): altura mínima de 44, padding 6,
+ * Pílula da comunidade (seção 2.12.14, M): altura mínima de 48 (D75), padding 6,
  * 14, 6 e 6, intervalo de 10, raio 999, fundo tonal e borda de 1; avatar de
  * 32 com as iniciais em coral (como o "JC" do mockup) ou o logotipo da
- * comunidade, quando há (D33), e o nome em 15/20 600.
+ * comunidade, quando há (D33), e o nome em 16/20 600.
  * Com fonte grande, o nome vai a 2 linhas e o raio vira 22.
  */
 export function PilulaDaComunidade({
@@ -40,13 +40,14 @@ export function PilulaDaComunidade({
   const { cores, solido } = useTema()
   const { reduzirTransparencia, aumentarContraste } = usePreferenciasDeAcessibilidade()
   const { fontScale } = useWindowDimensions()
-  const grande = fontScale >= 1.35 && !compacta
+  // Com fonte grande o nome quebra em até 2 linhas (D75: o teto de escala é o do papel, 2, em todas as versões).
+  const grande = fontScale >= 1.35
   const lado = compacta ? 24 : 32
 
   const caixa = (pressionado: boolean) => (
     <View
       style={{
-        minHeight: compacta ? 36 : ALTURA.pilula,
+        minHeight: compacta ? 40 : ALTURA.pilula,
         flexDirection: 'row',
         alignItems: 'center',
         gap: compacta ? ESPACO.e8 : ESPACO.e10,
@@ -83,12 +84,7 @@ export function PilulaDaComunidade({
       ) : (
         <Avatar nome={nome} proprio lado={lado} foto={logo} decorativo />
       )}
-      <Texto
-        variante="botao"
-        numberOfLines={grande ? 2 : 1}
-        style={{ flexShrink: 1 }}
-        {...(compacta ? { maxFontSizeMultiplier: 1.3 } : {})}
-      >
+      <Texto variante="botao" numberOfLines={grande ? 2 : 1} style={{ flexShrink: 1 }}>
         {nome}
       </Texto>
       {podeTrocar ? <Icone nome="abrirLista" cor={cores.texto} tamanho={16} /> : null}
@@ -106,7 +102,7 @@ export function PilulaDaComunidade({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={rotulo}
-      // A versão compacta tem 36 de altura: os 4 de cima e de baixo completam os 44 de alvo.
+      // A versão compacta tem 40 de altura: os 4 de cima e de baixo completam os 48 de alvo.
       {...(compacta ? { hitSlop: { top: ESPACO.e4, bottom: ESPACO.e4 } } : {})}
       onPress={aoPressionar}
       style={{ flexShrink: 1, minWidth: 0 }}

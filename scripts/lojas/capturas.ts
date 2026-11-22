@@ -203,8 +203,7 @@ async function encerrarODiaDoEvento(page: Page, copia: string) {
   await page.getByRole('button', { name: /^Encerrar o ao vivo/ }).click()
   await confirmarNoDialogo(page, 'Encerrar')
   await irPara(page, `/evento/${copia}`)
-  await page.getByRole('button', { name: 'Mais ações', exact: true }).last().click()
-  // O item da folha é lido como "Encerrar. O encontro já aconteceu".
+  // Sem "Mais" (D74): "Encerrar" é uma linha das "Outras coisas" do Resumo, lida como "Encerrar. O encontro já aconteceu".
   await page.getByRole('button', { name: /^Encerrar\. / }).click()
   await confirmarNoDialogo(page, 'Encerrar encontro')
 }

@@ -17,7 +17,6 @@ import { Cartao } from '@/ui/Cartao'
 import { Chip } from '@/ui/Chip'
 import { Esqueleto, LinhaDeEsqueleto } from '@/ui/Esqueleto'
 import { ErroDaTela } from '@/ui/Falha'
-import { MenuDeAcoes } from '@/ui/FolhaNaTela'
 import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
 import { EntradaEmCascata } from '@/ui/primitivasDeMovimento'
 import { Secao } from '@/ui/Secao'
@@ -153,14 +152,14 @@ export function TelaCheckin() {
   const pode = usePode()
   if (!comunidadeAtiva || !eventoId) {
     return (
-      <Tela pilha titulo="Check-in">
+      <Tela pilha titulo="Marcar quem chegou">
         <SemComunidade oQue="o check-in" />
       </Tela>
     )
   }
   if (!pode('presenca', 'registrar')) {
     return (
-      <Tela pilha titulo="Check-in">
+      <Tela pilha titulo="Marcar quem chegou">
         <Aviso tipo="info" titulo="Só a organização registra presença">
           Na entrada, mostre o seu código para quem está fazendo o check-in.
         </Aviso>
@@ -191,7 +190,6 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
   const [otimistas, setOtimistas] = useState<Readonly<Record<string, boolean>>>({})
   // Quem acabou de ser marcado: só o chip deles entra com a animação de "Presente".
   const [recentes, setRecentes] = useState<ReadonlySet<string>>(new Set())
-  const [menu, setMenu] = useState(false)
   const [folha, setFolha] = useState<'codigo' | 'avulso' | null>(null)
   const offline = useOffline()
   const guardado = usePacoteDoEvento(eventoId).data ?? null
@@ -504,7 +502,7 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
     <Tela
       pilha
       momento={momento}
-      titulo="Check-in"
+      titulo="Marcar quem chegou"
       {...(e ? { descricao: e.titulo } : {})}
       acoes={
         <BotaoIcone
@@ -519,12 +517,6 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
         ? {
             barraDeAcao: (
               <BarraDeAcao>
-                <BotaoIcone
-                  icone="maisAcoes"
-                  texto="Mais"
-                  rotulo="Mais opções do check-in"
-                  aoPressionar={() => setMenu(true)}
-                />
                 <Botao
                   titulo="Marcar todos que aceitaram"
                   tamanho="grande"
@@ -596,7 +588,32 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
 
       {dadosDaLista ? (
         <EntradaEmCascata ordem={2}>
-          <CampoDeBusca rotulo="Buscar pelo nome" valor={busca} aoMudar={setBusca} />
+          <View style={{ gap: ESPACO.e12 }}>
+            <CampoDeBusca rotulo="Buscar pelo nome" valor={busca} aoMudar={setBusca} />
+            {/* Ações do dia do encontro, todas à vista (D75): antes ficavam atrás de um "Mais". */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
+              <Botao
+                titulo="Chegou sem inscrição"
+                icone="pessoa"
+                variante="secundario"
+                aoPressionar={() => setFolha('avulso')}
+              />
+              <Botao
+                titulo="Pelo código de entrada"
+                icone="qr"
+                variante="secundario"
+                aoPressionar={() => setFolha('codigo')}
+              />
+              <Botao
+                titulo="Ver as inscrições"
+                icone="inscricoes"
+                variante="terciario"
+                aoPressionar={() =>
+                  router.push({ pathname: '/evento/[eventoId]/inscricoes', params: { eventoId } })
+                }
+              />
+            </View>
+          </View>
         </EntradaEmCascata>
       ) : null}
 
@@ -679,32 +696,6 @@ function Checkin({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: s
         </>
       ) : null}
 
-      <MenuDeAcoes
-        aberto={menu}
-        titulo="Mais opções"
-        aoFechar={() => setMenu(false)}
-        acoes={[
-          {
-            titulo: 'Pelo código de entrada',
-            icone: 'qr',
-            descricao: 'As 10 letras e números que ficam embaixo do QR',
-            aoPressionar: () => setFolha('codigo'),
-          },
-          {
-            titulo: 'Chegou sem inscrição',
-            icone: 'pessoa',
-            descricao: 'Visitante sem conta: só o nome',
-            aoPressionar: () => setFolha('avulso'),
-          },
-          {
-            titulo: 'Ver as inscrições',
-            icone: 'inscricoes',
-            navega: true,
-            aoPressionar: () =>
-              router.push({ pathname: '/evento/[eventoId]/inscricoes', params: { eventoId } }),
-          },
-        ]}
-      />
       <FolhaDoCodigo
         aberta={folha === 'codigo'}
         aoFechar={() => setFolha(null)}

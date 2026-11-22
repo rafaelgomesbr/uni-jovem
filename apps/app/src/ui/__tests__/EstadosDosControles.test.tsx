@@ -41,7 +41,7 @@ describe('Botão: estados desenhados (3.1 do desenho dos controles)', () => {
     expect(screen.getByText('Publicar')).toHaveStyle({ fontSize: 16, lineHeight: 20 })
   })
 
-  test('alturas: grande 56, médio 48 (padrão), compacto 40 com folga de toque, alto 56', async () => {
+  test('alturas: grande 56, médio 48 (padrão), compacto 48 (D75, sem depender de folga), alto 56', async () => {
     await render(
       <>
         <Botao titulo="Grande" tamanho="grande" aoPressionar={() => {}} />
@@ -52,8 +52,8 @@ describe('Botão: estados desenhados (3.1 do desenho dos controles)', () => {
     )
     expect(estilo(screen.getByRole('button', { name: 'Grande' })).minHeight).toBe(56)
     expect(estilo(screen.getByRole('button', { name: 'Médio' })).minHeight).toBe(48)
-    expect(estilo(screen.getByRole('button', { name: 'Compacto' })).minHeight).toBe(40)
-    // O alvo do compacto é 48: 40 visuais mais 4 de folga em cima e embaixo.
+    expect(estilo(screen.getByRole('button', { name: 'Compacto' })).minHeight).toBe(48)
+    // O alvo do compacto já tem 48 visíveis (D75); a folga de 4 é só reserva para o dedo.
     expect(screen.getByRole('button', { name: 'Compacto' })).toHaveProp('hitSlop', 4)
     expect(estilo(screen.getByRole('button', { name: 'Alto' })).minHeight).toBe(56)
   })
@@ -248,7 +248,7 @@ describe('Campo: estados desenhados (3.2 do desenho dos controles)', () => {
     return screen.getByTestId('campo-caixa')
   }
 
-  test('normal: 56, raio 16, fundo `campoFundo`, borda de 1 `campoBorda`; rótulo 15/20 600 em `texto`', async () => {
+  test('normal: 56, raio 16, fundo `campoFundo`, borda de 1 `campoBorda`; rótulo 16/22 600 em `texto`', async () => {
     await render(<Campo rotulo="Nome" testID="campo" value="" onChangeText={() => {}} />)
     expect(caixa()).toHaveStyle({
       minHeight: 56,
@@ -258,8 +258,8 @@ describe('Campo: estados desenhados (3.2 do desenho dos controles)', () => {
       borderColor: C.campoBorda,
     })
     expect(screen.getByText('Nome')).toHaveStyle({
-      fontSize: 15,
-      lineHeight: 20,
+      fontSize: 16,
+      lineHeight: 22,
       color: C.texto,
     })
   })

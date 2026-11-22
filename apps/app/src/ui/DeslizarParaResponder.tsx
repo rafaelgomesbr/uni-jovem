@@ -20,6 +20,7 @@ import { usePreferenciasDeAcessibilidade } from './acessibilidade'
 import { Botao, ParDeBotoes } from './Botao'
 import { decisaoDoDeslize, limitarArrasto, repousoDaDecisao } from './decisaoDoDeslize'
 import { Icone } from './Icone'
+import { ALVO } from './medidas'
 import { Texto } from './Texto'
 import { ProvedorDeSuperficie, useTema } from './tema'
 
@@ -211,7 +212,7 @@ export function DeslizarParaResponder({
                 fechar()
                 recusar()
               }}
-              style={{ minHeight: 44, minWidth: 44, justifyContent: 'center' }}
+              style={{ minHeight: ALVO, minWidth: ALVO, justifyContent: 'center' }}
             >
               <Texto variante="rotulo" cor="erro">
                 {rotuloDeRecusar}
@@ -246,7 +247,7 @@ export function DeslizarParaResponder({
                   }}
                   disabled={!aoPressionar}
                   onPress={aoPressionar}
-                  style={{ minHeight: 44, justifyContent: 'center', gap: ESPACO.e2 }}
+                  style={{ minHeight: ALVO, justifyContent: 'center', gap: ESPACO.e2 }}
                 >
                   <Texto variante="tituloItem">{titulo}</Texto>
                   {descricao ? (

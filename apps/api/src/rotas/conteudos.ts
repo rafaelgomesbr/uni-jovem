@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { nomeDoTom } from '@uj/dominio'
 import { ErroHttp, NAO_ENCONTRADO, traduzirErroDoBanco, validar } from '../http.ts'
 import { auditar, exigir, idDoCaminho, naComunidade } from './contexto.ts'
+import { RESUMO_DO_PDF, TEM_PDF } from './musica-pdf.ts'
 
 /**
  * Conteúdos da comunidade (F15): músicas (com quem toca), músicos,
@@ -63,8 +64,13 @@ const TIPOS: TipoDeConteudo[] = [
       arquivada: 'arquivada',
     },
     soNoDetalhe: ['cifra'],
-    // A lista mostra o selo "Sem cifra" sem trazer o texto da cifra.
-    calculadas: [`(cifra is not null and btrim(cifra) <> '') as "temCifra"`],
+    // A lista mostra o selo "Sem cifra" sem trazer o texto da cifra, e o selo "PDF" sem trazer os
+    // bytes do arquivo (D76): só o resumo (nome, tamanho e a versão, que é o SHA-256 em hexadecimal).
+    calculadas: [
+      `(cifra is not null and btrim(cifra) <> '') as "temCifra"`,
+      RESUMO_DO_PDF('musicas.id'),
+      TEM_PDF('musicas.id'),
+    ],
     soNaEdicao: { arquivada: z.boolean().optional() },
     criar: z.object({
       titulo: z.string().trim().min(1, 'Informe o título da música.').max(120),

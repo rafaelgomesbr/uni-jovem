@@ -55,19 +55,22 @@ export const RITMO = {
   fimDasAbas: 120,
 } as const
 
-/** Alvo de toque mínimo (Apple HIG 44 pt; Material 48 dp: 48 no Android). */
-export const ALVO_MINIMO = { ios: 44, android: 48, web: 44 } as const
+/**
+ * Alvo de toque mínimo: 48 em toda parte (D75, passada do vovô). A Apple pede 44 e o Material 48;
+ * quem tem 60 anos ou mais e mãos menos precisas erra com 44, então o app usa o maior dos dois.
+ */
+export const ALVO_MINIMO = { ios: 48, android: 48, web: 48 } as const
 
 /** Alturas (seção 2.5). */
 export const ALTURA = {
   /** Legado (D64): os botões usam `botao` e o campo usa `campo`. Fica para quadrados de 48 (ícone, célula). */
   controle: 48,
-  /** Botão médio, dentro de cartão: 44 no iOS e na web, 48 no Android. */
+  /** Botão médio, dentro de cartão: 48 (D75). */
   controleCompacto: ALVO_MINIMO,
   /** Controles do Ao vivo (3.5.1): a tela é usada sob pressão, os alvos crescem. */
   controleAlto: 56,
   /** Botão só ícone. */
-  iconeSo: 44,
+  iconeSo: 48,
   /** Item da barra de abas (M). */
   aba: 48,
   /** Linha de lista. */
@@ -75,15 +78,16 @@ export const ALTURA = {
   /** Linha de duas informações e do check-in (D65). */
   linhaAlta: 72,
   /** Pílula da comunidade (M). */
-  pilula: 44,
-  /** Pílula de filtro (tonal, D64): 40 visual, com folga de toque vertical de 4 (48 efetivo). */
-  filtro: 40,
-  chip: 24,
+  pilula: 48,
+  /** Pílula de filtro (tonal, D64): 48 visíveis (D75), sem depender de folga de toque. */
+  filtro: 48,
+  /** Chip de estado (D75): 16/20 de texto mais 4 de padding em cima e embaixo. Cresce com a fonte. */
+  chip: 28,
   /**
    * Botão (D64): `grande` em formulário, barra de ação e entrada; `medio` dentro de
-   * cartão; `compacto` só em linha de lista (40 visual mais `hitSlop` de 4 = alvo de 48).
+   * cartão; `compacto` só em linha de lista. D75: 48 visíveis, sem depender de folga de toque.
    */
-  botao: { grande: 56, medio: 48, compacto: 40 },
+  botao: { grande: 56, medio: 48, compacto: 48 },
   /** Caixa de campo de uma linha (D64). */
   campo: 56,
   /**
@@ -94,7 +98,7 @@ export const ALTURA = {
     padrao: { linhaMinima: 3, linhaMaxima: 8, linha: 22, min: 100, max: 210 },
     leitura: { linhaMinima: 5, linhaMaxima: 10, linha: 26, min: 164, max: 294 },
   },
-  /** Trilho de segmentos e polegar (cápsulas, D64). */
+  /** Trilho de segmentos e polegar (cápsulas, D64). O polegar tem 40 e os 4 de folga de cima e de baixo completam os 48 de alvo. */
   trilho: 48,
   polegar: 40,
   /** Interruptor com trilho próprio: 52 x 32. */
@@ -230,19 +234,19 @@ function papel(
 /** Papéis tipográficos (seção 2.4). Nenhum tamanho fora desta tabela. */
 export const TIPO = {
   /** Saudação do Início; título das 5 raízes de aba. */
-  display: papel('titulo', '800', 34, 38, { espacamento: -0.5, teto: 1.6, nivel: 1 }),
+  display: papel('titulo', '800', 34, 38, { espacamento: -0.5, teto: 2, nivel: 1 }),
   /** Título das telas de pilha e das folhas grandes. */
-  tituloTela: papel('titulo', '800', 28, 32, { espacamento: -0.3, teto: 1.8, nivel: 1 }),
+  tituloTela: papel('titulo', '800', 28, 32, { espacamento: -0.3, teto: 2, nivel: 1 }),
   /** Título do cartão de destaque, mês da agenda, nome no Perfil, título de diálogo. */
   tituloCartao: papel('titulo', '800', 24, 28, { espacamento: -0.2, teto: 2, nivel: 2 }),
   /** Título do cartão do momento (D65): um degrau acima do `tituloCartao`. */
   tituloMomento: papel('titulo', '800', 26, 30, { espacamento: -0.2, teto: 2, nivel: 2 }),
   /** Números de relatório. */
-  numero: papel('titulo', '800', 28, 32, { teto: 1.6, tabular: true }),
+  numero: papel('titulo', '800', 28, 32, { teto: 2, tabular: true }),
   /** Contador grande do check-in ("9 de 12", D65). */
-  contador: papel('titulo', '800', 40, 40, { espacamento: -0.5, teto: 1.6, tabular: true }),
+  contador: papel('titulo', '800', 40, 40, { espacamento: -0.5, teto: 2, tabular: true }),
   /** Código de entrada, dia do bloco de data e campo de código: algarismos largos (tabulares). */
-  codigo: papel('titulo', '800', 20, 24, { teto: 1.6, tabular: true }),
+  codigo: papel('titulo', '800', 20, 24, { teto: 2, tabular: true }),
   /** Ao vivo. */
   cronometro: papel('titulo', '800', 64, 68, { espacamento: -1, teto: 1.4, tabular: true }),
   /** Versículo, pedido de oração, descrição de evento, corpo de aviso. */
@@ -258,39 +262,48 @@ export const TIPO = {
   botao: papel('texto', '600', 16, 20, { teto: 2 }),
   /** Texto digitado no campo (D64). 16 evita o zoom automático do Safari ao focar. */
   campo: papel('texto', '400', 16, 22, { teto: 2 }),
-  /** Linhas compactas ("16:05 Louvor") e pílulas de filtro (500). */
-  lista: papel('texto', '400', 14, 20),
   /**
-   * Rótulo de campo, meta forte ("Sábado · 16:00 · 60 min"). 15, não 13: é
-   * informação útil, e quem tem 40 a 70 anos lia mal em 13 (auditoria U-09).
+   * Linhas compactas ("16:05 Louvor") e pílulas de filtro (500). 16, não 14 (D75, passada do vovô):
+   * texto que informa nunca fica abaixo de 16 pt.
    */
-  rotulo: papel('texto', '600', 15, 20),
+  lista: papel('texto', '400', 16, 22),
   /**
-   * Data, hora, local e a descrição de uma linha de lista: o que informa.
-   * Mínimo de 15, como o rótulo (U-09); a `legenda` fica para o dispensável.
+   * Rótulo de campo, meta forte ("Sábado · 16:00 · 60 min"). 16 (D75): quem tem 60 anos ou mais
+   * lia mal em 13 e em 15 (auditoria U-09 e o teste do dono de 22/11/2026).
    */
-  meta: papel('texto', '400', 15, 20),
+  rotulo: papel('texto', '600', 16, 22),
   /**
-   * Ajuda, contador, referência, status de sincronização. 14, não 13 (D62,
-   * auditoria de 21/11/2026, A2): a referência do versículo e a ajuda de campo
-   * também informam, e 13 pt cansa quem tem 45 anos ou mais.
+   * Data, hora, local e a descrição de uma linha de lista: o que informa. 16 (D75), como o corpo;
+   * a diferença para o `corpo` é só a altura de linha mais justa.
    */
-  legenda: papel('texto', '400', 14, 20),
-  /** Etiqueta de seção no cartão e acima de grupos (13, não 12: U-09). */
-  sobrancelha: papel('texto', '600', 13, 18, {
-    espacamento: 1,
+  meta: papel('texto', '400', 16, 22),
+  /**
+   * Ajuda, contador, referência, status de sincronização. 16 (D75): a referência do versículo, a
+   * ajuda de campo e o motivo de um botão desabilitado informam, e não há "texto miúdo" aceitável.
+   */
+  legenda: papel('texto', '400', 16, 22),
+  /**
+   * Etiqueta de seção no cartão e acima de grupos ("EM 5 DIAS"). 16 (D75), com o espaço entre letras
+   * reduzido para as maiúsculas não alargarem demais; teto de 2 como o resto do texto que informa.
+   */
+  sobrancelha: papel('texto', '600', 16, 20, {
+    espacamento: 0.6,
     maiusculas: true,
-    teto: 1.6,
+    teto: 2,
     nivel: 3,
   }),
-  /** Chip de estado: 13, não 12 (D62). A altura de 24 comporta: 16 de linha e 4 de padding em cima e embaixo. */
-  chip: papel('texto', '600', 13, 16, { teto: 1.6 }),
   /**
-   * Rótulos da barra de abas: 600 na ativa, 500 nas outras. Teto de 1,6 (era
-   * 1,3): quando o rótulo não cabe no item, a barra mostra só os ícones, com o
-   * rótulo no leitor de tela e no visualizador de conteúdo grande do iOS.
+   * Chip de estado: 16 (D75). Cresce com a fonte do sistema até 2 e quebra de linha em vez de
+   * cortar; a altura mínima do chip é `ALTURA.chip`.
    */
-  aba: papel('texto', '500', 11, 14, { teto: 1.6 }),
+  chip: papel('texto', '600', 16, 20, { teto: 2 }),
+  /**
+   * Rótulos da barra de abas: 600 na ativa, 500 nas outras. Único papel abaixo de 16, por exceção
+   * declarada (D75): quatro palavras como "Comunidade" têm de caber lado a lado em 360 pt, e o
+   * rótulo é ajuda ao ícone, não o conteúdo. Teto de 2: o item da barra mede a palavra e cresce
+   * só até onde ela cabe, nunca some (ver `escalaDoRotuloDaBarra`).
+   */
+  aba: papel('texto', '500', 13, 16, { teto: 2 }),
 } as const satisfies Record<string, PapelTipografico>
 
 export type NomeDoPapel = keyof typeof TIPO

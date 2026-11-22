@@ -32,11 +32,13 @@ export function UsoSemInternet({ eventoId }: { eventoId: string }) {
     onSuccess: (resultado) =>
       mostrarToast({
         texto:
-          resultado === 'em_dia'
-            ? 'Já está na versão mais nova. Abre sem internet.'
-            : resultado === 'atualizado'
-              ? 'Repertório atualizado neste aparelho.'
-              : `${TEXTO_PRONTO_SEM_INTERNET}.`,
+          resultado === 'faltam_pdfs'
+            ? 'As cifras chegaram, mas falta baixar algum PDF. Toque em "Baixar o que falta".'
+            : resultado === 'em_dia'
+              ? 'Já está na versão mais nova. Abre sem internet.'
+              : resultado === 'atualizado'
+                ? 'Repertório atualizado neste aparelho.'
+                : `${TEXTO_PRONTO_SEM_INTERNET}.`,
       }),
   })
   const remover = useMutation({
@@ -56,17 +58,43 @@ export function UsoSemInternet({ eventoId }: { eventoId: string }) {
   }
 
   const erro = baixar.error ?? remover.error
+  // D76: com PDF no repertório, "pronto" só vale quando todos já estão neste aparelho.
+  const faltam = guardado ? guardado.pdfs - guardado.pdfsBaixados : 0
+  const pronto = guardado !== null && faltam <= 0
   return (
     <Cartao
       sobrancelha="Usar sem internet"
-      extra={guardado ? <Chip situacao="aceitou" texto="Baixado" /> : undefined}
+      extra={
+        pronto ? (
+          <Chip situacao="aceitou" texto="Baixado" />
+        ) : guardado ? (
+          <Chip tom="alerta" texto="Falta baixar" icone="relogio" />
+        ) : undefined
+      }
     >
       {guardado ? (
         <View style={{ gap: ESPACO.e4 }}>
-          <Texto variante="tituloItem">{TEXTO_PRONTO_SEM_INTERNET}</Texto>
+          <Texto variante="tituloItem">
+            {pronto
+              ? TEXTO_PRONTO_SEM_INTERNET
+              : `Quase pronto: ${faltam === 1 ? 'falta 1 PDF' : `faltam ${faltam} PDFs`}`}
+          </Texto>
           <Texto variante="meta" cor="textoSuave">
             {`Baixado em ${quandoNoAparelho(guardado.baixadoEm)}. Vale até ${diaEMesNoAparelho(offline.validoAte ?? guardado.validoAte)}.`}
           </Texto>
+          {pronto && guardado.pdfs > 0 ? (
+            <Texto variante="meta" cor="textoSuave">
+              {guardado.pdfs === 1
+                ? 'Inclui 1 PDF, que também abre sem internet.'
+                : `Inclui ${guardado.pdfs} PDFs, que também abrem sem internet.`}
+            </Texto>
+          ) : null}
+          {!pronto ? (
+            <Texto variante="meta" cor="textoSuave">
+              As cifras em texto já abrem sem internet, mas o PDF ainda não está neste aparelho.
+              Conecte-se e toque em "Baixar o que falta".
+            </Texto>
+          ) : null}
           <Texto variante="legenda" cor="textoSuave">
             Fica guardado cifrado neste aparelho e sai quando você sai da comunidade.
           </Texto>
@@ -74,7 +102,7 @@ export function UsoSemInternet({ eventoId }: { eventoId: string }) {
       ) : (
         <Texto variante="corpo" cor="textoSuave">
           Baixe as músicas e as cifras do encontro com Wi-Fi. Elas abrem aqui e no Modo palco mesmo
-          sem internet, e ficam guardadas cifradas neste aparelho.
+          sem internet, e ficam guardadas cifradas neste aparelho. Os PDFs das músicas vão junto.
         </Texto>
       )}
       {erro ? (
@@ -84,7 +112,13 @@ export function UsoSemInternet({ eventoId }: { eventoId: string }) {
       ) : null}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
         <Botao
-          titulo={guardado ? 'Atualizar agora' : 'Deixar pronto sem internet'}
+          titulo={
+            !guardado
+              ? 'Deixar pronto sem internet'
+              : pronto
+                ? 'Atualizar agora'
+                : 'Baixar o que falta'
+          }
           icone={guardado ? 'sincronizar' : 'baixar'}
           variante="secundario"
           tamanho="medio"

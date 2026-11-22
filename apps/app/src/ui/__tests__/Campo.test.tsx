@@ -180,11 +180,11 @@ describe('Campo', () => {
     expect(screen.queryByRole('button', { name: 'Limpar Nome' })).toBeNull()
   })
 
-  test('senha: o botão tem o olho e a palavra "Mostrar" ou "Ocultar", com alvo de 44', async () => {
+  test('senha: o botão tem o olho e a palavra "Mostrar" ou "Ocultar", com alvo de 48', async () => {
     await render(<Campo rotulo="Senha" senha value="x" onChangeText={() => {}} />)
     expect(screen.getByText('Mostrar')).toBeOnTheScreen()
     const botao = screen.getByRole('button', { name: 'Mostrar senha' })
-    expect(botao).toHaveStyle({ minHeight: 44, minWidth: 44 })
+    expect(botao).toHaveStyle({ minHeight: 48, minWidth: 48 })
     await userEvent.setup().press(botao)
     expect(screen.getByText('Ocultar')).toBeOnTheScreen()
   })

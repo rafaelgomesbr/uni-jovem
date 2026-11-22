@@ -255,7 +255,13 @@ function Moldura({
         }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e12 }}>
-          <BotaoIcone icone="fechar" rotulo="Fechar" circular aoPressionar={voltar} />
+          <BotaoIcone
+            icone="fechar"
+            texto="Fechar"
+            rotulo="Fechar"
+            circular
+            aoPressionar={voltar}
+          />
           <Vidro
             style={{
               flexShrink: 1,

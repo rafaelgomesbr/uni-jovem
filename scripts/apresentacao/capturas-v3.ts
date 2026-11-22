@@ -588,7 +588,7 @@ async function rodarVariante(navegador: Browser, id: IdDaVariante) {
     await s.foto(admin, '32-encontro-organizacao-roteiro')
   })
   await s.tentar('encontro-org-convocados', async () => {
-    await admin.getByRole('radio', { name: /^Convocados/ }).click()
+    await admin.getByRole('radio', { name: /^Quem vai/ }).click()
     await assentar(admin, 700)
     await s.foto(admin, '33-encontro-organizacao-convocados')
   })

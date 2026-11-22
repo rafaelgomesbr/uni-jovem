@@ -155,7 +155,7 @@ async function main() {
     await foto(admin, '07-roteiro')
   })
   await tentar('convocados', async () => {
-    await admin.getByRole('radio', { name: /^Convocados/ }).click()
+    await admin.getByRole('radio', { name: /^Quem vai/ }).click()
     await assentar(admin)
     await foto(admin, '08-convocados')
   })

@@ -14,8 +14,10 @@ import { parametro } from '@/utilidades/parametros'
 import { useState } from 'react'
 
 import { SemComunidade } from '../navegacao/SemComunidade'
+import { CartaoDoPdf } from '../pdf/CartaoDoPdf'
 import { LeitorDeCifra } from './LeitorDeCifra'
 import { ModoPalco } from './ModoPalco'
+import { TomDoPdf } from './TomDoPdf'
 import { useAjustesDaCifra } from './useAjustesDaCifra'
 import { useEncontrosParaTocar, type EncontroParaTocar } from './useEncontrosParaTocar'
 
@@ -97,6 +99,7 @@ export function TelaCifraDoRepertorio() {
     <MusicaAberta
       // Trocar de música recomeça o tom e o capotraste (valem só para a música aberta).
       key={itemId}
+      comunidadeId={comunidadeAtiva.id}
       encontro={encontro}
       posicao={posicao}
       abertoNoPalco={abertoNoPalco}
@@ -105,10 +108,12 @@ export function TelaCifraDoRepertorio() {
 }
 
 function MusicaAberta({
+  comunidadeId,
   encontro,
   posicao,
   abertoNoPalco,
 }: {
+  comunidadeId: string
   encontro: EncontroParaTocar
   posicao: number
   abertoNoPalco: boolean
@@ -119,6 +124,8 @@ function MusicaAberta({
   const total = encontro.itens.length
   const anterior = posicao > 0 ? encontro.itens[posicao - 1] : undefined
   const proxima = posicao < total - 1 ? encontro.itens[posicao + 1] : undefined
+  const pdf = item.pdf ?? null
+  const temCifra = !!item.cifra && item.cifra.trim() !== ''
 
   // No palco a troca de música mantém o palco aberto: o músico não volta à leitura entre as duas.
   const ir = (destino: string) =>
@@ -144,6 +151,7 @@ function MusicaAberta({
         aoSair={() => (abertoNoPalco ? voltarOu('/meu-repertorio') : setPalco(false))}
         aoAnterior={anterior ? () => ir(anterior.id) : null}
         aoProxima={proxima ? () => ir(proxima.id) : null}
+        pdf={pdf ? { comunidadeId, musicaId: item.musicaId, resumo: pdf } : null}
       />
     )
   }
@@ -188,12 +196,26 @@ function MusicaAberta({
         </BarraDeAcao>
       }
     >
-      <LeitorDeCifra
-        cifra={item.cifra}
-        tomOriginal={item.tomOriginal}
-        tomDoDia={item.tomDoDia}
-        ajustes={ajustes}
-      />
+      {/* PDF (D76): primeiro, porque é o que se abre; a cifra em texto, se houver, vem logo abaixo. */}
+      {pdf ? (
+        <CartaoDoPdf
+          comunidadeId={comunidadeId}
+          musicaId={item.musicaId}
+          titulo={item.titulo}
+          pdf={pdf}
+          guardado={encontro.baixado}
+        />
+      ) : null}
+      {pdf && !temCifra ? (
+        <TomDoPdf tomDoDia={item.tomDoDia} tomOriginal={item.tomOriginal} />
+      ) : (
+        <LeitorDeCifra
+          cifra={item.cifra}
+          tomOriginal={item.tomOriginal}
+          tomDoDia={item.tomDoDia}
+          ajustes={ajustes}
+        />
+      )}
       {item.link ? (
         <Botao
           titulo="Abrir o link da música"
