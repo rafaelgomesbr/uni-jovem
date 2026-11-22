@@ -586,6 +586,7 @@ html[data-rm="1"] .vv-sw{animation-duration:120ms}
       <button type="button" class="aj-btn" data-aj="sim:aviso">Aviso novo no sino</button>
       <button type="button" class="aj-btn" data-aj="sim:banda">Banda confirmou</button>
       <button type="button" class="aj-btn" data-aj="encantos">Rever encantos do sol</button>
+      <button type="button" class="aj-btn" data-aj="sol">Ver o sol em 5 poses</button>
       <button type="button" class="aj-btn" data-aj="reset">Reiniciar</button></div>
     <p class="aj-dica">Dica: arraste a linha de &ldquo;Para responder&rdquo; para a direita para aceitar. Dados fictícios. Textos do documento app-v3-ux.md.</p>
   </div>
@@ -1236,7 +1237,8 @@ function telaAviso(){
   return '<div class="wrap">'+topo('')+B(0,'<h1 class="h2">Ensaio do louvor às 15h</h1><p class="meta" style="margin-top:4px">Fixado · há 2 dias</p>','t0')+B(1,'<p class="corpo">Pessoal, o ensaio do louvor é às 15h, uma hora antes do encontro. Quem toca, chega com o repertório já aberto no app.</p>')+'</div>';
 }
 function telaStub(it){
-  return '<div class="wrap">'+topo('')+B(0,'<h1 class="h2">'+it.arg+'</h1>','t0')+'<div class="card">'+vazio(2,'Fora do protótipo.','Esta tela segue o documento app-v3-ux.md e o mesmo sistema visual. Ela não foi desenhada aqui.','')+'</div></div>';
+  var pose=it.arg==='Pedidos de oração'?4:(it.arg==='Pessoas'?5:2);
+  return '<div class="wrap">'+topo('')+B(0,'<h1 class="h2">'+it.arg+'</h1>','t0')+'<div class="card">'+vazio(pose,'Fora do protótipo.','Esta tela segue o documento app-v3-ux.md e o mesmo sistema visual. Ela não foi desenhada aqui.','')+'</div></div>';
 }
 
 /* ============================================================
@@ -1325,6 +1327,11 @@ function sheetNovo(){
 }
 function sheetQr(){
   openSheet(shHead('Ler QR')+'<div class="mapa" aria-hidden="true">'+ic('qr','lg')+'</div><p class="corpo suave" style="margin:16px 0">A câmera abre aqui. O nome entra no topo da lista e a câmera continua aberta.</p><div class="sh-b">'+btn('s g w','Simular leitura de Marcos Pereira','qrSim')+'</div>','Ler QR');
+}
+function sheetSol(){
+  var n=['1 Atrás do horizonte','2 Metade','3 Inteiro','4 Com oração','5 Com pessoas'],u=['Ainda não, vazios','Quase, vazios com ação','Tudo em dia','Pedidos de oração','Pessoas'];
+  var g='';for(var i=0;i<5;i++)g+='<div style="display:flex;align-items:center;gap:16px;padding:8px 0;border-top:1px solid var(--sep)">'+sol(i+1,96)+'<div><p class="item">'+n[i]+'</p><p class="leg">'+u[i]+'</p></div></div>';
+  openSheet(shHead('O sol em 5 poses')+g,'O sol em 5 poses');
 }
 function dialogoCancelar(){
   openSheet('<div style="padding-top:8px"><h2 class="h3">Cancelar o Sábado Jovem?</h2><p class="corpo suave" style="margin-top:12px">Vai avisar 11 pessoas que o encontro foi cancelado. Isso não pode ser desfeito.</p><div style="display:flex;flex-direction:column;gap:12px;margin-top:24px">'+btn('erc g w','Cancelar o encontro','cancelarOk')+btn('s g w','Manter o encontro','fechar')+'</div></div>','Cancelar o Sábado Jovem?');
@@ -1737,7 +1744,8 @@ $('#ajustes').addEventListener('click',function(e){
       refresh();
     }
   }
-  else if(k==='encantos'){S.vistos={};S.ajd=S.ajd;toast({msg:'Encantos do sol reiniciados: o próximo de cada tipo toca de novo.'})}
+  else if(k==='sol'){sheetSol()}
+  else if(k==='encantos'){S.vistos={};toast({msg:'Encantos do sol reiniciados: o próximo de cada tipo toca de novo.'})}
   else if(k==='reset'){var tema=S.tema,rm=S.rm,fs=S.fs,papel=S.papel,mom=S.momento;Object.assign(S,novoEstado());S.vistos={};S.estado='normal';$('#selEst').value='normal';popAll();closeSheet();closeToast(false);refresh();renderTab({cascade:true,reset:true})}
 });
 $('#swRm').addEventListener('click',function(){S.rm=!S.rm;applyRm()});

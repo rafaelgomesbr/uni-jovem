@@ -4,7 +4,7 @@
  * conferência com a folha de componentes (quadros 01a a 01d). Rota de
  * desenvolvimento: `/_catalogo` só carrega este arquivo com `__DEV__`.
  */
-import type { NomeDoTema } from '@uj/tokens'
+import type { MomentoDoDia, NomeDoTema } from '@uj/tokens'
 import { ESPACO, RITMO } from '@uj/tokens'
 import { useState, type ReactNode } from 'react'
 import { View } from 'react-native'
@@ -34,6 +34,7 @@ import { Secao } from '@/ui/Secao'
 import { SeparadorComTexto } from '@/ui/SeparadorComTexto'
 import { Segmentos } from '@/ui/Segmentos'
 import { StatusDoCabecalho } from '@/ui/StatusDoCabecalho'
+import { Fundacao } from './Fundacao'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { mostrarToast } from '@/ui/Toast'
@@ -628,10 +629,12 @@ function ListasECartoes() {
 
 function Conteudo({ tema, aoTrocar }: { tema: NomeDoTema; aoTrocar: (t: NomeDoTema) => void }) {
   const { cores } = useTema()
+  const [momento, setMomento] = useState<MomentoDoDia>('longe')
   return (
     <View style={{ flex: 1, backgroundColor: cores.fundo }}>
       <Tela
         pilha
+        momento={momento}
         titulo="Catálogo"
         descricao="Componentes do design system em todos os estados."
         barraDeAcao={
@@ -650,6 +653,7 @@ function Conteudo({ tema, aoTrocar }: { tema: NomeDoTema; aoTrocar: (t: NomeDoTe
             { valor: 'claro', rotulo: 'Claro' },
           ]}
         />
+        <Fundacao momento={momento} aoMudarMomento={setMomento} />
         <Botoes />
         <Campos />
         <Selecao />

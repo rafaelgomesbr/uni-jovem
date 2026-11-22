@@ -202,6 +202,18 @@ const CASOS: Record<string, Record<string, unknown> | undefined> = {
   },
   'POST /api/v1/c/:comunidadeId/eventos/:eventoId/repertorio/avisar': undefined,
   'GET /api/v1/c/:comunidadeId/meu-repertorio': undefined,
+  // D66: pacote do repertório para usar sem internet (fatia 2 do modo músico)
+  'GET /api/v1/c/:comunidadeId/eventos/:eventoId/repertorio/pacote': undefined,
+  // D66: montar o sábado (igual ao último, lote, sugestões, lembrar), mural e cartão do momento
+  'GET /api/v1/c/:comunidadeId/eventos/anteriores-para-copiar': undefined,
+  'POST /api/v1/c/:comunidadeId/eventos/:eventoId/copiar': { incluirMusicas: false },
+  'POST /api/v1/c/:comunidadeId/eventos/:eventoId/atribuicoes/lote': {
+    funcao: 'Bateria',
+    vinculoIds: ['00000000-0000-4000-8000-000000000000'],
+  },
+  'GET /api/v1/c/:comunidadeId/eventos/:eventoId/sugestoes-de-convocacao': undefined,
+  'POST /api/v1/c/:comunidadeId/eventos/:eventoId/lembrar-pendentes': undefined,
+  'GET /api/v1/c/:comunidadeId/mural': undefined,
   // F15: avisos
   'GET /api/v1/c/:comunidadeId/avisos': undefined,
   'POST /api/v1/c/:comunidadeId/avisos': { titulo: 'Invasão', texto: 'Texto', publicar: true },

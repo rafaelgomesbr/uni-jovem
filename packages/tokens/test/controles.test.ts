@@ -96,8 +96,8 @@ describe('cores dos controles nos dois temas', () => {
       primariaTopo: '#FF9A78',
       primariaBase: '#FF8A65',
       botaoTonal: 'rgba(179,168,255,0.16)',
-      botaoTonalPressionado: 'rgba(179,168,255,0.24)',
-      botaoTonalOpaco: '#3A3759',
+      botaoTonalPressionado: 'rgba(179,168,255,0.26)',
+      botaoTonalOpaco: '#373262',
       focoHalo: 'rgba(255,138,101,0.22)',
     })
     expect(CLARO).toMatchObject({
@@ -107,7 +107,7 @@ describe('cores dos controles nos dois temas', () => {
       primariaTopo: '#C64B20',
       primariaBase: '#B5431B',
       botaoTonal: 'rgba(75,63,196,0.12)',
-      botaoTonalPressionado: 'rgba(75,63,196,0.18)',
+      botaoTonalPressionado: 'rgba(75,63,196,0.20)',
       botaoTonalOpaco: '#E9E8F8',
       focoHalo: 'rgba(194,73,31,0.18)',
     })
@@ -207,8 +207,8 @@ describe('pares de contraste do apêndice A (docs/design/controles-v2.md)', () =
     }
   })
 
-  it('o valor do documento: borda do campo no escuro a 3,75:1 do cartão e 3,07:1 do próprio fundo', () => {
-    expect(medir('escuro', 'interface: campoBorda contra superficie').razao).toBeCloseTo(3.75, 1)
+  it('o valor do documento: borda do campo no escuro a 3,9:1 do cartão (D65) e 3,07:1 do próprio fundo', () => {
+    expect(medir('escuro', 'interface: campoBorda contra superficie').razao).toBeCloseTo(3.9, 1)
     expect(medir('escuro', 'interface: campoBorda contra campoFundo').razao).toBeCloseTo(3.07, 1)
   })
 })

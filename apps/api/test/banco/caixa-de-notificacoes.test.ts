@@ -32,6 +32,8 @@ interface Item {
   texto: string
   comunidade: { id: string; nome: string }
   destino: { tela: string; avisoId?: string; eventoId?: string } | null
+  assunto: string | null
+  eventoId: string | null
   lida: boolean
   lidaEm: string | null
   criadoEm: string
@@ -133,9 +135,11 @@ describe('caixa de entrada', () => {
       lida: false,
       lidaEm: null,
     })
-    // Nada do conteúdo do aviso chega à caixa.
-    const corpo = JSON.stringify(notificacoes)
-    expect(corpo).not.toMatch(/Maria|sigiloso|91234/)
+    // D66: dentro do app, o sino mostra o título real do aviso (`assunto`); o texto que
+    // sai para a tela bloqueada segue genérico e o CORPO do aviso nunca chega à caixa.
+    expect(n!.assunto).toBe('Oração pela saúde da Maria')
+    expect(JSON.stringify([n!.titulo, n!.texto])).not.toMatch(/Maria|sigiloso|91234/)
+    expect(JSON.stringify(notificacoes)).not.toMatch(/sigiloso|91234/)
     // Quem publicou não é avisado; quem é só de B também não.
     expect((await pagina(org)).notificacoes).toHaveLength(0)
     expect((await pagina(bruno)).notificacoes).toHaveLength(0)

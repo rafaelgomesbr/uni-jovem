@@ -1,5 +1,5 @@
 import { DURACAO, ESPACO, RAIO } from '@uj/tokens'
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { AccessibilityInfo, Animated, Platform, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -9,6 +9,7 @@ import { Botao } from './Botao'
 import { Icone, type NomeDoIcone } from './Icone'
 import { Texto } from './Texto'
 import { ProvedorDeTemaInverso, sombra, useTema } from './tema'
+import { CaixaDoDesfazer, useDesfazerPendente } from './ToastComDesfazer'
 
 export interface PedidoDeToast {
   texto: string
@@ -99,7 +100,7 @@ const ICONE: Record<NonNullable<PedidoDeToast['tipo']>, NomeDoIcone> = {
 }
 
 /**
- * Toast (seção 2.12.24): paleta inversa, raio 14, sombra flutuante, a 20 das
+ * Toast (seção 2.12.24 e 8.6 da direção A): escuro nos dois temas, raio 20, sombra flutuante, a 16 das
  * laterais e 12 acima do rodapé. Sobe 8 e aparece em 200 ms (só dissolve com
  * "Reduzir movimento"). Para confirmações transitórias; erro que pede ação
  * não vai em toast. Montado uma vez na raiz.
@@ -107,27 +108,41 @@ const ICONE: Record<NonNullable<PedidoDeToast['tipo']>, NomeDoIcone> = {
 export function HospedeiroDeToast() {
   const atual = useSyncExternalStore(assinar, lerAtual, lerAtual)
   const espaco = useSyncExternalStore(assinar, lerRodape, lerRodape)
+  const comDesfazer = useDesfazerPendente()
   const margens = useSafeAreaInsets()
-  if (!atual) return null
+  if (!atual && !comDesfazer) return null
   return (
     <View
       pointerEvents="box-none"
       style={{
         position: 'absolute',
-        left: ESPACO.e20,
-        right: ESPACO.e20,
+        left: ESPACO.e16,
+        right: ESPACO.e16,
         bottom: (espaco || margens.bottom + ESPACO.e16) + ESPACO.e12,
+        gap: ESPACO.e8,
       }}
     >
-      <ProvedorDeTemaInverso>
-        <CaixaDoToast key={atual.id} toast={atual} />
-      </ProvedorDeTemaInverso>
+      {comDesfazer ? <CaixaDoDesfazer key={comDesfazer.id} pendente={comDesfazer} /> : null}
+      {atual ? (
+        <ProvedorDoToast>
+          <CaixaDoToast key={atual.id} toast={atual} />
+        </ProvedorDoToast>
+      ) : null}
     </View>
   )
 }
 
+/**
+ * O toast é sempre escuro (direção A, D65): no tema escuro vale a paleta base, no claro a
+ * inversa (índigo). Nos dois, o texto é claro.
+ */
+function ProvedorDoToast({ children }: { children: ReactNode }) {
+  const { nome } = useTema()
+  return nome === 'claro' ? <ProvedorDeTemaInverso>{children}</ProvedorDeTemaInverso> : children
+}
+
 function CaixaDoToast({ toast }: { toast: ToastNaFila }) {
-  const { cores, elevacao } = useTema()
+  const { cores, elevacao, inverso } = useTema()
   const { reduzirMovimento } = usePreferenciasDeAcessibilidade()
   const [entrada] = useState(() => new Animated.Value(0))
   const tipo = toast.tipo ?? 'sucesso'
@@ -179,8 +194,8 @@ function CaixaDoToast({ toast }: { toast: ToastNaFila }) {
           minHeight: 48,
           paddingVertical: ESPACO.e12,
           paddingHorizontal: ESPACO.e16,
-          borderRadius: RAIO.controle,
-          backgroundColor: cores.fundo,
+          borderRadius: RAIO.medio,
+          backgroundColor: inverso ? cores.fundo : cores.toastFundo,
         },
         animacaoDeEntrada,
         sombra(elevacao.flutuante),

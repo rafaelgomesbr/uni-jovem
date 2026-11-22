@@ -29,9 +29,10 @@ const LITERAL_DE_ESTILO = {
 }
 
 // Critério da D4 (docs/design 4.2): as fachadas do D0 foram apagadas e não
-// voltam. Cada uma tem um substituto do design system em `src/ui`.
+// voltam. Cada uma tem um substituto do design system em `src/ui`. (`Cartao` voltou na D67,
+// com outro propósito: é a porta única das variantes tinta, momento e plano da direção A,
+// e não a fachada antiga.)
 const FACHADAS_APAGADAS = [
-  ['Cartao', 'Use CartaoDeVidro ou CartaoDeDestaque.'],
   ['Linha', 'Use LinhaDeLista e Lista.'],
   ['Selo', 'Use Chip, com o tom do mapa de estados (2.12.12).'],
   ['GrupoDeOpcoes', 'Use ListaDeOpcoes.'],

@@ -344,6 +344,9 @@ jest.mock('react-native-reanimated', () => {
     withSequence: jest.fn((...animacoes: unknown[]) => animacoes[animacoes.length - 1]),
     withRepeat: jest.fn((animacao: unknown) => animacao),
     cancelAnimation: () => undefined,
+    // O gesture handler 3 pergunta se um valor é compartilhado antes de ler `.value`.
+    isSharedValue: (v: unknown) =>
+      typeof v === 'object' && v !== null && '_isReanimatedSharedValue' in v,
     interpolate,
     Easing,
     Extrapolation: { CLAMP: 'clamp', EXTEND: 'extend', IDENTITY: 'identity' },
@@ -351,6 +354,12 @@ jest.mock('react-native-reanimated', () => {
     useReducedMotion: () => false,
   }
 })
+
+/**
+ * Gesture handler 3 (o deslizar para responder, D65): módulo nativo e detector de gestos viram
+ * dublês, e o teste dispara o gesto com `fireGestureHandler` (jest-utils do próprio pacote).
+ */
+require('react-native-gesture-handler/jestSetup')
 
 /**
  * O `expo-router/testing-library` instala por conta própria um dublê do Reanimated

@@ -129,6 +129,8 @@ export const CURVAS_DE_ACESSO = {
   padrao: [0.4, 0, 0.2, 1],
   /** O que sai: começa devagar e termina rápido. */
   saidaDeTela: [0.4, 0, 1, 1],
+  /** O sol e a luz de fundo nascendo (direção A, D65). */
+  nasce: [0.16, 1, 0.3, 1],
 } as const
 
 /** Molas da entrada (Reanimated). */

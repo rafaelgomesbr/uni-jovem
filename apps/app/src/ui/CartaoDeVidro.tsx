@@ -46,8 +46,9 @@ export interface PropsDoCartaoDeVidro {
 }
 
 /**
- * Cartão de vidro (seção 2.12.9; D32): raio 22, padding 18, tinta
- * translúcida do mockup (branco a 7%, sem desfoque) com borda de 1 a 14%. Com
+ * Cartão de tinta (seção 2.12.9; D32, direção A D65): raio 22, padding 18, tinta
+ * violeta translúcida (`superficieTranslucida`, sem desfoque) com borda de 1 a 14% e o
+ * fio de luz de 6% no topo (`realceDoCartao`). Com
  * "Reduzir transparência" vira superfície opaca; com "Aumentar contraste",
  * opaca com borda de 2 na cor do texto. Sem ícone no cabeçalho: quem
  * identifica o cartão é a sobrancelha. Nada de cartão dentro de cartão.
@@ -72,6 +73,8 @@ export function CartaoDeVidro({
   const [pressionado, setPressionado] = useState(false)
   const opacoDeFato = opaco || reduzirTransparencia || aumentarContraste
   const fundo = opacoDeFato ? cores.superficie : cores.superficieTranslucida
+  // No claro o realce é transparente (o cartão usa sombra); com Aumentar contraste, nenhum enfeite.
+  const comRealce = !aumentarContraste && !cores.realceDoCartao.endsWith(',0)')
 
   const cabecalho =
     sobrancelha || extra ? (
@@ -184,6 +187,21 @@ export function CartaoDeVidro({
         style,
       ]}
     >
+      {comRealce ? (
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
+            borderRadius: RAIO.cartao - 1,
+            // O fio de luz do topo: 6% de branco que some em 42% da altura (direção A).
+            backgroundImage: `linear-gradient(180deg, ${cores.realceDoCartao}, rgba(255,255,255,0) 42%)`,
+          }}
+        />
+      ) : null}
       {corpo}
     </View>
   )

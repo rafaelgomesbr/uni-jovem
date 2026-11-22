@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import type pg from 'pg'
 import { exigir, naComunidade } from './contexto.ts'
+import { montarMomento } from './momento.ts'
 
 /**
  * Tela de Início (F10): o que importa para a pessoa na comunidade ativa, numa
@@ -65,7 +66,16 @@ export function registrarRotaDeInicio(app: FastifyInstance, api: pg.Pool): void 
           [pedido.comunidade!.id],
         )
       ).rows
-      return { proximosEventos, minhasEscalas, minhasTarefas, substituicoesAbertas, avisos }
+      // Campo novo do app v3 (D66): os de cima seguem iguais para a tela atual.
+      const momento = await montarMomento(c, pedido)
+      return {
+        proximosEventos,
+        minhasEscalas,
+        minhasTarefas,
+        substituicoesAbertas,
+        avisos,
+        momento,
+      }
     })
   })
 }

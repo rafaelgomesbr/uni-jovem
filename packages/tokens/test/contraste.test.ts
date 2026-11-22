@@ -37,7 +37,7 @@ describe('contraste WCAG', () => {
     expect(() => compor('rgba(0,0,0,0.5)', 'rgba(0,0,0,0.5)')).toThrow()
   })
 
-  it('o cartão translúcido do mockup sobre o fundo é a superfície opaca (#232139)', () => {
+  it('o cartão translúcido do mockup sobre o fundo é a superfície opaca (#1F1B44)', () => {
     expect(compor(ESCURO.superficieTranslucida, ESCURO.fundo)).toBe(ESCURO.superficie)
   })
 

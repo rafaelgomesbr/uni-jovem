@@ -87,6 +87,32 @@ export interface Paleta {
   focoHalo: string
   /** Pílula por trás do item ativo da barra de abas. */
   abaAtivaFundo: string
+  /** Anel interno e luz de 22 pt da pílula da aba ativa (direção A, D65). */
+  abaAtivaBrilho: string
+  /** Base do degradê vertical do fundo (do meio da tela para baixo). */
+  fundoProfundo: string
+  /** Fio de luz no topo do cartão de tinta (degradê de 42% da altura); transparente no claro. */
+  realceDoCartao: string
+  /** Degradê de 160 graus do cartão do momento (sempre opaco). */
+  momentoTopo: string
+  momentoBase: string
+  /** Moldura de 1,5 pt do cartão do momento, 140 graus (decorativa). */
+  momentoBorda1: string
+  momentoBorda2: string
+  momentoBorda3: string
+  /** Fundos revelados ao deslizar uma convocação (sempre com a palavra e o ícone). */
+  aceitarFundo: string
+  recusarFundo: string
+  /** Toast: mais claro que o fundo e o cartão no escuro; índigo no claro. */
+  toastFundo: string
+  /** Cabeçalho depois de 6 pt de rolagem. */
+  vidroCabecalho: string
+  /** Luz de base que sobe com o relógio (elipse na base da tela). */
+  brilhoHorizonte: string
+  /** Luz de base do estado "terminou". */
+  brilhoPoente: string
+  /** Fundo do Modo palco: escuro nos dois temas. */
+  palco: string
 }
 
 export type NomeDoTema = 'escuro' | 'claro'
@@ -94,10 +120,10 @@ export type NomeDoTema = 'escuro' | 'claro'
 /** Tema escuro (Aurora noite). */
 export const ESCURO: Paleta = {
   fundo: '#12102A',
-  superficie: '#232139',
-  superficieTranslucida: 'rgba(255,255,255,0.07)',
+  superficie: '#1F1B44',
+  superficieTranslucida: 'rgba(38,33,82,0.64)',
   superficieBorda: 'rgba(255,255,255,0.14)',
-  superficieElevada: '#2B2848',
+  superficieElevada: '#262250',
   campoFundo: '#322F4C',
   campoBorda: '#7C77A8',
   campoExemplo: '#A7A2D0',
@@ -113,15 +139,15 @@ export const ESCURO: Paleta = {
   // Mockup: 30%; 36% para a borda do secundário passar 3:1 contra o cartão (1.11, item 4).
   contorno: 'rgba(255,255,255,0.36)',
   botaoTonal: 'rgba(179,168,255,0.16)',
-  botaoTonalPressionado: 'rgba(179,168,255,0.24)',
-  botaoTonalOpaco: '#3A3759',
+  botaoTonalPressionado: 'rgba(179,168,255,0.26)',
+  botaoTonalOpaco: '#373262',
   tonal: 'rgba(255,255,255,0.08)',
-  tonalOpaco: '#25233B',
+  tonalOpaco: '#312D53',
   tonalBorda: 'rgba(255,255,255,0.18)',
   pressionado: 'rgba(255,255,255,0.08)',
-  separador: 'rgba(255,255,255,0.08)',
-  esqueleto: 'rgba(255,255,255,0.06)',
-  veu: 'rgba(8,6,24,0.60)',
+  separador: 'rgba(255,255,255,0.09)',
+  esqueleto: 'rgba(255,255,255,0.08)',
+  veu: 'rgba(8,6,24,0.62)',
   sucesso: '#7FE0B0',
   sucessoFundo: 'rgba(127,224,176,0.16)',
   alerta: '#FFD166',
@@ -137,15 +163,30 @@ export const ESCURO: Paleta = {
   foco: '#FF8A65',
   focoHalo: 'rgba(255,138,101,0.22)',
   abaAtivaFundo: 'rgba(255,138,101,0.20)',
+  abaAtivaBrilho: 'rgba(255,138,101,0.45)',
+  fundoProfundo: '#0C0A20',
+  realceDoCartao: 'rgba(255,255,255,0.06)',
+  momentoTopo: '#342C6E',
+  momentoBase: '#221D4E',
+  momentoBorda1: '#FF8A65',
+  momentoBorda2: '#9D8FFF',
+  momentoBorda3: '#5B4BDB',
+  aceitarFundo: '#17513B',
+  recusarFundo: '#432D4F',
+  toastFundo: '#2E2A66',
+  vidroCabecalho: 'rgba(18,16,42,0.78)',
+  brilhoHorizonte: 'rgba(255,160,110,0.40)',
+  brilhoPoente: 'rgba(214,80,150,0.38)',
+  palco: '#07061A',
 }
 
 /** Tema claro (Aurora manhã), derivado do escuro. */
 export const CLARO: Paleta = {
   fundo: '#F7F5FF',
   superficie: '#FFFFFF',
-  // No claro o cartão é branco opaco com sombra: não há tinta translúcida.
-  superficieTranslucida: '#FFFFFF',
-  superficieBorda: 'rgba(27,24,56,0.08)',
+  // No claro o cartão é branco a 80% com sombra (direção A, D65); sem realce de topo.
+  superficieTranslucida: 'rgba(255,255,255,0.80)',
+  superficieBorda: 'rgba(27,24,56,0.09)',
   superficieElevada: '#FFFFFF',
   campoFundo: '#F3F1FA',
   campoBorda: '#857FAF',
@@ -161,15 +202,15 @@ export const CLARO: Paleta = {
   sobrePrimaria: '#FFFFFF',
   contorno: '#857FAF',
   botaoTonal: 'rgba(75,63,196,0.12)',
-  botaoTonalPressionado: 'rgba(75,63,196,0.18)',
+  botaoTonalPressionado: 'rgba(75,63,196,0.20)',
   botaoTonalOpaco: '#E9E8F8',
   tonal: 'rgba(27,24,56,0.05)',
   tonalOpaco: '#ECEAF5',
   tonalBorda: 'rgba(27,24,56,0.12)',
   pressionado: 'rgba(27,24,56,0.06)',
-  separador: 'rgba(27,24,56,0.08)',
+  separador: 'rgba(27,24,56,0.09)',
   esqueleto: '#ECE9F8',
-  veu: 'rgba(27,24,56,0.40)',
+  veu: 'rgba(27,24,56,0.42)',
   sucesso: '#16794B',
   sucessoFundo: '#E3F4EA',
   alerta: '#8A5A00',
@@ -185,6 +226,21 @@ export const CLARO: Paleta = {
   foco: '#C2491F',
   focoHalo: 'rgba(194,73,31,0.18)',
   abaAtivaFundo: 'rgba(194,73,31,0.12)',
+  abaAtivaBrilho: 'rgba(194,73,31,0.25)',
+  fundoProfundo: '#EFEBFF',
+  realceDoCartao: 'rgba(255,255,255,0)',
+  momentoTopo: '#FFFFFF',
+  momentoBase: '#F1ECFF',
+  momentoBorda1: '#C2491F',
+  momentoBorda2: '#7C6CFF',
+  momentoBorda3: '#4B3FC4',
+  aceitarFundo: '#E3F4EA',
+  recusarFundo: '#FDE4E1',
+  toastFundo: '#1F1B4D',
+  vidroCabecalho: 'rgba(247,245,255,0.82)',
+  brilhoHorizonte: 'rgba(255,170,120,0.30)',
+  brilhoPoente: 'rgba(214,80,150,0.20)',
+  palco: '#07061A',
 }
 
 /**
@@ -270,13 +326,19 @@ export const INICIAIS_SOBRE_COR = '#FFFFFF'
  */
 export const VIDRO = {
   barra: {
-    escuro: { fundo: 'rgba(30,27,62,0.86)', borda: 'rgba(255,255,255,0.16)', opaco: '#1E1B3E' },
-    claro: { fundo: 'rgba(255,255,255,0.80)', borda: 'rgba(27,24,56,0.10)', opaco: '#FFFFFF' },
+    escuro: { fundo: 'rgba(24,21,58,0.78)', borda: 'rgba(255,255,255,0.16)', opaco: '#1B1840' },
+    claro: { fundo: 'rgba(255,255,255,0.82)', borda: 'rgba(27,24,56,0.10)', opaco: '#FFFFFF' },
+    desfoque: 24,
+  },
+  /** Cabeçalho depois de 6 pt de rolagem (a borda de baixo é o separador). */
+  cabecalho: {
+    escuro: { fundo: 'rgba(18,16,42,0.78)', borda: 'rgba(255,255,255,0.09)', opaco: '#12102A' },
+    claro: { fundo: 'rgba(247,245,255,0.82)', borda: 'rgba(27,24,56,0.09)', opaco: '#F7F5FF' },
     desfoque: 20,
   },
   folha: {
-    escuro: { fundo: 'rgba(43,40,72,0.92)', borda: 'rgba(255,255,255,0.16)', opaco: '#2B2848' },
-    claro: { fundo: 'rgba(255,255,255,0.92)', borda: 'rgba(27,24,56,0.10)', opaco: '#FFFFFF' },
+    escuro: { fundo: 'rgba(38,34,80,0.92)', borda: 'rgba(255,255,255,0.16)', opaco: '#262250' },
+    claro: { fundo: 'rgba(255,255,255,0.94)', borda: 'rgba(27,24,56,0.10)', opaco: '#FFFFFF' },
     desfoque: 30,
   },
   /**
@@ -285,4 +347,14 @@ export const VIDRO = {
    * superfície opaca, para o contraste não depender do ponto da Aurora.
    */
   conteudo: 'translucido',
+} as const
+
+/**
+ * Toast (direção A): sempre escuro, nos dois temas, com texto claro. O fundo vem
+ * de `Paleta.toastFundo`; o texto e o "Desfazer" são fixos.
+ */
+export const TOAST = {
+  texto: '#F5F3FF',
+  textoSuave: '#C9C4EC',
+  acao: '#FFB199',
 } as const

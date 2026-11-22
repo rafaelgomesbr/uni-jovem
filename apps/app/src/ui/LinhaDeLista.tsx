@@ -92,6 +92,18 @@ export interface PropsDaLinhaDeLista {
   atual?: boolean
   /** Linhas da descrição antes das reticências (2 por padrão); 0 tira o limite. */
   linhasDaDescricao?: number
+  /**
+   * `checkin`: linha de 72 pt com avatar de 44 (a fila na porta: o alvo é a linha inteira). A
+   * `normal` tem 56 pt (D65). Use `checkin` também para linhas de duas informações.
+   */
+  variante?: 'normal' | 'checkin'
+  /**
+   * Indisponível agora (opacidade 0,72, sem toque). Diga o motivo em `descricao`: "Já
+   * convocado". O texto, nunca só a opacidade, é o sinal.
+   */
+  desabilitada?: boolean
+  /** O item está marcado (presente, escolhido): `aria-checked` e a camada tonal fica ligada. */
+  marcada?: boolean
 }
 
 /**
@@ -119,25 +131,30 @@ export function LinhaDeLista({
   selecionado,
   atual = false,
   linhasDaDescricao = 2,
+  variante = 'normal',
+  desabilitada = false,
+  marcada,
 }: PropsDaLinhaDeLista) {
   const { cores, solido, superficie } = useTema()
   const noCartaoLista = useNoCartaoLista()
   // No cartão translúcido, o título em `erro` não passa AA no pico da Aurora: o ladrilho carrega a cor.
-  const corDoTitulo = destrutivo
-    ? superficie === 'translucida'
-      ? 'texto'
-      : 'erro'
-    : selecionado
-      ? 'destaque'
-      : 'texto'
-  const navega = !!aoPressionar && !semSeta && !destrutivo
+  const corDoTitulo = desabilitada
+    ? 'textoSuave'
+    : destrutivo
+      ? superficie === 'translucida'
+        ? 'texto'
+        : 'erro'
+      : selecionado
+        ? 'destaque'
+        : 'texto'
+  const navega = !!aoPressionar && !semSeta && !destrutivo && !desabilitada
 
   const esquerda = avatar ? (
     <Avatar
       nome={avatar.nome}
       avatar={avatar.dados ?? null}
       {...(avatar.cor ? { cor: avatar.cor } : {})}
-      tamanho="linha"
+      tamanho={variante === 'checkin' ? 'checkin' : 'linha'}
       decorativo
     />
   ) : data ? (
@@ -170,7 +187,8 @@ export function LinhaDeLista({
         width: ALTURA.ladrilho,
         height: ALTURA.ladrilho,
         borderRadius: RAIO.celula,
-        backgroundColor: solido(destrutivo ? cores.erroFundo : cores.tonal),
+        // Ladrilho quente (direção A): o ícone em `destaque` sobre `quenteFundo`.
+        backgroundColor: solido(destrutivo ? cores.erroFundo : cores.quenteFundo),
         alignItems: 'center',
         justifyContent: 'center',
       }}
@@ -182,7 +200,7 @@ export function LinhaDeLista({
   )
 
   const estilo: ViewStyle = {
-    minHeight: ALTURA.linha,
+    minHeight: variante === 'checkin' ? ALTURA.linhaAlta : ALTURA.linha,
     flexDirection: 'row',
     alignItems: 'center',
     gap: ESPACO.e12,
@@ -225,7 +243,7 @@ export function LinhaDeLista({
           {valor}
         </Texto>
       ) : null}
-      {extra}
+      {extra ? <View style={{ alignSelf: 'center' }}>{extra}</View> : null}
       {navega ? (
         <Icone
           nome={externo ? 'externo' : 'avancar'}
@@ -237,11 +255,12 @@ export function LinhaDeLista({
     </>
   )
 
-  if (!aoPressionar) {
+  if (!aoPressionar || desabilitada) {
     // Sem toque, o rótulo próprio faz a linha ser lida de uma vez (a hora, quem cuida, a situação).
     return (
       <View
         {...(rotuloAcessivel ? { accessible: true, accessibilityLabel: rotuloAcessivel } : {})}
+        {...(desabilitada ? { accessibilityState: { disabled: true } } : {})}
         {...marcaDeAtual}
         style={estilo}
       >
@@ -251,15 +270,18 @@ export function LinhaDeLista({
   }
   return (
     <Pressable
-      accessibilityRole={externo ? 'link' : 'button'}
+      // Linha que marca e desmarca (presença no check-in) é uma caixa de marcar para o leitor de tela.
+      accessibilityRole={marcada !== undefined ? 'checkbox' : externo ? 'link' : 'button'}
       accessibilityLabel={rotuloAcessivel ?? [titulo, descricao, valor].filter(Boolean).join('. ')}
       accessibilityHint={dica}
       {...(selecionado !== undefined ? { 'aria-selected': selecionado } : {})}
+      {...(marcada !== undefined ? { accessibilityState: { checked: marcada } } : {})}
       {...marcaDeAtual}
       onPress={aoPressionar}
       style={({ pressed }) => [
         estilo,
-        pressed || selecionado ? { backgroundColor: cores.pressionado } : null,
+        // A camada de toque é a tonal do botão (direção A): o mesmo violeta em todo o app.
+        pressed || selecionado || marcada ? { backgroundColor: cores.botaoTonal } : null,
       ]}
     >
       {conteudo}

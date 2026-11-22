@@ -1,4 +1,4 @@
-import { AURORA, CURVAS_DE_ACESSO } from '@uj/tokens'
+import { AURORA, CURVAS_DE_ACESSO, LUZ_POR_MOMENTO, MOVIMENTO_DAS_TELAS } from '@uj/tokens'
 import type { CSSProperties } from 'react'
 
 import { usePreferenciasDeAcessibilidade } from './acessibilidade'
@@ -42,6 +42,7 @@ export function FundoAurora({
   movimento = 'estatico',
   amanhecer = false,
   pausada = false,
+  momento,
 }: PropsDoFundoAurora) {
   const g = useGeometriaDaAurora(intensidade)
   const { reduzirMovimento } = usePreferenciasDeAcessibilidade()
@@ -49,6 +50,23 @@ export function FundoAurora({
   const ambiente = movimento === 'ambiente' && !reduzirMovimento
   const abrir = amanhecer && !reduzirMovimento
   const estado: CSSProperties = { animationPlayState: pausada ? 'paused' : 'running' }
+  // O relógio do encontro: o coral esquenta e se reposiciona com uma transição de 900 ms (120 de
+  // dissolve com Reduzir movimento, sem deslocamento nem escala).
+  const luz = momento ? LUZ_POR_MOMENTO[momento].coral : null
+  const [n1, n2, n3, n4] = CURVAS_DE_ACESSO.nasce
+  const transicaoDaLuz: CSSProperties = luz
+    ? {
+        // O relógio do encontro move a luz: animação, não estado.
+        // eslint-disable-next-line no-restricted-syntax
+        opacity: luz.opacidade,
+        transform: reduzirMovimento
+          ? 'none'
+          : `translate(${luz.x}px, ${luz.y}px) scale(${luz.escala})`,
+        transition: reduzirMovimento
+          ? `opacity ${MOVIMENTO_DAS_TELAS.dissolver}ms linear`
+          : `opacity ${MOVIMENTO_DAS_TELAS.luz}ms cubic-bezier(${n1},${n2},${n3},${n4}), transform ${MOVIMENTO_DAS_TELAS.luz}ms cubic-bezier(${n1},${n2},${n3},${n4})`,
+      }
+    : {}
   const deriva = (
     nome: 'coral' | 'violeta',
     cfg: { meioCiclo: number; meiasVoltas: number },
@@ -80,16 +98,18 @@ export function FundoAurora({
             : {}),
         }}
       >
-        <div
-          className="uj-aurora-anima"
-          style={{
-            width: '100%',
-            height: '100%',
-            borderRadius: '50%',
-            background: g.coral.fundo,
-            ...deriva('coral', coral),
-          }}
-        />
+        <div style={{ width: '100%', height: '100%', ...transicaoDaLuz }}>
+          <div
+            className="uj-aurora-anima"
+            style={{
+              width: '100%',
+              height: '100%',
+              borderRadius: '50%',
+              background: g.coral.fundo,
+              ...deriva('coral', coral),
+            }}
+          />
+        </div>
       </div>
       <div
         className="uj-aurora-anima"

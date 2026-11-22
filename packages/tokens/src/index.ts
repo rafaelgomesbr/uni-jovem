@@ -3,6 +3,7 @@ export * from './aurora.ts'
 export * from './avatar.ts'
 export * from './contraste.ts'
 export * from './cores.ts'
+export * from './movimento.ts'
 export * from './pares.ts'
 
 /**
@@ -71,6 +72,8 @@ export const ALTURA = {
   aba: 48,
   /** Linha de lista. */
   linha: 56,
+  /** Linha de duas informações e do check-in (D65). */
+  linhaAlta: 72,
   /** Pílula da comunidade (M). */
   pilula: 44,
   /** Pílula de filtro (tonal, D64): 40 visual, com folga de toque vertical de 4 (48 efetivo). */
@@ -118,12 +121,18 @@ export const RAIO = {
   controle: 14,
   /** Caixa de campo (D64): retângulo de raio 16 para escrever; cápsula é para agir. */
   campo: 16,
-  /** Pílula da aba ativa (28 - 8, M). */
+  /** Pílula da aba ativa, linha de resposta com deslizar e toast (D65). */
   abaAtiva: 20,
+  /** Mesmo valor de `abaAtiva`, com o nome do uso geral (linha de resposta, toast). */
+  medio: 20,
+  /** Miolo do cartão do momento: 28 menos a moldura de 1,5 (regra concêntrica). */
+  miolo: 26.5,
   /** Cartão de vidro, cartão de destaque, diálogo (M). */
   cartao: 22,
-  /** Barra de abas e topo da folha (M). */
+  /** Cartão do momento e topo da folha (D65). */
   barra: 28,
+  /** Barra de abas flutuante: a metade da altura de 68 (cápsula, D65). */
+  barraFlutuante: 34,
   /** Pílula da comunidade, chip, pílula de filtro, avatar (M). */
   pilula: 999,
 } as const
@@ -139,6 +148,8 @@ export const TAMANHO_DO_AVATAR = {
   aba: 24,
   pilula: 32,
   linha: 40,
+  /** Linha do check-in (72 pt, D65). */
+  checkin: 44,
   comunidade: 56,
   perfil: 72,
 } as const
@@ -148,19 +159,25 @@ export const INICIAIS_DO_AVATAR: Readonly<Record<keyof typeof TAMANHO_DO_AVATAR,
   aba: 10,
   pilula: 13,
   linha: 16,
+  checkin: 18,
   comunidade: 22,
   perfil: 28,
 }
 
-/** Barra de abas flutuante (seção 2.12.17, M). */
+/** Barra de abas flutuante (direção A, D65): cápsula de 68, itens de largura igual. */
 export const BARRA_DE_ABAS = {
   margemLateral: 16,
   /** Distância do fim: o maior entre (área segura de baixo - 10) e 12; 24 no iPhone com Face ID. */
   descontoDaAreaSegura: 10,
   distanciaMinima: 12,
-  preenchimento: 8,
+  /** Entre a borda e a pílula ativa. */
+  preenchimento: 6,
+  /** Altura total da cápsula, borda incluída. */
+  altura: 68,
   larguraMinimaDoItem: 58,
   tamanhoDoIcone: 22,
+  /** A pílula luminosa: anel interno de 1 pt e luz de 22 pt de espalhamento. */
+  luzDaPilula: 22,
 } as const
 
 /**
@@ -218,8 +235,12 @@ export const TIPO = {
   tituloTela: papel('titulo', '800', 28, 32, { espacamento: -0.3, teto: 1.8, nivel: 1 }),
   /** Título do cartão de destaque, mês da agenda, nome no Perfil, título de diálogo. */
   tituloCartao: papel('titulo', '800', 24, 28, { espacamento: -0.2, teto: 2, nivel: 2 }),
-  /** Números de relatório e contador do check-in. */
+  /** Título do cartão do momento (D65): um degrau acima do `tituloCartao`. */
+  tituloMomento: papel('titulo', '800', 26, 30, { espacamento: -0.2, teto: 2, nivel: 2 }),
+  /** Números de relatório. */
   numero: papel('titulo', '800', 28, 32, { teto: 1.6, tabular: true }),
+  /** Contador grande do check-in ("9 de 12", D65). */
+  contador: papel('titulo', '800', 40, 40, { espacamento: -0.5, teto: 1.6, tabular: true }),
   /** Código de entrada, dia do bloco de data e campo de código: algarismos largos (tabulares). */
   codigo: papel('titulo', '800', 20, 24, { teto: 1.6, tabular: true }),
   /** Ao vivo. */
@@ -228,8 +249,8 @@ export const TIPO = {
   leitura: papel('texto', '400', 17, 26),
   /** Título de linha, nome de pessoa, título de estado vazio e de aviso. */
   tituloItem: papel('texto', '600', 16, 22),
-  /** Texto de interface, descrição de estado vazio, texto de toast. */
-  corpo: papel('texto', '400', 15, 22),
+  /** Texto de interface, parágrafo, descrição de estado vazio (16/24 na direção A, D65). */
+  corpo: papel('texto', '400', 16, 24),
   /**
    * Botões, pílula da comunidade, links terciários, segmento ativo (o inativo é 500). 16/20 (D64):
    * a Inter já vem calibrada em 16, e espaçar mais abre demais. Nunca em maiúsculas.
@@ -286,15 +307,18 @@ export const ELEVACAO = {
     // Brilho coral do botão primário (D64) e o realce de 1 pt no topo dele.
     botao: '0px 6px 16px rgba(255,138,101,0.28)',
     realceDoBotao: 'inset 0px 1px 0px rgba(255,255,255,0.30)',
+    // Cartão do momento: queda funda mais um brilho coral (D65).
+    momento: '0px 24px 48px -14px rgba(8,4,40,0.70), 0px 0px 70px -22px rgba(255,138,101,0.38)',
   },
   claro: {
     nenhuma: 'none',
-    cartao: '0px 1px 2px rgba(27,24,56,0.06), 0px 6px 16px rgba(27,24,56,0.06)',
+    cartao: '0px 1px 2px rgba(27,24,56,0.06), 0px 8px 20px rgba(27,24,56,0.07)',
     destaque: '0px 10px 30px rgba(31,27,77,0.28)',
     flutuante: '0px 12px 32px rgba(27,24,56,0.14)',
     folha: '0px -8px 40px rgba(27,24,56,0.18)',
     botao: '0px 6px 14px rgba(194,73,31,0.30)',
     realceDoBotao: 'inset 0px 1px 0px rgba(255,255,255,0.22)',
+    momento: '0px 20px 44px -14px rgba(75,63,196,0.30), 0px 2px 6px rgba(27,24,56,0.06)',
   },
 } as const
 

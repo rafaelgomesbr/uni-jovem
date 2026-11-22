@@ -1,4 +1,4 @@
-import { BORDA, ESPACO, RAIO, RITMO } from '@uj/tokens'
+import { ESPACO, RAIO, RITMO } from '@uj/tokens'
 import { useEffect, useRef, type ReactNode } from 'react'
 import {
   KeyboardAvoidingView,
@@ -19,6 +19,7 @@ import type { NomeDoIcone } from './Icone'
 import { LinhaDeLista, Lista } from './LinhaDeLista'
 import { ProvedorDeSuperficie, sombra, useTema } from './tema'
 import { Texto } from './Texto'
+import { Vidro } from './Vidro'
 
 /**
  * Tempo da folha sair da tela no iOS. A ação escolhida espera esse tempo:
@@ -31,6 +32,29 @@ export function depoisDeFechar(acao: () => void) {
   setTimeout(acao, SAIDA_DA_FOLHA_MS)
 }
 
+/**
+ * A alça da folha (direção A): 40 por 5, cápsula em `neutroFundo`, a 8 do topo. É só um
+ * indício de que a folha cede: nada depende dela (o "Fechar" de 44 e o véu fecham sempre).
+ */
+export function AlcaDaFolha() {
+  const { cores } = useTema()
+  return (
+    <View
+      testID="alca-da-folha"
+      accessible={false}
+      importantForAccessibility="no-hide-descendants"
+      style={{
+        width: 40,
+        height: 5,
+        borderRadius: RAIO.pilula,
+        backgroundColor: cores.neutroFundo,
+        alignSelf: 'center',
+        marginTop: ESPACO.e8,
+      }}
+    />
+  )
+}
+
 interface PropsDaFolhaNaTela {
   aberta: boolean
   titulo: string
@@ -41,8 +65,9 @@ interface PropsDaFolhaNaTela {
 /**
  * Folha (seção 2.12.19) aberta pela própria tela, para o que não tem rota
  * própria: "Mais ações", ações de uma linha e formulários curtos. Superfície
- * opaca `superficieElevada`, topo com raio 28, padding de 20 nas laterais e a
- * área segura mais 16 embaixo. Fechar existe sempre (botão de 44, voltar do
+ * de vidro (desfoque de 30, com fallback opaco `superficieElevada` com Reduzir transparência,
+ * Aumentar contraste e no Android), alça no topo, topo com raio 28, padding de 20 nas
+ * laterais e a área segura mais 16 embaixo. Fechar existe sempre (botão de 44, voltar do
  * Android e toque no véu): nada fica só em gesto. Com "Reduzir movimento", a
  * folha só dissolve. Ao abrir, o leitor de tela vai para o título.
  *
@@ -51,7 +76,7 @@ interface PropsDaFolhaNaTela {
 export function FolhaNaTela({ aberta, titulo, aoFechar, children }: PropsDaFolhaNaTela) {
   const { cores, elevacao } = useTema()
   const margens = useSafeAreaInsets()
-  const { reduzirMovimento, aumentarContraste } = usePreferenciasDeAcessibilidade()
+  const { reduzirMovimento } = usePreferenciasDeAcessibilidade()
   const tituloRef = useRef<NoDeTexto>(null)
 
   // O foco do leitor de tela é um sistema externo: vai para o título quando a folha aparece.
@@ -76,41 +101,40 @@ export function FolhaNaTela({ aberta, titulo, aoFechar, children }: PropsDaFolha
           style={[StyleSheet.absoluteFill, { backgroundColor: cores.veu }]}
         />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View
-            accessibilityViewIsModal
-            aria-modal
-            style={[
-              {
-                maxHeight: '92%',
-                backgroundColor: cores.superficieElevada,
-                borderTopLeftRadius: RAIO.barra,
-                borderTopRightRadius: RAIO.barra,
-                borderTopWidth: aumentarContraste ? BORDA.contraste : 0,
-                borderColor: cores.texto,
-              },
-              sombra(elevacao.folha),
-            ]}
+          <Vidro
+            tipo="folha"
+            style={{
+              maxHeight: '90%',
+              borderTopLeftRadius: RAIO.barra,
+              borderTopRightRadius: RAIO.barra,
+              borderBottomWidth: 0,
+              overflow: 'hidden',
+              ...sombra(elevacao.folha),
+            }}
           >
-            <ProvedorDeSuperficie superficie="opaca">
-              <ScrollView
-                keyboardShouldPersistTaps="handled"
-                contentContainerStyle={{
-                  paddingHorizontal: RITMO.margemDaTela,
-                  paddingTop: ESPACO.e16,
-                  paddingBottom: margens.bottom + ESPACO.e16,
-                  gap: RITMO.entreSecoes,
-                }}
-              >
-                <CabecalhoDeTela
-                  tipo="folha"
-                  titulo={titulo}
-                  aoFechar={aoFechar}
-                  refDoTitulo={tituloRef}
-                />
-                {children}
-              </ScrollView>
-            </ProvedorDeSuperficie>
-          </View>
+            <View accessibilityViewIsModal aria-modal style={{ flexShrink: 1 }}>
+              <AlcaDaFolha />
+              <ProvedorDeSuperficie superficie="opaca">
+                <ScrollView
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={{
+                    paddingHorizontal: RITMO.margemDaTela,
+                    paddingTop: ESPACO.e8,
+                    paddingBottom: margens.bottom + ESPACO.e16,
+                    gap: RITMO.entreSecoes,
+                  }}
+                >
+                  <CabecalhoDeTela
+                    tipo="folha"
+                    titulo={titulo}
+                    aoFechar={aoFechar}
+                    refDoTitulo={tituloRef}
+                  />
+                  {children}
+                </ScrollView>
+              </ProvedorDeSuperficie>
+            </View>
+          </Vidro>
         </KeyboardAvoidingView>
       </View>
     </Modal>

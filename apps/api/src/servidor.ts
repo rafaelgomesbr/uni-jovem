@@ -36,6 +36,8 @@ import { registrarRotasDeSincronizacao } from './rotas/sincronizacao.ts'
 import { registrarRotasDeImagens } from './rotas/imagens.ts'
 import { registrarRotasDeBloqueios } from './rotas/bloqueios.ts'
 import { registrarRotasDeRepertorio } from './rotas/repertorio.ts'
+import { registrarRotasDeMontarEncontro } from './rotas/montar-encontro.ts'
+import { registrarRotaDeMural } from './rotas/mural.ts'
 import { registrarDocumentosPublicos } from './publico/documentos.ts'
 
 export interface Recursos {
@@ -239,6 +241,8 @@ export function criarServidor(
       registrarRotasDeImagens(app, recursos.api)
       registrarRotasDeBloqueios(app, recursos.api)
       registrarRotasDeRepertorio(app, recursos.api)
+      registrarRotasDeMontarEncontro(app, recursos.api)
+      registrarRotaDeMural(app, recursos.api)
       registrarDocumentosPublicos(app, { config })
       registrarPaginasPublicas(app, {
         config,

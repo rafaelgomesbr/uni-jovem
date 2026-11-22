@@ -1,4 +1,4 @@
-import { ALTURA, AURORA, DURACAO, ESPACO, RITMO } from '@uj/tokens'
+import { ALTURA, AURORA, DURACAO, ESPACO, RITMO, type MomentoDoDia } from '@uj/tokens'
 import {
   createContext,
   useContext,
@@ -32,6 +32,7 @@ import {
 import { BotaoDeSaida, CabecalhoDeTela, voltar } from './CabecalhoDeTela'
 import type { NoDeTexto } from './foco'
 import { FundoAurora } from './FundoAurora'
+import { LuzDeBase } from './LuzDeBase'
 import { useTecladoAberto } from './teclado'
 import { Texto } from './Texto'
 import { sombra, useTema } from './tema'
@@ -128,6 +129,12 @@ interface PropsDaTela {
   aurora?: number
   /** A tela desenha o próprio topo (Entrar): sem cabeçalho e com o respiro de 40. */
   semCabecalho?: boolean
+  /**
+   * O momento do encontro que a tela mostra (`longe`, `vespera`, `dia`, `agora`, `fim`): o brilho
+   * coral e a luz de base acompanham o relógio, junto da pose do sol no cartão do momento. Sem
+   * ele, `longe` (a luz de base discreta).
+   */
+  momento?: MomentoDoDia
 }
 
 /**
@@ -155,9 +162,10 @@ export function Tela({
   barraDeAcao,
   aurora,
   semCabecalho = false,
+  momento = 'longe',
 }: PropsDaTela) {
   const { cores } = useTema()
-  const { reduzirMovimento } = usePreferenciasDeAcessibilidade()
+  const { reduzirMovimento, aumentarContraste } = usePreferenciasDeAcessibilidade()
   const margens = useSafeAreaInsets()
   const espacoDaBarra = useContext(ContextoDaBarraDeAbas)
   const teclado = useTecladoAberto()
@@ -248,7 +256,19 @@ export function Tela({
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: cores.fundo }}>
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: cores.fundo,
+        // O fundo desce do `fundo` para o `fundoProfundo` a partir da metade (direção A, D65).
+        ...(aumentarContraste || intensidade <= 0
+          ? {}
+          : {
+              backgroundImage: `linear-gradient(180deg, ${cores.fundo} 0%, ${cores.fundo} 55%, ${cores.fundoProfundo} 100%)`,
+            }),
+      }}
+    >
+      {intensidade > 0 ? <LuzDeBase momento={momento} /> : null}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -273,12 +293,12 @@ export function Tela({
             scrollEventThrottle={16}
             contentContainerStyle={[{ flexGrow: 1 }, preenchimento]}
           >
-            <FundoAurora intensidade={intensidade} />
+            <FundoAurora intensidade={intensidade} movimento="ambiente" momento={momento} />
             {conteudo}
           </ScrollView>
         ) : (
           <View style={[{ flex: 1 }, preenchimento]}>
-            <FundoAurora intensidade={intensidade} />
+            <FundoAurora intensidade={intensidade} movimento="ambiente" momento={momento} />
             {conteudo}
           </View>
         )}
@@ -355,7 +375,7 @@ function CabecalhoCompacto({
     <Animated.View
       style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: altura }, dissolver]}
     >
-      <Vidro borda="baixo" style={[{ flex: 1 }, sombra(elevacao.flutuante)]}>
+      <Vidro tipo="cabecalho" borda="baixo" style={[{ flex: 1 }, sombra(elevacao.flutuante)]}>
         <View
           style={{
             flex: 1,

@@ -1,5 +1,5 @@
 import { CAMADA_DE_TOQUE_DO_ACESSO, MARCA_DO_GOOGLE_ESCURO } from './acesso.ts'
-import { corDaAuroraNoPonto, PONTOS_CRITICOS_DA_AURORA } from './aurora.ts'
+import { AURORA, corDaAuroraNoPonto, PONTOS_CRITICOS_DA_AURORA } from './aurora.ts'
 import { comporCamadas, MINIMO } from './contraste.ts'
 import {
   CORES_DA_COMUNIDADE,
@@ -7,6 +7,7 @@ import {
   MARCA_DA_APPLE,
   MARCA_DO_GOOGLE,
   TEMAS,
+  TOAST,
   VIDRO,
   type NomeDoTema,
 } from './cores.ts'
@@ -42,6 +43,9 @@ function camadasDoTema(tema: NomeDoTema): readonly DefinicaoDePar[] {
     PONTOS_CRITICOS_DA_AURORA.conteudoSobAVioleta,
     tema,
   )
+  // O que de mais claro pode passar por baixo da barra: no escuro, o topo do cartão do momento
+  // (D65: os cartões claros do tema escuro saem; o `CartaoDeDestaque` antigo some com as telas novas).
+  const claroPorBaixo = tema === 'escuro' ? 'momentoTopo' : 'inverso.fundo'
   const pares: DefinicaoDePar[] = [
     // Texto sobre o fundo, a superfície, a elevada e o campo.
     { nome: 'texto sobre fundo', frente: 'texto', sobre: ['fundo'], tipo: 'texto' },
@@ -212,7 +216,7 @@ function camadasDoTema(tema: NomeDoTema): readonly DefinicaoDePar[] {
     {
       nome: 'aba inativa com o destaque por baixo',
       frente: 'textoSuave',
-      sobre: ['inverso.fundo', barra],
+      sobre: [claroPorBaixo, barra],
       tipo: 'texto',
     },
     {
@@ -224,7 +228,7 @@ function camadasDoTema(tema: NomeDoTema): readonly DefinicaoDePar[] {
     {
       nome: 'aba ativa com o destaque por baixo',
       frente: 'destaque',
-      sobre: ['inverso.fundo', barra, 'abaAtivaFundo'],
+      sobre: [claroPorBaixo, barra, 'abaAtivaFundo'],
       tipo: 'texto',
     },
     {
@@ -373,6 +377,8 @@ function camadasDoTema(tema: NomeDoTema): readonly DefinicaoDePar[] {
     ...paresDoAcesso(tema, sobAVioleta),
     // Controles v2 (D64): apêndice A de docs/design/controles-v2.md.
     ...paresDosControles(),
+    // Fundação da direção A (D65 e D67): cartão de tinta, momento, toast, deslizar, luz de base.
+    ...paresDaFundacao(tema),
     // Iniciais brancas sobre as cores de comunidade.
     ...CORES_DA_COMUNIDADE.map((c) => ({
       nome: `iniciais sobre ${c.rotulo}`,
@@ -652,6 +658,120 @@ function paresDosControles(): DefinicaoDePar[] {
       sobre: ['superficie', 'quenteFundo'],
       tipo: 'interface',
     },
+  ]
+}
+
+/**
+ * Pares da fundação da direção A "Aurora Viva" (D65 e D67): tabelas 3.1 e 3.2 de
+ * `docs/design/v3/a/especificacao.md`, medidas no pior ponto. O brilho do
+ * horizonte entra com o alfa cheio do token (o maior que ele alcança no ponto
+ * mais claro, `acontecendo` a 0,95); se este teste falhar, baixe `brilhoHorizonte`
+ * de 0,40 para 0,34.
+ *
+ * Regra de layout que o teste NÃO prova (a especificação, 3.3): `textoSuave` nu
+ * sob o pico coral mede 3,5:1 e reprova; nenhum texto pequeno fica fora de cartão
+ * em x acima de 230 e y abaixo de 200 (quadro de 390), nem nos últimos 96 pt da
+ * tela (horizonte). Ali, só ícone, cartão ou botão.
+ */
+function paresDaFundacao(tema: NomeDoTema): DefinicaoDePar[] {
+  const coralNoPico = AURORA.coral[tema]
+  const violetaNoPico = AURORA.violeta[tema]
+  const cartaoNoPicoCoral = ['fundo', coralNoPico, 'superficieTranslucida', 'realceDoCartao']
+  const cartaoNoPicoVioleta = ['fundo', violetaNoPico, 'superficieTranslucida', 'realceDoCartao']
+  const cartaoSobOHorizonte = [
+    'fundo',
+    'brilhoHorizonte',
+    'superficieTranslucida',
+    'realceDoCartao',
+  ]
+  const brilhoDoMomento = 'rgba(255,138,101,0.12)'
+  const t = (nome: string, frente: string, sobre: readonly string[]): DefinicaoDePar => ({
+    nome: `D65: ${nome}`,
+    frente,
+    sobre,
+    tipo: 'texto',
+  })
+  const i = (nome: string, frente: string, sobre: readonly string[]): DefinicaoDePar => ({
+    nome: `D65: interface: ${nome}`,
+    frente,
+    sobre,
+    tipo: 'interface',
+  })
+  return [
+    // Cartão de tinta no pior ponto do brilho (coral sob o cartão, mais o realce de topo).
+    t('texto no cartão sobre o pico coral', 'texto', cartaoNoPicoCoral),
+    t('textoSuave no cartão sobre o pico coral', 'textoSuave', cartaoNoPicoCoral),
+    t('destaque no cartão sobre o pico coral', 'destaque', cartaoNoPicoCoral),
+    t('textoSuave no cartão sobre o pico violeta', 'textoSuave', cartaoNoPicoVioleta),
+    t('destaque no cartão sobre o pico violeta', 'destaque', cartaoNoPicoVioleta),
+    t('texto no cartão sobre o horizonte', 'texto', cartaoSobOHorizonte),
+    t('textoSuave no cartão sobre o horizonte', 'textoSuave', cartaoSobOHorizonte),
+    t('destaque no cartão sobre o horizonte', 'destaque', cartaoSobOHorizonte),
+    // Fora de cartão: o brilho de base, nu. É a margem curta da especificação (3.3).
+    t('textoSuave nu sobre o horizonte no pico', 'textoSuave', ['fundo', 'brilhoHorizonte']),
+    t('texto nu sobre o horizonte no pico', 'texto', ['fundo', 'brilhoHorizonte']),
+    t('textoSuave nu sobre o poente no pico', 'textoSuave', ['fundo', 'brilhoPoente']),
+    t('texto nu sobre o poente no pico', 'texto', ['fundo', 'brilhoPoente']),
+    t('texto nu sob o pico coral', 'texto', ['fundo', coralNoPico]),
+    i('ícone do sino (texto) sob o pico coral', 'texto', ['fundo', coralNoPico]),
+    t('textoSuave nu sobre o violeta no pico', 'textoSuave', ['fundo', violetaNoPico]),
+    // Cabeçalho que vira vidro depois da rolagem (o desfoque só mistura, o pior caso é o pico).
+    t('texto no cabeçalho de vidro sobre o pico coral', 'texto', [
+      'fundo',
+      coralNoPico,
+      'vidroCabecalho',
+    ]),
+    t('textoSuave no cabeçalho de vidro sobre o pico coral', 'textoSuave', [
+      'fundo',
+      coralNoPico,
+      'vidroCabecalho',
+    ]),
+    t('texto no cabeçalho opaco', 'texto', [VIDRO.cabecalho[tema].opaco]),
+    // Cartão do momento: degradê opaco, brilho de até 12% nas áreas de texto.
+    t('texto sobre momentoTopo', 'texto', ['momentoTopo']),
+    t('textoSuave sobre momentoTopo', 'textoSuave', ['momentoTopo']),
+    t('destaque sobre momentoTopo', 'destaque', ['momentoTopo']),
+    t('info sobre momentoTopo', 'info', ['momentoTopo']),
+    t('texto sobre momentoBase', 'texto', ['momentoBase']),
+    t('textoSuave sobre momentoBase', 'textoSuave', ['momentoBase']),
+    t('destaque sobre momentoBase', 'destaque', ['momentoBase']),
+    t('texto sobre o momento com brilho de 12%', 'texto', ['momentoTopo', brilhoDoMomento]),
+    t('textoSuave sobre o momento com brilho de 12%', 'textoSuave', [
+      'momentoTopo',
+      brilhoDoMomento,
+    ]),
+    t('destaque sobre o momento com brilho de 12%', 'destaque', ['momentoTopo', brilhoDoMomento]),
+    t('texto sobre botaoTonal no momento', 'texto', ['momentoTopo', 'botaoTonal']),
+    t('chip sucesso no momento', 'sucesso', ['momentoTopo', 'sucessoFundo']),
+    t('chip alerta no momento', 'alerta', ['momentoTopo', 'alertaFundo']),
+    t('chip quente no momento', 'destaque', ['momentoTopo', 'quenteFundo']),
+    t('chip neutro no momento', 'textoSuave', ['momentoTopo', 'neutroFundo']),
+    i('primaria contra momentoTopo', 'primaria', ['momentoTopo']),
+    i('primaria contra momentoBase', 'primaria', ['momentoBase']),
+    i('foco contra momentoTopo', 'foco', ['momentoTopo']),
+    // Ladrilho de ícone (quenteFundo) e pílula da aba ativa.
+    i('ladrilho: destaque sobre quenteFundo no cartão', 'destaque', ['superficie', 'quenteFundo']),
+    i('ícone da aba ativa sobre a pílula', 'destaque', [
+      'fundo',
+      VIDRO.barra[tema].fundo,
+      'abaAtivaFundo',
+    ]),
+    // Toast: sempre escuro, com texto claro.
+    t('texto do toast', TOAST.texto, ['toastFundo']),
+    t('contagem do toast', TOAST.textoSuave, ['toastFundo']),
+    t('Desfazer no toast', TOAST.acao, ['toastFundo']),
+    i('barra de contagem do toast', TOAST.acao, ['toastFundo']),
+    // Deslizar para responder: fundos revelados, sempre com o ícone e a palavra.
+    t('texto sobre aceitarFundo', 'texto', ['aceitarFundo']),
+    i('ícone de aceitar sobre aceitarFundo', 'sucesso', ['aceitarFundo']),
+    t('texto sobre recusarFundo', 'texto', ['recusarFundo']),
+    t('erro sobre recusarFundo', 'erro', ['recusarFundo']),
+    // Barra de progresso: o preenchimento contra o trilho.
+    i('progresso: primaria contra o trilho', 'primaria', ['superficie', 'tonal']),
+    i('progresso: primaria contra o trilho opaco', 'primaria', ['tonalOpaco']),
+    // Modo palco: escuro nos dois temas.
+    t('texto branco sobre o palco', '#FFFFFF', ['palco']),
+    t('acorde sobre o palco', '#FFB199', ['palco']),
   ]
 }
 

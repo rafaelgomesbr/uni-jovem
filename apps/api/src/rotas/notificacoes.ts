@@ -37,6 +37,8 @@ interface LinhaDaCaixa {
   comunidade_id: string
   comunidade_nome: string
   alvo: string | null
+  assunto: string | null
+  evento_id: string | null
 }
 
 /** A tela que a notificação abre no app. Nulo quando o alvo não existe mais. */
@@ -84,6 +86,10 @@ function itemDaCaixa(l: LinhaDaCaixa) {
     texto: l.corpo,
     comunidade: { id: l.comunidade_id, nome: l.comunidade_nome },
     destino: destinoDe(l),
+    // Título real do aviso ou do encontro (D66): só dentro do app, para quem já o vê.
+    // O texto acima segue genérico (NOT-02); pedido de oração, música e pessoa nunca entram.
+    assunto: l.assunto,
+    eventoId: l.evento_id,
     lida: l.lida_em !== null,
     lidaEm: l.lida_em,
     criadoEm: l.criado_em,
@@ -232,8 +238,10 @@ export function registrarRotasDeNotificacoes(app: FastifyInstance, api: pg.Pool)
                 (extract(epoch from n.criado_em) * 1000000)::bigint::text as micros,
                 n.comunidade_id,
                 uj.nome_da_comunidade_da_notificacao(n.id) as comunidade_nome,
-                uj.alvo_da_notificacao(n.id) as alvo
+                uj.alvo_da_notificacao(n.id) as alvo,
+                x.assunto, x.evento_id
            from uj.notificacoes n
+           left join lateral uj.assunto_da_notificacao(n.id) x on true
           where $1::bigint is null
              or (n.criado_em, n.id) < (timestamptz 'epoch' + $1::bigint * interval '1 microsecond',
                                        $2::uuid)
@@ -251,12 +259,31 @@ export function registrarRotasDeNotificacoes(app: FastifyInstance, api: pg.Pool)
     })
   })
 
+  // O selo do sino (`naoLidas`) e, para o texto "2 convocações, 1 aviso", a quebra por
+  // assunto (D66). As quebras são contagens do mesmo conjunto: nenhuma soma mais que `naoLidas`.
   app.get(`${caixa}/nao-lidas`, sessao, async (pedido) =>
     daConta(pedido, async (c) => {
-      const { rows } = await c.query<{ n: number }>(
-        'select count(*)::int as n from uj.notificacoes where lida_em is null',
+      const { rows } = await c.query<{
+        n: number
+        avisos: number
+        convocacoes: number
+        pedidos: number
+      }>(
+        `select count(*)::int as n,
+                count(*) filter (where tipo = 'avisos')::int as avisos,
+                count(*) filter (where tipo = 'escalas'
+                                   and titulo in ('Nova convocação', 'Nova escala', 'Falta responder'))::int
+                  as convocacoes,
+                count(*) filter (where tipo = 'pedido_de_entrada')::int as pedidos
+           from uj.notificacoes where lida_em is null`,
       )
-      return { naoLidas: rows[0]?.n ?? 0 }
+      const r = rows[0]
+      return {
+        naoLidas: r?.n ?? 0,
+        avisos: r?.avisos ?? 0,
+        convocacoes: r?.convocacoes ?? 0,
+        pedidosDeEntrada: r?.pedidos ?? 0,
+      }
     }),
   )
 

@@ -1,5 +1,11 @@
 /* eslint-disable no-restricted-syntax -- opacidade aqui é a deriva e a abertura da aurora, não estado (D63) */
-import { AURORA, CURVAS_DE_ACESSO } from '@uj/tokens'
+import {
+  AURORA,
+  CURVAS_DE_ACESSO,
+  LUZ_POR_MOMENTO,
+  MOVIMENTO_DAS_TELAS,
+  type MomentoDoDia,
+} from '@uj/tokens'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { AppState, StyleSheet, View } from 'react-native'
 import Animated, {
@@ -22,15 +28,16 @@ export type { PropsDoFundoAurora } from './propsDoFundoAurora'
 /**
  * As duas auroras do mockup: brilho coral no canto superior direito (nascer
  * do sol) e violeta à esquerda (noite). Decorativo, atrás do conteúdo e
- * rolando com ele. Some com "Aumentar contraste" (fundo chapado). Com
- * "Reduzir transparência" fica: é fundo, não superfície translúcida. Só a
- * tela de acesso usa `movimento="ambiente"` (D63).
+ * rolando com ele. Some com "Aumentar contraste" e com "Reduzir transparência"
+ * (fundo chapado e opaco, D67). A `Tela` usa `movimento="ambiente"` (a deriva lenta,
+ * D63 e D67) e o `momento` do encontro, que esquenta o coral.
  */
 export function FundoAurora({
   intensidade = 1,
   movimento = 'estatico',
   amanhecer = false,
   pausada = false,
+  momento,
 }: PropsDoFundoAurora) {
   const g = useGeometriaDaAurora(intensidade)
   if (!g) return null
@@ -40,7 +47,7 @@ export function FundoAurora({
     accessibilityElementsHidden: true,
     importantForAccessibility: 'no-hide-descendants',
   } as const
-  if (movimento === 'estatico' && !amanhecer) {
+  if (movimento === 'estatico' && !amanhecer && !momento) {
     return (
       <View {...envoltorio} style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
         <View
@@ -78,6 +85,7 @@ export function FundoAurora({
         ambiente={movimento === 'ambiente'}
         amanhecer={amanhecer}
         pausada={pausada}
+        momento={momento}
       />
       <BrilhoAnimado
         brilho="violeta"
@@ -112,6 +120,8 @@ interface PropsDoBrilho {
   ambiente: boolean
   amanhecer: boolean
   pausada: boolean
+  /** Só o coral acompanha o relógio. */
+  momento?: MomentoDoDia | undefined
 }
 
 /**
@@ -128,6 +138,7 @@ function BrilhoAnimado({
   ambiente,
   amanhecer,
   pausada,
+  momento,
 }: PropsDoBrilho) {
   const { reduzirMovimento } = usePreferenciasDeAcessibilidade()
   const primeiroPlano = usePrimeiroPlano()
@@ -142,6 +153,40 @@ function BrilhoAnimado({
   const [seno] = useState(() => Easing.inOut(Easing.sin))
   const entrada = useSharedValue(abrir ? 0 : 1)
   const fase = useSharedValue(0)
+  // O relógio do encontro: o coral esquenta e se reposiciona (900 ms; 120 com Reduzir movimento).
+  const luz = brilho === 'coral' && momento ? LUZ_POR_MOMENTO[momento].coral : null
+  const luzOpacidade = useSharedValue(luz?.opacidade ?? 1)
+  const luzEscala = useSharedValue(luz?.escala ?? 1)
+  const luzX = useSharedValue(luz?.x ?? 0)
+  const luzY = useSharedValue(luz?.y ?? 0)
+  const [curvaDaLuz] = useState(() => Easing.bezier(...CURVAS_DE_ACESSO.nasce))
+
+  useEffect(() => {
+    // Sem momento (a tela de acesso, o componente solto) o coral fica no repouso de sempre.
+    if (!luz) return
+    const config = {
+      duration: reduzirMovimento ? MOVIMENTO_DAS_TELAS.dissolver : MOVIMENTO_DAS_TELAS.luz,
+      easing: curvaDaLuz,
+      reduceMotion: ReduceMotion.Never,
+    }
+    const alvo = luz
+    luzOpacidade.set(withTiming(alvo.opacidade, config))
+    if (reduzirMovimento) {
+      luzEscala.set(alvo.escala)
+      luzX.set(alvo.x)
+      luzY.set(alvo.y)
+    } else {
+      luzEscala.set(withTiming(alvo.escala, config))
+      luzX.set(withTiming(alvo.x, config))
+      luzY.set(withTiming(alvo.y, config))
+    }
+    return () => {
+      cancelAnimation(luzOpacidade)
+      cancelAnimation(luzEscala)
+      cancelAnimation(luzX)
+      cancelAnimation(luzY)
+    }
+  }, [luz, reduzirMovimento, curvaDaLuz, luzOpacidade, luzEscala, luzX, luzY])
 
   useEffect(() => {
     if (!abrir) return
@@ -179,8 +224,13 @@ function BrilhoAnimado({
   const estiloDaAbertura = useAnimatedStyle(() => {
     const e = entrada.value
     return {
-      opacity: abertura.opacidadeInicial + (1 - abertura.opacidadeInicial) * e,
-      transform: [{ scale: abertura.escalaInicial + (1 - abertura.escalaInicial) * e }],
+      opacity:
+        (abertura.opacidadeInicial + (1 - abertura.opacidadeInicial) * e) * luzOpacidade.value,
+      transform: [
+        { translateX: luzX.value },
+        { translateY: luzY.value },
+        { scale: (abertura.escalaInicial + (1 - abertura.escalaInicial) * e) * luzEscala.value },
+      ],
     }
   })
   const estiloDaDeriva = useAnimatedStyle(() => {

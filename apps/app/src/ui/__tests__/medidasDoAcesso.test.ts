@@ -23,41 +23,41 @@ const IOS: Omit<EntradaDasMedidas, 'altura' | 'topo' | 'base'> = {
 const ANDROID = { ...IOS, acessos: 2 as const, terciario: false }
 
 describe('entrada.inicio: a tabela 2.3 do desenho de UI', () => {
-  test('iPhone SE 375x667: sol de 88, sobra de 125, respiro 48 e 77, sem rolar', () => {
+  test('iPhone SE 375x667: sol de 88, sobra de 121, respiro 48 e 73, sem rolar', () => {
     const m = calcularMedidasDoAcesso({ ...IOS, altura: 667, topo: 20, base: 0 })
     expect(m).toMatchObject({
       sol: LADO_DO_SOL.base,
       mostraApoio: true,
       rola: false,
-      alturaDoPalco: 188,
+      alturaDoPalco: 192,
       alturaDosAcessos: 334,
-      sobra: 125,
+      sobra: 121,
       respiroDeCima: 48,
-      respiroDeBaixo: 77,
+      respiroDeBaixo: 73,
     })
   })
 
-  test('iPhone 15 e 16, 393x852: sol de 112, sobra de 209, respiro 80 e 129', () => {
+  test('iPhone 15 e 16, 393x852: sol de 112, sobra de 205, respiro 80 e 125', () => {
     const m = calcularMedidasDoAcesso({ ...IOS, altura: 852, topo: 59, base: 34 })
     expect(m).toMatchObject({
       sol: LADO_DO_SOL.grande,
-      alturaDoPalco: 216,
+      alturaDoPalco: 220,
       alturaDosAcessos: 368,
-      sobra: 209,
+      sobra: 205,
       respiroDeCima: 80,
-      respiroDeBaixo: 129,
+      respiroDeBaixo: 125,
       rola: false,
     })
   })
 
-  test('Android 360x800 (só Google e e-mail): sobra de 262, respiro 104 e 158', () => {
+  test('Android 360x800 (só Google e e-mail): sobra de 258, respiro 96 e 162', () => {
     const m = calcularMedidasDoAcesso({ ...ANDROID, altura: 800, topo: 24, base: 24 })
     expect(m).toMatchObject({
       sol: LADO_DO_SOL.grande,
       alturaDosAcessos: 298,
-      sobra: 262,
-      respiroDeCima: 104,
-      respiroDeBaixo: 158,
+      sobra: 258,
+      respiroDeCima: 96,
+      respiroDeBaixo: 162,
       rola: false,
     })
   })

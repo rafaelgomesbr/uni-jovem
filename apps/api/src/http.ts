@@ -92,6 +92,9 @@ const ROTULO_DO_CAMPO: Record<string, string> = {
   cidade: 'a cidade',
   mensagem: 'a mensagem',
   q: 'a busca',
+  funcao: 'a função',
+  data: 'a data',
+  hora: 'a hora',
 }
 
 /**

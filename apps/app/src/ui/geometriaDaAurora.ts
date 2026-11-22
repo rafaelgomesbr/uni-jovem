@@ -29,11 +29,12 @@ export interface PropsDaAurora {
 /** Geometria comum ao nativo e à web: a Aurora acompanha a área segura. */
 export function useGeometriaDaAurora(intensidade: number) {
   const { nome } = useTema()
-  const { aumentarContraste } = usePreferenciasDeAcessibilidade()
+  const { aumentarContraste, reduzirTransparencia } = usePreferenciasDeAcessibilidade()
   const { top } = useSafeAreaInsets()
   // O contraste do status foi medido com o brilho nesta posição em relação ao cabeçalho.
   const deslocamento = top - AURORA.areaSeguraDeReferencia
-  if (aumentarContraste || intensidade <= 0) return null
+  // Aumentar contraste e Reduzir transparência: fundo chapado e opaco, sem brilho (D67).
+  if (aumentarContraste || reduzirTransparencia || intensidade <= 0) return null
   return {
     coral: {
       top: AURORA.coral.topo + deslocamento,

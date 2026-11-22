@@ -1,4 +1,4 @@
-import { DURACAO, ESPACO, RAIO, type NomeDoPapel, TIPO } from '@uj/tokens'
+import { DURACAO, ESPACO, MOVIMENTO_DAS_TELAS, RAIO, type NomeDoPapel, TIPO } from '@uj/tokens'
 import { QueryClientContext } from '@tanstack/react-query'
 import { useContext, useEffect, useState, type ReactNode } from 'react'
 import { Animated, Platform, View, type DimensionValue } from 'react-native'
@@ -29,8 +29,8 @@ interface PropsDoEsqueleto {
 }
 
 /**
- * Esqueleto de carregamento (seção 2.12.22): blocos na cor `esqueleto` com
- * pulso de 1,0 a 0,6 em 1200 ms (estático com "Reduzir movimento"). Só
+ * Esqueleto de carregamento (seção 2.12.22 e 8.5 da direção A): blocos na cor `esqueleto` com
+ * pulso de 1,0 a 0,5 em 1200 ms (estático com "Reduzir movimento"). Só
  * aparece depois de 300 ms, para não piscar em carga rápida. O indicador
  * giratório fica só dentro de botões.
  */
@@ -38,6 +38,7 @@ export function Esqueleto({ rotulo, children, aoTentarDeNovo }: PropsDoEsqueleto
   const { reduzirMovimento } = usePreferenciasDeAcessibilidade()
   const [visivel, setVisivel] = useState(false)
   const [pulso] = useState(() => new Animated.Value(1))
+  const [entrada] = useState(() => new Animated.Value(0))
   const consultas = useContext(QueryClientContext)
   const [demorou, setDemorou] = useState(false)
   // Cada "Tentar de novo" recomeça a contagem da demora.
@@ -52,13 +53,26 @@ export function Esqueleto({ rotulo, children, aoTentarDeNovo }: PropsDoEsqueleto
     const t = setTimeout(() => setDemorou(true), DEMORA_DO_ESQUELETO_MS)
     return () => clearTimeout(t)
   }, [rodada])
+  // Ao aparecer, o esqueleto dissolve (160 ms; 120 com Reduzir movimento).
+  useEffect(() => {
+    if (!visivel) return
+    const dissolve = Animated.timing(entrada, {
+      toValue: 1,
+      duration: reduzirMovimento
+        ? MOVIMENTO_DAS_TELAS.dissolver
+        : MOVIMENTO_DAS_TELAS.esqueleto.aparece,
+      useNativeDriver: Platform.OS !== 'web',
+    })
+    dissolve.start()
+    return () => dissolve.stop()
+  }, [visivel, reduzirMovimento, entrada])
   useEffect(() => {
     if (!visivel || reduzirMovimento) return
     const metade = DURACAO.pulso / 2
     const laco = Animated.loop(
       Animated.sequence([
         Animated.timing(pulso, {
-          toValue: 0.6,
+          toValue: MOVIMENTO_DAS_TELAS.esqueleto.opacidadeMinima,
           duration: metade,
           useNativeDriver: Platform.OS !== 'web',
         }),
@@ -102,7 +116,7 @@ export function Esqueleto({ rotulo, children, aoTentarDeNovo }: PropsDoEsqueleto
               gap: ESPACO.e16,
               // O pulso é animação, não estado: a opacidade varia só enquanto carrega.
               // eslint-disable-next-line no-restricted-syntax
-              opacity: reduzirMovimento ? 1 : pulso,
+              opacity: reduzirMovimento ? entrada : Animated.multiply(entrada, pulso),
             }}
           >
             {children}
@@ -144,7 +158,7 @@ interface PropsDoBloco {
 export function BlocoDeEsqueleto({
   largura = '100%',
   altura,
-  raio = RAIO.marca,
+  raio = RAIO.controle,
   circulo,
 }: PropsDoBloco) {
   const { cores, solido } = useTema()
@@ -175,6 +189,63 @@ export function LinhasDeEsqueleto({
       {Array.from({ length: linhas }, (_, i) => (
         <BlocoDeEsqueleto key={i} largura={larguras[i % larguras.length]} altura={altura} />
       ))}
+    </View>
+  )
+}
+
+/**
+ * Uma linha de lista carregando (72 pt, ou 64 ou 88): avatar redondo, duas linhas de texto e a
+ * seta. Mesma forma e mesma altura do conteúdo final, para a tela não pular quando ele chegar.
+ */
+export function LinhaDeEsqueleto({ altura = 72 }: { altura?: 56 | 64 | 72 | 88 }) {
+  return (
+    <View
+      style={{
+        height: altura,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: ESPACO.e12,
+        paddingHorizontal: ESPACO.e16,
+      }}
+    >
+      <BlocoDeEsqueleto circulo altura={44} />
+      <View style={{ flex: 1, gap: ESPACO.e8 }}>
+        <BlocoDeEsqueleto largura="56%" altura={14} />
+        <BlocoDeEsqueleto largura="36%" altura={12} />
+      </View>
+    </View>
+  )
+}
+
+/**
+ * O esqueleto do cartão do momento: 262 pt, com a moldura apagada (a mesma forma do cartão
+ * final: miolo de raio 28 e o sol de 72 no canto, sem texto). Pede o `Esqueleto` em volta.
+ */
+export function EsqueletoDoMomento() {
+  const { cores } = useTema()
+  return (
+    <View
+      style={{
+        height: 262,
+        borderRadius: RAIO.barra,
+        borderWidth: 1.5,
+        borderColor: cores.superficieBorda,
+        padding: ESPACO.e20,
+        gap: ESPACO.e12,
+      }}
+    >
+      <BlocoDeEsqueleto largura="34%" altura={10} />
+      <BlocoDeEsqueleto largura="62%" altura={26} />
+      <BlocoDeEsqueleto largura="48%" altura={14} />
+      <View style={{ flex: 1 }} />
+      <View style={{ flexDirection: 'row', gap: ESPACO.e12 }}>
+        <View style={{ flex: 1 }}>
+          <BlocoDeEsqueleto altura={48} raio={RAIO.pilula} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <BlocoDeEsqueleto altura={48} raio={RAIO.pilula} />
+        </View>
+      </View>
     </View>
   )
 }

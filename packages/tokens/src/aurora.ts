@@ -36,10 +36,12 @@ export const AURORA = {
     claro: 'rgba(124,108,255,0.22)',
   },
   /**
-   * Deriva lenta, só na tela de acesso (D63: exceção limitada à 2.9, que diz
-   * que não há animação decorativa contínua). Cada brilho vai e volta até a
+   * Deriva lenta (D63 abriu a exceção à 2.9, que diz que não há animação
+   * decorativa contínua, para a tela de acesso; a D67 estendeu a todas as telas
+   * com a Aurora, decisão do dono sobre a direção A). Cada brilho vai e volta até a
    * posição de repouso (a medida do contraste) e para sozinho depois de
    * `meiasVoltas` (84 s o coral, 108 s o violeta). Só `transform` e `opacity`.
+   * Sempre desligada com "Reduzir movimento" e com o app em segundo plano.
    */
   deriva: {
     coral: { x: -14, y: 12, escala: 1.06, opacidade: 0.9, meioCiclo: 14_000, meiasVoltas: 6 },

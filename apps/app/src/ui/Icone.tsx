@@ -9,6 +9,10 @@ import { IconeDeTraco, TRACOS, type NomeDoTraco } from './IconeDeTraco'
  */
 export const ICONES = {
   inicio: { ios: 'house', android: 'home', web: 'home' },
+  // Direção A (D65): o sol nascendo é o ícone do Início; o coração é o de oração nas linhas.
+  sol: { ios: 'sunrise', android: 'wb_twilight', web: 'wb_twilight' },
+  coracao: { ios: 'heart', android: 'favorite', web: 'favorite' },
+  confirmadoCirculo: { ios: 'checkmark.circle', android: 'check_circle', web: 'check_circle' },
   agenda: { ios: 'calendar', android: 'calendar_month', web: 'calendar_month' },
   programacoes: { ios: 'list.bullet.rectangle', android: 'event_note', web: 'event_note' },
   comunidade: { ios: 'person.3', android: 'groups', web: 'groups' },

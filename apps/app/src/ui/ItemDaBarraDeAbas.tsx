@@ -1,5 +1,16 @@
-import { ALTURA, BARRA_DE_ABAS, ESPACO, RAIO, TIPO } from '@uj/tokens'
+import { ALTURA, BARRA_DE_ABAS, CURVAS, ESPACO, MOVIMENTO_DAS_TELAS, RAIO, TIPO } from '@uj/tokens'
+import { useEffect } from 'react'
 import { Platform, Pressable, View, type GestureResponderEvent } from 'react-native'
+import Animated, {
+  cancelAnimation,
+  Easing,
+  ReduceMotion,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated'
+
+import { usePreferenciasDeAcessibilidade } from './acessibilidade'
 
 import { Avatar, type DadosDoAvatar } from './Avatar'
 import { IconeDeTraco, type NomeDoTraco } from './IconeDeTraco'
@@ -91,14 +102,17 @@ export function ItemDaBarraDeAbas({
       onPress={onPress}
       onLongPress={onLongPress}
       style={({ pressed }) => ({
-        minWidth: BARRA_DE_ABAS.larguraMinimaDoItem,
+        // Itens de largura igual: a pílula luminosa da barra desliza de um para o outro.
+        flex: 1,
+        minWidth: 0,
         minHeight: Math.max(ALVO, ALTURA.aba),
         paddingHorizontal: ESPACO.e2,
         alignItems: 'center',
         justifyContent: 'center',
         gap: ESPACO.e2,
-        borderRadius: RAIO.abaAtiva,
-        backgroundColor: ativo ? cores.abaAtivaFundo : pressed ? cores.pressionado : 'transparent',
+        borderRadius: RAIO.barra,
+        // A pílula do ativo é da barra (`PilulaDaAba`); aqui só a camada do toque.
+        backgroundColor: pressed ? cores.botaoTonal : 'transparent',
       })}
     >
       {!icone && avatar ? (
@@ -139,14 +153,34 @@ function ItemComIcone({
   cor: string
   ativo: boolean
 }) {
+  const { reduzirMovimento } = usePreferenciasDeAcessibilidade()
+  const progresso = useSharedValue(ativo ? 1 : 0)
+  // O ícone ativo sobe 1 pt e cresce 6% em 260 ms; com Reduzir movimento, sem escala.
+  useEffect(() => {
+    progresso.set(
+      withTiming(ativo ? 1 : 0, {
+        duration: reduzirMovimento ? 0 : MOVIMENTO_DAS_TELAS.pilulaDaAba,
+        easing: Easing.bezier(...CURVAS.pilula),
+        reduceMotion: ReduceMotion.Never,
+      }),
+    )
+    return () => cancelAnimation(progresso)
+  }, [ativo, reduzirMovimento, progresso])
+  const estilo = useAnimatedStyle(() => ({
+    transform: reduzirMovimento
+      ? []
+      : [{ translateY: -1 * progresso.value }, { scale: 1 + 0.06 * progresso.value }],
+  }))
   return (
     <View style={{ height: 24, alignItems: 'center', justifyContent: 'center' }}>
-      <IconeDeTraco
-        nome={icone ?? 'pessoa'}
-        cor={cor}
-        tamanho={BARRA_DE_ABAS.tamanhoDoIcone}
-        traco={ativo && icone ? 2.4 : 2}
-      />
+      <Animated.View style={estilo}>
+        <IconeDeTraco
+          nome={icone ?? 'pessoa'}
+          cor={cor}
+          tamanho={BARRA_DE_ABAS.tamanhoDoIcone}
+          traco={ativo && icone ? 2.4 : 2}
+        />
+      </Animated.View>
     </View>
   )
 }

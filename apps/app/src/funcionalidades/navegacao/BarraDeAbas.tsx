@@ -1,10 +1,13 @@
-import { ALTURA, BARRA_DE_ABAS, RAIO } from '@uj/tokens'
+import { BARRA_DE_ABAS, RAIO } from '@uj/tokens'
 import { TabTrigger, type TabTriggerSlotProps } from 'expo-router/ui'
+import { useEffect } from 'react'
 import { Platform, StyleSheet, useWindowDimensions } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
+import { definirAbaAtiva } from '@/ui/abaAtiva'
 import type { NomeDoTraco } from '@/ui/IconeDeTraco'
 import { ItemDaBarraDeAbas, rotulosCabemNaBarra } from '@/ui/ItemDaBarraDeAbas'
+import { PilulaDaAba, RECUO_DA_BARRA } from '@/ui/PilulaDaAba'
 import { useTecladoAberto } from '@/ui/teclado'
 import { sombra, useTema } from '@/ui/tema'
 import { Vidro } from '@/ui/Vidro'
@@ -13,8 +16,8 @@ import { soNaWeb } from '@/ui/web'
 import { fotoDaConta } from '../perfil/imagens'
 import { ABAS, type DefinicaoDaAba } from './abas'
 
-/** Altura da barra: item de 48, padding de 8 em cima e embaixo e a borda de 1 (66). */
-export const ALTURA_DA_BARRA = ALTURA.aba + BARRA_DE_ABAS.preenchimento * 2 + 2
+/** Altura da barra: a cápsula de 68 da direção A (D65); o item ocupa o que sobra do recuo. */
+export const ALTURA_DA_BARRA = BARRA_DE_ABAS.altura
 
 /** Distância do fim: o maior entre (área segura de baixo - 10) e 12; 24 no iPhone com Face ID (M). */
 export function distanciaDaBarra(margemDeBaixo: number): number {
@@ -45,6 +48,11 @@ interface PropsDoItem extends Omit<TabTriggerSlotProps, 'ref'> {
 function ItemDaBarra({ rotulo, icone, isFocused, onPress, onLongPress }: PropsDoItem) {
   const { conta } = useSessao()
   const { width, fontScale } = useWindowDimensions()
+  // O item marcado diz à pílula luminosa onde ela deve estar (um só fundo para as abas e a pilha).
+  const posicao = ABAS.findIndex((a) => a.rotulo === rotulo)
+  useEffect(() => {
+    if (isFocused && posicao >= 0) definirAbaAtiva(posicao)
+  }, [isFocused, posicao])
   return (
     <ItemDaBarraDeAbas
       rotulo={rotulo}
@@ -64,8 +72,9 @@ function ItemDaBarra({ rotulo, icone, isFocused, onPress, onLongPress }: PropsDo
 }
 
 /**
- * Barra de abas flutuante (seção 2.12.17): vidro da barra, raio 28, 16 das
- * laterais e `distanciaDaBarra` do fim, padding de 8 e sombra flutuante. Com
+ * Barra de abas flutuante (seção 2.12.17 e 8.1 da direção A): cápsula de 68 com vidro de 24,
+ * raio 34, 16 das laterais e `distanciaDaBarra` do fim, itens de largura igual, a pílula
+ * luminosa que desliza e a sombra flutuante. Com
  * "Reduzir transparência", o `Vidro` vira superfície opaca. O `Tabs` do
  * expo-router só acha os gatilhos em `<TabList>` filha direta dele: por isso
  * aqui saem as props da lista e os filhos, e quem monta a lista é o `AbasDoApp`.
@@ -82,9 +91,9 @@ export function propsDaBarraFlutuante(margemDeBaixo: number, escondida = false) 
       right: BARRA_DE_ABAS.margemLateral,
       bottom: distanciaDaBarra(margemDeBaixo),
       flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      padding: BARRA_DE_ABAS.preenchimento + 1,
-      borderRadius: RAIO.barra,
+      height: BARRA_DE_ABAS.altura,
+      padding: RECUO_DA_BARRA,
+      borderRadius: RAIO.barraFlutuante,
       ...(escondida ? { display: 'none' as const } : {}),
     },
   }
@@ -128,8 +137,15 @@ export function itensDaBarraNaPilha(
 function FundoDaBarra() {
   const { elevacao } = useTema()
   return (
-    <Vidro
-      style={[StyleSheet.absoluteFill, { borderRadius: RAIO.barra }, sombra(elevacao.flutuante)]}
-    />
+    <>
+      <Vidro
+        style={[
+          StyleSheet.absoluteFill,
+          { borderRadius: RAIO.barraFlutuante },
+          sombra(elevacao.flutuante),
+        ]}
+      />
+      <PilulaDaAba quantidade={ABAS.length} />
+    </>
   )
 }

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type pg from 'pg'
 import { z } from 'zod'
@@ -314,6 +315,110 @@ export function registrarRotasDeRepertorio(app: FastifyInstance, api: pg.Pool): 
       )
       return { convocadas, avisadas }
     })
+  })
+
+  // ---------------------------------------------------------------- pacote para usar sem internet
+
+  /**
+   * Fatia 2 do modo músico (D66): o repertório do encontro INTEIRO de uma vez,
+   * com tom do dia, cifra e link de cada música, para o aparelho guardar no
+   * cofre cifrado e abrir sem internet (Modo palco).
+   *
+   * - Quem recebe: organizador e administrador, e quem tem convocação de louvor
+   *   neste encontro (aceita, pendente ou com troca pedida; recusada não). Outro
+   *   membro leva 403: a lista (sem cifra) continua em `GET .../repertorio`.
+   *   Encontro de outra comunidade ou que a pessoa não vê: 404, como nas demais.
+   * - `versao`: impressão digital do conteúdo (também no cabeçalho `ETag`). O app
+   *   manda `If-None-Match` e, se nada mudou, recebe 304 sem corpo (e sem cifra
+   *   trafegando de novo). `?versao=<a que o aparelho já tem>` faz o mesmo sem cabeçalho:
+   *   200 com `{ versao, inalterado: true }`. Troca de tom, de ordem, de cifra ou de
+   *   música muda a versão.
+   * - Direitos autorais: só dentro da comunidade, `Cache-Control: no-store`, nada
+   *   de cifra em log nem em auditoria (a leitura nem é auditada).
+   */
+  app.get(`${ev}/repertorio/pacote`, naCom, async (pedido, resposta) => {
+    exigir(pedido, 'evento', 'ler_pacote_offline')
+    const eventoId = idDoCaminho(pedido, 'eventoId')
+    const organizador = pedido.comunidade!.papel !== 'membro'
+    const pacote = await tx(pedido, async (c) => {
+      const comunidadeId = pedido.comunidade!.id
+      const evento = (
+        await c.query<{ id: string; titulo: string; inicio: Date; fuso: string; status: string }>(
+          `select id, titulo, inicio, fuso, status from uj.eventos where id = $1 and comunidade_id = $2`,
+          [eventoId, comunidadeId],
+        )
+      ).rows[0]
+      if (!evento) throw NAO_ENCONTRADO()
+      const convocacoes = (
+        await c.query<{
+          funcao: string
+          estado: string
+          etapaTitulo: string | null
+          etapaComRepertorio: boolean
+        }>(
+          `select a.funcao, a.estado, t.titulo as "etapaTitulo",
+                  (a.etapa_id is not null and exists (
+                     select 1 from uj.repertorio_itens r
+                      where r.evento_id = a.evento_id and r.etapa_id = a.etapa_id)) as "etapaComRepertorio"
+             from uj.atribuicoes a left join uj.etapas t on t.id = a.etapa_id
+            where a.evento_id = $1 and a.comunidade_id = $2
+              and a.vinculo_id = (select uj.vinculo_da_conta_no_contexto())
+              and a.estado <> 'recusada'
+            order by a.criado_em`,
+          [eventoId, comunidadeId],
+        )
+      ).rows.filter((a) => ehConvocacaoDeLouvor(a))
+      if (!organizador && convocacoes.length === 0) {
+        throw new ErroHttp(
+          'fora_do_louvor',
+          403,
+          'O repertório para usar sem internet é de quem toca neste encontro.',
+        )
+      }
+      const itens = (
+        await c.query(
+          `select r.id, r.ordem, r.musica_id as "musicaId", r.tom_do_dia as "tomDoDia", r.nota,
+                  m.titulo, m.artista, m.tom as "tomOriginal", m.andamento_bpm as "andamentoBpm",
+                  m.duracao_seg as "duracaoSeg", m.link, m.cifra
+             from uj.repertorio_itens r join uj.musicas m on m.id = r.musica_id
+            where r.evento_id = $1 and r.comunidade_id = $2
+            order by r.ordem`,
+          [eventoId, comunidadeId],
+        )
+      ).rows
+      const validadeDias = (
+        await c.query<{ dias: number }>(
+          'select validade_offline_dias as dias from uj.comunidades where id = $1',
+          [comunidadeId],
+        )
+      ).rows[0]!.dias
+      return {
+        evento: {
+          id: evento.id,
+          titulo: evento.titulo,
+          inicio: evento.inicio,
+          fuso: evento.fuso,
+          status: evento.status,
+        },
+        minhaParte: convocacoes.map((a) => ({ funcao: a.funcao, estado: a.estado })),
+        validadeDias,
+        itens,
+      }
+    })
+    const versao = createHash('sha256').update(JSON.stringify(pacote)).digest('hex').slice(0, 32)
+    const etag = `"${versao}"`
+    resposta.header('ETag', etag)
+    if (pedido.headers['if-none-match'] === etag) return resposta.code(304).send()
+    // Para o cliente que não manda cabeçalho condicional: `?versao=` com a versão que já tem.
+    const conhecida = (pedido.query as { versao?: unknown } | undefined)?.versao
+    if (conhecida === versao) return { versao, inalterado: true as const }
+    const agora = new Date()
+    return {
+      versao,
+      geradoEm: agora.toISOString(),
+      validoAte: new Date(agora.getTime() + pacote.validadeDias * 24 * 3600_000).toISOString(),
+      ...pacote,
+    }
   })
 
   // ---------------------------------------------------------------- meu repertório

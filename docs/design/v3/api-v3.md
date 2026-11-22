@@ -1,0 +1,183 @@
+# APIs novas do app v3
+
+Data: 22/11/2026. Decisão D66 em [../../DECISOES.md](../../DECISOES.md); migração `0028` (só funções, sem tabela nova); sem permissão nova (a matriz não mudou). Tipos e chamadas prontos para as telas em `apps/app/src/servicos/contratoV3.ts` (objeto `chamadasV3`).
+
+Convenções que valem em todas:
+
+- Base das rotas de comunidade: `/api/v1/c/:comunidadeId`. Todas exigem sessão e vínculo ativo na comunidade do caminho; sem vínculo, comunidade de outra pessoa ou id de outra comunidade: **404** (nunca 403). Membro sem a permissão: **403** `sem_permissao`. Comunidade suspensa: escrita dá **409** `comunidade_suspensa`.
+- Erros vêm como `{ erro, mensagem }`, com a mensagem pronta para a tela (português, sem termo técnico). Corpo inválido: **400** `dados_invalidos`.
+- Datas e horas em ISO 8601. `data` é `AAAA-MM-DD` e `hora` é `HH:MM`, no fuso do encontro.
+- **Desfazer com espera de 10 s é do app, não do servidor.** Rotas que avisam pessoas (publicar, convocar em lote, lembrar) são chamadas só depois dos 10 s; se o app fechar antes, nada saiu. Nenhuma rota de "cancelar envio" existe nem é necessária.
+
+## Resumo
+
+| Rota                                                                | Permissão                                       | Para que serve                                             |
+| ------------------------------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------- |
+| `GET /c/:id/inicio` (campo novo `momento`)                          | `evento.ler` (todo membro)                      | Cartão do momento do Início                                |
+| `GET /c/:id/eventos/anteriores-para-copiar`                         | `evento.criar` (organizador, administrador)     | "Igual ao último sábado": de onde copiar e a data sugerida |
+| `POST /c/:id/eventos/:eventoId/copiar`                              | `evento.criar` e `escala.atribuir`              | Cria o rascunho copiado, com a equipe aguardando resposta  |
+| `POST /c/:id/eventos/:eventoId/atribuicoes/lote`                    | `escala.atribuir`                               | Convocar várias pessoas de uma vez                         |
+| `GET /c/:id/eventos/:eventoId/sugestoes-de-convocacao?funcao=`      | `escala.atribuir`                               | Quem convocar para uma função                              |
+| `POST /c/:id/eventos/:eventoId/lembrar-pendentes`                   | `escala.atribuir`                               | "Lembrar os N" (quem não respondeu)                        |
+| `GET /c/:id/mural`                                                  | `aviso.ler` (todo membro)                       | Aba Comunidade: aviso à vista, "3 novos", pessoas          |
+| `GET /eu/notificacoes/caixa` (campos novos) e `.../caixa/nao-lidas` | sessão                                          | Sino com título real e quebra por assunto                  |
+| `POST /api/auth/codigo/previa`                                      | pública (sem sessão)                            | Prévia da comunidade ao digitar o código                   |
+| `GET /c/:id/eventos/:eventoId/repertorio/pacote`                    | `evento.ler_pacote_offline` e tocar no encontro | Modo palco e uso sem internet                              |
+
+## `GET /c/:id/inicio`: campo `momento`
+
+Os campos de antes (`proximosEventos`, `minhasEscalas`, `minhasTarefas`, `substituicoesAbertas`, `avisos`) não mudaram. O campo novo:
+
+```
+momento: {
+  agora,                                // ISO do servidor
+  evento: {                             // o que está acontecendo ou o próximo; null = "nada marcado"
+    id, titulo, categoria, inicio, fim, duracaoMin, fuso,
+    status,                             // 'publicado' | 'adiado' | 'rascunho' (rascunho só para a organização)
+    visibilidade,                       // 'interna' | 'publica'
+    local: { nome, tipo, endereco, latitude, longitude, referencia } | null
+  } | null,
+  estado: 'longe' | 'vespera' | 'no_dia' | 'acontecendo' | null,
+  minutosParaInicio: number | null,     // negativo = já começou
+  suaParte: [{ atribuicaoId, funcao, etapaTitulo, estado }],   // a pendência primeiro; [] = a linha some
+  inscricao: { situacao, inscritos, capacidade } | null,
+    // situacao: 'inscrito' | 'espera' | 'aberta' | 'fechada' | 'nao_se_aplica'
+    // 'aberta' só em encontro público ou com vagas contadas; inscritos é null para membro
+  lider: {                              // só organizador e administrador; senão null
+    convocados, confirmados, recusaram, pendentes,
+    responderam,                        // "9 de 11 responderam" = convocados menos pendentes
+    faltamResponder: [{ vinculoId, nome, funcoes }],   // até 4
+    faltamResponderTotal,
+    faltaFuncao: ['Bateria'],           // "Falta: bateria"
+    musicas, inscritos, presentes,
+    lembraveis,                         // "Lembrar os 2" (já sem quem foi lembrado nas últimas 24 h)
+    avisariaAoPublicar                  // "Publicar e avisar 11 pessoas"
+  } | null,
+  recemTerminado: { id, titulo, inicio, fim, fuso, presentes, euServi } | null,
+    // terminou há menos de 24 h; presentes é null para membro; euServi = tinha parte confirmada
+  proximoAMarcar: boolean | null        // organização: nada marcado depois deste encontro; membro: null
+}
+```
+
+Regras: `estado` usa o relógio de parede do fuso do encontro (véspera = o dia seguinte; no dia = o mesmo dia, antes da hora); o **ao vivo vence o relógio** (encontro iniciado e não encerrado segue `acontecendo`, mesmo estourando o horário; encerrado sai do cartão e vira `recemTerminado`). Quem está acontecendo vem antes do próximo. Rascunho só aparece para a organização (RLS). Primário por estado, textos e etiquetas ("EM 5 DIAS", "AMANHÃ") são do app, a partir de `estado`, `minutosParaInicio`, `suaParte` e `lider`. Nada de oração, música ou cifra aqui.
+
+## `GET /c/:id/eventos/anteriores-para-copiar`
+
+Até 3 encontros já realizados (publicados e terminados), **um por título**, o mais recente primeiro (o pré-marcado).
+
+Resposta:
+
+```
+{ opcoes: [{ eventoId, titulo, inicio, fuso, duracaoMin, etapas, convocados, musicas,
+             dataSugerida, horaSugerida, inicioSugerido }] }
+```
+
+`convocados` conta só pessoas ainda ativas. `dataSugerida` é o mesmo dia da semana da origem, depois de hoje, sem outro encontro do mesmo título naquele dia. Sem encontro realizado: `opcoes: []` (o app cai em "Modelo" ou "Em branco"). Erros: 403 membro.
+
+## `POST /c/:id/eventos/:eventoId/copiar`
+
+Corpo (tudo opcional): `{ data?: 'AAAA-MM-DD', hora?: 'HH:MM', incluirMusicas?: boolean }`. Sem `data`, vale a sugerida; sem `hora`, a da origem; `incluirMusicas` começa em `false`.
+
+Cria um **rascunho**. Copia: título, descrição, categoria, duração, local, vagas, lista de espera, visibilidade e informações úteis (não o prazo de inscrição); roteiro na mesma ordem; checklist sem marcações; tarefas sem prazo e sem conclusão; materiais sem "providenciado"; e a **equipe como `pendente`**, só de quem ainda é ativo, com a etapa certa. Músicas só com `incluirMusicas` (arquivada não vai). **Ninguém é avisado**: a convocação sai quando o encontro é publicado (`POST /eventos/:eventoId/status` com `publicado`, que já existe).
+
+Resposta:
+
+```
+{ id, versao, status: 'rascunho', inicio, fuso,
+  resumo: { origem: { id, titulo, inicio }, etapas, duracaoTotalMin, checklist, tarefas, materiais,
+            convocados: { pessoas, itens: [{ atribuicaoId, vinculoId, nome, funcao, etapaTitulo }] },
+            naoCopiados,                   // gente que saiu da comunidade
+            indisponiveis: [{ vinculoId, nome, funcao }],   // "Bruno avisou que não pode neste dia"
+            musicas: { copiadas, naOrigem },
+            avisariaAoPublicar } }
+```
+
+Erros: 400 `data_no_passado` (data e hora já passaram), 400 data ou hora mal formadas, 403 membro, 404 encontro de origem inexistente ou de outra comunidade. Auditoria: `evento.copiado` com ids e contagens. "Trocar" uma pessoa na conferência usa `DELETE /eventos/:eventoId/atribuicoes/:atribuicaoId` e a rota de lote abaixo.
+
+## `POST /c/:id/eventos/:eventoId/atribuicoes/lote`
+
+Corpo: `{ funcao: string (2 a 60), etapaId?: uuid | null, vinculoIds: uuid[] (1 a 30) }`. Uma transação só: todas ou nenhuma.
+
+Resposta: `{ criadas: [{ id, vinculoId, estado: 'pendente' }], jaConvocadas: [vinculoId] }`. Quem já estava convocado na mesma função e etapa não é duplicado. Em encontro **publicado**, cada pessoa criada recebe a convocação pelos gatilhos de sempre; em **rascunho**, ninguém é avisado ainda.
+
+Erros: 400 corpo inválido (lista vazia, mais de 30, função curta, id que não é uuid); 403 membro; 404 encontro de outra comunidade, etapa de outro encontro, ou **qualquer** pessoa que não seja ativa nesta comunidade (o lote inteiro cai, nada é gravado). Auditoria: `escala.convocadas_em_lote` com contagens.
+
+## `GET /c/:id/eventos/:eventoId/sugestoes-de-convocacao?funcao=Bateria`
+
+`funcao` é obrigatória (2 a 60). Resposta:
+
+```
+{ funcao, data: 'AAAA-MM-DD',
+  sugeridas: [{ vinculoId, nome, vezes, ultimaVez, disponivelNoDia }],   // até 10
+  indisponiveis: [{ vinculoId, nome }],      // avisaram que NÃO podem neste dia
+  jaConvocadas: [vinculoId] }                // já estão nesta função neste encontro
+```
+
+Ordem: serviu na função e informou que pode no dia; serviu na função (mais vezes, mais recente primeiro); só informou que pode. Considera os 12 meses anteriores, só encontros publicados que já passaram, e **não conta recusa**. "voz" e "Vocal", "violao" e "Violão" são a mesma função; funções livres ("Recepção") comparam por texto sem acento nem caixa. Quem informou que não pode **nunca** está em `sugeridas`. `disponivelNoDia` é `true` ou `null`. Erros: 400 sem `funcao`; 403 membro; 404 encontro de outra comunidade (o 404 vem antes do 400).
+
+## `POST /c/:id/eventos/:eventoId/lembrar-pendentes`
+
+Sem corpo. Enfileira **uma notificação genérica por pessoa** com convocação pendente ("Falta responder" / "Você ainda não respondeu a uma convocação. Abra o app para responder."; sem nome, título, função nem data). Regras no banco: no máximo **uma por pessoa e por encontro a cada 24 h**; respeita a preferência "Escalas", vínculo ativo, cota diária e deduplicação de 1 h; quem pede não é avisado nem contado.
+
+Resposta: `{ pendentes, lembradas, jaLembradas }`: pessoas pendentes, lembretes que entraram na fila agora e pessoas lembradas nas últimas 24 h (esperam). Botão: `Lembrar os {lembraveis}` do `momento.lider.lembraveis`; depois, `✓ Lembrete enviado`.
+
+Erros: 403 membro; 404 encontro de outra comunidade; 409 `encontro_fora_do_ar` (rascunho, cancelado ou já terminado). Auditoria: `convocacao.lembrete_enviado` com contagens.
+
+## `GET /c/:id/mural`
+
+Aba Comunidade, numa chamada só. Resposta:
+
+```
+{ avisos: { total, destaque: { id, titulo, fixado, publicadoEm } | null },
+  oracao: { novos },
+  pessoas: { total },
+  organizacao: { pedidosDeEntrada } | null }
+```
+
+`destaque` é o aviso fixado, ou o mais recente publicado e não vencido (só id e título: o texto está em `GET /avisos/:id`). `oracao.novos` é **só um número**: pedidos de outras pessoas que ela já pode ver, não respondidos, dos últimos 7 dias, em que ela ainda não marcou "Estou orando" (a RLS decide o que ela vê; bloqueio, equipe de oração e "só eu" valem). `organizacao` é `null` para membro.
+
+## Sino: `GET /eu/notificacoes/caixa` e `/caixa/nao-lidas`
+
+Cada item da caixa ganhou dois campos (os de antes não mudaram):
+
+- `assunto: string | null`: o **título real** do aviso ou do encontro (`Ensaio do louvor às 15h`, `Sábado Jovem`). É `null` quando não há (pedido de entrada), quando o aviso saiu do ar ou venceu, quando é de autor que a pessoa bloqueou, ou quando o encontro é rascunho. `titulo` e `texto` seguem genéricos, como saem na tela bloqueada. Nunca há pedido de oração, música ou pessoa nesse campo.
+- `eventoId: string | null`: o encontro a que a notificação se refere (convocação, lembrete, cancelamento), para o toque abrir "Sua parte".
+
+`nao-lidas` agora devolve `{ naoLidas, avisos, convocacoes, pedidosDeEntrada }`. As três quebras são partes do mesmo conjunto de `naoLidas` (convocações = "Nova convocação" e "Falta responder"). Agrupar ("4 avisos novos") é do app.
+
+## `POST /api/auth/codigo/previa` (pública)
+
+Corpo: `{ codigo }` (como a pessoa digita: minúsculo, com espaço ou traço). Sem sessão (`autenticado: false` no cliente).
+
+Resposta:
+
+```
+{ comunidade: { nome, cor, temLogo, pessoas, modoEntrada: 'codigo_direto' | 'codigo_com_aprovacao',
+                proximoEncontro: { titulo, inicio, fuso } | null } }
+```
+
+Só o que `entrar_por_codigo` já revelaria. `proximoEncontro` só se for **público**, publicado, futuro e de comunidade verificada. Não há cidade, id, administrador nem contato; o logotipo não sai (só `temLogo`: o app usa a cor e as iniciais até entrar). **Mesmo 404** (`nao_encontrado`, "Não encontramos esta comunidade. Confira o código com quem passou para você.") para código desconhecido, mal formado, trocado, de comunidade suspensa ou que não entra por código. Limite por IP: 20 por 15 min, depois **429** `muitas_tentativas` com `Retry-After`. Não grava nada.
+
+## `GET /c/:id/eventos/:eventoId/repertorio/pacote`
+
+Fatia 2 do modo músico: o repertório do encontro inteiro, para o aparelho guardar no cofre cifrado e abrir sem internet (Modo palco). Resposta:
+
+```
+{ versao, geradoEm, validoAte, validadeDias,
+  evento: { id, titulo, inicio, fuso, status },
+  minhaParte: [{ funcao, estado }],
+  itens: [{ id, ordem, musicaId, tomDoDia, nota, titulo, artista, tomOriginal,
+            andamentoBpm, duracaoSeg, link, cifra }] }
+```
+
+- **Quem recebe:** organizador, administrador e quem tem convocação de louvor **não recusada** neste encontro (etapa Louvor, ou função de banda como Bateria). Outro membro: **403** `fora_do_louvor` (a lista sem cifra segue em `GET .../repertorio`). Rascunho: só a organização; para quem toca, 404.
+- **Versão:** `versao` é uma impressão digital do conteúdo e vai também no cabeçalho `ETag`. Mandar `If-None-Match` (ou `?versao=<a que já tem>`) igual recebe **304** sem corpo (ou `200 { versao, inalterado: true }` com a consulta), sem a cifra trafegar de novo. Mudar tom do dia, ordem, cifra ou música muda a versão; chamar de novo sem mudar nada, não.
+- **Validade:** `validoAte` usa `validade_offline_dias` da comunidade, a mesma do pacote do encontro. O `pacote-offline` do encontro não mudou e **continua sem cifra**.
+- **Direitos autorais:** só dentro da comunidade, `Cache-Control: no-store`, leitura não auditada, cifra nunca em log. O aparelho guarda no mesmo cofre cifrado do pacote e apaga junto (saída da comunidade, troca de conta).
+
+## O que não foi criado, e por quê
+
+- **Envio com espera e "Desfazer" no servidor:** não é preciso; é só do app (acima).
+- **Histórico "tocada há 2 semanas":** é a fatia 3 do modo músico; fica para depois.
+- **Rota própria para recusar e aceitar com desfazer:** `POST /atribuicoes/:id/confirmar` e `/recusar` já existem; o desfazer é segurar a chamada por 10 s. Depois de enviada, aceitar de novo ou recusar de novo funciona (o estado pode mudar de recusada para confirmada).
+- **Permissão nova:** nenhuma. As rotas usam `evento.criar`, `escala.atribuir`, `aviso.ler`, `evento.ler_pacote_offline` e a regra de "toca neste encontro".

@@ -10,8 +10,11 @@ import { useTema } from './tema'
 interface PropsDoVidro {
   children?: ReactNode
   style?: StyleProp<ViewStyle>
-  /** `barra`: barra de abas, cabeçalho compacto e barra de ação. `folha`: folha. */
-  tipo?: keyof Pick<typeof VIDRO, 'barra' | 'folha'>
+  /**
+   * `barra`: barra de abas e barra de ação (desfoque 24). `cabecalho`: cabeçalho depois de 6 pt
+   * de rolagem (20). `folha`: folha (30).
+   */
+  tipo?: keyof Pick<typeof VIDRO, 'barra' | 'cabecalho' | 'folha'>
   /** Só a borda de cima (barra de ação) ou a de baixo (cabeçalho compacto). */
   borda?: 'toda' | 'cima' | 'baixo'
 }

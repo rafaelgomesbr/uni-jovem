@@ -169,6 +169,7 @@ export function registrarRotasDeAbertura(
     buscaConta: new Limitador(60, 15 * min),
     buscaIp: new Limitador(120 * fatorIp, 15 * min),
     entradaIp: new Limitador(20 * fatorIp, 15 * min),
+    previaIp: new Limitador(20 * fatorIp, 15 * min),
     entradaConta: new Limitador(20, 60 * min),
     pedidoConta: new Limitador(20, 60 * min),
     denunciaConta: new Limitador(10, 60 * min),
@@ -293,6 +294,53 @@ export function registrarRotasDeAbertura(
       )
       return rows.slice(0, LIMITES_DA_BUSCA.maximoDeResultados)
     })
+  })
+
+  // ================================================================ prévia do código (D66)
+
+  /**
+   * "Tenho um código", antes de entrar: o que quem tem o código vê. Pública
+   * (serve a quem ainda não tem conta) e POST (o código não vai para a URL nem
+   * para o log de acesso). Só o estritamente necessário, e só o que o próprio
+   * `entrar_por_codigo` já revelaria: nome, cor, se tem logotipo, quantas pessoas,
+   * o modo de entrada e o próximo encontro PÚBLICO. Código desconhecido,
+   * trocado, de formato errado ou de comunidade que não recebe por código: o
+   * mesmo 404, sem pista de qual foi. Limite por IP igual ao da entrada: adivinhar
+   * custa caro. Não grava nada e não registra o código em lugar nenhum.
+   */
+  app.post('/api/auth/codigo/previa', async (pedido, resposta) => {
+    const corpo = validar(
+      z.object({ codigo: z.string({ error: 'Digite o código.' }).max(40) }),
+      pedido.body,
+    )
+    limitar(lim.previaIp, truncarIp(pedido.ip), resposta)
+    const codigo = normalizarCodigoDaComunidade(corpo.codigo)
+    if (!ehCodigoDaComunidade(codigo)) traduzir({ code: 'UJ083' })
+    const { rows } = await api.query<{
+      nome: string
+      cor: string
+      tem_logo: boolean
+      pessoas: number
+      modo_entrada: 'codigo_com_aprovacao' | 'codigo_direto'
+      proximo_titulo: string | null
+      proximo_inicio: Date | null
+      proximo_fuso: string | null
+    }>('select * from uj.previa_do_codigo($1)', [hmacDoCodigo(codigo, config.CONVITE_SEGREDO)])
+    const r = rows[0]
+    if (!r) traduzir({ code: 'UJ083' })
+    return {
+      comunidade: {
+        nome: r.nome,
+        cor: r.cor,
+        temLogo: r.tem_logo,
+        pessoas: r.pessoas,
+        modoEntrada: r.modo_entrada,
+        proximoEncontro:
+          r.proximo_titulo && r.proximo_inicio
+            ? { titulo: r.proximo_titulo, inicio: r.proximo_inicio, fuso: r.proximo_fuso }
+            : null,
+      },
+    }
   })
 
   // ================================================================ entrar e pedir
