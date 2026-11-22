@@ -274,3 +274,10 @@ A variante com barra final (`/privacidade/`, `/excluir-conta/`, `/termos/`) resp
 - **Google Play, teste interno:** 1.0.0 (4), do EAS `160c5226`, publicado em 15/11/2026 às 23:35, com as notas "Nova versão de teste...".
 - **Login:** a produção aceita Apple (padrão `com.solerte.unijovem`); Google está desligado (sem `GOOGLE_CLIENT_IDS`, PH-14) e o e-mail também (`EMAIL_MODO=desligado`, PH-03). No Android, sem esses dois, quem não tem conta não consegue se cadastrar.
 - **Builds com a convocação (commit `ba85cef`):** iOS 1.0.0 (3) no TestFlight em 16/11/2026 às 00:45 (entrega `bda36734-0efc-4b6e-80af-cd462326e236`) e Android 1.0.0 (5) no teste interno às 00:50 (EAS `72859858`). Os dois têm o seletor de data e hora em folha no iPhone, o aceite do Termo do Administrador corrigido e a convocação. O aviso de recusa e a ordem do Início dependem da 0023 na produção.
+
+### 7.6 Builds de 22/11/2026 (commit `14debdd`)
+
+- **Produção:** implantada em 22/11/2026 (00:01, com backup `diario-2026-11-22.dump`), com as migrações 0026 (cadastro sem confirmação de e-mail) e 0027 (repertório e cifra). Saúde 200; rotas novas respondem 401 sem sessão. `GOOGLE_CLIENT_IDS` com os 4 clientes (iOS, Web e Android assinatura e upload).
+- **TestFlight:** 1.0.0 (7), entrega `b0b6d818-b4a0-45cc-a9c4-ad8026591dc2`, processado (`VALID`). Traz o login novo, o Início novo, a simplificação e o modo músico.
+- **Android 1.0.0 (11):** compilado localmente, assinado com a chave de upload (SHA-256 do certificado `55:93:38:...:CB:47` conferido), em `tmp/uni-jovem-1.0.0-11.aab`. **Não está no Play:** o Chrome bloqueia o acesso da página do Console à rede local, então o envio fica com o dono (arrastar o arquivo em Teste interno > Criar nova versão, ou liberar "Acesso à rede local" para o Play Console). O teste interno segue na versão 8, com um rascunho vazio.
+- **Clientes do Google (PH-14):** criados em 21/11/2026 (Web de produção, Android assinatura e Android upload); tela de consentimento publicada.
