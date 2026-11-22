@@ -140,7 +140,7 @@ Versão de 15/11/2026, para o binário com o **app aberto** (ADR 0007): o reviso
 Antes de colar, o dono confere no build final, tocando em cada caminho:
 
 1. **Cadastro por e-mail:** se o envio de e-mail ainda estiver desligado em produção (PH-03), o cadastro por e-mail não aparece. Nesse caso, apague o trecho "or with e-mail and password (we send a 6-digit code to that address)".
-2. **Google:** "Entrar com Google" estava desligado em produção em 15/11/2026. Só cite o Google se ele estiver ligado no build enviado.
+2. **Google:** "Entrar com Google" está ligado em produção desde 22/11/2026 (4 IDs de cliente no servidor). Só cite o Google se ele estiver ligado no build enviado.
 3. **Excluir conta criada com a Apple:** a conta criada só com a Apple não tem senha; a exclusão precisa confirmar entrando de novo com a Apple (`docs/privacidade/exclusao-de-conta.md`, seção 2.1). Se isso não estiver pronto, **não envie**: a diretriz 5.1.1(v) reprova.
 4. **Credenciais:** troque os "[a definir]" à mão no App Store Connect; nunca no git.
 5. **Nomes de aba e de botão:** "Criar conta", "Criar comunidade", "Tenho um código", "Procurar comunidade" e "Denunciar comunidade" são os nomes das telas em construção em 15/11/2026; ajuste ao texto final.
@@ -272,7 +272,7 @@ A variante com barra final (`/privacidade/`, `/excluir-conta/`, `/termos/`) resp
 - **Produção:** app aberto implantado em 15/11/2026, com a migração 0022, a pedido do dono ("SIM"). A 0023 (convocação) está **só na homologação**: a trava do agente barrou a implantação na produção em 16/11/2026. Falta o dono rodar `UJ_CONFIRMO_PRODUCAO=sim bash infra/prod/implantar.sh`.
 - **TestFlight:** 1.0.0 (2), do commit `876fdcc` (app aberto), enviado em 15/11/2026 às 23:04 (entrega `f084cb98-24e4-4d6c-b1c7-922e30bb2e18`), com "Entrar com a Apple" assinado. O grupo interno "Equipe Uni Jovem" recebe todos os builds.
 - **Google Play, teste interno:** 1.0.0 (4), do EAS `160c5226`, publicado em 15/11/2026 às 23:35, com as notas "Nova versão de teste...".
-- **Login:** a produção aceita Apple (padrão `com.solerte.unijovem`); Google está desligado (sem `GOOGLE_CLIENT_IDS`, PH-14) e o e-mail também (`EMAIL_MODO=desligado`, PH-03). No Android, sem esses dois, quem não tem conta não consegue se cadastrar.
+- **Login:** a produção aceita Apple (padrão `com.solerte.unijovem`); Google está ligado desde 22/11/2026 (4 IDs de cliente no servidor, provado em `docs/qa/v3/verificacao-convite-login-push.md`) e o e-mail está desligado (`EMAIL_MODO=desligado`, PH-03). No Android, o cadastro de quem não tem conta passa pelo Google.
 - **Builds com a convocação (commit `ba85cef`):** iOS 1.0.0 (3) no TestFlight em 16/11/2026 às 00:45 (entrega `bda36734-0efc-4b6e-80af-cd462326e236`) e Android 1.0.0 (5) no teste interno às 00:50 (EAS `72859858`). Os dois têm o seletor de data e hora em folha no iPhone, o aceite do Termo do Administrador corrigido e a convocação. O aviso de recusa e a ordem do Início dependem da 0023 na produção.
 
 ### 7.6 Builds de 22/11/2026 (commit `14debdd`)
@@ -307,3 +307,9 @@ A variante com barra final (`/privacidade/`, `/excluir-conta/`, `/termos/`) resp
 - **Firebase:** a tarefa `:app:processReleaseGoogleServices` rodou; o `resources.pb` do módulo base traz `google_app_id`, `gcm_defaultSenderId`, `project_id` e `google_api_key` (valores não registrados aqui); o `classes.dex` contém `FirebaseMessagingService`; o manifesto ganhou o `meta-data` `com.google.firebase.messaging.default_notification_channel_id` com `avisos`.
 - **Permissões:** a lista do manifesto do módulo base é idêntica à do (14) (32 entradas, nenhuma a mais nem a menos). Nenhuma das bloqueadas pelo projeto entrou (`RECORD_AUDIO`, `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`, `SYSTEM_ALERT_WINDOW`, `AD_ID`, `USE_EXACT_ALARM`, `SCHEDULE_EXACT_ALARM`). A única diferença de manifesto em relação ao (14) é o canal `avisos`.
 - **Não enviado ao Play:** o envio ao teste interno continua com o dono (arrastar o arquivo em Teste interno > Criar nova versão). Nenhum envio ao Play foi feito nesta etapa. A conferência de push no aparelho Android continua pendente (o token FCM e o recebimento da notificação só serão provados num aparelho real). Daemons do Gradle encerrados ao fim.
+
+### 7.10 iOS 1.0.0 (12) no TestFlight e API de produção (22/11/2026)
+
+- **API em produção:** implantada em 22/11/2026 com `implantar.sh` (aprovação do dono no chat). A migração `0031_links_da_musica.sql` foi aplicada (1 nova, 30 já existentes) e a coluna `links` de `uj.musicas` existe. As rotas novas (`eventos/em-lote`, `repertorio/nova-musica`, `momento.doDia` em `GET /inicio`, limpar encontros, excluir comunidade e PDF por música) vão no mesmo pacote. `api` saudável (`/api/saude` 200) e `tarefas` ativo, sem erro no log. O contêiner `tarefas` travou na troca (`removal already in progress`) e foi recriado com `docker rm -f` e `compose up --force-recreate`.
+- **iOS 1.0.0 (12):** archive sem assinatura no Mac mini (CFBundleVersion 12, mesmo commit `432392b`), assinado com o chaveiro de build e enviado pelo `altool`: `UPLOAD SUCCEEDED` (Delivery UUID `31ebcdc4-c362-46ce-8a21-11ee089e0ac0`, 18.378.677 bytes). O App Store Connect marcou o build como `VALID` e o grupo interno "Equipe Uni Jovem" tem acesso a todos os builds. Aviso 90725 da Apple: a partir de abril de 2027 o upload exigirá o SDK do iOS 27 (hoje 26.5); não bloqueia agora.
+- **Pendente:** conferir no iPhone a folha de Comunidades, o PDF, os links e o push (PH-16).
