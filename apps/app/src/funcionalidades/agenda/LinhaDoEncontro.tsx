@@ -9,19 +9,12 @@ import { Icone } from '@/ui/Icone'
 import { LARGURA_DA_HORA } from '@/ui/LinhaDeLista'
 import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
-import { dataDoInstante, falarQuando } from '@/utilidades/datas'
+import { falarQuando, formatarHora } from '@/utilidades/datas'
 
 import { estadoEfetivo, type RespostaOtimista } from '../escalas/respostasOtimistas'
 import { NOME_DO_STATUS } from '../eventos/nomes'
-import {
-  dataCurtaDoEncontro,
-  horarioELocal,
-  nomeDaParte,
-  textoDaSuaParte,
-  type ParteDaPessoa,
-} from './semanas'
-
-const MESES = ['JAN', 'FEV', 'MAR', 'ABR', 'MAIO', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ']
+import { AvisoDeHorario } from './AvisoDeHorario'
+import { nomeDaParte, textoDaSuaParte, type ParteDaPessoa } from './semanas'
 
 export interface PropsDaLinhaDoEncontro {
   evento: ResumoDoEvento
@@ -33,6 +26,8 @@ export interface PropsDaLinhaDoEncontro {
   otimistas: ReadonlyMap<string, RespostaOtimista>
   /** Sem internet: Aceitar e Não posso ir ficam desabilitados com o motivo escrito. */
   semInternet: boolean
+  /** "Ao mesmo tempo que Culto (16:00)": o aviso discreto de encontros que se encostam no dia (D79). */
+  aviso?: string | null
   aoAbrir: () => void
   /** Pressionar e segurar: o menu da linha (o mesmo que o "Mais" do encontro). */
   aoSegurar: () => void
@@ -41,8 +36,8 @@ export interface PropsDaLinhaDoEncontro {
 }
 
 /**
- * A linha do encontro na Agenda (D69, seção 3.3): o dia grande à esquerda, o título, o horário
- * e o local, e SEMPRE a linha "Você: ..." quando há parte (ou "Inscrito"). Com a convocação
+ * A linha do encontro na Agenda (D69, seção 3.3; D79): a linha mora debaixo do cabeçalho do DIA,
+ * então à esquerda vai o horário (começo e fim), não a data. Depois o título, o local, e SEMPRE a linha "Você: ..." quando há parte (ou "Inscrito"). Com a convocação
  * pendente, a linha é a de resposta: "Aceitar" e "Não posso ir" direto nela, com o deslizar como
  * atalho (nunca o único caminho). Depois de aceitar, a linha vira "Você: Louvor · Vocal" com o
  * chip "Confirmado" e os botões somem.
@@ -53,6 +48,7 @@ export function LinhaDoEncontro({
   inscrito,
   otimistas,
   semInternet,
+  aviso = null,
   aoAbrir,
   aoSegurar,
   aoAceitar,
@@ -75,13 +71,15 @@ export function LinhaDoEncontro({
     return (
       <DeslizarParaResponder
         titulo={evento.titulo}
-        descricao={`${dataCurtaDoEncontro(evento.inicio, evento.fuso)} · ${horarioELocal(evento, false)}`}
+        {...(evento.localNome ? { descricao: evento.localNome } : {})}
+        inicio={<ColunaDaHora evento={evento} />}
         extra={
           <View style={{ gap: ESPACO.e8, alignItems: 'flex-start' }}>
             <Chip situacao="aguardando" texto="Aguardando sua resposta" />
             <Texto variante="rotulo" cor="textoSuave">
               {`Você: ${nomeDaParte(pendente)}`}
             </Texto>
+            {aviso ? <AvisoDeHorario texto={aviso} /> : null}
           </View>
         }
         aoPressionar={aoAbrir}
@@ -99,9 +97,28 @@ export function LinhaDoEncontro({
       voce={voce}
       confirmada={confirmada}
       inscrito={inscrito}
+      aviso={aviso}
       aoAbrir={aoAbrir}
       aoSegurar={aoSegurar}
     />
+  )
+}
+
+/** A hora de começo e, embaixo, a de fim: a coluna à esquerda da linha, igual com ou sem resposta pendente. */
+function ColunaDaHora({ evento }: { evento: ResumoDoEvento }) {
+  const fim = new Date(Date.parse(evento.inicio) + evento.duracaoMin * 60_000).toISOString()
+  return (
+    <View
+      style={{ minWidth: LARGURA_DA_HORA, alignItems: 'flex-start', gap: ESPACO.e4 }}
+      accessible={false}
+    >
+      <Texto variante="tituloItem" accessibilityRole="text" tabular>
+        {formatarHora(evento.inicio, evento.fuso)}
+      </Texto>
+      <Texto variante="meta" cor="textoSuave" tabular>
+        {formatarHora(fim, evento.fuso)}
+      </Texto>
+    </View>
   )
 }
 
@@ -110,6 +127,7 @@ function LinhaSimples({
   voce,
   confirmada,
   inscrito,
+  aviso,
   aoAbrir,
   aoSegurar,
 }: {
@@ -117,11 +135,11 @@ function LinhaSimples({
   voce: string | null
   confirmada: boolean
   inscrito: boolean
+  aviso: string | null
   aoAbrir: () => void
   aoSegurar: () => void
 }) {
   const { cores } = useTema()
-  const dia = dataDoInstante(evento.inicio, evento.fuso)
   const situacao =
     evento.status === 'rascunho' ? (
       <Chip situacao="rascunho" />
@@ -136,6 +154,7 @@ function LinhaSimples({
     evento.localNome ? `local: ${evento.localNome}` : null,
     voce ?? (inscrito ? 'Você está inscrito' : null),
     evento.status === 'publicado' ? null : NOME_DO_STATUS[evento.status],
+    aviso,
   ]
     .filter(Boolean)
     .join('. ')
@@ -161,19 +180,14 @@ function LinhaSimples({
           backgroundColor: pressed ? cores.pressionado : 'transparent',
         })}
       >
-        <View style={{ width: LARGURA_DA_HORA, alignItems: 'center' }} accessible={false}>
-          <Texto variante="tituloCartao" accessibilityRole="text" tabular>
-            {String(Number(dia.slice(8, 10)))}
-          </Texto>
-          <Texto variante="legenda" cor="textoSuave">
-            {MESES[Number(dia.slice(5, 7)) - 1] ?? ''}
-          </Texto>
-        </View>
+        <ColunaDaHora evento={evento} />
         <View style={{ flex: 1, gap: ESPACO.e4 }}>
           <Texto variante="tituloItem">{evento.titulo}</Texto>
-          <Texto variante="meta" cor="textoSuave">
-            {horarioELocal(evento)}
-          </Texto>
+          {evento.localNome ? (
+            <Texto variante="meta" cor="textoSuave">
+              {evento.localNome}
+            </Texto>
+          ) : null}
           {voce || inscrito || situacao ? (
             <View
               style={{
@@ -198,6 +212,7 @@ function LinhaSimples({
               {situacao}
             </View>
           ) : null}
+          {aviso ? <AvisoDeHorario texto={aviso} /> : null}
         </View>
         <Icone nome="avancar" cor={cores.textoSuave} tamanho={14} peso="semibold" />
       </Pressable>

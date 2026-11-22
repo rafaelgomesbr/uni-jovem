@@ -83,6 +83,27 @@ export function useAdicionarMusicas(comunidadeId: string, eventoId: string) {
   })
 }
 
+/**
+ * "Cadastrar nova música" direto no repertório (D80): a API cria a música na biblioteca E a põe no
+ * fim deste repertório numa transação só. Recarrega o repertório, o Meu repertório e a biblioteca.
+ */
+export function useCadastrarMusicaNoRepertorio(comunidadeId: string, eventoId: string) {
+  const invalidar = useInvalidarRepertorio(comunidadeId, eventoId)
+  const consultas = useQueryClient()
+  return useMutation({
+    mutationFn: (corpo: Record<string, unknown>) =>
+      api.post<{ musicaId: string; id: string; ordem: number }>(
+        `${doEvento(comunidadeId, eventoId)}/nova-musica`,
+        corpo,
+      ),
+    onSuccess: () =>
+      Promise.all([
+        invalidar(),
+        consultas.invalidateQueries({ queryKey: CHAVES.conteudos(comunidadeId, 'musicas') }),
+      ]),
+  })
+}
+
 export function useMudarItemDoRepertorio(comunidadeId: string, eventoId: string) {
   const invalidar = useInvalidarRepertorio(comunidadeId, eventoId)
   return useMutation({

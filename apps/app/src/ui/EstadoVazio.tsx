@@ -100,7 +100,7 @@ function Conteudo({
             <Botao
               titulo={acaoSecundaria.titulo}
               aoPressionar={acaoSecundaria.aoPressionar}
-              variante="terciario"
+              variante="secundario"
               {...(acaoSecundaria.icone ? { icone: acaoSecundaria.icone } : {})}
             />
           ) : null}

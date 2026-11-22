@@ -1,5 +1,5 @@
 /**
- * Rascunhos provisórios (D74): "Igual ao último sábado" cria o rascunho assim que a tela abre, para
+ * Rascunhos provisórios (D74): "Igual ao último encontro" cria o rascunho assim que a tela abre, para
  * mostrar o que foi copiado. Quem salva ou publica o mantém; quem sai sem isso não quis o encontro.
  * A saída normal apaga o rascunho, mas se o app ou a aba fecharem de repente, ele ficaria solto na
  * Agenda ("Rascunhos (22)" no teste de 22/11/2026). Por isso o app anota o provisório no aparelho e,

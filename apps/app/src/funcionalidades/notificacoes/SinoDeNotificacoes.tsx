@@ -35,9 +35,9 @@ export function SinoDeNotificacoes({ comTexto = true }: { comTexto?: boolean }) 
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: ESPACO.e2,
+        gap: comTexto ? ESPACO.e6 : ESPACO.e2,
         paddingLeft: comTexto ? ESPACO.e4 : 0,
-        paddingRight: comTexto ? ESPACO.e14 : 0,
+        paddingRight: comTexto ? ESPACO.e12 : 0,
         borderRadius: comTexto ? RAIO.pilula : RAIO.controle,
         backgroundColor: pressed ? cores.pressionado : 'transparent',
       })}
@@ -45,7 +45,7 @@ export function SinoDeNotificacoes({ comTexto = true }: { comTexto?: boolean }) 
       {/* Mesma caixa de 40 de antes: o selo continua no canto do ícone. */}
       <View style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
         <Icone nome="sino" cor={cores.texto} tamanho={22} />
-        <SeloDeContagem valor={naoLidas ?? 0} />
+        {comTexto ? null : <SeloDeContagem valor={naoLidas ?? 0} />}
       </View>
       {comTexto ? (
         // O nome falado já é o rótulo do botão: o texto é só para quem enxerga.
@@ -53,6 +53,8 @@ export function SinoDeNotificacoes({ comTexto = true }: { comTexto?: boolean }) 
           Notificações
         </Texto>
       ) : null}
+      {/* Com a palavra, o número fica depois dela: sobre o ícone ele escondia o sino (D79). */}
+      {comTexto ? <SeloDeContagem valor={naoLidas ?? 0} emLinha /> : null}
     </Pressable>
   )
 }

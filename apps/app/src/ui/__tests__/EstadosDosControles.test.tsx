@@ -83,7 +83,7 @@ describe('Botão: estados desenhados (3.1 do desenho dos controles)', () => {
     expect(estilo(botao).outlineWidth).toBeUndefined()
   })
 
-  test('secundário: tonal sem borda, texto `texto`; terciário: só texto `destaque`', async () => {
+  test('secundário: tonal com contorno fino (D79), texto `texto`; terciário: só texto `destaque`', async () => {
     await render(
       <>
         <Botao titulo="Salvar rascunho" variante="secundario" aoPressionar={() => {}} />
@@ -92,7 +92,8 @@ describe('Botão: estados desenhados (3.1 do desenho dos controles)', () => {
     )
     expect(estilo(screen.getByRole('button', { name: 'Salvar rascunho' }))).toMatchObject({
       backgroundColor: C.botaoTonal,
-      borderWidth: 0,
+      borderWidth: 1,
+      borderColor: C.campoBorda,
     })
     expect(screen.getByText('Salvar rascunho')).toHaveStyle({ color: C.texto })
     expect(estilo(screen.getByRole('button', { name: 'Ver todas' }))).toMatchObject({

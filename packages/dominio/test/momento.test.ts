@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ehTituloDeDiaDaSemana,
   estadoDoMomento,
   horaNoFuso,
+  MAXIMO_DE_ENCONTROS_EM_LOTE,
   mesmaFuncao,
+  nomeDoDiaDaData,
   proximaDataParaCopiar,
+  rotuloCurtoDoDia,
   sugerirParaFuncao,
+  tituloNaData,
+  tituloPadraoDoEncontro,
 } from '../src/index.ts'
 
 const FUSO = 'America/Sao_Paulo'
@@ -184,5 +190,46 @@ describe('sugestões por função', () => {
       limite: 2,
     })
     expect(r.sugeridas).toHaveLength(2)
+  })
+})
+
+describe('título que combina com o dia (D78)', () => {
+  // 28/11/2026 é sábado, 29 é domingo, 2/12 é quarta.
+  it('o nome do dia vem da data, não de um dia fixo', () => {
+    expect(nomeDoDiaDaData('2026-11-28')).toBe('Sábado')
+    expect(nomeDoDiaDaData('2026-11-29')).toBe('Domingo')
+    expect(nomeDoDiaDaData('2026-12-02')).toBe('Quarta')
+    expect(nomeDoDiaDaData('2026-12-04')).toBe('Sexta')
+  })
+
+  it('o título padrão é o dia da data, ou "Encontro" sem data', () => {
+    expect(tituloPadraoDoEncontro('2026-11-29')).toBe('Domingo')
+    expect(tituloPadraoDoEncontro('2026-12-02')).toBe('Quarta')
+    expect(tituloPadraoDoEncontro(null)).toBe('Encontro')
+    expect(tituloPadraoDoEncontro()).toBe('Encontro')
+  })
+
+  it('só o título que é apenas o nome de um dia acompanha a data', () => {
+    expect(tituloNaData('Sábado', '2026-11-29')).toBe('Domingo')
+    expect(tituloNaData('sabado', '2026-12-02')).toBe('Quarta')
+    expect(tituloNaData('Terça-feira', '2026-11-29')).toBe('Domingo')
+    expect(tituloNaData('Sábado', '2026-11-28')).toBe('Sábado')
+  })
+
+  it('o título que a pessoa escreveu nunca é trocado', () => {
+    expect(tituloNaData('Sábado Jovem', '2026-11-29')).toBe('Sábado Jovem')
+    expect(tituloNaData('Retiro de domingo', '2026-12-02')).toBe('Retiro de domingo')
+    expect(tituloNaData('Culto', '2026-11-29')).toBe('Culto')
+    expect(ehTituloDeDiaDaSemana('Sábado Jovem')).toBe(false)
+    expect(ehTituloDeDiaDaSemana('  Domingo ')).toBe(true)
+  })
+
+  it('o rótulo curto de cada dia, para listar vários numa linha', () => {
+    expect(['2026-11-27', '2026-11-28', '2026-11-29'].map(rotuloCurtoDoDia)).toEqual([
+      'sex 27',
+      'sáb 28',
+      'dom 29',
+    ])
+    expect(MAXIMO_DE_ENCONTROS_EM_LOTE).toBe(14)
   })
 })

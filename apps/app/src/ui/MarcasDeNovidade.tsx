@@ -12,7 +12,14 @@ const TETO_DO_SELO = 99
  * primária e sobre primária dos botões cheios, que passa AA nos dois temas.
  * Fica oculto do leitor de tela: o rótulo do botão já diz a contagem.
  */
-export function SeloDeContagem({ valor }: { valor: number }) {
+export function SeloDeContagem({
+  valor,
+  emLinha = false,
+}: {
+  valor: number
+  /** Ao lado do texto, na linha (o sino com a palavra): o selo não cobre o ícone (D79). */
+  emLinha?: boolean
+}) {
   const { cores } = useTema()
   const { aumentarContraste } = usePreferenciasDeAcessibilidade()
   if (valor <= 0) return null
@@ -22,9 +29,7 @@ export function SeloDeContagem({ valor }: { valor: number }) {
       importantForAccessibility="no-hide-descendants"
       aria-hidden
       style={{
-        position: 'absolute',
-        top: 4,
-        right: 2,
+        ...(emLinha ? {} : { position: 'absolute' as const, top: 4, right: 2 }),
         // Cresce com a fonte do sistema (D75): o número nunca é cortado nem fica sem a bolinha.
         minWidth: 22,
         minHeight: 22,

@@ -11,26 +11,27 @@ Convenções que valem em todas:
 
 ## Resumo
 
-| Rota                                                                | Permissão                                             | Para que serve                                               |
-| ------------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------ |
-| `GET /c/:id/inicio` (campo novo `momento`)                          | `evento.ler` (todo membro)                            | Cartão do momento do Início                                  |
-| `GET /c/:id/eventos/anteriores-para-copiar`                         | `evento.criar` (organizador, administrador)           | "Igual ao último sábado": de onde copiar e a data sugerida   |
-| `POST /c/:id/eventos/:eventoId/copiar`                              | `evento.criar` e `escala.atribuir`                    | Cria o rascunho copiado, com a equipe aguardando resposta    |
-| `POST /c/:id/eventos/:eventoId/atribuicoes/lote`                    | `escala.atribuir`                                     | Convocar várias pessoas de uma vez                           |
-| `GET /c/:id/eventos/:eventoId/sugestoes-de-convocacao?funcao=`      | `escala.atribuir`                                     | Quem convocar para uma função                                |
-| `POST /c/:id/eventos/:eventoId/lembrar-pendentes`                   | `escala.atribuir`                                     | "Lembrar os N" (quem não respondeu)                          |
-| `GET /c/:id/mural`                                                  | `aviso.ler` (todo membro)                             | Aba Comunidade: aviso à vista, "3 novos", pessoas            |
-| `GET /eu/notificacoes/caixa` (campos novos) e `.../caixa/nao-lidas` | sessão                                                | Sino com título real e quebra por assunto                    |
-| `POST /api/auth/codigo/previa`                                      | pública (sem sessão)                                  | Prévia da comunidade ao digitar o código                     |
-| `GET /c/:id/eventos/:eventoId/repertorio/pacote`                    | `evento.ler_pacote_offline` e tocar no encontro       | Modo palco e uso sem internet                                |
-| `PUT /c/:id/conteudos/musicas/:musicaId/pdf` (D76, migração 0029)   | `conteudo.gerenciar` (organizador)                    | Anexar ou trocar o PDF da música                             |
-| `GET /c/:id/conteudos/musicas/:musicaId/pdf` (D76)                  | `conteudo.ler` (todo membro)                          | Baixar o PDF da música, com ETag                             |
-| `DELETE /c/:id/conteudos/musicas/:musicaId/pdf` (D76)               | `conteudo.gerenciar` (organizador)                    | Remover o PDF da música                                      |
-| `GET /c/:id/eventos/limpar-proximos` (D77, migração 0030)           | `evento.limpar_proximos` (organizador, administrador) | Contar o que a limpeza alcança                               |
-| `POST /c/:id/eventos/limpar-proximos` (D77)                         | `evento.limpar_proximos`                              | Apagar sem avisar ou cancelar e avisar os próximos encontros |
-| `POST /c/:id/excluir` (D77, ADR 0009)                               | `comunidade.excluir` (só administrador)               | Pedir a exclusão da comunidade (30 dias de carência)         |
-| `POST /c/:id/exclusao/desfazer` (D77)                               | `comunidade.desfazer_exclusao` (só administrador)     | Desfazer a exclusão dentro da carência                       |
-| `GET /eu/comunidades-em-exclusao` (D77)                             | sessão (só aparecem as que a pessoa administra)       | Lista "Em exclusão" com a data                               |
+| Rota                                                                | Permissão                                                 | Para que serve                                               |
+| ------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------ |
+| `GET /c/:id/inicio` (campo novo `momento`)                          | `evento.ler` (todo membro)                                | Cartão do momento do Início                                  |
+| `GET /c/:id/eventos/anteriores-para-copiar`                         | `evento.criar` (organizador, administrador)               | "Igual ao último sábado": de onde copiar e a data sugerida   |
+| `POST /c/:id/eventos/:eventoId/copiar`                              | `evento.criar` e `escala.atribuir`                        | Cria o rascunho copiado, com a equipe aguardando resposta    |
+| `POST /c/:id/eventos/:eventoId/atribuicoes/lote`                    | `escala.atribuir`                                         | Convocar várias pessoas de uma vez                           |
+| `GET /c/:id/eventos/:eventoId/sugestoes-de-convocacao?funcao=`      | `escala.atribuir`                                         | Quem convocar para uma função                                |
+| `POST /c/:id/eventos/:eventoId/lembrar-pendentes`                   | `escala.atribuir`                                         | "Lembrar os N" (quem não respondeu)                          |
+| `GET /c/:id/mural`                                                  | `aviso.ler` (todo membro)                                 | Aba Comunidade: aviso à vista, "3 novos", pessoas            |
+| `GET /eu/notificacoes/caixa` (campos novos) e `.../caixa/nao-lidas` | sessão                                                    | Sino com título real e quebra por assunto                    |
+| `POST /api/auth/codigo/previa`                                      | pública (sem sessão)                                      | Prévia da comunidade ao digitar o código                     |
+| `GET /c/:id/eventos/:eventoId/repertorio/pacote`                    | `evento.ler_pacote_offline` e tocar no encontro           | Modo palco e uso sem internet                                |
+| `PUT /c/:id/conteudos/musicas/:musicaId/pdf` (D76, migração 0029)   | `conteudo.gerenciar` (organizador)                        | Anexar ou trocar o PDF da música                             |
+| `GET /c/:id/conteudos/musicas/:musicaId/pdf` (D76)                  | `conteudo.ler` (todo membro)                              | Baixar o PDF da música, com ETag                             |
+| `DELETE /c/:id/conteudos/musicas/:musicaId/pdf` (D76)               | `conteudo.gerenciar` (organizador)                        | Remover o PDF da música                                      |
+| `POST /c/:id/eventos/em-lote` (D78)                                 | `evento.criar` (e `evento.publicar` com `publicar: true`) | Criar um encontro por dia escolhido, tudo ou nada            |
+| `GET /c/:id/eventos/limpar-proximos` (D77, migração 0030)           | `evento.limpar_proximos` (organizador, administrador)     | Contar o que a limpeza alcança                               |
+| `POST /c/:id/eventos/limpar-proximos` (D77)                         | `evento.limpar_proximos`                                  | Apagar sem avisar ou cancelar e avisar os próximos encontros |
+| `POST /c/:id/excluir` (D77, ADR 0009)                               | `comunidade.excluir` (só administrador)                   | Pedir a exclusão da comunidade (30 dias de carência)         |
+| `POST /c/:id/exclusao/desfazer` (D77)                               | `comunidade.desfazer_exclusao` (só administrador)         | Desfazer a exclusão dentro da carência                       |
+| `GET /eu/comunidades-em-exclusao` (D77)                             | sessão (só aparecem as que a pessoa administra)           | Lista "Em exclusão" com a data                               |
 
 ## `GET /c/:id/inicio`: campo `momento`
 
@@ -64,9 +65,18 @@ momento: {
   } | null,
   recemTerminado: { id, titulo, inicio, fim, fuso, presentes, euServi } | null,
     // terminou há menos de 24 h; presentes é null para membro; euServi = tinha parte confirmada
-  proximoAMarcar: boolean | null        // organização: nada marcado depois deste encontro; membro: null
+  proximoAMarcar: boolean | null,       // organização: nada marcado depois deste encontro; membro: null
+  doDia: [{                             // D79: TODOS os encontros do mesmo dia do cartão, por horário ([] sem cartão)
+    id, titulo, inicio, fim, duracaoMin, fuso,
+    status,                             // 'publicado' | 'adiado' | 'rascunho' | 'encerrado' (cancelado não vem; rascunho só para a organização)
+    situacao,                           // 'terminou' | 'agora' | 'adiante' (o mesmo relógio do `estado`)
+    localNome,
+    suaParte: [{ funcao, etapaTitulo, estado }]   // só as convocações da PRÓPRIA pessoa neste encontro
+  }]
 }
 ```
+
+`doDia` (D79, "Hoje: 3 encontros"): o dia é o do fuso do encontro do cartão; o encontro do cartão está dentro da lista (o app diz "2 de 3" e destaca a linha). No máximo 20 encontros. Mesma RLS do resto do `/inicio`: só da comunidade da URL, nenhum dado de outra pessoa em `suaParte`. Campo novo e compatível: o app antigo o ignora e o novo trata a falta como "um encontro só". Mudança de API: **a API precisa ser reimplantada** para o bloco aparecer em homologação.
 
 Regras: `estado` usa o relógio de parede do fuso do encontro (véspera = o dia seguinte; no dia = o mesmo dia, antes da hora); o **ao vivo vence o relógio** (encontro iniciado e não encerrado segue `acontecendo`, mesmo estourando o horário; encerrado sai do cartão e vira `recemTerminado`). Quem está acontecendo vem antes do próximo. Rascunho só aparece para a organização (RLS). Primário por estado, textos e etiquetas ("EM 5 DIAS", "AMANHÃ") são do app, a partir de `estado`, `minutosParaInicio`, `suaParte` e `lider`. Nada de oração, música ou cifra aqui.
 
@@ -87,12 +97,14 @@ Resposta:
 
 Corpo (tudo opcional): `{ data?: 'AAAA-MM-DD', hora?: 'HH:MM', incluirMusicas?: boolean }`. Sem `data`, vale a sugerida; sem `hora`, a da origem; `incluirMusicas` começa em `false`.
 
-Cria um **rascunho**. Copia: título, descrição, categoria, duração, local, vagas, lista de espera, visibilidade e informações úteis (não o prazo de inscrição); roteiro na mesma ordem; checklist sem marcações; tarefas sem prazo e sem conclusão; materiais sem "providenciado"; e a **equipe como `pendente`**, só de quem ainda é ativo, com a etapa certa. Músicas só com `incluirMusicas` (arquivada não vai). **Ninguém é avisado**: a convocação sai quando o encontro é publicado (`POST /eventos/:eventoId/status` com `publicado`, que já existe).
+Cria um **rascunho**. Copia: título (veja abaixo), descrição, categoria, duração, local, vagas, lista de espera, visibilidade e informações úteis (não o prazo de inscrição); roteiro na mesma ordem; checklist sem marcações; tarefas sem prazo e sem conclusão; materiais sem "providenciado"; e a **equipe como `pendente`**, só de quem ainda é ativo, com a etapa certa. Músicas só com `incluirMusicas` (arquivada não vai). **Ninguém é avisado**: a convocação sai quando o encontro é publicado (`POST /eventos/:eventoId/status` com `publicado`, que já existe).
+
+**Título (D78):** o título da origem vai igual, MENOS quando ele é só o nome de um dia da semana ("Sábado", "terça-feira"): então vira o nome do dia da data nova ("Sábado" copiado para um domingo é "Domingo"). Título escrito pela pessoa ("Sábado Jovem", "Retiro") nunca muda. A regra é `tituloNaData` de `@uj/dominio`.
 
 Resposta:
 
 ```
-{ id, versao, status: 'rascunho', inicio, fuso,
+{ id, versao, status: 'rascunho', titulo, inicio, fuso,
   resumo: { origem: { id, titulo, inicio }, etapas, duracaoTotalMin, checklist, tarefas, materiais,
             convocados: { pessoas, itens: [{ atribuicaoId, vinculoId, nome, funcao, etapaTitulo }] },
             naoCopiados,                   // gente que saiu da comunidade
@@ -102,6 +114,25 @@ Resposta:
 ```
 
 Erros: 400 `data_no_passado` (data e hora já passaram), 400 data ou hora mal formadas, 403 membro, 404 encontro de origem inexistente ou de outra comunidade. Auditoria: `evento.copiado` com ids e contagens. "Trocar" uma pessoa na conferência usa `DELETE /eventos/:eventoId/atribuicoes/:atribuicaoId` e a rota de lote abaixo.
+
+## `POST /c/:id/eventos/em-lote` (D78)
+
+Vários dias de uma vez: um encontro por dia escolhido, todos com os mesmos dados e cada um na própria data e hora. **Atômico** (uma transação: se qualquer dia falhar, nenhum nasce). Sem migração.
+
+Corpo:
+
+```
+{ titulo?: string | null,        // 2 a 120; sem ele, cada encontro leva o nome do próprio dia ("Sexta", "Sábado")
+  categoria: string, descricao?, duracaoMin?, localId?, capacidade?, informacoesUteis?,
+  visibilidade?: 'interna' | 'publica',
+  modelo?: 'sabado_padrao' | uuid,   // o roteiro e o checklist do modelo vão em CADA encontro
+  publicar?: boolean,                // padrão false: rascunhos
+  dias: [{ data: 'AAAA-MM-DD', hora: 'HH:MM' }] }   // de 1 a 14, sem data repetida
+```
+
+A `data` e a `hora` são de parede no fuso da comunidade. Prazo de inscrição e lista de espera não entram (valem por encontro, ajustados depois). Resposta: `{ eventos: [{ id, titulo, inicio, status }] }`, na ordem das datas.
+
+Permissões: `evento.criar` (organizador e administrador); com `publicar: true`, também `evento.publicar`. Erros: 400 sem dias, mais de 14, data repetida, data ou hora inválida, título curto; 403 membro (ou sem `publicar` ao publicar); 404 comunidade de outra pessoa, modelo ou local que não são desta comunidade (nada é criado). Auditoria: `evento.criado` (e `evento.publicado`) por encontro, só com o id. Isolamento: caso no inventário de `isolamento.test.ts`; testes em `eventos-em-lote.test.ts`. A repetição semanal ou mensal continua sendo `POST /series`.
 
 ## `POST /c/:id/eventos/:eventoId/atribuicoes/lote`
 
@@ -197,6 +228,16 @@ Migração `0029_pdf_da_musica.sql` (tabela `uj.musica_pdfs`, `bytea` no Postgre
 - **Indicadores sem bytes, em quem já devolvia a música:** `GET .../conteudos/musicas` e `.../musicas/:id`, `GET .../eventos/:eventoId/repertorio`, `GET .../meu-repertorio` e `GET .../repertorio/pacote` trazem `temPdf` (boolean) e `pdf` (`{ nome, tamanho, versao }` ou `null`). No pacote o PDF vai **por referência**: a `versao` do pacote muda quando o PDF muda, e o aparelho baixa o binário só se a versão guardada for outra (`If-None-Match` com a versão que tem, 304 se igual).
 - **Log e auditoria:** só o id da música (`conteudo.pdf_anexado`, `conteudo.pdf_trocado`, `conteudo.pdf_removido`). Nome e conteúdo nunca vão a log, auditoria nem log de mudanças; o nome viaja na consulta, que o registro técnico descarta.
 - **Permissão nova:** nenhuma (`conteudo.gerenciar` e `conteudo.ler`); `docs/matriz-permissoes.md` não mudou. Inventário do isolamento: 3 rotas novas em `isolamento.test.ts`.
+
+## Links da música e `POST /c/:id/eventos/:eventoId/repertorio/nova-musica` (D80)
+
+Migração `0031_links_da_musica.sql`. Código: `apps/api/src/rotas/conteudos.ts` e `repertorio.ts`; a regra dos endereços, em `packages/dominio/src/links-de-musica.ts`.
+
+- **Links:** `uj.musicas.links` (jsonb, até 3 `{ url, rotulo? }`). `POST` e `PATCH .../conteudos/musicas` aceitam `links` (lista; `[]` ou `null` apaga na edição; sem o campo, não mexe). Só https e só `drive.google.com`, `docs.google.com`, `youtube.com` (também `www.` e `m.`), `music.youtube.com` e `youtu.be`; sem usuário e senha, porta, barra invertida, espaço nem caractere de controle; até 2000 letras o endereço e 40 o nome. **400** `dados_invalidos` com a frase em palavras ("Só dá para usar links do Google Drive ou do YouTube...", "Use até 3 links por música."); **400** `link_invalido` quando só o banco recusa (gatilho UJ103, a terceira camada). O `link` único antigo segue aceito, mas com a mesma regra.
+- **Onde `links` volta:** `GET .../conteudos/musicas` (lista e detalhe), `GET .../eventos/:eventoId/repertorio`, `GET .../meu-repertorio` e `GET .../repertorio/pacote` (a versão do pacote muda quando só os links mudam).
+- **Cadastrar direto:** `POST .../eventos/:eventoId/repertorio/nova-musica`, corpo = o de `POST .../conteudos/musicas` (título obrigatório; tom, artista, links, cifra com `direitosConfirmados`, etc.) mais `etapaId` opcional. Cria a música na biblioteca E a põe no fim do repertório (na etapa do Louvor, se houver) **numa transação só**: falhou uma, nenhuma fica. Resposta `{ musicaId, musicaVersao, id, ordem, versao }`. Permissão: `conteudo.gerenciar` **e** `etapa.gerenciar` (organizador para cima); membro **403**; encontro ou etapa de outra comunidade **404**; cifra sem aceite **400** `direitos_nao_confirmados`. O PDF, que vai como corpo bruto, segue pela rota de sempre depois de a música existir.
+- **Log e auditoria:** `conteudo.criado` e `repertorio.item_adicionado`, só com ids. O endereço e o nome do link nunca vão a log, auditoria, log de mudanças nem resposta de erro.
+- **Permissão nova:** nenhuma; `docs/matriz-permissoes.md` não mudou. Inventário do isolamento: 1 rota nova em `isolamento.test.ts`.
 
 ## Limpar os próximos encontros: `GET` e `POST /c/:id/eventos/limpar-proximos` (D77)
 

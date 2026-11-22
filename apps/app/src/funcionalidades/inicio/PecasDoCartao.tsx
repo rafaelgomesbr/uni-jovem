@@ -5,6 +5,7 @@ import { View } from 'react-native'
 
 import type { EventoDoMomento } from '@/servicos/contratoV3'
 import { Botao } from '@/ui/Botao'
+import { Chip } from '@/ui/Chip'
 import { Icone, type NomeDoIcone } from '@/ui/Icone'
 import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
@@ -62,6 +63,41 @@ export function AvisoDeEspera({
   )
 }
 
+/**
+ * O selo de um alerta curto do cartão ("Sem músicas", "Falta: bateria"): ícone e palavras, num
+ * fundo âmbar próprio. Substitui a frase solta "O repertório está vazio." (D79): o cartão fica com
+ * UMA linha do que importa e o alerta vira um sinal pequeno, não mais uma linha de texto.
+ */
+export function SeloDoCartao({ texto }: { texto: string }) {
+  return <Chip tom="alerta" icone="avisoAlerta" texto={texto} />
+}
+
+/** "1 de 3 encontros hoje": a posição do cartão entre os encontros do mesmo dia, para o leitor de tela. */
+export function textoDaPosicao(p: { indice: number; total: number }): string {
+  return `Encontro ${p.indice} de ${p.total} do dia`
+}
+
+/**
+ * O que acompanha a etiqueta de tempo no alto do cartão (D79): "1 de 3" quando o dia tem mais de
+ * um encontro, e "Última versão: hoje, 14:32" sem internet. Quebra para a linha de baixo, nunca
+ * para fora do cartão.
+ */
+export function ChipsDoTopo({
+  posicao,
+  versaoSalva,
+}: {
+  posicao: { indice: number; total: number } | null
+  versaoSalva: string | null
+}) {
+  if (!posicao && !versaoSalva) return null
+  return (
+    <>
+      {posicao ? <Chip tom="neutro" texto={`${posicao.indice} de ${posicao.total}`} /> : null}
+      {versaoSalva ? <Chip tom="neutro" texto={`Última versão: ${versaoSalva}`} /> : null}
+    </>
+  )
+}
+
 /** "Bruno", "Bruno e Camila", "Bruno, Camila e Davi": a lista falada, com "e mais N" se cortou. */
 export function listarNomes(nomes: readonly string[], totalReal = nomes.length): string {
   const primeiros = nomes.map((n) => n.split(' ')[0] ?? n)
@@ -105,6 +141,15 @@ export function useDestinosDoEncontro(
         pathname: '/evento/[eventoId]',
         params: { ...alvo, aba: 'convocados' },
       }),
+    /**
+     * "Convocar bateria": abre Quem vai já na função da banda (`funcao` e `bloco`, que a tela do
+     * encontro entende para abrir a folha de convocar escolhida).
+     */
+    convocarFuncao: (funcao: string) =>
+      router.push({
+        pathname: '/evento/[eventoId]',
+        params: { ...alvo, aba: 'convocados', funcao, bloco: 'Louvor' },
+      }),
     /** Abre o mapa do sistema; sem endereço (local interno), abre o encontro na linha "Onde". */
     comoChegar: () => {
       const link = evento.local ? linkDoMapa(evento.local) : null
@@ -133,18 +178,17 @@ export type DestinosDoEncontro = ReturnType<typeof useDestinosDoEncontro>
 
 /**
  * Os botões que não guardam estado (só levam a uma tela). Devolve `null` para as ações que a
- * tela do cartão trata por conta própria (aceitar, publicar, lembrar...). `comoLink`: o caminho
- * secundário do cartão (D75), só texto com 48 de altura, para o cartão ter UMA ação em destaque.
+ * tela do cartão trata por conta própria (aceitar, publicar, lembrar...). O caminho secundário do
+ * cartão (D79) é um botão de verdade (`secundario`, com ícone quando ajuda a reconhecer), nunca
+ * texto solto: o dono não via que "Ver quem vai" era botão.
  */
 export function botaoComum(
   acao: AcaoDoMomento,
   principal: boolean,
   evento: { titulo: string },
   destinos: DestinosDoEncontro,
-  comoLink = false,
 ): ReactElement | null {
-  const variante = principal ? 'primario' : comoLink ? 'terciario' : 'secundario'
-  const aparencia = comoLink && !principal ? { alinhado: true as const } : {}
+  const variante = principal ? 'primario' : 'secundario'
   switch (acao) {
     case 'ver':
       return (
@@ -152,7 +196,7 @@ export function botaoComum(
           key={acao}
           titulo="Ver o encontro"
           variante={variante}
-          {...aparencia}
+          icone="calendario"
           aoPressionar={destinos.abrirEncontro}
         />
       )
@@ -162,7 +206,7 @@ export function botaoComum(
           key={acao}
           titulo="Ver o próximo encontro"
           variante={variante}
-          {...aparencia}
+          icone="calendario"
           aoPressionar={destinos.abrirEncontro}
         />
       )
@@ -173,7 +217,6 @@ export function botaoComum(
           key={acao}
           titulo="Inscrever-me"
           variante={variante}
-          {...aparencia}
           aoPressionar={destinos.abrirEncontro}
         />
       )
@@ -183,7 +226,6 @@ export function botaoComum(
           key={acao}
           titulo="Como chegar"
           variante={variante}
-          {...aparencia}
           icone="local"
           rotuloAcessivel={`Como chegar a ${evento.titulo}`}
           aoPressionar={destinos.comoChegar}
@@ -195,7 +237,6 @@ export function botaoComum(
           key={acao}
           titulo={destinos.rotuloDoRepertorio}
           variante={variante}
-          {...aparencia}
           icone="musica"
           rotuloAcessivel={`${destinos.rotuloDoRepertorio}: ${evento.titulo}`}
           aoPressionar={destinos.repertorio}
@@ -207,7 +248,6 @@ export function botaoComum(
           key={acao}
           titulo={principal ? 'Acompanhar ao vivo' : 'Abrir ao vivo'}
           variante={variante}
-          {...aparencia}
           aoPressionar={destinos.aoVivo}
         />
       )
@@ -217,7 +257,6 @@ export function botaoComum(
           key={acao}
           titulo="Conduzir ao vivo"
           variante={variante}
-          {...aparencia}
           aoPressionar={destinos.aoVivo}
         />
       )
@@ -227,7 +266,7 @@ export function botaoComum(
           key={acao}
           titulo="Marcar quem chegou"
           variante={variante}
-          {...aparencia}
+          icone="check"
           aoPressionar={destinos.checkin}
         />
       )
@@ -237,19 +276,26 @@ export function botaoComum(
           key={acao}
           titulo="Ver quem vai"
           variante={variante}
-          {...aparencia}
+          icone="pessoas"
           aoPressionar={destinos.verConvocados}
         />
       )
     case 'editar':
-      return <Botao key={acao} titulo="Editar" variante={variante} aoPressionar={destinos.editar} />
+      return (
+        <Botao
+          key={acao}
+          titulo="Editar"
+          variante={variante}
+          icone="editar"
+          aoPressionar={destinos.editar}
+        />
+      )
     case 'marcarProximo':
       return (
         <Botao
           key={acao}
           titulo="Marcar o próximo encontro"
           variante={variante}
-          {...aparencia}
           aoPressionar={destinos.marcarProximo}
         />
       )
@@ -258,7 +304,10 @@ export function botaoComum(
   }
 }
 
-/** O par de botões do cartão (ou o botão sozinho): secundário à esquerda, primário à direita. */
+/**
+ * Os botões do cartão na ordem que `ParDeBotoes` espera (secundário primeiro; ao empilhar, ele
+ * põe o primário em cima).
+ */
 export function ordenarBotoes(
   primario: ReactElement | null,
   secundario: ReactElement | null,

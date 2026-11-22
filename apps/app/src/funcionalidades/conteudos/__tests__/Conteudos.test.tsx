@@ -67,7 +67,7 @@ describe('conteúdos (3.7.3)', () => {
     expect(await screen.findByText('G D Em C')).toBeOnTheScreen()
     expect(screen.getByText('Bruno Lima')).toBeOnTheScreen()
     expect(
-      screen.getByRole('link', { name: 'Abrir o link: https://exemplo.com/cifra' }),
+      screen.getByRole('link', { name: 'Abrir o link antigo: https://exemplo.com/cifra' }),
     ).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Editar a música' })).toBeNull()
   })

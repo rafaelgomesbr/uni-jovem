@@ -11,18 +11,20 @@ import { desfazerAgora, useDesfazerPendente } from '@/ui/ToastComDesfazer'
 
 import {
   acoesDoMembro,
-  dataEHorario,
   descreverParte,
   estaNoLouvor,
   etiquetaDoMomento,
   momentoDoDia,
+  posicaoNoDia,
   tocaNoLouvor,
 } from './momento'
+import { dataEHoraDoCartao } from './quando'
 import {
-  AvisoDeEspera,
   botaoComum,
+  ChipsDoTopo,
   LinhaDoMotivo,
   ordenarBotoes,
+  textoDaPosicao,
   useDestinosDoEncontro,
 } from './PecasDoCartao'
 
@@ -55,10 +57,11 @@ function descricaoDasPartes(partes: readonly ParteDoMomento[]): string {
 }
 
 /**
- * O cartão do momento do MEMBRO (3.1 do UX, D68): a etiqueta do relógio, o título, a data, o
- * local com "Como chegar", "Sua parte" com a situação, e UM primário que muda com o relógio, a
- * convocação e o instrumento. A pendência vence o relógio ("Aceitar" até no dia). Sem internet
- * os botões de resposta ficam desabilitados com o motivo escrito embaixo.
+ * O cartão do momento do MEMBRO (3.1 do UX, D68 e D79), ENXUTO: a etiqueta do relógio, o título,
+ * a data e a hora numa linha, UMA linha do que importa ("Sua parte" com a situação), o botão
+ * principal e UM botão secundário de verdade. O botão principal muda com o relógio, a convocação e o
+ * instrumento; a pendência vence o relógio ("Aceitar" até no dia). Sem internet os botões de
+ * resposta ficam desabilitados com o motivo escrito embaixo.
  */
 export function CartaoDoMembro({
   momento,
@@ -94,10 +97,10 @@ export function CartaoDoMembro({
     temRepertorio: musicas > 0,
   })
 
-  /** `modo`: o botão em destaque, um botão ao lado (a outra resposta) ou só um link de texto. */
-  function botao(acao: typeof primaria, modo: 'primario' | 'secundario' | 'link') {
+  /** `modo`: o botão em destaque ou o secundário (a outra resposta, ou o caminho de apoio). */
+  function botao(acao: typeof primaria, modo: 'primario' | 'secundario') {
     const principal = modo === 'primario'
-    const variante = principal ? 'primario' : modo === 'link' ? 'terciario' : 'secundario'
+    const variante = principal ? 'primario' : 'secundario'
     if (acao === 'aceitar' && pendente) {
       return (
         <Botao
@@ -122,133 +125,120 @@ export function CartaoDoMembro({
         />
       )
     }
-    return botaoComum(acao, principal, evento, destinos, modo === 'link')
+    return botaoComum(acao, principal, evento, destinos)
   }
 
   // "Aceitar" e "Não posso ir" são as duas respostas de uma pergunta só: ficam lado a lado. Qualquer
-  // outro caminho é link de texto, para o cartão ter UMA ação em destaque (D75).
-  const secundariaEhResposta = secundaria === 'naoPossoIr'
+  // outro caminho é UM botão de verdade abaixo do principal, na mesma largura (D79). Havendo
+  // músicas, o repertório à mão vence o "Ver o encontro" genérico (D73): o cartão já abre o encontro.
+  const respondendo = primaria === 'aceitar'
+  const secundariaFinal =
+    secundaria === 'ver' && (musicoConfirmado || musicas > 0) && primaria !== 'repertorio'
+      ? ('repertorio' as const)
+      : secundaria
   const botoes = ordenarBotoes(
     botao(primaria, 'primario'),
-    secundaria && secundariaEhResposta ? botao(secundaria, 'secundario') : null,
+    secundariaFinal ? botao(secundariaFinal, 'secundario') : null,
   )
-  const linkSecundario = secundaria && !secundariaEhResposta ? botao(secundaria, 'link') : null
-  const respondendo = primaria === 'aceitar'
-  // O repertório não some por não caber no par: quem toca e quem só quer ver (D73) o têm à mão.
-  const repertorioSemBotao =
-    (musicoConfirmado || musicas > 0) &&
-    primaria !== 'repertorio' &&
-    secundaria !== 'repertorio' &&
-    !respondendo
 
   // A resposta recusada ainda pode ser desfeita enquanto o toast espera.
   const podeDesfazer = esperaDoDesfazer !== null && partes.some((p) => emEspera.has(p.atribuicaoId))
-  const aindaNaoRespondeu = pendente !== null && (dia === 'dia' || dia === 'agora')
+  const etiqueta = etiquetaDoMomento(momento)
+  const quando = dataEHoraDoCartao(evento.inicio, evento.fuso)
+  const posicao = posicaoNoDia(momento)
+  const temEstado =
+    ativas.length > 0 ||
+    todasRecusadas ||
+    inscricao === 'aberta' ||
+    inscricao === 'inscrito' ||
+    inscricao === 'espera'
 
   return (
     <CartaoDoMomento
       momento={dia}
       {...(poseDoEncanto ? { pose: poseDoEncanto } : {})}
-      etiqueta={etiquetaDoMomento(momento)}
+      etiqueta={etiqueta}
       aoVivo={dia === 'agora'}
-      {...(versaoSalva
-        ? { chip: <Chip tom="neutro" texto={`Última versão: ${versaoSalva}`} /> }
-        : {})}
+      chip={<ChipsDoTopo posicao={posicao} versaoSalva={versaoSalva} />}
       titulo={evento.titulo}
-      meta={[dataEHorario(evento.inicio, evento.duracaoMin, evento.fuso), evento.local?.nome]
-        .filter(Boolean)
-        .join('\n')}
+      meta={quando}
       aoPressionar={destinos.abrirEncontro}
-      rotuloAcessivel={[
-        etiquetaDoMomento(momento),
-        evento.titulo,
-        dataEHorario(evento.inicio, evento.duracaoMin, evento.fuso),
-        evento.local?.nome,
-      ]
+      rotuloAcessivel={[etiqueta, posicao ? textoDaPosicao(posicao) : null, evento.titulo, quando]
         .filter(Boolean)
         .join('. ')}
       dica="Abre o encontro."
       acoes={
         <View style={{ gap: ESPACO.e8 }}>
-          <ParDeBotoes larguraMinima={150}>{botoes}</ParDeBotoes>
-          {linkSecundario}
+          <ParDeBotoes empilhar={!respondendo} larguraMinima={150}>
+            {botoes}
+          </ParDeBotoes>
           {semInternet && respondendo ? (
             <LinhaDoMotivo texto={MOTIVO_SEM_INTERNET_PARA_RESPONDER} />
           ) : null}
         </View>
       }
     >
-      <View style={{ gap: ESPACO.e8 }}>
-        {evento.local && primaria !== 'comoChegar' && destinos.temMapa ? (
-          <Botao
-            titulo="Como chegar"
-            variante="terciario"
-            alinhado
-            icone="local"
-            tamanho="compacto"
-            rotuloAcessivel={`Como chegar a ${evento.titulo}`}
-            aoPressionar={destinos.comoChegar}
-          />
-        ) : null}
+      {temEstado || rodape ? (
+        <View style={{ gap: ESPACO.e8 }}>
+          {temEstado ? (
+            <View style={{ gap: ESPACO.e8, alignItems: 'flex-start' }}>
+              {ativas.length > 0 ? (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    columnGap: ESPACO.e8,
+                    rowGap: ESPACO.e8,
+                  }}
+                >
+                  <Texto variante="rotulo">{`Sua parte: ${descricaoDasPartes(ativas)}`}</Texto>
+                  {pendente ? (
+                    <Chip situacao="aguardando" texto="Aguardando sua resposta" />
+                  ) : ativas.some((p) => p.estado === 'substituicao_pedida') ? (
+                    <Chip tom="alerta" icone="relogio" texto="Troca pedida" />
+                  ) : (
+                    <Chip
+                      situacao="aceitou"
+                      {...(ativas.some((p) => emEspera.has(p.atribuicaoId))
+                        ? { aparecer: 'confirmado' as const }
+                        : {})}
+                    />
+                  )}
+                </View>
+              ) : null}
 
-        {ativas.length > 0 ? (
-          <View style={{ gap: ESPACO.e8 }}>
-            <Texto variante="rotulo">{`Sua parte: ${descricaoDasPartes(ativas)}`}</Texto>
-            {pendente ? (
-              aindaNaoRespondeu ? (
-                <AvisoDeEspera texto="Você ainda não respondeu. Dá tempo de avisar a liderança." />
-              ) : (
-                <Chip situacao="aguardando" texto="Aguardando sua resposta" />
-              )
-            ) : ativas.some((p) => p.estado === 'substituicao_pedida') ? (
-              <Chip tom="alerta" icone="relogio" texto="Troca pedida" />
-            ) : (
-              <Chip
-                situacao="aceitou"
-                {...(ativas.some((p) => emEspera.has(p.atribuicaoId))
-                  ? { aparecer: 'confirmado' as const }
-                  : {})}
-              />
-            )}
-          </View>
-        ) : null}
+              {todasRecusadas ? (
+                <View style={{ gap: ESPACO.e4, alignItems: 'flex-start' }}>
+                  <Texto variante="rotulo">
+                    Você avisou que não pode. A liderança será avisada.
+                  </Texto>
+                  {podeDesfazer ? (
+                    <Botao
+                      titulo="Desfazer"
+                      variante="terciario"
+                      alinhado
+                      tamanho="compacto"
+                      aoPressionar={desfazerAgora}
+                    />
+                  ) : null}
+                </View>
+              ) : null}
 
-        {todasRecusadas ? (
-          <View style={{ gap: ESPACO.e4, alignItems: 'flex-start' }}>
-            <Texto variante="corpo">Você avisou que não pode. A liderança será avisada.</Texto>
-            {podeDesfazer ? (
-              <Botao
-                titulo="Desfazer"
-                variante="terciario"
-                alinhado
-                tamanho="compacto"
-                aoPressionar={desfazerAgora}
-              />
-            ) : null}
-          </View>
-        ) : null}
-
-        {ativas.length === 0 && !todasRecusadas && inscricao === 'aberta' ? (
-          <Texto variante="rotulo">Inscrições abertas</Texto>
-        ) : null}
-        {inscricao === 'inscrito' ? <Chip tom="sucesso" icone="check" texto="Inscrito" /> : null}
-        {inscricao === 'espera' ? (
-          <Chip tom="alerta" icone="relogio" texto="Na lista de espera" />
-        ) : null}
-
-        {repertorioSemBotao ? (
-          <Botao
-            titulo={destinos.rotuloDoRepertorio}
-            variante="terciario"
-            alinhado
-            icone="musica"
-            tamanho="compacto"
-            rotuloAcessivel={`${destinos.rotuloDoRepertorio}: ${evento.titulo}`}
-            aoPressionar={destinos.repertorio}
-          />
-        ) : null}
-        {rodape}
-      </View>
+              {ativas.length === 0 && !todasRecusadas && inscricao === 'aberta' ? (
+                <Texto variante="rotulo">Inscrições abertas</Texto>
+              ) : null}
+              {inscricao === 'inscrito' ? (
+                <Chip tom="sucesso" icone="check" texto="Inscrito" />
+              ) : null}
+              {inscricao === 'espera' ? (
+                <Chip tom="alerta" icone="relogio" texto="Na lista de espera" />
+              ) : null}
+            </View>
+          ) : null}
+          {rodape}
+        </View>
+      ) : null}
     </CartaoDoMomento>
   )
 }

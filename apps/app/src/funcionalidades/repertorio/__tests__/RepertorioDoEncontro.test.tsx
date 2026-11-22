@@ -1,5 +1,7 @@
-import { act, screen, userEvent, waitFor } from '@testing-library/react-native'
+/* eslint-disable no-script-url -- o caso inclui javascript: de propósito: nunca pode virar botão */
+import { act, screen, userEvent, waitFor, within } from '@testing-library/react-native'
 import { router, useLocalSearchParams } from 'expo-router'
+import { Linking } from 'react-native'
 
 import type { ItemDoRepertorio } from '@/servicos/contratoDoRepertorio'
 import { ETAPAS, EVENTO_ID, eventoDeTeste } from '@/testes/fixturas'
@@ -95,16 +97,15 @@ describe('repertório do encontro no visual A (D71)', () => {
     await montar('organizador', [ITEM_2, ITEM_1])
     expect(
       await screen.findByLabelText(
-        /^Música 1 de 2: Grande é o Senhor\. Tom A \(original G\) · 72 bpm · 4:00 · Ministério Exemplo\./,
+        /^Música 1 de 2: Grande é o Senhor\. Tom A \(original G\) · 72 bpm · 4:00 · de Ministério Exemplo\./,
       ),
     ).toBeOnTheScreen()
     expect(
-      screen.getByLabelText(/^Música 2 de 2: Aleluia\. Tom D · 5:00 · Sem cifra\.$/),
+      screen.getByLabelText(/^Música 2 de 2: Aleluia\. Tom D · 5:00 · Sem cifra\./),
     ).toBeOnTheScreen()
     expect(screen.getByText('Entra só o coro')).toBeOnTheScreen()
-    // Soma 9 min contra os 15 da etapa Louvor: só informa, nada bloqueia.
-    expect(screen.getByText('2 músicas, cerca de 9 min de 15 previstos')).toBeOnTheScreen()
-    expect(screen.getByText('Sem cifra')).toBeOnTheScreen()
+    // Soma 9 min contra os 15 da etapa Louvor: só informa, nada bloqueia. Vai no subtítulo da tela.
+    expect(screen.getByText(/2 músicas, cerca de 9 min de 15 previstos/)).toBeOnTheScreen()
     expect(screen.queryByText('Passa do tempo da etapa')).toBeNull()
   })
 
@@ -138,7 +139,6 @@ describe('repertório do encontro no visual A (D71)', () => {
       'Avisar a banda',
       'Subir Aleluia',
       'Descer Grande é o Senhor',
-      'Subir meio tom do dia de Aleluia',
       'Mais ações de Aleluia',
     ]) {
       expect(screen.queryByRole('button', { name: nome })).toBeNull()
@@ -150,18 +150,36 @@ describe('repertório do encontro no visual A (D71)', () => {
     })
   })
 
-  describe('tom do dia', () => {
-    test('Tom + e Tom −: meio tom a partir do que vale hoje, com a versão vista', async () => {
+  describe('a folha da música (tom do dia, links, cifra)', () => {
+    const abrirFolhaDe = async (rotulo: RegExp) => {
+      const usuario = userEvent.setup()
+      await usuario.press(await screen.findByLabelText(rotulo))
+      return usuario
+    }
+
+    test('a linha é uma só: título, tom, e "Subir" e "Descer" com texto; sem "Mais" nem Tom −/+', async () => {
+      await montar('organizador', [ITEM_1, ITEM_2])
+      await screen.findByLabelText(/^Música 1 de 2: Grande é o Senhor/)
+      expect(screen.getAllByText('Subir')).toHaveLength(2)
+      expect(screen.getAllByText('Descer')).toHaveLength(2)
+      expect(screen.queryByText('Mais')).toBeNull()
+      expect(screen.queryByRole('button', { name: /^Mais ações/ })).toBeNull()
+      expect(screen.queryByText('Tom −')).toBeNull()
+      expect(screen.queryByText('Tom +')).toBeNull()
+    })
+
+    test('tocar na linha abre a folha; Tom + anda meio tom a partir do que vale hoje, com a versão vista', async () => {
       const { servidor } = await montar('organizador', [ITEM_1, ITEM_2], {
         [`PATCH ${CAMINHO}/repertorio/${ITEM_2.id}`]: () => ({
           status: 200,
           corpo: { id: ITEM_2.id, versao: 2 },
         }),
       })
-      // Aleluia está no tom original D: meio tom para cima é Eb (vira o tom do dia).
-      await userEvent
-        .setup()
-        .press(await screen.findByRole('button', { name: 'Subir meio tom do dia de Aleluia' }))
+      const usuario = await abrirFolhaDe(/^Música 2 de 2: Aleluia/)
+      expect(await screen.findByText(/O tom original é D/)).toBeOnTheScreen()
+      await usuario.press(screen.getByRole('button', { name: 'Subir meio tom' }))
+      expect(screen.getByDisplayValue('Eb')).toBeOnTheScreen()
+      await usuario.press(screen.getByRole('button', { name: 'Salvar tom do dia' }))
       await waitFor(() =>
         expect(
           pedidosPara(servidor, 'PATCH', `${CAMINHO}/repertorio/${ITEM_2.id}`)[0]?.corpo,
@@ -178,11 +196,9 @@ describe('repertório do encontro no visual A (D71)', () => {
           corpo: { id: ITEM_1.id, versao: 2 },
         }),
       })
-      await userEvent.setup().press(
-        await screen.findByRole('button', {
-          name: 'Descer meio tom do dia de Grande é o Senhor',
-        }),
-      )
+      const usuario = await abrirFolhaDe(/^Música 1 de 1: Grande é o Senhor/)
+      await usuario.press(await screen.findByRole('button', { name: 'Descer meio tom' }))
+      await usuario.press(screen.getByRole('button', { name: 'Salvar tom do dia' }))
       await waitFor(() =>
         expect(
           pedidosPara(servidor, 'PATCH', `${CAMINHO}/repertorio/${ITEM_1.id}`)[0]?.corpo,
@@ -190,50 +206,88 @@ describe('repertório do encontro no visual A (D71)', () => {
       )
     })
 
-    test('sem tom cadastrado: Tom − e + ficam desligados e a tela diz onde escolher', async () => {
+    test('sem tom cadastrado: Tom − e + ficam desligados e a folha diz o que fazer', async () => {
       await montar('organizador', [{ ...ITEM_2, tomOriginal: null }])
-      expect(
-        await screen.findByRole('button', { name: 'Subir meio tom do dia de Aleluia' }),
-      ).toBeDisabled()
-      expect(
-        screen.getByText('Esta música não tem tom cadastrado. Escolha o tom do dia em Mais.'),
-      ).toBeOnTheScreen()
-    })
-
-    test('escolher o tom por escrito (Mais): a folha anda e salva', async () => {
-      const { servidor } = await montar('organizador', [ITEM_1, ITEM_2], {
-        [`PATCH ${CAMINHO}/repertorio/${ITEM_2.id}`]: () => ({
-          status: 200,
-          corpo: { id: ITEM_2.id, versao: 2 },
-        }),
-      })
-      const usuario = userEvent.setup()
-      await usuario.press(await screen.findByRole('button', { name: 'Mais ações de Aleluia' }))
-      await usuario.press(await screen.findByRole('button', { name: /^Escolher o tom do dia/ }))
-      expect(await screen.findByText(/o tom original é D/)).toBeOnTheScreen()
-      await usuario.press(screen.getByRole('button', { name: 'Subir meio tom' }))
-      expect(screen.getByDisplayValue('Eb')).toBeOnTheScreen()
-      await usuario.press(screen.getByRole('button', { name: 'Salvar tom do dia' }))
-      await waitFor(() =>
-        expect(
-          pedidosPara(servidor, 'PATCH', `${CAMINHO}/repertorio/${ITEM_2.id}`)[0]?.corpo,
-        ).toEqual({ versao: 1, tomDoDia: 'Eb' }),
-      )
+      await abrirFolhaDe(/^Música 1 de 1: Aleluia/)
+      expect(await screen.findByRole('button', { name: 'Subir meio tom' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Descer meio tom' })).toBeDisabled()
+      expect(screen.getByText(/Esta música não tem tom original cadastrado/)).toBeOnTheScreen()
     })
 
     test('tom inválido é recusado com mensagem humana, sem pedido ao servidor', async () => {
       const { servidor } = await montar('organizador', [ITEM_1])
-      const usuario = userEvent.setup()
-      await usuario.press(
-        await screen.findByRole('button', { name: 'Mais ações de Grande é o Senhor' }),
-      )
-      await usuario.press(await screen.findByRole('button', { name: /^Escolher o tom do dia/ }))
+      const usuario = await abrirFolhaDe(/^Música 1 de 1: Grande é o Senhor/)
       const campo = await screen.findByDisplayValue('A')
       await usuario.clear(campo)
       await usuario.type(campo, 'XYZ')
       await usuario.press(screen.getByRole('button', { name: 'Salvar tom do dia' }))
       expect(await screen.findByText('Use um tom como G, Am, F#m ou Bb.')).toBeOnTheScreen()
       expect(pedidosPara(servidor, 'PATCH', `${CAMINHO}/repertorio/${ITEM_1.id}`)).toHaveLength(0)
+    })
+
+    test('"Abrir a cifra" leva à música na biblioteca', async () => {
+      await montar('organizador', [ITEM_1])
+      const usuario = await abrirFolhaDe(/^Música 1 de 1: Grande é o Senhor/)
+      await usuario.press(await screen.findByRole('button', { name: 'Abrir a cifra' }))
+      await waitFor(() =>
+        expect(router.push).toHaveBeenCalledWith({
+          pathname: '/conteudos/[tipo]/[itemId]',
+          params: { tipo: 'musicas', itemId: ITEM_1.musicaId },
+        }),
+      )
+    })
+
+    describe('links do Drive e do YouTube (D80)', () => {
+      const comLinks: ItemDoRepertorio = {
+        ...ITEM_1,
+        links: [
+          { url: 'https://www.youtube.com/watch?v=abc123', rotulo: 'Versão original' },
+          { url: 'https://drive.google.com/file/d/1AbC/view' },
+          { url: 'javascript:alert(1)' },
+        ],
+      }
+
+      test('a linha diz em texto que há links; a folha tem um botão por link válido, com o aviso de que sai do app', async () => {
+        const abrir = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined)
+        await montar('organizador', [comLinks])
+        expect(await screen.findByLabelText(/Links: YouTube e Drive/)).toBeOnTheScreen()
+        const usuario = await abrirFolhaDe(/^Música 1 de 1: Grande é o Senhor/)
+        expect(await screen.findByText('Versão original')).toBeOnTheScreen()
+        // O endereço fora da regra nunca vira botão.
+        expect(screen.getAllByRole('button', { name: /^Abrir no / })).toHaveLength(2)
+        expect(screen.getByText(/você sai do Uni Jovem/)).toBeOnTheScreen()
+        await usuario.press(
+          screen.getByRole('button', { name: 'Abrir no YouTube: Versão original' }),
+        )
+        expect(abrir).toHaveBeenCalledWith('https://www.youtube.com/watch?v=abc123')
+        await usuario.press(
+          screen.getByRole('button', { name: 'Abrir no Drive: Grande é o Senhor' }),
+        )
+        expect(abrir).toHaveBeenLastCalledWith('https://drive.google.com/file/d/1AbC/view')
+        expect(abrir).not.toHaveBeenCalledWith('javascript:alert(1)')
+      })
+
+      test('se o celular não abre o link, a pessoa lê o que fazer', async () => {
+        jest.spyOn(Linking, 'openURL').mockRejectedValue(new Error('sem app'))
+        await montar('organizador', [comLinks])
+        const usuario = await abrirFolhaDe(/^Música 1 de 1: Grande é o Senhor/)
+        await usuario.press(
+          await screen.findByRole('button', { name: 'Abrir no YouTube: Versão original' }),
+        )
+        await waitFor(() =>
+          expect(mostrarToast).toHaveBeenCalledWith({
+            texto: expect.stringMatching(/Não deu para abrir o link/),
+          }),
+        )
+      })
+
+      test('sem links, a folha não mostra a seção', async () => {
+        await montar('organizador', [ITEM_1])
+        await abrirFolhaDe(/^Música 1 de 1: Grande é o Senhor/)
+        await screen.findByRole('button', { name: 'Salvar tom do dia' })
+        expect(screen.queryByText('Links')).toBeNull()
+        expect(screen.queryByRole('button', { name: /^Abrir no / })).toBeNull()
+      })
     })
   })
 
@@ -304,16 +358,157 @@ describe('repertório do encontro no visual A (D71)', () => {
       )
     })
 
-    test('biblioteca vazia leva a cadastrar a primeira música', async () => {
-      await montar('organizador', [], {
-        [`GET ${BASE}/conteudos/musicas`]: () => ({ status: 200, corpo: { itens: [] } }),
+    test('o botão que conclui fica fixo embaixo, fora da rolagem', async () => {
+      await montar('organizador', [ITEM_1], {
+        [`GET ${BASE}/conteudos/musicas`]: () => ({ status: 200, corpo: { itens: biblioteca } }),
       })
-      const usuario = userEvent.setup()
-      await usuario.press((await screen.findAllByRole('button', { name: 'Adicionar músicas' }))[0]!)
-      await usuario.press(await screen.findByRole('button', { name: 'Cadastrar música' }))
-      expect(router.push).toHaveBeenCalledWith({
-        pathname: '/conteudos/[tipo]/novo',
-        params: { tipo: 'musicas' },
+      await userEvent
+        .setup()
+        .press(await screen.findByRole('button', { name: 'Adicionar músicas' }))
+      await screen.findByRole('checkbox', { name: /^Outra canção/ })
+      const rodape = screen.getByTestId('rodape-da-folha')
+      expect(within(rodape).getByRole('button', { name: 'Marque as músicas' })).toBeDisabled()
+    })
+
+    describe('cadastrar uma música nova na própria folha (D80)', () => {
+      const abrirAFolha = async (itens: unknown[], rotas: object = {}) => {
+        const r = await montar('organizador', [ITEM_1], {
+          [`GET ${BASE}/conteudos/musicas`]: () => ({ status: 200, corpo: { itens } }),
+          ...rotas,
+        })
+        const usuario = userEvent.setup()
+        await usuario.press(await screen.findByRole('button', { name: 'Adicionar músicas' }))
+        return { ...r, usuario }
+      }
+      const SALVAR = 'Salvar na biblioteca e adicionar ao repertório'
+
+      test('"Cadastrar nova música" está sempre no alto, mesmo com músicas para marcar', async () => {
+        await abrirAFolha(biblioteca)
+        expect(
+          await screen.findByRole('button', { name: 'Cadastrar nova música' }),
+        ).toBeOnTheScreen()
+        expect(screen.getByRole('checkbox', { name: /^Outra canção/ })).toBeOnTheScreen()
+      })
+
+      test('com a biblioteca toda usada: "Todas as músicas já estão aqui. Quer cadastrar uma nova?" com o botão', async () => {
+        await abrirAFolha([biblioteca[0]])
+        expect(
+          await screen.findByText('Todas as músicas já estão aqui. Quer cadastrar uma nova?'),
+        ).toBeOnTheScreen()
+        expect(screen.getByRole('button', { name: 'Cadastrar nova música' })).toBeOnTheScreen()
+        // Sem nada para marcar, não há botão de adicionar desabilitado atrapalhando.
+        expect(screen.queryByRole('button', { name: 'Marque as músicas' })).toBeNull()
+      })
+
+      test('com a biblioteca vazia, o botão é o mesmo, sem sair da folha', async () => {
+        const { usuario } = await abrirAFolha([])
+        expect(await screen.findByText(/A biblioteca ainda não tem músicas/)).toBeOnTheScreen()
+        await usuario.press(screen.getByRole('button', { name: 'Cadastrar nova música' }))
+        expect(await screen.findByLabelText(/^Título/)).toBeOnTheScreen()
+        expect(router.push).not.toHaveBeenCalled()
+      })
+
+      test('busca que não acha vira Cadastrar “texto”, com o título já preenchido', async () => {
+        const { usuario } = await abrirAFolha(biblioteca)
+        await usuario.type(await screen.findByLabelText('Buscar na biblioteca'), 'Oceanos')
+        expect(
+          await screen.findByText(
+            'Nenhuma música com essa busca. As que já estão no repertório não aparecem.',
+          ),
+        ).toBeOnTheScreen()
+        await usuario.press(screen.getByRole('button', { name: 'Cadastrar a música Oceanos' }))
+        expect(await screen.findByDisplayValue('Oceanos')).toBeOnTheScreen()
+      })
+
+      test('título igual ao de uma música da biblioteca: o botão volta a ser o geral', async () => {
+        const { usuario } = await abrirAFolha(biblioteca)
+        await usuario.type(await screen.findByLabelText('Buscar na biblioteca'), 'Outra canção')
+        expect(screen.getByRole('button', { name: 'Cadastrar nova música' })).toBeOnTheScreen()
+      })
+
+      test('salvar cria a música E a põe no repertório numa chamada só, e a folha fecha', async () => {
+        const { servidor, usuario } = await abrirAFolha(biblioteca, {
+          [`POST ${CAMINHO}/repertorio/nova-musica`]: () => ({
+            status: 200,
+            corpo: { musicaId: 'm-criada', id: 'item-novo', ordem: 1 },
+          }),
+        })
+        await usuario.press(await screen.findByRole('button', { name: 'Cadastrar nova música' }))
+        await usuario.type(await screen.findByLabelText(/^Título/), 'Oceanos')
+        await usuario.type(screen.getByLabelText(/^Tom/), 'Em')
+        await usuario.press(screen.getByRole('button', { name: /^Adicionar link/ }))
+        await usuario.type(await screen.findByLabelText('Link 1'), 'https://youtu.be/abc123')
+        await usuario.type(screen.getByLabelText(/Nome do link 1/), 'Ao vivo')
+        await usuario.press(screen.getByRole('button', { name: SALVAR }))
+        await waitFor(() =>
+          expect(
+            pedidosPara(servidor, 'POST', `${CAMINHO}/repertorio/nova-musica`)[0]?.corpo,
+          ).toEqual({
+            titulo: 'Oceanos',
+            tom: 'Em',
+            links: [{ url: 'https://youtu.be/abc123', rotulo: 'Ao vivo' }],
+          }),
+        )
+        await waitFor(() =>
+          expect(mostrarToast).toHaveBeenCalledWith({
+            texto: '“Oceanos” entrou na biblioteca e neste repertório.',
+          }),
+        )
+        // Uma chamada só: nada de criar a música e depois "adicionar" pela rota de sempre.
+        expect(pedidosPara(servidor, 'POST', `${CAMINHO}/repertorio`)).toHaveLength(0)
+        await waitFor(() => expect(screen.queryByText('Nova música')).toBeNull())
+      })
+
+      test('o título é obrigatório e o link fora do Drive e do YouTube é recusado em palavras, sem pedido', async () => {
+        const { servidor, usuario } = await abrirAFolha(biblioteca)
+        await usuario.press(await screen.findByRole('button', { name: 'Cadastrar nova música' }))
+        await usuario.press(await screen.findByRole('button', { name: SALVAR }))
+        expect(await screen.findByText(/Informe título/)).toBeOnTheScreen()
+        await usuario.type(screen.getByLabelText(/^Título/), 'Oceanos')
+        await usuario.press(screen.getByRole('button', { name: /^Adicionar link/ }))
+        await usuario.type(await screen.findByLabelText('Link 1'), 'https://exemplo.test/x')
+        await usuario.press(screen.getByRole('button', { name: SALVAR }))
+        expect(await screen.findByText(/Google Drive ou do YouTube/)).toBeOnTheScreen()
+        expect(pedidosPara(servidor, 'POST', `${CAMINHO}/repertorio/nova-musica`)).toHaveLength(0)
+      })
+
+      test('cifra pede o aceite de direitos; sem ele nada é enviado', async () => {
+        const { servidor, usuario } = await abrirAFolha(biblioteca)
+        await usuario.press(await screen.findByRole('button', { name: 'Cadastrar nova música' }))
+        await usuario.type(await screen.findByLabelText(/^Título/), 'Oceanos')
+        await usuario.type(screen.getByLabelText(/^Cifra ou letra/), '[G]Sobre a rocha')
+        await usuario.press(screen.getByRole('button', { name: SALVAR }))
+        expect(
+          await screen.findByText('Confirme os direitos de uso para salvar a letra e a cifra.'),
+        ).toBeOnTheScreen()
+        expect(pedidosPara(servidor, 'POST', `${CAMINHO}/repertorio/nova-musica`)).toHaveLength(0)
+      })
+
+      test('a explicação diz que a música fica na biblioteca, e "Voltar à lista" volta sem fechar a folha', async () => {
+        const { usuario } = await abrirAFolha(biblioteca)
+        await usuario.press(await screen.findByRole('button', { name: 'Cadastrar nova música' }))
+        expect(
+          await screen.findByText(/Toda música cadastrada fica na biblioteca/),
+        ).toBeOnTheScreen()
+        await usuario.press(screen.getByRole('button', { name: 'Voltar à lista' }))
+        expect(await screen.findByRole('checkbox', { name: /^Outra canção/ })).toBeOnTheScreen()
+      })
+
+      test('erro do servidor aparece em palavras e o formulário continua preenchido', async () => {
+        const { usuario } = await abrirAFolha(biblioteca, {
+          [`POST ${CAMINHO}/repertorio/nova-musica`]: () => ({
+            status: 400,
+            corpo: {
+              erro: 'link_invalido',
+              mensagem: 'Só dá para usar links do Google Drive ou do YouTube.',
+            },
+          }),
+        })
+        await usuario.press(await screen.findByRole('button', { name: 'Cadastrar nova música' }))
+        await usuario.type(await screen.findByLabelText(/^Título/), 'Oceanos')
+        await usuario.press(screen.getByRole('button', { name: SALVAR }))
+        expect(await screen.findByText('A música não foi salva')).toBeOnTheScreen()
+        expect(screen.getByDisplayValue('Oceanos')).toBeOnTheScreen()
       })
     })
   })
@@ -324,8 +519,8 @@ describe('repertório do encontro no visual A (D71)', () => {
         [`DELETE ${CAMINHO}/repertorio/${ITEM_2.id}`]: () => ({ status: 200, corpo: { ok: true } }),
       })
       const usuario = userEvent.setup()
-      await usuario.press(await screen.findByRole('button', { name: 'Mais ações de Aleluia' }))
-      await usuario.press(await screen.findByRole('button', { name: /^Tirar do repertório/ }))
+      await usuario.press(await screen.findByLabelText(/^Música 2 de 2: Aleluia/))
+      await usuario.press(await screen.findByRole('button', { name: 'Tirar do repertório' }))
 
       await waitFor(() => expect(screen.queryByLabelText(/^Música 2 de 2: Aleluia/)).toBeNull())
       expect(screen.getByText('Aleluia saiu do repertório.')).toBeOnTheScreen()
@@ -342,8 +537,8 @@ describe('repertório do encontro no visual A (D71)', () => {
     test('Desfazer traz a música de volta e nada é enviado', async () => {
       const { servidor } = await montar('organizador', [ITEM_1, ITEM_2])
       const usuario = userEvent.setup()
-      await usuario.press(await screen.findByRole('button', { name: 'Mais ações de Aleluia' }))
-      await usuario.press(await screen.findByRole('button', { name: /^Tirar do repertório/ }))
+      await usuario.press(await screen.findByLabelText(/^Música 2 de 2: Aleluia/))
+      await usuario.press(await screen.findByRole('button', { name: 'Tirar do repertório' }))
       await waitFor(() => expect(screen.queryByLabelText(/^Música 2 de 2: Aleluia/)).toBeNull())
 
       await usuario.press(await screen.findByRole('button', { name: 'Desfazer' }))

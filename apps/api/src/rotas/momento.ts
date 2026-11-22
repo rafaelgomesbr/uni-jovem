@@ -23,6 +23,9 @@ import {
 /** Quantos nomes de quem falta responder vão no cartão (o resto vira "e mais N"). */
 const NOMES_NO_CARTAO = 4
 
+/** Quantos encontros do mesmo dia a lista "Hoje: 3 encontros" traz, no máximo. */
+const ENCONTROS_NO_DIA = 20
+
 /** Encontro entre ontem e hoje que o cartão ainda lembra ("Obrigado por servir ontem"). */
 const HORAS_DE_RECEM_TERMINADO = 24
 
@@ -46,6 +49,27 @@ interface LinhaDoEvento {
   referencia: string | null
 }
 
+/** Um encontro do mesmo dia do cartão: o que a lista "Hoje: 3 encontros" precisa (D79). */
+export interface EncontroDoDia {
+  id: string
+  titulo: string
+  inicio: Date
+  fim: Date
+  duracaoMin: number
+  fuso: string
+  status: string
+  /** `terminou`, `agora` ou `adiante`: o relógio do encontro (o mesmo `estadoDoMomento` do cartão). */
+  situacao: 'terminou' | 'agora' | 'adiante'
+  localNome: string | null
+  /** As convocações da própria pessoa neste encontro (a recusada vai junto: o app decide). */
+  suaParte: { funcao: string; etapaTitulo: string | null; estado: string }[]
+}
+
+type LinhaDoDia = Pick<
+  LinhaDoEvento,
+  'id' | 'titulo' | 'inicio' | 'duracaoMin' | 'fuso' | 'status' | 'situacaoAoVivo' | 'localNome'
+>
+
 export type SituacaoDaInscricao = 'inscrito' | 'espera' | 'aberta' | 'fechada' | 'nao_se_aplica'
 
 export interface Momento {
@@ -63,6 +87,11 @@ export interface Momento {
   lider: Record<string, unknown> | null
   recemTerminado: Record<string, unknown> | null
   proximoAMarcar: boolean | null
+  /**
+   * Todos os encontros do MESMO DIA do encontro do cartão (no fuso dele), por horário, com o do
+   * cartão entre eles. Vazio sem cartão. O app só mostra o bloco "Hoje: 3 encontros" com 2 ou mais.
+   */
+  doDia: EncontroDoDia[]
 }
 
 export async function montarMomento(
@@ -161,6 +190,7 @@ export async function montarMomento(
         }
       : null,
     proximoAMarcar: semProximo,
+    doDia: [],
   }
   if (!evento) return base
 
@@ -231,6 +261,7 @@ export async function montarMomento(
 
   let lider: Record<string, unknown> | null = null
   if (organizacao) lider = await montarLider(c, comunidadeId, evento, inscritos, estado)
+  const doDia = await montarDoDia(c, comunidadeId, evento, agora)
 
   return {
     ...base,
@@ -266,7 +297,79 @@ export async function montarMomento(
       capacidade: evento.capacidade,
     },
     lider,
+    doDia,
   }
+}
+
+/**
+ * Os encontros do dia do encontro do cartão (D79): "Hoje: 3 encontros". O dia é o do fuso do
+ * encontro do cartão. Cancelado não entra (não vai acontecer); rascunho só chega à organização
+ * (RLS). As partes da pessoa vêm do mesmo vínculo do contexto, nunca de outra pessoa.
+ */
+async function montarDoDia(
+  c: pg.PoolClient,
+  comunidadeId: string,
+  cartao: LinhaDoEvento,
+  agora: Date,
+): Promise<EncontroDoDia[]> {
+  const linhas = (
+    await c.query<LinhaDoDia>(
+      `select e.id, e.titulo, e.inicio, e.duracao_min as "duracaoMin", e.fuso, e.status,
+              coalesce(an.situacao, 'nao_iniciado') as "situacaoAoVivo", l.nome as "localNome"
+         from uj.eventos e
+         left join uj.locais l on l.id = e.local_id
+         left join uj.andamentos an on an.evento_id = e.id
+        where e.comunidade_id = $1 and e.status in ('publicado', 'adiado', 'rascunho', 'encerrado')
+          and (e.inicio at time zone $2)::date = ($3::timestamptz at time zone $2)::date
+        order by e.inicio, e.id
+        limit ${ENCONTROS_NO_DIA}`,
+      [comunidadeId, cartao.fuso, cartao.inicio],
+    )
+  ).rows
+  if (linhas.length === 0) return []
+  const partes = (
+    await c.query<{
+      eventoId: string
+      funcao: string
+      etapaTitulo: string | null
+      estado: string
+    }>(
+      `select a.evento_id as "eventoId", a.funcao, t.titulo as "etapaTitulo", a.estado
+         from uj.atribuicoes a left join uj.etapas t on t.id = a.etapa_id
+        where a.evento_id = any ($1::uuid[]) and a.comunidade_id = $2
+          and a.vinculo_id = (select uj.vinculo_da_conta_no_contexto())
+        order by (a.estado = 'pendente') desc, t.ordem nulls first, a.criado_em`,
+      [linhas.map((l) => l.id), comunidadeId],
+    )
+  ).rows
+  return linhas.map((l) => {
+    const estado = estadoDoMomento({
+      agora,
+      inicio: l.inicio,
+      duracaoMin: l.duracaoMin,
+      fuso: l.fuso,
+      situacaoAoVivo: l.situacaoAoVivo,
+    })
+    return {
+      id: l.id,
+      titulo: l.titulo,
+      inicio: l.inicio,
+      fim: new Date(l.inicio.getTime() + l.duracaoMin * 60_000),
+      duracaoMin: l.duracaoMin,
+      fuso: l.fuso,
+      status: l.status,
+      situacao:
+        l.status === 'encerrado' || estado === 'terminou'
+          ? ('terminou' as const)
+          : estado === 'acontecendo'
+            ? ('agora' as const)
+            : ('adiante' as const),
+      localNome: l.localNome,
+      suaParte: partes
+        .filter((p) => p.eventoId === l.id)
+        .map(({ funcao, etapaTitulo, estado: e }) => ({ funcao, etapaTitulo, estado: e })),
+    }
+  })
 }
 
 async function montarLider(

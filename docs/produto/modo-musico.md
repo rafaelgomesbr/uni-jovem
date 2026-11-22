@@ -436,3 +436,24 @@ Pedido do dono: "faz o repertório aceitar PDF também". Músicos e líderes tê
 - Quem só lê (não toca) abre o PDF pela rede, sem cópia no aparelho: o pacote offline segue 403 para quem não toca (D73).
 
 **Fora desta rodada:** várias versões do arquivo por música, miniatura da primeira página, busca dentro do PDF, anotação do músico sobre o PDF e baixar o PDF sem o repertório. Detalhes técnicos e rotas em [../design/v3/api-v3.md](../design/v3/api-v3.md).
+
+## 13. Cadastrar música direto no repertório e links do Drive e do YouTube (D80, 22/11/2026)
+
+Pedido do dono depois de testar o build 11 no iOS: a folha "Adicionar músicas" só dizia "Todas as músicas da biblioteca já estão neste repertório" e não oferecia como cadastrar mais uma ("faz o usuário dar voltas desnecessárias; o intuito do app é facilitar e não atrapalhar"), e a música deveria aceitar o link do Drive e do YouTube se quem organiza quiser.
+
+**O que o usuário vê**
+
+- **Folha "Adicionar músicas":** no alto, SEMPRE, o botão grande "Cadastrar nova música". Se a busca não acha uma música com aquele título, o botão vira `Cadastrar “Oceanos”` e o formulário abre com o título já escrito. Com a biblioteca toda usada: "Todas as músicas já estão aqui. Quer cadastrar uma nova?" com o botão. Com a biblioteca vazia: "A biblioteca ainda não tem músicas. Cadastre a primeira". O botão que conclui ("Adicionar 3 músicas") fica fixo embaixo, fora da rolagem; sem nada para marcar, ele nem aparece.
+- **Formulário curto, na própria folha:** título (obrigatório), artista, tom, links, cifra em texto e PDF (todos opcionais). O aceite de direitos autorais só aparece quando há cifra ou PDF, igual ao da Biblioteca. "Salvar na biblioteca e adicionar ao repertório" cria a música e a coloca no fim do repertório de uma vez; a folha fecha e um aviso confirma. Os campos são os mesmos da Biblioteca (uma peça só: `conteudos/FormularioDeConteudo.tsx`).
+- **"Só adicionar a este encontro" não existe, de propósito:** o repertório guarda uma referência a uma música da biblioteca. A folha diz: "Toda música cadastrada fica na biblioteca da comunidade, para usar de novo nos próximos encontros. Para tirá-la só deste repertório, use 'Tirar do repertório' na linha da música." Para ter música avulsa seria preciso um modelo novo e um ADR.
+- **Links:** até 3 por música, cada um com nome opcional ("Cifra no Drive", "Versão ao vivo"), só endereços https do Google Drive e Docs (`drive.google.com`, `docs.google.com`) e do YouTube (`youtube.com`, `www.`, `m.`, `music.youtube.com`, `youtu.be`). "Adicionar link" abre o campo, com a ajuda "Cole o link do Drive ou do YouTube". Erros em palavras: "Só dá para usar links do Google Drive ou do YouTube", "O link precisa começar com https://", "Esse link traz usuário e senha". O aviso de direitos é o mesmo texto aprovado da cifra. O link é opcional, e a música antiga continua valendo sem ele.
+- **Abrir:** "Abrir no YouTube" e "Abrir no Drive" (ícone, texto, 48 pt) na folha da música do repertório, no leitor do Meu repertório e na Biblioteca, com o aviso "Ao tocar, você sai do Uni Jovem e abre o link no aplicativo ou no navegador do celular". As listas dizem em texto "Links: YouTube e Drive". Sem internet, o botão fica parado ("Abrir o link precisa de internet"); o pacote do repertório leva os links só como texto.
+- **A linha de música (quem organiza):** número, título, "Tom A (original G) · 72 bpm · 4:00 · de Ministério Exemplo", e à direita "Subir" e "Descer" (ícone e texto, 48 pt). Tocar na linha abre a folha da música: tom do dia (Tom − e Tom +, campo, salvar), links, "Abrir a cifra" e "Tirar do repertório" (com Desfazer). Acabaram o "Mais" solto e o Tom − e Tom + dentro da lista. O resumo do tempo foi para o subtítulo da tela.
+
+**Regras**
+
+- Permissão: nenhuma nova. Cadastrar direto pede `conteudo.gerenciar` e `etapa.gerenciar` (as duas são de organizador para cima). Membro lê os links.
+- Segurança: a regra dos endereços é uma só (`packages/dominio/src/links-de-musica.ts`), conferida no app, na API e no banco (migração 0031). O app só abre o que passa na regra, mesmo vindo do servidor. O endereço não vai a log, auditoria nem log de mudanças.
+- A música antiga com o link único (qualquer https) foi migrada para `links` quando cabe na regra; o que não cabe continua só para ler, com "Remover o link antigo" na edição.
+
+**Fora:** música avulsa só de um encontro, pré-visualização do título do vídeo, link dentro do Modo palco, nomes do repertório uniformes entre telas de outros donos. Rotas em [../design/v3/api-v3.md](../design/v3/api-v3.md).

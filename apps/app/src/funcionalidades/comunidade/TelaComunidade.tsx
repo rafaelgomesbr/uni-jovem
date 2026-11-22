@@ -264,15 +264,17 @@ function BlocoDeAvisos({
                   })
                 }
               />
+              {/* A última linha do cartão, alinhada ao texto das outras: link solto no meio da tela
+                  ficava fora do eixo (D79). */}
+              <LinhaDeLista
+                icone="mais"
+                titulo="Ver todos os avisos"
+                valor={String(avisos.total)}
+                rotuloAcessivel={`Ver todos os avisos, ${avisos.total}`}
+                aoPressionar={() => router.push('/avisos')}
+              />
             </Lista>
           </Cartao>
-          <View style={{ alignItems: 'center' }}>
-            <Botao
-              titulo={`Ver todos os avisos, ${avisos.total}`}
-              variante="terciario"
-              aoPressionar={() => router.push('/avisos')}
-            />
-          </View>
         </>
       ) : (
         <VazioComSol

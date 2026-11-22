@@ -467,3 +467,107 @@ describe('isolamento', () => {
     expect(cruzado.statusCode).toBe(404)
   })
 })
+
+describe('vários encontros no mesmo dia (doDia, D79)', () => {
+  /** Meio-dia em São Paulo (15:00 UTC) de daqui a 3 dias, mais `horas`: tudo no mesmo dia local. */
+  function nesseDia(horas: number, dias = 3): Date {
+    const base = new Date(Date.now() + dias * DIA)
+    base.setUTCHours(15, 0, 0, 0)
+    return new Date(base.getTime() + horas * HORA)
+  }
+
+  it('sem cartão, a lista vem vazia', async () => {
+    await limpar()
+    expect((await inicio(ana)).momento.doDia).toEqual([])
+  })
+
+  it('traz os encontros do mesmo dia por horário, com o do cartão entre eles, e não os de outro dia', async () => {
+    await limpar()
+    const tarde = await encontro('Culto', nesseDia(3))
+    const manha = await encontro('Café da manhã', nesseDia(-3), { duracaoMin: 90 })
+    await encontro('Noite', nesseDia(6), { duracaoMin: 45 })
+    await encontro('Outro dia', nesseDia(0, 4))
+    await encontro('Cancelado', nesseDia(1), { status: 'cancelado' })
+    const m = (await inicio(ana)).momento
+    expect(m.evento.id).toBe(manha)
+    expect(m.doDia.map((e: { titulo: string }) => e.titulo)).toEqual([
+      'Café da manhã',
+      'Culto',
+      'Noite',
+    ])
+    expect(m.doDia[0]).toMatchObject({
+      id: manha,
+      duracaoMin: 90,
+      status: 'publicado',
+      situacao: 'adiante',
+      fuso: 'America/Sao_Paulo',
+      suaParte: [],
+    })
+    expect(m.doDia[1].id).toBe(tarde)
+    expect(new Date(m.doDia[0].fim).getTime() - new Date(m.doDia[0].inicio).getTime()).toBe(
+      90 * 60_000,
+    )
+  })
+
+  it('"suaParte" de cada encontro é só da própria pessoa', async () => {
+    await limpar()
+    const a = await encontro('Primeiro', nesseDia(-2))
+    const c = await encontro('Segundo', nesseDia(2))
+    await convocar(a, v['ana']!, 'Recepção', 'pendente')
+    await convocar(c, v['ana']!, 'Vocal', 'confirmada')
+    await convocar(c, v['bruno']!, 'Violão', 'pendente')
+    const ana1 = (await inicio(ana)).momento.doDia
+    expect(ana1[0].suaParte).toEqual([
+      { funcao: 'Recepção', etapaTitulo: null, estado: 'pendente' },
+    ])
+    expect(ana1[1].suaParte).toEqual([{ funcao: 'Vocal', etapaTitulo: null, estado: 'confirmada' }])
+    const bruno1 = (await inicio(bruno)).momento.doDia
+    expect(bruno1[0].suaParte).toEqual([])
+    expect(bruno1[1].suaParte).toEqual([
+      { funcao: 'Violão', etapaTitulo: null, estado: 'pendente' },
+    ])
+  })
+
+  it('rascunho só aparece na lista da organização', async () => {
+    await limpar()
+    await encontro('Publicado', nesseDia(-1))
+    await encontro('Rascunho', nesseDia(2), { status: 'rascunho' })
+    expect((await inicio(org)).momento.doDia).toHaveLength(2)
+    expect((await inicio(ana)).momento.doDia.map((e: { titulo: string }) => e.titulo)).toEqual([
+      'Publicado',
+    ])
+  })
+
+  it('o que já terminou hoje fica na lista, e o cartão é o próximo', async () => {
+    await limpar()
+    const agora = new Date()
+    // Dois encontros no dia de hoje (fuso de São Paulo): um que já acabou e um que ainda vem.
+    const acabou = await encontro('Já foi', new Date(agora.getTime() - 3 * HORA), {
+      duracaoMin: 60,
+    })
+    const vem = await encontro('Ainda vem', new Date(agora.getTime() + 2 * HORA))
+    const m = (await inicio(ana)).momento
+    // Só vale quando os dois caem no mesmo dia de São Paulo (perto da meia-noite não caem).
+    const dia = (d: Date) =>
+      new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(d)
+    if (dia(new Date(agora.getTime() - 3 * HORA)) === dia(new Date(agora.getTime() + 2 * HORA))) {
+      expect(m.evento.id).toBe(vem)
+      expect(m.doDia.map((e: { id: string; situacao: string }) => [e.id, e.situacao])).toEqual([
+        [acabou, 'terminou'],
+        [vem, 'adiante'],
+      ])
+    }
+  })
+
+  it('isolamento: encontros de B no mesmo dia nunca entram na lista de A', async () => {
+    await limpar()
+    await encontro('De A', nesseDia(0))
+    await encontro('De B', nesseDia(1), { comunidade: comB })
+    expect((await inicio(org)).momento.doDia.map((e: { titulo: string }) => e.titulo)).toEqual([
+      'De A',
+    ])
+    expect(
+      (await inicio(orgB, comB)).momento.doDia.map((e: { titulo: string }) => e.titulo),
+    ).toEqual(['De B'])
+  })
+})

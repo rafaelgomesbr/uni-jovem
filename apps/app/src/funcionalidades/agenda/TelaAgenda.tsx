@@ -1,18 +1,19 @@
 import { ESPACO } from '@uj/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
 import type { MinhaEscala, ResumoDoEvento } from '@/servicos/contratoDosEventos'
 import { Aviso } from '@/ui/Aviso'
 import { Botao } from '@/ui/Botao'
-import { Chip } from '@/ui/Chip'
 import { EntradaEmCascata } from '@/ui/primitivasDeMovimento'
 import { EstadoVazio } from '@/ui/EstadoVazio'
 import { ErroDaTela } from '@/ui/Falha'
 import { LinhaDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { MenuDeAcoes } from '@/ui/FolhaNaTela'
+import { Secao } from '@/ui/Secao'
+import { PilulasDeFiltro } from '@/ui/PilulasDeFiltro'
 import { Segmentos } from '@/ui/Segmentos'
 import { Sol } from '@/ui/Sol'
 import { Texto } from '@/ui/Texto'
@@ -41,7 +42,8 @@ import { CalendarioEmFolha } from './CalendarioEmFolha'
 import { useMinhasInscricoesDaAgenda } from './consultas'
 import { LinhaDoEncontro } from './LinhaDoEncontro'
 import { PedemAjuda } from './PedemAjuda'
-import { agruparPorSemana, dataCurtaDoEncontro, horarioELocal } from './semanas'
+import { agruparEncontrosPorDia, avisoDeHorario, cabecalhoDoDia, type GrupoDoDia } from './dias'
+import { dataCurtaDoEncontro, horarioELocal } from './semanas'
 
 export type FiltroDaAgenda = 'todos' | 'meu'
 
@@ -61,8 +63,9 @@ export function TelaAgenda() {
 }
 
 /**
- * Agenda (D69, seção 3.3): a lista por semana (Esta semana, Próxima semana, Mais adiante), com a
- * parte de cada um na linha e a resposta ali mesmo; o filtro "Todos / Só o que é meu" (o que sobrou
+ * Agenda (D69, seção 3.3; D79): a lista por DIA ("Dom., 29 de nov. · 3 encontros"), os encontros do
+ * dia por horário, com a parte de cada um na linha e a resposta ali mesmo; dois encontros que se
+ * encostam ganham "Ao mesmo tempo que ..."; o filtro "Todos / Só o que é meu" (o que sobrou
  * da aba Escalas); "Pedem ajuda" no alto; o Calendário numa folha, com "Dias em que posso
  * ajudar"; e "Novo encontro" para quem cria. Links de fora: `?filtro=meu`, `?vista=calendario`,
  * `?vista=disponibilidade` e `?dia=AAAA-MM-DD`.
@@ -111,6 +114,8 @@ function AgendaDaComunidade({ comunidadeId }: { comunidadeId: string }) {
   const [novoAberto, setNovoAberto] = useState(false)
   const [menuDe, setMenuDe] = useState<ResumoDoEvento | null>(null)
   const [verPassados, setVerPassados] = useState(false)
+  // "Rascunhos (N)" é um filtro de verdade (pílula que se marca), não um falso botão (D79).
+  const [soRascunhos, setSoRascunhos] = useState(false)
 
   const hoje = hojeNoFuso(fuso)
   const inicioDeHoje = instanteDeDataEHora(hoje, '00:00', fuso)
@@ -140,21 +145,30 @@ function AgendaDaComunidade({ comunidadeId }: { comunidadeId: string }) {
 
   const base = dia ? doDia : proximos
   const todos = (base.data ?? []).filter((e) => e.status !== 'encerrado' || dia !== null)
-  const visiveis = filtro === 'meu' ? todos.filter(minha) : todos
+  const doFiltro = filtro === 'meu' ? todos.filter(minha) : todos
   const rascunhos = podeCriar
     ? (proximos.data ?? []).filter((e) => e.status === 'rascunho').length
     : 0
-  const grupos = dia ? [] : agruparPorSemana(visiveis, hoje)
+  const visiveis = soRascunhos ? doFiltro.filter((e) => e.status === 'rascunho') : doFiltro
+  const grupos = dia ? [] : agruparEncontrosPorDia(visiveis)
 
   const abrir = (e: ResumoDoEvento) =>
     router.push({ pathname: '/evento/[eventoId]', params: { eventoId: e.id } })
   const abrirCalendario = (ajuda: boolean) =>
     setCalendario((c) => ({ aberto: true, ajuda, chave: c.chave + 1 }))
 
-  const linha = (e: ResumoDoEvento) => (
+  const linha = (e: ResumoDoEvento, doMesmoDia: readonly ResumoDoEvento[]) => (
     <LinhaDoEncontro
       key={e.id}
       evento={e}
+      aviso={
+        e.status === 'cancelado'
+          ? null
+          : avisoDeHorario(
+              e,
+              doMesmoDia.filter((o) => o.status !== 'cancelado'),
+            )
+      }
       partes={partesPorEncontro.get(e.id) ?? []}
       inscrito={inscritos.has(e.id)}
       otimistas={otimistas}
@@ -232,7 +246,16 @@ function AgendaDaComunidade({ comunidadeId }: { comunidadeId: string }) {
               tamanho="medio"
               aoPressionar={() => abrirCalendario(false)}
             />
-            {rascunhos > 0 ? <Chip situacao="rascunho" texto={`Rascunhos (${rascunhos})`} /> : null}
+            {rascunhos > 0 ? (
+              <PilulasDeFiltro
+                rotulo="Filtrar rascunhos"
+                pilulas={[{ valor: 'rascunhos', rotulo: 'Rascunhos', contagem: rascunhos }]}
+                selecionadas={soRascunhos ? ['rascunhos'] : []}
+                aoMudar={(v) => setSoRascunhos(v.includes('rascunhos'))}
+                opcional
+                quebrar
+              />
+            ) : null}
           </View>
         </View>
       </EntradaEmCascata>
@@ -244,7 +267,15 @@ function AgendaDaComunidade({ comunidadeId }: { comunidadeId: string }) {
           <Texto variante="rotulo" style={{ flex: 1 }}>
             {`Só o dia ${formatarDataPorExtenso(dia, false)}`}
           </Texto>
-          <Botao titulo="Ver todos" variante="terciario" aoPressionar={() => setDia(null)} />
+          {podeCriar ? (
+            <Botao
+              titulo="Novo encontro neste dia"
+              icone="adicionar"
+              variante="secundario"
+              aoPressionar={() => setNovoAberto(true)}
+            />
+          ) : null}
+          <Botao titulo="Ver todos" variante="secundario" aoPressionar={() => setDia(null)} />
         </View>
       ) : null}
 
@@ -280,16 +311,15 @@ function AgendaDaComunidade({ comunidadeId }: { comunidadeId: string }) {
               }}
             />
           ) : dia ? (
-            <View style={{ gap: ESPACO.e12 }}>{visiveis.map(linha)}</View>
+            <View style={{ gap: ESPACO.e12 }}>
+              {agruparEncontrosPorDia(visiveis).flatMap((g) =>
+                g.itens.map((e) => linha(e, g.itens)),
+              )}
+            </View>
           ) : (
             grupos.map((g, i) => (
-              <EntradaEmCascata key={g.grupo} ordem={Math.min(i + 2, 5)}>
-                <View style={{ gap: ESPACO.e8 }}>
-                  <Texto variante="tituloItem" nivel={2} accessibilityRole="header">
-                    {g.rotulo}
-                  </Texto>
-                  <View style={{ gap: ESPACO.e12 }}>{g.itens.map(linha)}</View>
-                </View>
+              <EntradaEmCascata key={g.dia} ordem={Math.min(i + 2, 5)}>
+                <DiaDaAgenda grupo={g} hoje={hoje} linha={linha} />
               </EntradaEmCascata>
             ))
           )}
@@ -298,13 +328,13 @@ function AgendaDaComunidade({ comunidadeId }: { comunidadeId: string }) {
 
       {!dia ? (
         <View style={{ gap: ESPACO.e12 }}>
-          <View style={{ alignItems: 'center' }}>
-            <Botao
-              titulo={verPassados ? 'Esconder encontros passados' : 'Ver encontros passados'}
-              variante="terciario"
-              aoPressionar={() => setVerPassados((v) => !v)}
-            />
-          </View>
+          <Botao
+            titulo={verPassados ? 'Esconder encontros passados' : 'Ver encontros passados'}
+            variante="secundario"
+            icone="relogio"
+            expandido={verPassados}
+            aoPressionar={() => setVerPassados((v) => !v)}
+          />
           {verPassados ? (
             passados.isPending ? (
               <Esqueleto rotulo="Carregando os encontros passados">
@@ -321,19 +351,24 @@ function AgendaDaComunidade({ comunidadeId }: { comunidadeId: string }) {
                 Nenhum encontro nos últimos meses.
               </Texto>
             ) : (
-              <View style={{ gap: ESPACO.e12 }}>
-                <Texto variante="tituloItem" nivel={2} accessibilityRole="header">
-                  Encontros passados
-                </Texto>
-                {[...(passados.data ?? [])].reverse().map(linha)}
-              </View>
+              <Secao titulo="Encontros passados">
+                <View style={{ gap: ESPACO.e16 }}>
+                  {agruparEncontrosPorDia(passados.data ?? [], true).map((g) => (
+                    <DiaDaAgenda key={g.dia} grupo={g} hoje={hoje} linha={linha} />
+                  ))}
+                </View>
+              </Secao>
             )
           ) : null}
         </View>
       ) : null}
 
       {podeCriar ? (
-        <FolhaNovaProgramacao aberta={novoAberto} aoFechar={() => setNovoAberto(false)} />
+        <FolhaNovaProgramacao
+          aberta={novoAberto}
+          aoFechar={() => setNovoAberto(false)}
+          {...(dia ? { data: dia } : {})}
+        />
       ) : null}
       <CalendarioEmFolha
         key={calendario.chave}
@@ -356,6 +391,29 @@ function AgendaDaComunidade({ comunidadeId }: { comunidadeId: string }) {
         aoFechar={() => setMenuDe(null)}
       />
     </TelaDoApp>
+  )
+}
+
+/**
+ * Um dia da Agenda: o cabeçalho ("Dom., 29 de nov. · Amanhã · 3 encontros") e, debaixo dele, os
+ * encontros por horário. É o que diz, de relance, que o mesmo dia tem várias atividades (D79).
+ */
+function DiaDaAgenda({
+  grupo,
+  hoje,
+  linha,
+}: {
+  grupo: GrupoDoDia<ResumoDoEvento>
+  hoje: DataLocal
+  linha: (e: ResumoDoEvento, doMesmoDia: readonly ResumoDoEvento[]) => ReactNode
+}) {
+  return (
+    <View testID={`dia-${grupo.dia}`} style={{ gap: ESPACO.e8 }}>
+      <Texto variante="tituloItem" nivel={2} accessibilityRole="header">
+        {cabecalhoDoDia(grupo.dia, hoje, grupo.itens.length)}
+      </Texto>
+      <View style={{ gap: ESPACO.e12 }}>{grupo.itens.map((e) => linha(e, grupo.itens))}</View>
+    </View>
   )
 }
 
@@ -492,7 +550,7 @@ function MenuDaLinha({
                   aoPressionar: () =>
                     router.push({
                       pathname: '/evento/[eventoId]/status',
-                      params: { eventoId: e.id, acao: 'adiar' },
+                      params: { eventoId: e.id },
                     }),
                 },
             ]

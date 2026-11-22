@@ -2,6 +2,8 @@
  * Formato das respostas da API do repertório do encontro e do Meu repertório
  * (D61). Só tipos: as regras moram na API e em `@uj/dominio`. Datas chegam como ISO.
  */
+import type { LinkDaMusica } from '@uj/dominio'
+
 import type { ResumoDoPdf } from './contratoDoPdf'
 import type { EstadoDaAtribuicao } from './contratoDosEventos'
 
@@ -22,6 +24,8 @@ export interface ItemDoRepertorio {
   duracaoSeg: number | null
   arquivada: boolean
   temCifra: boolean
+  /** Links do Drive e do YouTube da música (D80). Opcional: API antiga não manda. */
+  links?: LinkDaMusica[]
   /** PDF anexado (D76): o resumo, sem os bytes. Opcional: API antiga não manda. */
   temPdf?: boolean
   pdf?: ResumoDoPdf | null
@@ -40,6 +44,8 @@ export interface ItemDoMeuRepertorio {
   andamentoBpm: number | null
   duracaoSeg: number | null
   link: string | null
+  /** Links do Drive e do YouTube da música (D80). Opcional: API antiga não manda. */
+  links?: LinkDaMusica[]
   cifra: string | null
   /** PDF anexado (D76): o resumo, sem os bytes. Opcional: API antiga não manda. */
   temPdf?: boolean

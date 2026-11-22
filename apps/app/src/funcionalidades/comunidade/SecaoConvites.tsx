@@ -152,8 +152,7 @@ export function SecaoConvites({
               acoes: (
                 <Botao
                   titulo={`Ver os ${encerrados.length - ENCERRADOS_VISIVEIS} mais antigos`}
-                  variante="terciario"
-                  alinhado
+                  variante="secundario"
                   aoPressionar={() => setVerTodos(true)}
                 />
               ),

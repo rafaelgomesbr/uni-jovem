@@ -9,14 +9,15 @@ import {
   mesmaFuncao,
   proximaDataParaCopiar,
   sugerirParaFuncao,
+  tituloNaData,
 } from '@uj/dominio'
 import { ErroHttp, NAO_ENCONTRADO, traduzirErroDoBanco, validar } from '../http.ts'
 import { auditar, exigir, idDoCaminho, naComunidade } from './contexto.ts'
 
 /**
- * Montar o sábado em poucos toques (app v3, D66):
+ * Montar o encontro em poucos toques (app v3, D66):
  *
- * - "Igual ao último sábado": `GET .../eventos/anteriores-para-copiar` lista de
+ * - "Igual ao último encontro": `GET .../eventos/anteriores-para-copiar` lista de
  *   onde copiar e `POST .../eventos/:eventoId/copiar` cria o RASCUNHO com o
  *   roteiro e a equipe como "aguardando resposta". Ninguém é avisado: a
  *   notificação de convocação só sai quando o encontro é publicado (gatilhos
@@ -173,15 +174,18 @@ export function registrarRotasDeMontarEncontro(app: FastifyInstance, api: pg.Poo
         )
       }
 
-      // O encontro novo: rascunho, mesmo título, local e regras de inscrição.
+      // O encontro novo: rascunho, local e regras de inscrição iguais. O título também, menos quando
+      // é só o nome de um dia ("Sábado" copiado para um domingo vira "Domingo"): um título que a
+      // pessoa escreveu fica como está (D78).
+      const titulo = tituloNaData(origem.titulo, data)
       const { rows } = await c.query<{ id: string; versao: number }>(
         `insert into uj.eventos (comunidade_id, titulo, descricao, categoria, inicio, duracao_min, fuso,
            local_id, capacidade, lista_de_espera, informacoes_uteis, visibilidade)
-         select comunidade_id, titulo, descricao, categoria, $3, duracao_min, fuso, local_id, capacidade,
+         select comunidade_id, $4::text, descricao, categoria, $3, duracao_min, fuso, local_id, capacidade,
                 lista_de_espera, informacoes_uteis, visibilidade
            from uj.eventos where id = $1 and comunidade_id = $2
          returning id, versao`,
-        [eventoId, comunidadeId, inicio],
+        [eventoId, comunidadeId, inicio, titulo],
       )
       const novo = rows[0]!.id
 
@@ -304,6 +308,7 @@ export function registrarRotasDeMontarEncontro(app: FastifyInstance, api: pg.Poo
         id: novo,
         versao: rows[0]!.versao,
         status: 'rascunho' as const,
+        titulo,
         inicio,
         fuso: origem.fuso,
         resumo: {

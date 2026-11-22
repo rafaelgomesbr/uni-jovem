@@ -4,7 +4,7 @@ import type { MomentoDoDia } from '@uj/tokens'
 import type { MomentoDoInicio, ParteDoMomento } from '@/servicos/contratoV3'
 import { formatarHora } from '@/utilidades/datas'
 
-import { dataCurta, diasAte, faixaDeHorario } from './quando'
+import { dataCurta, diaEMes, diasAte } from './quando'
 
 /**
  * A lógica do cartão do momento (seções 3.1 e 3.2 do UX, D68), sem tela: o que o relógio, o
@@ -121,11 +121,25 @@ export function quandoFoiSalva(salvaEm: number, agora: Date = new Date()): strin
 }
 
 /**
+ * O agradecimento a quem serviu no encontro que acabou: "Obrigado por servir ontem.", "...hoje." ou
+ * "...em Sáb., 21 nov." (não diz "ontem" quando foi hoje cedo: auditoria de 22/11/2026, achado 11).
+ */
+export function textoDoObrigado(
+  r: { inicio: string; fuso: string },
+  agora: Date = new Date(),
+): string {
+  const dias = diasAte(r.inicio, r.fuso, agora)
+  const quando = dias === 0 ? 'hoje' : dias === -1 ? 'ontem' : `em ${diaEMes(r.inicio, r.fuso)}`
+  return quando.endsWith('.') ? `Obrigado por servir ${quando}` : `Obrigado por servir ${quando}.`
+}
+
+/**
  * A faixa de cima do Início quando o encontro de ontem acaba de terminar e o cartão já mostra o
- * próximo: "Sábado de ontem terminou. 12 presentes." Diz QUAL encontro terminou (o de hoje cedo ou o
- * de ontem), porque num grupo que se reúne todo sábado os dois têm o mesmo nome e "Sábado
- * terminou" ao lado de "Sábado, em 6 dias" parecia contradição (22/11/2026). Presença zerada não
- * entra: sem check-in o zero não é um fato, é só "ninguém marcou".
+ * próximo: "O encontro de ontem terminou. 12 presentes." Diz QUAL terminou (o de hoje cedo ou o de
+ * ontem) sem repetir o título: num grupo que se reúne todo sábado os dois têm o mesmo nome e "Sábado
+ * terminou" ao lado de "Sábado, em 6 dias" parecia contradição (22/11/2026); e o nome do encontro
+ * nunca vira texto fixo (D79: o app não existe só no sábado). Presença zerada não entra: sem check-in
+ * o zero não é um fato, é só "ninguém marcou".
  */
 export function textoDaDespedida(
   r: { titulo: string; inicio: string; fuso: string; presentes: number | null },
@@ -133,17 +147,12 @@ export function textoDaDespedida(
 ): string {
   const dias = diasAte(r.inicio, r.fuso, agora)
   const quando =
-    dias === 0 ? 'de hoje' : dias === -1 ? 'de ontem' : `(${dataCurta(r.inicio, r.fuso)})`
+    dias === 0 ? 'de hoje' : dias === -1 ? 'de ontem' : `de ${diaEMes(r.inicio, r.fuso)}`
   const presentes =
     r.presentes !== null && r.presentes > 0
       ? ` ${r.presentes} ${r.presentes === 1 ? 'presente' : 'presentes'}.`
       : ''
-  return `${r.titulo} ${quando} terminou.${presentes}`
-}
-
-/** "Sáb., 28 de nov. · 16:00 às 17:00". */
-export function dataEHorario(inicio: string, duracaoMin: number, fuso: string): string {
-  return `${dataCurta(inicio, fuso)} · ${faixaDeHorario(inicio, duracaoMin, fuso)}`
+  return `O encontro ${quando} terminou.${presentes}`
 }
 
 // ------------------------------------------------------------------ o que o botão faz
@@ -161,6 +170,7 @@ export type AcaoDoMomento =
   | 'publicar'
   | 'editar'
   | 'lembrar'
+  | 'chamar'
   | 'convocarFuncao'
   | 'verConvocados'
   | 'checkin'
@@ -219,6 +229,8 @@ export interface SituacaoDoLider {
   faltaFuncao: readonly string[]
   /** O repertório do encontro está vazio (sem nenhuma música). */
   semMusicas: boolean
+  /** Ninguém foi convocado ainda (D79: "Chamar quem vai" vem antes do repertório). */
+  semConvocados?: boolean
   /** Faltam 2 h ou menos para começar: hora do check-in. */
   naHoraDoCheckin: boolean
   /** O cartão é o do encontro que terminou há menos de 24 h. */
@@ -237,10 +249,11 @@ export interface SituacaoDoLider {
  * 2. rascunho: "Publicar e avisar N pessoas";
  * 3. acontecendo: "Conduzir ao vivo" (e "Marcar quem chegou" ao lado);
  * 4. de 2 h antes até começar: "Marcar quem chegou" (e "Abrir ao vivo");
- * 5. falta gente responder: "Lembrar os N";
- * 6. falta uma função da banda: "Convocar bateria";
- * 7. repertório vazio: "Montar o repertório";
- * 8. tudo certo: véspera e dia, "Ver quem vai"; longe, "Ver o encontro".
+ * 5. ninguém foi convocado ainda: "Chamar quem vai" (D79, antes do repertório);
+ * 6. falta gente responder: "Lembrar N pessoas";
+ * 7. falta uma função da banda: "Convocar bateria";
+ * 8. repertório vazio: "Montar o repertório";
+ * 9. tudo certo: véspera e dia, "Ver quem vai"; longe, "Ver o encontro".
  *
  * O secundário é sempre um caminho, nunca uma segunda decisão: o cartão o mostra como link, exceto
  * o check-in, que durante o encontro é botão.
@@ -252,6 +265,9 @@ export function acoesDoLider(s: SituacaoDoLider): AcoesDoCartao {
   if (s.rascunho) return { primaria: 'publicar', secundaria: 'editar' }
   if (s.momento === 'agora') return { primaria: 'conduzir', secundaria: 'checkin' }
   if (s.momento === 'dia' && s.naHoraDoCheckin) return { primaria: 'checkin', secundaria: 'aoVivo' }
+  if (s.semConvocados) {
+    return { primaria: 'chamar', secundaria: s.semMusicas ? 'repertorio' : 'ver' }
+  }
   if (s.lembraveis > 0) return { primaria: 'lembrar', secundaria: 'verConvocados' }
   if (s.faltaFuncao.length > 0) return { primaria: 'convocarFuncao', secundaria: 'verConvocados' }
   if (s.semMusicas) return { primaria: 'repertorio', secundaria: 'verConvocados' }
@@ -312,4 +328,47 @@ export function frasesDoQueFalta(e: EntradaDoQueFalta): FraseDoQueFalta[] {
   }
   if (e.semMusicas) frases.push({ texto: 'O repertório está vazio.', alerta: true })
   return frases.slice(0, 2)
+}
+
+// ------------------------------------------------------------------ vários encontros no dia (D79)
+
+/**
+ * "1 de 3": a posição do encontro do cartão entre os do mesmo dia. `null` quando há um só (ou a
+ * API antiga não mandou a lista): o cartão não diz nada de mais.
+ */
+export function posicaoNoDia(m: MomentoDoInicio): { indice: number; total: number } | null {
+  const lista = m.doDia ?? []
+  if (!m.evento || lista.length < 2) return null
+  const indice = lista.findIndex((e) => e.id === m.evento?.id)
+  return indice < 0 ? null : { indice: indice + 1, total: lista.length }
+}
+
+/**
+ * O título do bloco da lista: "Hoje: 3 encontros", "Amanhã: 2 encontros" ou, mais longe, o dia
+ * ("Dom., 29 de nov.: 2 encontros"). `null` com menos de 2 encontros (o cartão basta).
+ */
+export function tituloDoBlocoDoDia(m: MomentoDoInicio): string | null {
+  const lista = m.doDia ?? []
+  if (!m.evento || lista.length < 2) return null
+  const dias = diasAte(m.evento.inicio, m.evento.fuso, new Date(m.agora))
+  const dia =
+    dias === 0 ? 'Hoje' : dias === 1 ? 'Amanhã' : dataCurta(m.evento.inicio, m.evento.fuso)
+  return `${dia}: ${lista.length} encontros`
+}
+
+/**
+ * O selo de alerta do cartão do líder (D79): no máximo UM, e só do que o botão principal NÃO diz.
+ * "Montar o repertório" já diz que o repertório está vazio; "Convocar bateria" já diz que falta a
+ * bateria: repetir em frase era texto demais. O que sobra, num selo pequeno.
+ */
+export function seloDoCartaoDoLider(e: {
+  primaria: AcaoDoMomento
+  faltaFuncao: readonly string[]
+  semMusicas: boolean
+}): string | null {
+  if (e.faltaFuncao.length > 0 && e.primaria !== 'convocarFuncao') {
+    return textoDaFuncaoQueFalta(e.faltaFuncao)
+  }
+  if (e.semMusicas && e.primaria !== 'repertorio') return 'Sem músicas'
+  return null
 }

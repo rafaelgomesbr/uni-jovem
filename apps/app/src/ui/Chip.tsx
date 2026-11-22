@@ -92,7 +92,8 @@ export interface PropsDoChip {
 }
 
 /**
- * Chip de estado (seção 2.12.12 e 8.4 da direção A): preenchido, 28 de altura mínima (D75),
+ * Chip de estado (seção 2.12.12 e 8.4 da direção A; D79): retângulo arredondado de raio 8, para não
+ * ser confundido com botão (que é pílula), preenchido, 28 de altura mínima (D75),
  * padding 10 por 4, texto 16/20 600, ícone de 16. Sempre texto; nunca é tocável (o que é tocável é pílula de
  * filtro). Dentro do cartão translúcido, o fundo é composto sobre o opaco.
  */
@@ -182,7 +183,7 @@ function CorpoDoChip({
         minHeight: ALTURA.chip,
         paddingHorizontal: ESPACO.e10,
         paddingVertical: ESPACO.e4,
-        borderRadius: RAIO.pilula,
+        borderRadius: RAIO.etiqueta,
         backgroundColor: solido(cores[fundo]),
         borderWidth: aumentarContraste ? 1 : 0,
         borderColor: aumentarContraste ? cor : 'transparent',

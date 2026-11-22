@@ -10,7 +10,7 @@
  * (padrão 5.2 do documento de UX), e se for encerrado à força nada foi enviado.
  */
 import { api } from './api'
-import type { StatusDoEvento } from '@uj/dominio'
+import type { LinkDaMusica, StatusDoEvento } from '@uj/dominio'
 import type { ResumoDoPdf } from './contratoDoPdf'
 import type { EstadoDaAtribuicao } from './contratoDosEventos'
 
@@ -100,6 +100,22 @@ export interface RecemTerminado {
   euServi: boolean
 }
 
+/** Um encontro do mesmo dia do cartão (`momento.doDia`, D79): o que a lista "Hoje: 3 encontros" lê. */
+export interface EncontroDoDia {
+  id: string
+  titulo: string
+  inicio: string
+  fim: string
+  duracaoMin: number
+  fuso: string
+  status: StatusDoEvento
+  /** O relógio do encontro: `terminou`, `agora` (acontecendo) ou `adiante` (ainda vem). */
+  situacao: 'terminou' | 'agora' | 'adiante'
+  localNome: string | null
+  /** As convocações da própria pessoa neste encontro (a recusada vai junto). */
+  suaParte: { funcao: string; etapaTitulo: string | null; estado: EstadoDaAtribuicao }[]
+}
+
 export interface MomentoDoInicio {
   agora: string
   /** O encontro que está acontecendo ou o próximo; nulo = "nada marcado". */
@@ -116,6 +132,11 @@ export interface MomentoDoInicio {
   recemTerminado: RecemTerminado | null
   /** Organização: nada marcado depois do encontro do cartão. Membro: nulo. */
   proximoAMarcar: boolean | null
+  /**
+   * Todos os encontros do mesmo dia do encontro do cartão, por horário (o do cartão entre eles).
+   * Opcional: API antiga e cópia guardada por versão antiga não trazem; o bloco só aparece com 2 ou mais.
+   */
+  doDia?: EncontroDoDia[]
 }
 
 // ------------------------------------------------------------ "Igual ao último sábado"
@@ -291,6 +312,8 @@ export interface ItemDoPacoteDoRepertorio {
   andamentoBpm: number | null
   duracaoSeg: number | null
   link: string | null
+  /** Links do Drive e do YouTube (D80), só como texto: abrir exige internet. Opcional. */
+  links?: LinkDaMusica[]
   cifra: string | null
   /** PDF anexado (D76): o resumo, sem os bytes. Opcional: API antiga não manda. */
   temPdf?: boolean

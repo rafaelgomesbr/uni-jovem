@@ -1,5 +1,5 @@
 /**
- * D69: a Agenda v3. Lista por semana, a parte de cada um na linha, filtro "Só o que é meu",
+ * D69 e D79: a Agenda v3. Lista por dia, a parte de cada um na linha, filtro "Só o que é meu",
  * resposta direto na linha com Desfazer de 10 s, "Pedem ajuda", Calendário em folha com "Dias em
  * que posso ajudar", "Novo encontro" para quem cria e os estados (vazio, erro, sem internet).
  */
@@ -24,14 +24,13 @@ import {
   periodoTemHoje,
 } from '../calendario'
 import {
-  agruparPorSemana,
   dataCurtaDoEncontro,
   diaDoToast,
-  grupoDaSemana,
   horarioELocal,
   nomeDaParte,
   textoDaSuaParte,
 } from '../semanas'
+import { cabecalhoDoDia } from '../dias'
 import { TelaAgenda } from '../TelaAgenda'
 
 jest.mock('expo-router', () => ({
@@ -115,27 +114,6 @@ function usarFonte(fontScale: number) {
 }
 
 describe('as contas da Agenda (puras)', () => {
-  test('a semana vai de domingo a sábado: esta, a próxima e mais adiante', () => {
-    // 22/11/2026 é domingo: o sábado 28 ainda é "esta semana".
-    expect(grupoDaSemana('2026-11-28', '2026-11-22')).toBe('esta')
-    expect(grupoDaSemana('2026-11-29', '2026-11-22')).toBe('proxima')
-    expect(grupoDaSemana('2026-12-05', '2026-11-22')).toBe('proxima')
-    expect(grupoDaSemana('2026-12-06', '2026-11-22')).toBe('adiante')
-    // Numa quarta-feira, o sábado seguinte continua "esta semana".
-    expect(grupoDaSemana('2026-11-28', '2026-11-25')).toBe('esta')
-  })
-
-  test('agrupa na ordem recebida e grupo vazio não existe', () => {
-    const grupos = agruparPorSemana(
-      [
-        { inicio: '2026-11-28T19:00:00.000Z', fuso: FUSO },
-        { inicio: '2026-12-19T19:00:00.000Z', fuso: FUSO },
-      ],
-      '2026-11-22',
-    )
-    expect(grupos.map((g) => g.rotulo)).toEqual(['Esta semana', 'Mais adiante'])
-  })
-
   test('a linha "Você:" junta etapa e função; recusada vira "Você avisou que não pode."', () => {
     expect(nomeDaParte({ funcao: 'vocal', etapaTitulo: 'Louvor' })).toBe('Louvor · Vocal')
     expect(nomeDaParte({ funcao: 'recepção', etapaTitulo: null })).toBe('Recepção')
@@ -198,12 +176,21 @@ describe('Agenda', () => {
     await act(async () => usarFonte(2))
   })
 
-  test('lista por semana: Esta semana, Próxima semana e Mais adiante, com horário e local', async () => {
+  test('lista por dia: um cabeçalho por dia, com o horário à esquerda e o local (D79)', async () => {
     await renderizarTela(<TelaAgenda />, { papel: 'membro', rotas: rotas([E1, E2, E3]) })
-    expect(await screen.findByRole('header', { name: 'Esta semana' })).toBeOnTheScreen()
-    expect(screen.getByRole('header', { name: 'Próxima semana' })).toBeOnTheScreen()
-    expect(screen.getByRole('header', { name: 'Mais adiante' })).toBeOnTheScreen()
-    expect(screen.getAllByText('SÁB 16:00 às 17:00 · Salão da igreja')).toHaveLength(2)
+    expect(
+      await screen.findByRole('header', { name: cabecalhoDoDia(SABADO_DESTA, HOJE, 1) }),
+    ).toBeOnTheScreen()
+    expect(
+      screen.getByRole('header', { name: cabecalhoDoDia(SABADO_DA_PROXIMA, HOJE, 1) }),
+    ).toBeOnTheScreen()
+    expect(
+      screen.getByRole('header', { name: cabecalhoDoDia(SABADO_ADIANTE, HOJE, 1) }),
+    ).toBeOnTheScreen()
+    // O horário (começo e fim) vem na coluna da esquerda e o local abaixo do título; sem a data repetida.
+    expect(screen.getAllByText('16:00')).toHaveLength(2)
+    expect(screen.getByText('19:30')).toBeOnTheScreen()
+    expect(screen.getAllByText('Salão da igreja')).toHaveLength(2)
     expect(screen.getByText('Noite de Louvor')).toBeOnTheScreen()
     // Nada de "Semana", busca nem linha do tempo: a Agenda é uma lista e um calendário em folha.
     expect(screen.queryByRole('radio', { name: 'Lista' })).toBeNull()
@@ -343,8 +330,8 @@ describe('Agenda', () => {
       })
       expect(await screen.findByText('Você: Louvor · Vocal')).toBeOnTheScreen()
       expect(screen.queryByRole('button', { name: 'Aceitar' })).toBeNull()
-      // O chip "Rascunhos (1)" só existe para a organização e só quando há um.
-      expect(screen.getByText('Rascunhos (1)')).toBeOnTheScreen()
+      // O filtro "Rascunhos" (pílula que se marca, não um falso botão) só existe para a organização e só quando há um.
+      expect(screen.getByRole('checkbox', { name: /Rascunhos/ })).toBeOnTheScreen()
     })
   })
 
@@ -419,7 +406,11 @@ describe('Agenda', () => {
       // A folha fecha e a lista fica só com o dia escolhido.
       expect(await screen.findByText(/^Só o dia /)).toBeOnTheScreen()
       await usuario.press(screen.getByRole('button', { name: 'Ver todos' }))
-      expect(await screen.findByRole('header', { name: 'Próxima semana' })).toBeOnTheScreen()
+      expect(
+        await screen.findByRole('header', {
+          name: cabecalhoDoDia(SABADO_DA_PROXIMA, HOJE, 1),
+        }),
+      ).toBeOnTheScreen()
     })
 
     test('"Dias em que posso ajudar": tocar num dia marca com check e texto, e grava na hora', async () => {
@@ -470,7 +461,7 @@ describe('Agenda', () => {
   })
 
   describe('"Novo encontro"', () => {
-    test('só para quem cria: a folha oferece "Igual ao último sábado" (recomendado) e as outras saídas', async () => {
+    test('só para quem cria: a folha oferece "Igual ao último encontro" (recomendado) e as outras saídas', async () => {
       const usuario = userEvent.setup()
       await renderizarTela(<TelaAgenda />, {
         papel: 'organizador',
@@ -498,10 +489,10 @@ describe('Agenda', () => {
         }),
       })
       await usuario.press(await screen.findByRole('button', { name: 'Novo encontro' }))
-      const igual = await screen.findByRole('button', { name: /^Igual ao último sábado/ })
+      const igual = await screen.findByRole('button', { name: /^Igual ao último encontro/ })
       expect(igual).toBeEnabled()
       expect(screen.getByText('Recomendado')).toBeOnTheScreen()
-      expect(screen.getByRole('button', { name: /^Sábado padrão/ })).toBeOnTheScreen()
+      expect(screen.getByRole('button', { name: /^Encontro padrão/ })).toBeOnTheScreen()
       expect(screen.getByRole('button', { name: /^Em branco/ })).toBeOnTheScreen()
       await usuario.press(igual)
       await waitFor(() => expect(router.push).toHaveBeenCalledWith('/evento/igual-ao-ultimo'))
@@ -584,7 +575,9 @@ describe('Agenda', () => {
       })
       expect(await screen.findByText('Não deu para carregar a agenda')).toBeOnTheScreen()
       await userEvent.setup().press(screen.getByRole('button', { name: 'Tentar de novo' }))
-      expect(await screen.findByRole('header', { name: 'Esta semana' })).toBeOnTheScreen()
+      expect(
+        await screen.findByRole('header', { name: cabecalhoDoDia(SABADO_DESTA, HOJE, 1) }),
+      ).toBeOnTheScreen()
     })
 
     test('encontro cancelado e adiado aparecem com a palavra, não só a cor', async () => {

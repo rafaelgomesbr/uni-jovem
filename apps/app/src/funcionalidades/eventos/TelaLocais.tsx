@@ -271,7 +271,7 @@ function Formulario({ comunidadeId, local }: { comunidadeId: string; local: Loca
           }
         : {})}
       barraDeAcao={
-        <BarraDeAcao>
+        <BarraDeAcao solta>
           <Botao
             titulo={local ? 'Salvar' : 'Cadastrar local'}
             tamanho="grande"

@@ -1,7 +1,12 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type pg from 'pg'
 import { z } from 'zod'
-import { nomeDoTom } from '@uj/dominio'
+import {
+  conferirLinkDeMusica,
+  MAXIMO_DE_LINKS_DA_MUSICA,
+  MAXIMO_DO_NOME_DO_LINK,
+  nomeDoTom,
+} from '@uj/dominio'
 import { ErroHttp, NAO_ENCONTRADO, traduzirErroDoBanco, validar } from '../http.ts'
 import { auditar, exigir, idDoCaminho, naComunidade } from './contexto.ts'
 import { RESUMO_DO_PDF, TEM_PDF } from './musica-pdf.ts'
@@ -14,11 +19,47 @@ import { RESUMO_DO_PDF, TEM_PDF } from './musica-pdf.ts'
  */
 
 const texto = (max: number) => z.string().trim().max(max)
+/**
+ * Link do Google Drive ou do YouTube (D80): a regra é a de `packages/dominio` (só https, só esses
+ * endereços, sem usuário e senha, sem javascript: nem data:), e o banco confere de novo (0031).
+ * A mensagem de recusa já vem em palavras.
+ */
 const link = z
   .string()
   .trim()
-  .max(2000)
-  .regex(/^https:\/\/\S+$/, 'Use um link que comece com https://.')
+  .superRefine((v, ctx) => {
+    const r = conferirLinkDeMusica(v)
+    if (!r.ok) ctx.addIssue({ code: 'custom', message: r.motivo })
+  })
+
+// eslint-disable-next-line no-control-regex
+const COM_CONTROLE = new RegExp('[\\u0000-\\u001f\\u007f-\\u009f]')
+
+/** Até 3 links, cada um com o nome opcional. O nome vazio some; o resto do corpo é ignorado. */
+const links = z
+  .array(
+    z.object({
+      url: link,
+      rotulo: z
+        .string()
+        .trim()
+        .max(
+          MAXIMO_DO_NOME_DO_LINK,
+          `O nome do link pode ter até ${MAXIMO_DO_NOME_DO_LINK} letras.`,
+        )
+        .refine(
+          (v) => !COM_CONTROLE.test(v),
+          'O nome do link tem um caractere que não dá para usar.',
+        )
+        .nullish()
+        .transform((v) => (v ? v : undefined)),
+    }),
+    'Os links vão como uma lista.',
+  )
+  .max(MAXIMO_DE_LINKS_DA_MUSICA, `Use até ${MAXIMO_DE_LINKS_DA_MUSICA} links por música.`)
+  .transform((lista) =>
+    lista.map((l) => (l.rotulo === undefined ? { url: l.url } : { url: l.url, rotulo: l.rotulo })),
+  )
 
 /** Tom no formato do app (G, Am, F#m, Bb); vazio apaga. Aceita ♯ e ♭ e devolve ASCII. */
 const tom = z
@@ -37,6 +78,8 @@ interface TipoDeConteudo {
   parametro: string
   /** campo da API → coluna */
   colunas: Record<string, string>
+  /** Colunas `jsonb`: o valor vai como texto JSON (o `pg` serializaria a lista como array do Postgres). */
+  jsonb?: readonly string[]
   /** Colunas longas que não vão na lista (só no detalhe). */
   soNoDetalhe: string[]
   /** Colunas calculadas que entram na lista e no detalhe (sem o texto longo). */
@@ -57,12 +100,14 @@ const TIPOS: TipoDeConteudo[] = [
       artista: 'artista',
       tom: 'tom',
       link: 'link',
+      links: 'links',
       cifra: 'cifra',
       andamentoBpm: 'andamento_bpm',
       duracaoSeg: 'duracao_seg',
       observacoes: 'observacoes',
       arquivada: 'arquivada',
     },
+    jsonb: ['links'],
     soNoDetalhe: ['cifra'],
     // A lista mostra o selo "Sem cifra" sem trazer o texto da cifra, e o selo "PDF" sem trazer os
     // bytes do arquivo (D76): só o resumo (nome, tamanho e a versão, que é o SHA-256 em hexadecimal).
@@ -76,7 +121,9 @@ const TIPOS: TipoDeConteudo[] = [
       titulo: z.string().trim().min(1, 'Informe o título da música.').max(120),
       artista: texto(120).nullish(),
       tom: tom.nullish(),
+      // O link antigo (um só) segue aceito, mas só com a mesma regra dos `links` (D80).
       link: link.nullish(),
+      links: links.nullish(),
       cifra: texto(20000).nullish(),
       andamentoBpm: z.number().int().min(30).max(300).nullish(),
       duracaoSeg: z.number().int().min(10).max(3600).nullish(),
@@ -160,6 +207,62 @@ const temTexto = (v: unknown): v is string => typeof v === 'string' && v.trim() 
 const direitosNaoConfirmados = () =>
   new ErroHttp('direitos_nao_confirmados', 400, MENSAGEM_DE_DIREITOS)
 
+/** Segunda camada: o banco recusou um link fora da regra (gatilho UJ103 de 0031). */
+export const LINK_FORA_DA_REGRA = () =>
+  new ErroHttp(
+    'link_invalido',
+    400,
+    'Só dá para usar links do Google Drive ou do YouTube, que comecem com https://.',
+  )
+
+/** Traduz o que só o banco sabe (link fora da regra) e deixa o resto para o tradutor comum. */
+export function traduzirErroDeConteudo(e: unknown): never {
+  if (e instanceof ErroHttp) throw e
+  if ((e as { code?: string }).code === 'UJ103') throw LINK_FORA_DA_REGRA()
+  traduzirErroDoBanco(e)
+}
+
+/** O valor de uma coluna como o `pg` precisa: lista `jsonb` vai como texto JSON, vazio vira nulo. */
+function paraOBanco(t: TipoDeConteudo, campo: string, valor: unknown): unknown {
+  if (t.jsonb?.includes(campo)) return JSON.stringify(valor ?? [])
+  return valor ?? null
+}
+
+const marcaDoTipo = (t: TipoDeConteudo, campo: string) =>
+  t.jsonb?.includes(campo) ? '::jsonb' : ''
+
+/**
+ * Cria um conteúdo na comunidade do pedido, dentro da transação `c`. Música com cifra exige o aviso
+ * de direitos confirmado (e fica registrado). Usada pela rota de criar e pela "música nova direto
+ * no repertório" (`repertorio.ts`): uma regra só.
+ */
+export async function inserirConteudo(
+  c: pg.PoolClient,
+  pedido: FastifyRequest,
+  t: TipoDeConteudo,
+  dados: Record<string, unknown>,
+): Promise<{ id: string; versao: number }> {
+  const campos = Object.keys(dados).filter((k) => t.colunas[k] !== undefined)
+  const comCifra = t.tabela === 'musicas' && temTexto(dados['cifra'])
+  if (comCifra && dados['direitosConfirmados'] !== true) throw direitosNaoConfirmados()
+  const colunas = campos.map((k) => t.colunas[k]!)
+  const valores = campos.map((k, i) => `$${i + 2}${marcaDoTipo(t, k)}`)
+  if (comCifra) {
+    colunas.push('direito_confirmado_em')
+    valores.push('now()')
+  }
+  const { rows } = await c.query<{ id: string; versao: number }>(
+    `insert into uj.${t.tabela} (comunidade_id, ${colunas.join(', ')})
+     values ($1, ${valores.join(', ')}) returning id, versao`,
+    [pedido.comunidade!.id, ...campos.map((k) => paraOBanco(t, k, dados[k]))],
+  )
+  await auditar(c, pedido, 'conteudo.criado', { tipo: t.tabela, id: rows[0]!.id })
+  return rows[0]!
+}
+
+/** O tipo "músicas", para quem cria música fora das rotas de conteúdo. */
+export const TIPO_MUSICAS = () => TIPOS.find((t) => t.tabela === 'musicas')!
+
 function selecao(t: TipoDeConteudo, detalhe: boolean): string {
   const campos = Object.entries(t.colunas)
     .filter(([, coluna]) => detalhe || !t.soNoDetalhe.includes(coluna))
@@ -192,8 +295,7 @@ export function registrarRotasDeConteudos(app: FastifyInstance, api: pg.Pool): v
       try {
         return await trabalho(c)
       } catch (e) {
-        if (e instanceof ErroHttp) throw e
-        traduzirErroDoBanco(e)
+        traduzirErroDeConteudo(e)
       }
     })
 
@@ -240,25 +342,8 @@ export function registrarRotasDeConteudos(app: FastifyInstance, api: pg.Pool): v
     app.post(base, naCom, async (pedido) => {
       exigir(pedido, 'conteudo', 'gerenciar')
       const dados = validar(t.criar, pedido.body) as Record<string, unknown>
-      const campos = Object.keys(dados).filter((k) => t.colunas[k] !== undefined)
       // Cifra nova: o aviso de direitos autorais precisa ter sido confirmado (e fica registrado).
-      const comCifra = ehMusica && temTexto(dados['cifra'])
-      if (comCifra && dados['direitosConfirmados'] !== true) throw direitosNaoConfirmados()
-      return tx(pedido, async (c) => {
-        const colunas = campos.map((k) => t.colunas[k]!)
-        const valores = campos.map((_, i) => `$${i + 2}`)
-        if (comCifra) {
-          colunas.push('direito_confirmado_em')
-          valores.push('now()')
-        }
-        const { rows } = await c.query<{ id: string; versao: number }>(
-          `insert into uj.${t.tabela} (comunidade_id, ${colunas.join(', ')})
-           values ($1, ${valores.join(', ')}) returning id, versao`,
-          [pedido.comunidade!.id, ...campos.map((k) => dados[k] ?? null)],
-        )
-        await auditar(c, pedido, 'conteudo.criado', { tipo: t.tabela, id: rows[0]!.id })
-        return rows[0]
-      })
+      return tx(pedido, (c) => inserirConteudo(c, pedido, t, dados))
     })
 
     app.get(doItem, naCom, async (pedido) => {
@@ -303,14 +388,14 @@ export function registrarRotasDeConteudos(app: FastifyInstance, api: pg.Pool): v
           ehMusica && temTexto(dados['cifra']) && dados['cifra'] !== (atual.cifra ?? null)
         if (cifraMudou && dados['direitosConfirmados'] !== true) throw direitosNaoConfirmados()
         const atribuicoes = [
-          ...campos.map((k, i) => `${t.colunas[k]} = $${i + 4}`),
+          ...campos.map((k, i) => `${t.colunas[k]} = $${i + 4}${marcaDoTipo(t, k)}`),
           ...(cifraMudou ? ['direito_confirmado_em = now()'] : []),
         ]
         const { rows } = await c.query(
           `update uj.${t.tabela}
               set ${atribuicoes.join(', ')}
             where id = $1 and comunidade_id = $2 and versao = $3 returning id, versao`,
-          [id, pedido.comunidade!.id, versao, ...campos.map((k) => dados[k] ?? null)],
+          [id, pedido.comunidade!.id, versao, ...campos.map((k) => paraOBanco(t, k, dados[k]))],
         )
         if (!rows[0]) throw conflito({ versao: atual.versao })
         await auditar(c, pedido, 'conteudo.editado', { tipo: t.tabela, id }, { campos })

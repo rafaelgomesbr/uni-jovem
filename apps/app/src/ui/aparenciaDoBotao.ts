@@ -147,7 +147,8 @@ export function aparenciaDoBotao(
         camadaDeToque: cores.botaoTonalPressionado,
         camadaDeHover: cores.botaoTonalPressionado,
         texto: cores.texto,
-        borda: null,
+        // Contorno fino: o botão de apoio se lê como botão sobre qualquer cartão (D79).
+        borda: cores.campoBorda,
         sombra: null,
       })
     case 'terciario':

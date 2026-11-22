@@ -1,3 +1,4 @@
+import { duracaoTotal } from '@uj/dominio'
 import { ESPACO } from '@uj/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
@@ -6,6 +7,7 @@ import { View } from 'react-native'
 import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
 import type { RespostaDeCopiarEncontro } from '@/servicos/contratoV3'
+import { Acordeao } from '@/ui/Acordeao'
 import { Aviso } from '@/ui/Aviso'
 import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
@@ -13,15 +15,15 @@ import { CaixaDeMarcar } from '@/ui/CaixaDeMarcar'
 import { CampoDeData, CampoDeHora } from '@/ui/CampoDeMomento'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { CartaoDoMomento } from '@/ui/CartaoDoMomento'
+import { Chip } from '@/ui/Chip'
 import { BlocoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
 import { AvisoDeFalha, ErroDaTela } from '@/ui/Falha'
-import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
+import { LinhaDeLista, Lista, RECUO_DA_LISTA } from '@/ui/LinhaDeLista'
 import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
-import { PilulasDeFiltro } from '@/ui/PilulasDeFiltro'
-import { Secao } from '@/ui/Secao'
 import { Sol } from '@/ui/Sol'
 import { Tela } from '@/ui/Tela'
+import { Texto } from '@/ui/Texto'
 import { TextoAnunciado } from '@/ui/TextoAnunciado'
 import { mostrarToast } from '@/ui/Toast'
 import { desfazerAgora, mostrarDesfazer, useRestanteDoDesfazer } from '@/ui/ToastComDesfazer'
@@ -36,10 +38,17 @@ import {
 import { parametro } from '@/utilidades/parametros'
 
 import { dataCurtaDoDia, dataCurtaDoEncontro } from '../agenda/semanas'
+import { CabecalhoDeAcordeao } from '../comunidade/CabecalhoDeAcordeao'
 import { useFusoDaComunidade } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { textoDePublicado } from './BarraDoEvento'
+import {
+  equipeDoRascunho,
+  escolhaDeData,
+  fraseDoRascunho,
+  tituloDaConferencia,
+} from './conferencia'
 import {
   avisoDeDataOcupada,
   naComunidade,
@@ -51,11 +60,14 @@ import {
   useInvalidarEventos,
 } from './consultas'
 import { FolhaDeConvocar, pessoasDistintas, quantasPessoas } from './Convocacao'
+import { RoteiroDoEncontro } from './SecaoEtapas'
 import {
   esquecerProvisorio,
   limparProvisoriosAbandonados,
   registrarProvisorio,
 } from './rascunhosProvisorios'
+
+const TITULO = 'Igual ao último encontro'
 
 interface Escolhas {
   data?: string
@@ -64,14 +76,16 @@ interface Escolhas {
 }
 
 /**
- * Rota `/evento/igual-ao-ultimo?origem=`: "Igual ao último sábado" e "Marcar o próximo sábado"
- * (D66, D69, fluxo (d) do documento de UX). Abre já na CONFERÊNCIA: o app copia o último encontro
- * (um rascunho, sem avisar ninguém) e mostra o que foi copiado, quem não está disponível naquela
- * data e a opção de levar as músicas. A data padrão é o próximo dia da semana do encontro anterior a
- * partir de hoje (nunca uma data longe e sem sentido); "Outra data" fica sempre à vista; se já existe
- * encontro nesse dia, a tela avisa e a publicação pergunta "Criar outro mesmo assim?". Publicar é o
- * botão da pessoa, com Desfazer: o botão e o cabeçalho dizem "Publicando em 9 s" e, no fim, "Publicado.
- * 9 pessoas foram avisadas." (D74). Sem encontro anterior, a tela oferece o Sábado padrão ou o Em branco.
+ * Rota `/evento/igual-ao-ultimo?origem=`: "Igual ao último encontro" e "Marcar o próximo encontro"
+ * (D66, D69, D78). Uma tela só, sem ir para outra: o app copia o último encontro (um rascunho, sem
+ * avisar ninguém) e mostra, de cima para baixo, o cartão do encontro novo, a pergunta "Quando?" com
+ * as datas sugeridas e "Outra data", o Roteiro e a Banda e equipe como acordeões (abrem e fecham ali
+ * mesmo) e "Levar as músicas também". Salvar rascunho e Publicar flutuam acima da barra de abas. A
+ * data padrão é o próximo dia da semana do encontro anterior a partir de hoje; se já existe encontro
+ * nesse dia, a tela avisa e publicar pergunta "Criar outro mesmo assim?". O título acompanha o dia
+ * ("Sábado" copiado para um domingo vira "Domingo"; um título escrito pela pessoa nunca muda).
+ * Publicar tem Desfazer: o botão diz "Publicando em 9 s" e, no fim, "Publicado. 9 pessoas foram
+ * avisadas." (D74). Sem encontro anterior, a tela oferece o Encontro padrão ou o Em branco.
  */
 export function TelaIgualAoUltimo() {
   const { comunidadeAtiva } = useSessao()
@@ -79,16 +93,16 @@ export function TelaIgualAoUltimo() {
   const origem = parametro(useLocalSearchParams<{ origem?: string }>().origem)
   if (!comunidadeAtiva) {
     return (
-      <Tela pilha modal titulo="Igual ao último sábado">
+      <Tela pilha titulo={TITULO}>
         <SemComunidade oQue="os encontros" />
       </Tela>
     )
   }
   if (!pode('evento', 'criar')) {
     return (
-      <Tela pilha modal titulo="Igual ao último sábado">
+      <Tela pilha titulo={TITULO}>
         <Aviso tipo="info" titulo="Só a organização marca encontros">
-          Fale com quem organiza a sua comunidade para marcar o próximo sábado.
+          Fale com quem organiza a sua comunidade para marcar o próximo encontro.
         </Aviso>
       </Tela>
     )
@@ -199,12 +213,7 @@ function Conferencia({
 
   const dataAtual = rascunho ? dataDoInstante(rascunho.inicio, rascunho.fuso) : null
   const depois = sugerida ? somarDias(sugerida, 7) : null
-  const pilulaAtual =
-    outraData || (dataAtual && dataAtual !== sugerida && dataAtual !== depois)
-      ? 'outra'
-      : dataAtual === depois
-        ? 'depois'
-        : 'sugerida'
+  const escolhida = escolhaDeData({ aberta: outraData, dataAtual, sugerida, depois })
 
   // Já existe encontro nesse dia? A pessoa fica sabendo antes de publicar (D74).
   const noMesmoDia = useEncontrosNoDia(
@@ -215,6 +224,7 @@ function Conferencia({
   )
 
   const detalhe = evento.data ?? null
+  const equipe = rascunho ? equipeDoRascunho(detalhe, rascunho.resumo) : []
   const pessoas = detalhe
     ? pessoasDistintas(detalhe.atribuicoes)
     : (rascunho?.resumo.convocados.pessoas ?? 0)
@@ -303,7 +313,7 @@ function Conferencia({
   // ------------------------------------------------------------------ estados da tela
   if (!origemEfetiva && anteriores.isPending) {
     return (
-      <Tela pilha modal titulo="Igual ao último sábado">
+      <Tela pilha titulo={TITULO}>
         <Esqueleto rotulo="Procurando o último encontro">
           <BlocoDeEsqueleto altura={160} />
           <BlocoDeEsqueleto altura={120} />
@@ -313,7 +323,7 @@ function Conferencia({
   }
   if (!origemEfetiva && anteriores.error) {
     return (
-      <Tela pilha modal titulo="Igual ao último sábado">
+      <Tela pilha titulo={TITULO}>
         <ErroDaTela
           erro={anteriores.error}
           titulo="Não deu para procurar o último encontro"
@@ -323,18 +333,18 @@ function Conferencia({
     )
   }
   if (!origemEfetiva) {
-    // Primeira vez: nada para copiar. O Sábado padrão traz o roteiro de sempre.
+    // Primeira vez: nada para copiar. O Encontro padrão traz o roteiro de sempre.
     return (
-      <Tela pilha modal titulo="Marcar o próximo sábado">
+      <Tela pilha titulo="Marcar o próximo encontro">
         <View style={{ alignItems: 'center' }}>
           <Sol pose="escondido" lado={96} />
         </View>
         <EstadoVazio
           icone="agenda"
           titulo="Ainda não há um encontro para copiar."
-          descricao="Depois do primeiro sábado, o app copia o roteiro e a equipe para você. Por enquanto, comece pelo Sábado padrão: o roteiro de sempre já vem pronto."
+          descricao="Depois do primeiro encontro, o app copia o roteiro e a equipe para você. Por enquanto, comece pelo Encontro padrão: o roteiro de sempre já vem pronto."
           acao={{
-            titulo: 'Usar o Sábado padrão',
+            titulo: 'Usar o Encontro padrão',
             aoPressionar: () =>
               router.replace({ pathname: '/evento/novo', params: { modelo: 'sabado_padrao' } }),
           }}
@@ -348,7 +358,7 @@ function Conferencia({
   }
   if (!rascunho) {
     return (
-      <Tela pilha modal titulo="Igual ao último sábado">
+      <Tela pilha titulo={TITULO}>
         {copiar.error ? (
           <AvisoDeFalha
             erro={copiar.error}
@@ -368,34 +378,38 @@ function Conferencia({
 
   const resumo = rascunho.resumo
   const hora = formatarHora(rascunho.inicio, rascunho.fuso)
+  const titulo = tituloDaConferencia(detalhe, resumo.origem.titulo, dataAtual)
   // Estado único e honesto: durante a contagem o botão é o Desfazer e o cabeçalho diz que ainda não saiu.
   const rotuloDoPublicar = publicando
     ? restante !== null
       ? `Publicando em ${restante} s · Desfazer`
       : 'Publicando...'
-    : pessoas > 0
-      ? `Publicar e avisar ${quantasPessoas(pessoas)}`
-      : 'Publicar'
+    : 'Publicar'
   const etiquetaDoCabecalho = publicando
     ? restante !== null
-      ? `Publicando em ${restante} s · ninguém foi avisado ainda`
+      ? `Publicando em ${restante} s`
       : 'Publicando...'
-    : 'Rascunho · ninguém foi avisado'
+    : 'Rascunho'
+  // O roteiro da conferência acompanha o que a pessoa muda ali (adicionar, tirar, mudar a duração).
+  const nEtapas = detalhe?.etapas.length ?? resumo.etapas
+  const minutos = detalhe ? duracaoTotal(detalhe.etapas) : resumo.duracaoTotalMin
+  const tituloDoRoteiro = `Roteiro: ${nEtapas} ${nEtapas === 1 ? 'etapa' : 'etapas'}, ${formatarDuracao(minutos)}`
 
   return (
     <Tela
       pilha
-      modal
-      titulo="Igual ao último sábado"
+      titulo={TITULO}
       barraDeAcao={
-        <BarraDeAcao>
-          <Botao
-            titulo="Salvar rascunho"
-            variante="secundario"
-            tamanho="grande"
-            desabilitado={ocupada || publicando}
-            aoPressionar={salvarRascunho}
-          />
+        <BarraDeAcao solta>
+          {publicando ? null : (
+            <Botao
+              titulo="Salvar rascunho"
+              variante="secundario"
+              tamanho="grande"
+              desabilitado={ocupada}
+              aoPressionar={salvarRascunho}
+            />
+          )}
           <Botao
             titulo={rotuloDoPublicar}
             tamanho="grande"
@@ -417,9 +431,13 @@ function Conferencia({
       <CartaoDoMomento
         momento="longe"
         etiqueta={etiquetaDoCabecalho}
-        titulo={resumo.origem.titulo}
+        titulo={titulo}
         meta={`${dataCurtaDoEncontro(rascunho.inicio, rascunho.fuso)} · ${hora}${detalhe?.local ? ` · ${detalhe.local.nome}` : ''}`}
-      />
+      >
+        <Texto variante="legenda" cor="textoSuave" style={{ marginTop: ESPACO.e8 }}>
+          {publicando ? 'Ninguém foi avisado ainda.' : fraseDoRascunho(pessoas)}
+        </Texto>
+      </CartaoDoMomento>
 
       {noMesmoDia.length > 0 ? (
         <Aviso tipo="alerta" titulo="Já existe encontro neste dia">
@@ -440,102 +458,146 @@ function Conferencia({
         />
       ) : null}
 
-      <Secao titulo="Quando">
+      <ListaDeOpcoes
+        rotulo="Quando?"
+        valor={escolhida}
+        aoMudar={(v) => {
+          if (ocupada) return
+          if (v === 'sugerida' && sugerida) {
+            setOutraData(false)
+            refazer({ data: sugerida })
+          } else if (v === 'depois' && depois) {
+            setOutraData(false)
+            refazer({ data: depois })
+          } else if (v === 'outra') setOutraData(true)
+        }}
+        opcoes={[
+          {
+            valor: 'sugerida',
+            rotulo: sugerida ? dataCurtaDoDia(sugerida) : 'Data sugerida',
+            descricao: 'O próximo, no mesmo dia da semana',
+          },
+          {
+            valor: 'depois',
+            rotulo: depois ? dataCurtaDoDia(depois) : 'Uma semana depois',
+            descricao: 'Uma semana depois',
+          },
+          { valor: 'outra', rotulo: 'Outra data', descricao: 'Escolher o dia e a hora' },
+        ]}
+      />
+      {escolhida === 'outra' ? (
         <CartaoDeVidro opaco>
-          <PilulasDeFiltro
-            rotulo="Data do encontro"
-            sangrar={false}
-            quebrar
-            pilulas={[
-              {
-                valor: 'sugerida',
-                rotulo: sugerida ? dataCurtaDoDia(sugerida) : 'Data sugerida',
-              },
-              { valor: 'depois', rotulo: depois ? dataCurtaDoDia(depois) : 'Uma semana depois' },
-              { valor: 'outra', rotulo: 'Outra data' },
-            ]}
-            selecionadas={[pilulaAtual]}
-            aoMudar={(v) => {
-              if (ocupada) return
-              if (v[0] === 'sugerida' && sugerida) {
-                setOutraData(false)
-                refazer({ data: sugerida })
-              } else if (v[0] === 'depois' && depois) {
-                setOutraData(false)
-                refazer({ data: depois })
-              } else if (v[0] === 'outra') setOutraData(true)
-            }}
-          />
-          {pilulaAtual === 'outra' ? (
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: ESPACO.e12 }}>
-              <View style={{ flex: 1.4 }}>
-                <CampoDeData
-                  rotulo="Data"
-                  valor={dataAtual}
-                  aoMudar={(d) => refazer({ data: d })}
-                  minimo={hojeNoFuso(rascunho.fuso)}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <CampoDeHora rotulo="Hora" valor={hora} aoMudar={(h) => refazer({ hora: h })} />
-              </View>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: ESPACO.e12 }}>
+            <View style={{ flex: 1.4 }}>
+              <CampoDeData
+                rotulo="Data"
+                valor={dataAtual}
+                aoMudar={(d) => refazer({ data: d })}
+                minimo={hojeNoFuso(rascunho.fuso)}
+              />
             </View>
-          ) : null}
-          {ocupada ? (
-            <TextoAnunciado variante="legenda" cor="textoSuave">
-              Atualizando a cópia...
-            </TextoAnunciado>
-          ) : null}
+            <View style={{ flex: 1 }}>
+              <CampoDeHora rotulo="Hora" valor={hora} aoMudar={(h) => refazer({ hora: h })} />
+            </View>
+          </View>
         </CartaoDeVidro>
-      </Secao>
+      ) : null}
+      {ocupada ? (
+        <TextoAnunciado variante="legenda" cor="textoSuave">
+          Atualizando a cópia...
+        </TextoAnunciado>
+      ) : null}
 
       <CartaoDeVidro lista>
-        <Lista>
-          <LinhaDeLista
-            icone="etapas"
-            titulo={`Roteiro: ${resumo.etapas} ${resumo.etapas === 1 ? 'etapa' : 'etapas'}, ${formatarDuracao(resumo.duracaoTotalMin)}`}
-            aoPressionar={() =>
-              router.push({ pathname: '/evento/[eventoId]', params: { eventoId: rascunho.id } })
-            }
-            dica="Abre o encontro copiado."
-          />
-          <LinhaDeLista
-            icone="escalas"
-            titulo={`Banda e equipe: ${quantasPessoas(pessoas)}`}
-            descricao={
-              resumo.naoCopiados > 0
-                ? `${resumo.naoCopiados} ${resumo.naoCopiados === 1 ? 'pessoa saiu' : 'pessoas saíram'} da comunidade e não ${resumo.naoCopiados === 1 ? 'foi copiada' : 'foram copiadas'}.`
-                : 'Todos voltam como "aguardando resposta".'
-            }
-            linhasDaDescricao={0}
-          />
-          {indisponiveis.map((i) => (
-            <LinhaDeLista
-              key={`${i.vinculoId}-${i.funcao}`}
-              icone="avisoAlerta"
-              titulo={`${i.nome.split(' ')[0]} avisou que não pode neste dia.`}
-              descricao={i.funcao}
-              linhasDaDescricao={0}
-              extra={
-                <Botao
-                  titulo="Trocar"
-                  tamanho="compacto"
-                  variante="secundario"
-                  desabilitado={!detalhe || ocupada}
-                  rotuloAcessivel={`Trocar ${i.nome}: ${i.funcao}`}
-                  aoPressionar={() => void trocar(i)}
-                />
-              }
+        <Acordeao
+          recuo={RECUO_DA_LISTA.texto}
+          rotuloRecolhido={`${tituloDoRoteiro}. Recolhido, toque para ver e mudar as etapas.`}
+          rotuloAberto="Roteiro. Aberto, toque para recolher."
+          cabecalho={() => <CabecalhoDeAcordeao icone="etapas" titulo={tituloDoRoteiro} />}
+        >
+          {detalhe && detalhe.etapas.length > 0 ? (
+            <RoteiroDoEncontro evento={detalhe} comunidadeId={comunidadeId} />
+          ) : (
+            <TextoDoAcordeao>
+              {detalhe ? 'O último encontro não tinha etapas.' : 'Carregando as etapas...'}
+            </TextoDoAcordeao>
+          )}
+        </Acordeao>
+      </CartaoDeVidro>
+
+      <CartaoDeVidro lista>
+        <Acordeao
+          recuo={RECUO_DA_LISTA.texto}
+          rotuloRecolhido={`Banda e equipe: ${quantasPessoas(pessoas)}${indisponiveis.length ? `, ${indisponiveis.length} avisou que não pode` : ''}. Recolhido, toque para ver quem volta.`}
+          rotuloAberto="Banda e equipe. Aberto, toque para recolher."
+          cabecalho={() => (
+            <CabecalhoDeAcordeao
+              icone="escalas"
+              titulo={`Banda e equipe: ${quantasPessoas(pessoas)}`}
+              {...(indisponiveis.length > 0
+                ? {
+                    extra: (
+                      <Chip
+                        situacao="naoPode"
+                        texto={`${indisponiveis.length} não ${indisponiveis.length === 1 ? 'pode' : 'podem'}`}
+                      />
+                    ),
+                  }
+                : {})}
             />
-          ))}
-        </Lista>
+          )}
+        >
+          {equipe.length > 0 ? (
+            <Lista>
+              {equipe.map((p) => {
+                const naoPode = indisponiveis.find(
+                  (i) => i.vinculoId === p.vinculoId && i.funcao === p.funcao,
+                )
+                const funcao = p.onde ? `${p.funcao} · ${p.onde}` : p.funcao
+                return (
+                  <LinhaDeLista
+                    key={p.chave}
+                    avatar={{ nome: p.nome }}
+                    titulo={p.nome}
+                    descricao={naoPode ? `Avisou que não pode neste dia. ${funcao}` : funcao}
+                    linhasDaDescricao={0}
+                    {...(naoPode
+                      ? {
+                          extra: (
+                            <Botao
+                              titulo="Trocar"
+                              tamanho="compacto"
+                              variante="secundario"
+                              desabilitado={!detalhe || ocupada}
+                              rotuloAcessivel={`Trocar ${p.nome}: ${p.funcao}`}
+                              aoPressionar={() => void trocar(naoPode)}
+                            />
+                          ),
+                        }
+                      : {})}
+                  />
+                )
+              })}
+            </Lista>
+          ) : (
+            <TextoDoAcordeao>
+              Ninguém estava convocado no último encontro. Você escolhe quem vai depois de salvar.
+            </TextoDoAcordeao>
+          )}
+          <TextoDoAcordeao>
+            {resumo.naoCopiados > 0
+              ? `${resumo.naoCopiados} ${resumo.naoCopiados === 1 ? 'pessoa saiu' : 'pessoas saíram'} da comunidade e não ${resumo.naoCopiados === 1 ? 'foi copiada' : 'foram copiadas'}. `
+              : ''}
+            {equipe.length > 0 ? 'Todos voltam como "aguardando resposta".' : ''}
+          </TextoDoAcordeao>
+        </Acordeao>
       </CartaoDeVidro>
 
       {resumo.musicas.naOrigem > 0 ? (
         <CartaoDeVidro opaco>
           <CaixaDeMarcar
             rotulo="Levar as músicas também"
-            descricao={`${resumo.musicas.naOrigem} ${resumo.musicas.naOrigem === 1 ? 'música' : 'músicas'} no último sábado. As músicas mudam toda semana: só vão se você pedir.`}
+            descricao={`${resumo.musicas.naOrigem} ${resumo.musicas.naOrigem === 1 ? 'música' : 'músicas'} no último encontro. As músicas mudam toda semana: só vão se você pedir.`}
             marcada={escolhas.incluirMusicas}
             aoMudar={(v) => {
               if (!ocupada) refazer({ incluirMusicas: v })
@@ -556,5 +618,18 @@ function Conferencia({
         />
       ) : null}
     </Tela>
+  )
+}
+
+/** Frase solta dentro de um acordeão: alinhada ao texto das linhas (18 de recuo). */
+function TextoDoAcordeao({ children }: { children: string | string[] }) {
+  const texto = Array.isArray(children) ? children.join('').trim() : children
+  if (!texto) return null
+  return (
+    <View style={{ paddingHorizontal: RECUO_DA_LISTA.texto, paddingBottom: ESPACO.e12 }}>
+      <Texto variante="legenda" cor="textoSuave">
+        {texto}
+      </Texto>
+    </View>
   )
 }

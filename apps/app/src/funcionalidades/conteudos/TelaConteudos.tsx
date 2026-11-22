@@ -1,3 +1,4 @@
+import { resumoDosLinksDaMusica, type LinkDaMusica } from '@uj/dominio'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 
@@ -96,9 +97,11 @@ function descricaoDoItem(def: DefinicaoDoTipo, item: Record<string, unknown>): s
   switch (def.tipo) {
     case 'musicas': {
       const musicos = (item['musicos'] as { nome: string }[] | undefined) ?? []
+      const links = resumoDosLinksDaMusica(item['links'] as LinkDaMusica[] | undefined)
       partes.push(
         item['tom'] ? `Tom ${String(item['tom'])}` : null,
         item['artista'] ? String(item['artista']) : null,
+        links ? `Links: ${links}` : null,
         musicos.length ? musicos.map((m) => m.nome).join(', ') : 'Ninguém escalado para tocar',
       )
       break

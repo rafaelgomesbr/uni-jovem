@@ -1,4 +1,4 @@
-import { detectarFormato } from '@uj/dominio'
+import { detectarFormato, linksAbriveisDaMusica, type LinkDaMusica } from '@uj/dominio'
 import { ESPACO } from '@uj/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
@@ -14,7 +14,6 @@ import { Aviso } from '@/ui/Aviso'
 import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
 import { CaixaDeMarcar } from '@/ui/CaixaDeMarcar'
-import { Campo } from '@/ui/Campo'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Chip } from '@/ui/Chip'
 import { Esqueleto, LinhaDeEsqueleto, LinhasDeEsqueleto } from '@/ui/Esqueleto'
@@ -30,10 +29,18 @@ import { voltarOu } from '@/ui/navegacao'
 import { usePode } from '../comunidade/permissoes'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { CartaoDoPdf } from '../pdf/CartaoDoPdf'
-import { conferirPdfEscolhido, seletorDePdf, type PdfConferido } from '../pdf/seletorDePdf'
 import { LeitorDeCifra } from '../repertorio/LeitorDeCifra'
-import { CampoDeCifra } from './CampoDeCifra'
 import { CampoDePdf, MENSAGEM_DE_CONFIRMAR_O_PDF } from './CampoDePdf'
+import {
+  CamposDaMusicaNova,
+  conferirDireitos,
+  Erro,
+  escolherEConferirPdf,
+  Formulario,
+  useFormularioDeMusica,
+  type Valores,
+} from './FormularioDeConteudo'
+import { LinksDaMusica } from './LinksDaMusica'
 import {
   useAnexarPdf,
   useConteudo,
@@ -93,157 +100,91 @@ export function TelaConteudo({ novo = false }: { novo?: boolean }) {
   return <Item comunidadeId={comunidadeAtiva.id} def={def} itemId={itemId} />
 }
 
-type Valores = Record<string, string>
-
-function Formulario({
-  def,
-  valores,
-  aoMudar,
-  erros,
-  cifraSalva = null,
-}: {
-  def: DefinicaoDoTipo
-  valores: Valores
-  aoMudar: (v: Valores) => void
-  erros: Record<string, string>
-  /** A cifra como está salva (nula na criação): só a que mudou pede a confirmação de direitos. */
-  cifraSalva?: string | null
-}) {
-  return (
-    <>
-      {def.campos.map((c) =>
-        c.formato === 'cifra' ? (
-          <CampoDeCifra
-            key={c.campo}
-            rotulo={c.rotulo}
-            valor={valores[c.campo] ?? ''}
-            aoMudar={(t) => aoMudar({ ...valores, [c.campo]: t })}
-            erro={erros[c.campo] ?? null}
-            pedeConfirmacao={exigeConfirmarDireitos(def, valores, cifraSalva)}
-            confirmada={valores[CAMPO_DA_CONFIRMACAO] === 'sim'}
-            aoConfirmar={(sim) =>
-              aoMudar({ ...valores, [CAMPO_DA_CONFIRMACAO]: sim ? 'sim' : 'nao' })
-            }
-            erroDaConfirmacao={erros[CAMPO_DA_CONFIRMACAO] ?? null}
-          />
-        ) : (
-          <Campo
-            key={c.campo}
-            rotulo={c.rotulo}
-            opcional={!c.obrigatorio}
-            value={valores[c.campo] ?? ''}
-            onChangeText={(t) => aoMudar({ ...valores, [c.campo]: t })}
-            erro={erros[c.campo] ?? null}
-            {...(c.ajuda ? { ajuda: c.ajuda } : {})}
-            multiline={!!c.multilinha}
-            {...(c.formato === 'numero'
-              ? { inputMode: 'numeric' as const, sufixo: c.unidade ?? 'min' }
-              : {})}
-            {...(c.formato === 'duracao' ? { exemplo: '3:45' } : {})}
-            {...(c.formato === 'tom' ? { autoCapitalize: 'characters' as const } : {})}
-            {...(c.formato === 'link'
-              ? { inputMode: 'url' as const, autoCapitalize: 'none' as const }
-              : {})}
-            maxLength={c.formato === 'numero' ? 3 : c.max}
-          />
-        ),
-      )}
-    </>
-  )
-}
-
-/**
- * Confere o aviso de direitos autorais: cifra nova ou mudada só salva com a
- * confirmação marcada. Devolve o erro para o formulário e o que a API espera.
- */
-function conferirDireitos(
-  def: DefinicaoDoTipo,
-  valores: Valores,
-  cifraSalva: string | null,
-): { erros: Record<string, string> } | { corpo: { direitosConfirmados?: true } } {
-  if (!exigeConfirmarDireitos(def, valores, cifraSalva)) return { corpo: {} }
-  if (valores[CAMPO_DA_CONFIRMACAO] !== 'sim') {
-    return {
-      erros: {
-        [CAMPO_DA_CONFIRMACAO]: 'Confirme os direitos de uso para salvar a letra e a cifra.',
-      },
-    }
-  }
-  return { corpo: { direitosConfirmados: true } }
-}
-
-function Erro({ titulo, erro }: { titulo: string; erro: unknown }) {
-  return (
-    <Aviso tipo="erro" titulo={titulo} anunciar>
-      {mensagemDoErro(erro)}
-    </Aviso>
-  )
-}
-
-/**
- * Escolhe o arquivo, confere (tamanho e tipo) e devolve o PDF lido, ou a mensagem humana do que
- * deu errado. `null` sem mensagem: a pessoa cancelou a escolha.
- */
-async function escolherEConferirPdf(): Promise<{ pdf: PdfConferido } | { erro: string } | null> {
-  const arquivo = await seletorDePdf.escolher()
-  if (!arquivo) return null
-  const r = await conferirPdfEscolhido(arquivo)
-  return r.ok ? { pdf: r.pdf } : { erro: r.mensagem }
-}
-
 function Novo({ comunidadeId, def }: { comunidadeId: string; def: DefinicaoDoTipo }) {
+  // Música tem PDF e links, e o formulário é o mesmo da folha do repertório; os outros tipos, não.
+  return def.tipo === 'musicas' ? (
+    <NovaMusica comunidadeId={comunidadeId} def={def} />
+  ) : (
+    <NovoConteudo comunidadeId={comunidadeId} def={def} />
+  )
+}
+
+function SoAOrganizacaoCadastra({ titulo }: { titulo: string }) {
+  return (
+    <Tela pilha titulo={titulo}>
+      <Aviso tipo="alerta" titulo="Só a organização cadastra">
+        Organizadores e administradores cadastram conteúdos. Você pode consultar a lista.
+      </Aviso>
+    </Tela>
+  )
+}
+
+function NovoConteudo({ comunidadeId, def }: { comunidadeId: string; def: DefinicaoDoTipo }) {
   const pode = usePode()
   const [valores, setValores] = useState<Valores>({})
   const [erros, setErros] = useState<Record<string, string>>({})
-  // O PDF escolhido espera a música ser salva (só então ela tem um id para receber o arquivo).
-  const [pdf, setPdf] = useState<PdfConferido | null>(null)
-  const [erroDoPdf, setErroDoPdf] = useState<string | null>(null)
   const criar = useCriarConteudo(comunidadeId, def.tipo)
-  const anexar = useAnexarPdf(comunidadeId)
   const titulo = `Nov${def.artigo} ${def.singular}`
-  if (!pode('conteudo', 'gerenciar')) {
-    return (
-      <Tela pilha titulo={titulo}>
-        <Aviso tipo="alerta" titulo="Só a organização cadastra">
-          Organizadores e administradores cadastram conteúdos. Você pode consultar a lista.
-        </Aviso>
-      </Tela>
-    )
-  }
-
-  async function escolherPdf() {
-    setErroDoPdf(null)
-    const r = await escolherEConferirPdf()
-    if (!r) return
-    if ('erro' in r) setErroDoPdf(r.erro)
-    else setPdf(r.pdf)
-  }
+  if (!pode('conteudo', 'gerenciar')) return <SoAOrganizacaoCadastra titulo={titulo} />
 
   function salvar() {
     const r = montarCorpo(def, valores)
-    const direitos = conferirDireitos(def, valores, null)
-    // O PDF pede o mesmo aceite de direitos da cifra em texto.
-    const direitosDoPdf: Record<string, string> =
-      pdf && valores[CAMPO_DA_CONFIRMACAO] !== 'sim'
-        ? { [CAMPO_DA_CONFIRMACAO]: MENSAGEM_DE_CONFIRMAR_O_PDF }
-        : {}
-    if ('erros' in r || 'erros' in direitos || Object.keys(direitosDoPdf).length) {
-      setErros({
-        ...('erros' in r ? r.erros : {}),
-        ...('erros' in direitos ? direitos.erros : {}),
-        ...direitosDoPdf,
-      })
+    if ('erros' in r) {
+      setErros(r.erros)
       return
     }
     setErros({})
     // Na criação, vazio não vai: a API só recebe o que foi preenchido.
-    const corpo = {
-      ...Object.fromEntries(
-        Object.entries(r.corpo).filter(([, v]) => v !== null && !(Array.isArray(v) && !v.length)),
-      ),
-      ...direitos.corpo,
-    }
-    void criarEAnexar(corpo)
+    const corpo = Object.fromEntries(
+      Object.entries(r.corpo).filter(([, v]) => v !== null && !(Array.isArray(v) && !v.length)),
+    )
+    criar.mutate(corpo, {
+      onSuccess: (criado) => {
+        mostrarToast({
+          texto: `${def.artigo === 'a' ? 'Nova' : 'Novo'} ${def.singular} salv${def.artigo}`,
+        })
+        router.replace({
+          pathname: '/conteudos/[tipo]/[itemId]',
+          params: { tipo: def.tipo, itemId: criado.id },
+        })
+      },
+    })
+  }
+
+  return (
+    <Tela
+      pilha
+      titulo={titulo}
+      barraDeAcao={
+        <BarraDeAcao>
+          <Botao
+            titulo="Salvar"
+            tamanho="grande"
+            carregando={criar.isPending}
+            aoPressionar={salvar}
+          />
+        </BarraDeAcao>
+      }
+    >
+      <CartaoDeVidro opaco intervalo={ESPACO.e16}>
+        <Formulario def={def} valores={valores} aoMudar={setValores} erros={erros} />
+      </CartaoDeVidro>
+      {criar.error ? <Erro titulo="Não deu para salvar" erro={criar.error} /> : null}
+    </Tela>
+  )
+}
+
+function NovaMusica({ comunidadeId, def }: { comunidadeId: string; def: DefinicaoDoTipo }) {
+  const pode = usePode()
+  const form = useFormularioDeMusica()
+  const criar = useCriarConteudo(comunidadeId, def.tipo)
+  const anexar = useAnexarPdf(comunidadeId)
+  const titulo = `Nov${def.artigo} ${def.singular}`
+  if (!pode('conteudo', 'gerenciar')) return <SoAOrganizacaoCadastra titulo={titulo} />
+
+  function salvar() {
+    const corpo = form.preparar()
+    if (corpo) void criarEAnexar(corpo)
   }
 
   /** Cria e, se houve PDF escolhido, anexa a ele a música recém-criada (que só agora tem um id). */
@@ -255,9 +196,9 @@ function Novo({ comunidadeId, def }: { comunidadeId: string; def: DefinicaoDoTip
       return // `criar.error` mostra o motivo na tela.
     }
     let texto = `${def.artigo === 'a' ? 'Nova' : 'Novo'} ${def.singular} salv${def.artigo}`
-    if (pdf) {
+    if (form.pdf) {
       try {
-        await anexar.mutateAsync({ musicaId: criado.id, pdf })
+        await anexar.mutateAsync({ musicaId: criado.id, pdf: form.pdf })
       } catch {
         // A música já existe: não se perde o trabalho. A pessoa anexa de novo na edição.
         texto = 'A música foi salva, mas o PDF não foi anexado. Abra a música e anexe de novo.'
@@ -274,9 +215,7 @@ function Novo({ comunidadeId, def }: { comunidadeId: string; def: DefinicaoDoTip
     <Tela
       pilha
       titulo={titulo}
-      {...(def.tipo === 'musicas'
-        ? { descricao: 'Depois de salvar, você escolhe quem toca esta música.' }
-        : {})}
+      descricao="Depois de salvar, você escolhe quem toca esta música."
       barraDeAcao={
         <BarraDeAcao>
           <Botao
@@ -288,32 +227,7 @@ function Novo({ comunidadeId, def }: { comunidadeId: string; def: DefinicaoDoTip
         </BarraDeAcao>
       }
     >
-      <CartaoDeVidro opaco intervalo={ESPACO.e16}>
-        <Formulario def={def} valores={valores} aoMudar={setValores} erros={erros} />
-      </CartaoDeVidro>
-      {def.tipo === 'musicas' ? (
-        <CampoDePdf
-          atual={null}
-          escolhido={pdf ? { nome: pdf.nome, tamanho: pdf.bytes.length } : null}
-          ocupado={anexar.isPending ? 'enviando' : null}
-          erro={erroDoPdf}
-          confirmada={valores[CAMPO_DA_CONFIRMACAO] === 'sim'}
-          aoConfirmar={(sim) =>
-            setValores({ ...valores, [CAMPO_DA_CONFIRMACAO]: sim ? 'sim' : 'nao' })
-          }
-          erroDaConfirmacao={erros[CAMPO_DA_CONFIRMACAO] ?? null}
-          aoSemAceite={() =>
-            setErros({ ...erros, [CAMPO_DA_CONFIRMACAO]: MENSAGEM_DE_CONFIRMAR_O_PDF })
-          }
-          avisoJaNaTela={(valores['cifra'] ?? '').trim() !== ''}
-          caixaJaNaTela={exigeConfirmarDireitos(def, valores, null)}
-          aoEscolher={() => void escolherPdf()}
-          aoRemover={() => {
-            setPdf(null)
-            setErroDoPdf(null)
-          }}
-        />
-      ) : null}
+      <CamposDaMusicaNova form={form} enviandoPdf={anexar.isPending} />
       {criar.error ? <Erro titulo="Não deu para salvar" erro={criar.error} /> : null}
     </Tela>
   )
@@ -419,8 +333,10 @@ function Leitura({
   /** Música lida por quem não gerencia: "Quem toca" entra como linha dos detalhes. */
   musica: Musica | null
 }) {
+  // Os links têm a seção própria, com os botões "Abrir no YouTube" e "Abrir no Drive" (D80).
   const preenchidos = def.campos.filter(
-    (c) => c.campo !== def.principal && textoParaMostrar(c, registro[c.campo]),
+    (c) =>
+      c.campo !== def.principal && c.formato !== 'links' && textoParaMostrar(c, registro[c.campo]),
   )
   const detalhes = preenchidos.filter((c) => !c.multilinha)
   const textos = preenchidos.filter((c) => c.multilinha)
@@ -438,8 +354,27 @@ function Leitura({
     />
   ) : null
 
-  if (!preenchidos.length && !quemToca) {
-    if (cartaoDoPdf) return cartaoDoPdf
+  const links =
+    def.tipo === 'musicas' ? (registro['links'] as LinkDaMusica[] | undefined) : undefined
+  const cartaoDosLinks =
+    linksAbriveisDaMusica(links).length > 0 ? (
+      <CartaoDeVidro sobrancelha="Links">
+        <LinksDaMusica links={links} musica={String(registro[def.principal] ?? '')} />
+      </CartaoDeVidro>
+    ) : null
+  // O link único de antes (qualquer endereço https): só leitura, até a organização apagá-lo na edição.
+  const linkAntigo =
+    def.tipo === 'musicas' && typeof registro['link'] === 'string' ? registro['link'] : ''
+
+  if (!preenchidos.length && !quemToca && !linkAntigo) {
+    if (cartaoDoPdf || cartaoDosLinks) {
+      return (
+        <>
+          {cartaoDoPdf}
+          {cartaoDosLinks}
+        </>
+      )
+    }
     return (
       <Texto variante="corpo" cor="textoSuave">
         Sem mais detalhes cadastrados.
@@ -450,25 +385,13 @@ function Leitura({
   return (
     <>
       {cartaoDoPdf}
-      {detalhes.length || quemToca ? (
+      {cartaoDosLinks}
+      {detalhes.length || quemToca || linkAntigo ? (
         <Secao titulo="Detalhes">
           <CartaoDeVidro lista>
             <Lista>
               {detalhes.map((c) => {
                 const texto = textoParaMostrar(c, registro[c.campo])
-                if (c.formato === 'link') {
-                  return (
-                    <LinhaDeLista
-                      key={c.campo}
-                      icone="link"
-                      titulo="Abrir o link"
-                      descricao={texto}
-                      externo
-                      rotuloAcessivel={`Abrir o link: ${texto}`}
-                      aoPressionar={() => void abrirLink(texto)}
-                    />
-                  )
-                }
                 const comUnidade = c.formato === 'numero' ? `${texto} ${c.unidade ?? 'min'}` : texto
                 return ehCurto(c) ? (
                   <LinhaDeLista key={c.campo} titulo={c.rotulo} valor={comUnidade} />
@@ -476,6 +399,17 @@ function Leitura({
                   <LinhaDeLista key={c.campo} titulo={c.rotulo} descricao={comUnidade} />
                 )
               })}
+              {linkAntigo ? (
+                <LinhaDeLista
+                  key="link-antigo"
+                  icone="link"
+                  titulo="Abrir o link antigo"
+                  descricao={linkAntigo}
+                  externo
+                  rotuloAcessivel={`Abrir o link antigo: ${linkAntigo}`}
+                  aoPressionar={() => void abrirLink(linkAntigo)}
+                />
+              ) : null}
               {quemToca ? (
                 <LinhaDeLista
                   key="quem-toca"
@@ -541,6 +475,8 @@ function Edicao({
     def.tipo === 'musicas' ? ((registro['pdf'] as ResumoDoPdf | null | undefined) ?? null) : null
   const id = String(registro['id'])
   const versao = Number(registro['versao'])
+  const linkAntigo =
+    def.tipo === 'musicas' && typeof registro['link'] === 'string' ? registro['link'] : ''
   const arquivado = estaArquivado(def, registro)
   const nome = String(registro[def.principal] ?? '')
   // Arquivar e salvar usam a mesma mutação: o corpo diz qual das duas está em curso.
@@ -598,6 +534,14 @@ function Edicao({
       onSuccess: () => mostrarToast({ texto: 'PDF removido' }),
       onError: (e) => setErroDoPdf(mensagemDoErro(e)),
     })
+  }
+
+  /** O link único de antes (qualquer https) só sai por aqui: os links novos moram em "Links". */
+  function removerLinkAntigo() {
+    editar.mutate(
+      { id, versao, corpo: { link: null } },
+      { onSuccess: () => mostrarToast({ texto: 'Link antigo removido' }) },
+    )
   }
 
   function alternarArquivo() {
@@ -658,6 +602,23 @@ function Edicao({
           cifraSalva={cifraSalva}
         />
       </CartaoDeVidro>
+      {linkAntigo ? (
+        <CartaoDeVidro opaco sobrancelha="Link antigo" intervalo={ESPACO.e12}>
+          <Texto variante="corpo">{linkAntigo}</Texto>
+          <Texto variante="meta" cor="textoSuave">
+            Esta música tem um link de antes dos links do Drive e do YouTube. Ele continua aqui só
+            para ler. Remova quando quiser.
+          </Texto>
+          <Botao
+            titulo="Remover o link antigo"
+            icone="excluir"
+            variante="secundario"
+            tamanho="medio"
+            desabilitado={editar.isPending}
+            aoPressionar={removerLinkAntigo}
+          />
+        </CartaoDeVidro>
+      ) : null}
       {def.tipo === 'musicas' ? (
         <CampoDePdf
           atual={pdfAtual}

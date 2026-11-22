@@ -45,7 +45,7 @@ import {
   temPreparacao,
 } from './PartesDaPagina'
 import { faseDoEncontro, momentoDaFase } from './regras'
-import { QuemVai } from './QuemVai'
+import { QuemVai, type PedidoDeConvocacao } from './QuemVai'
 import { ResumoDoEncontro } from './ResumoDoEncontro'
 import { SecaoEtapas } from './SecaoEtapas'
 import { SuaParte } from './SuaParte'
@@ -63,7 +63,9 @@ interface Props {
   painel?: boolean
   /** A aba que abre primeiro ("Faltam: Bruno e Camila" do Início abre os Quem vai). */
   abaInicial?: Visao | undefined
-  /** Acabou de publicar em outra tela ("Igual ao último sábado"): quantas pessoas foram avisadas. */
+  /** "Convocar bateria": abre a folha de convocar já na função e no bloco (D78). */
+  convocarInicial?: PedidoDeConvocacao | undefined
+  /** Acabou de publicar em outra tela ("Igual ao último encontro"): quantas pessoas foram avisadas. */
   avisadasAoPublicar?: number | undefined
 }
 
@@ -80,6 +82,7 @@ export function DetalheDoEvento({
   aoSair = () => voltarOu('/agenda'),
   painel = false,
   abaInicial,
+  convocarInicial,
   avisadasAoPublicar,
 }: Props) {
   const pode = usePode()
@@ -104,7 +107,7 @@ export function DetalheDoEvento({
       <Moldura painel={painel}>
         <Aviso tipo="alerta" titulo="Sem conexão: este encontro abre quando a internet voltar">
           {baixa
-            ? 'Ele não foi baixado neste aparelho. Da próxima vez, antes de sair, abra o encontro, toque em Mais e depois em Baixar para usar sem internet.'
+            ? 'Ele não foi baixado neste aparelho. Da próxima vez, antes de sair, abra o encontro, role até Outras coisas e toque em Baixar para usar sem internet.'
             : 'Ele não foi baixado neste aparelho. Quem organiza pode baixar o encontro para usar sem internet.'}
         </Aviso>
       </Moldura>
@@ -143,6 +146,7 @@ export function DetalheDoEvento({
       aoSair={aoSair}
       painel={painel}
       abaInicial={abaInicial}
+      convocarInicial={convocarInicial}
       avisadasAoPublicar={avisadasAoPublicar}
     />
   )
@@ -186,6 +190,7 @@ function Conteudo({
   aoSair,
   painel,
   abaInicial,
+  convocarInicial,
   avisadasAoPublicar,
 }: {
   evento: Evento
@@ -193,12 +198,15 @@ function Conteudo({
   aoSair: () => void
   painel: boolean
   abaInicial: Visao | undefined
+  convocarInicial: PedidoDeConvocacao | undefined
   avisadasAoPublicar: number | undefined
 }) {
   const { comunidadeAtiva } = useSessao()
   const eu = useMeuVinculo()
   const pode = usePode()
   const [aba, setAba] = useState<Visao>(abaInicial ?? 'resumo')
+  // O pedido de convocar vale uma vez: voltar à aba Quem vai depois não reabre a folha.
+  const [pedidoDeConvocar, setPedidoDeConvocar] = useState(convocarInicial ?? null)
   const lembrete = useLembrete(e, comunidadeId)
 
   async function compartilhar() {
@@ -293,7 +301,13 @@ function Conteudo({
               <CartaoDoRepertorioNoEncontro evento={e} comunidadeId={comunidadeId} />
             </>
           ) : (
-            <QuemVai evento={e} comunidadeId={comunidadeId} lembrete={lembrete} />
+            <QuemVai
+              evento={e}
+              comunidadeId={comunidadeId}
+              lembrete={lembrete}
+              convocarInicial={pedidoDeConvocar}
+              aoUsarPedido={() => setPedidoDeConvocar(null)}
+            />
           )}
         </>
       ) : (

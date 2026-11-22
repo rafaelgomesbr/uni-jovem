@@ -57,7 +57,7 @@ export function textoDePublicado(avisadas: number): string {
 /**
  * Ações sobre o encontro (D69, 3.4): um primário que depende da hora ("Publicar e avisar 11
  * pessoas" no rascunho, "Lembrar os 2", "Marcar quem chegou", "Conduzir ao vivo", "Marcar o próximo
- * sábado") e o menu "Mais" em grupos. Publicar não pergunta "tem certeza?": mostra o Desfazer de
+ * encontro") e o menu "Mais" em grupos. Publicar não pergunta "tem certeza?": mostra o Desfazer de
  * 10 s (o número real vem de `useSegundosDoDesfazer`) e só então avisa as pessoas. Cada ação só aparece se o papel permite (matriz de
  * `@uj/dominio`) e se a transição de situação é válida. A API confere de novo.
  */
@@ -239,7 +239,7 @@ export function useAcoesDoEvento({
     } else if (evento.status === 'publicado') {
       if (fase === 'terminou') {
         primaria = podeDuplicar
-          ? { titulo: 'Marcar o próximo sábado', aoPressionar: marcarOProximo, carregando: false }
+          ? { titulo: 'Marcar o próximo encontro', aoPressionar: marcarOProximo, carregando: false }
           : null
       } else if (fase === 'acontecendo') {
         if (aoVivoPossivel) {
@@ -509,7 +509,7 @@ function BotaoDaBarra({ acao, principal }: { acao: AcaoPrincipal; principal: boo
 export function BarraDoEvento({ acoes }: { acoes: AcoesDoEvento }) {
   if (!acoes.organiza || (!acoes.primaria && !acoes.secundaria)) return null
   return (
-    <BarraDeAcao>
+    <BarraDeAcao solta>
       {acoes.secundaria ? <BotaoDaBarra acao={acoes.secundaria} principal={false} /> : null}
       {acoes.primaria ? <BotaoDaBarra acao={acoes.primaria} principal /> : null}
     </BarraDeAcao>

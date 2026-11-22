@@ -9,8 +9,8 @@ import { usePode } from '../comunidade/permissoes'
 import { useAnterioresParaCopiar } from './consultas'
 
 /**
- * Folha "Novo encontro" (D69, seção 3.3): "Igual ao último sábado" (recomendado, leva à
- * conferência), "Sábado padrão", "A partir de um modelo" e "Em branco". Sem encontro realizado
+ * Folha "Novo encontro" (D69, seção 3.3): "Igual ao último encontro" (recomendado, leva à
+ * conferência), "Encontro padrão", "A partir de um modelo" e "Em branco". Sem encontro realizado
  * para copiar, a primeira opção continua à vista, desabilitada com o motivo escrito: a pessoa
  * sabe por que não pode, em vez de achar que o app não tem o recurso. Com a data de um dia do
  * calendário (`data`), as demais opções já nascem nela.
@@ -22,7 +22,7 @@ export function FolhaNovaProgramacao({
 }: {
   aberta: boolean
   aoFechar: () => void
-  /** O dia já escolhido (Agenda). Sem ele, o Sábado padrão sugere o próximo sábado. */
+  /** O dia já escolhido (Agenda). Sem ele, a pessoa escolhe o dia no calendário. */
   data?: DataLocal
 }) {
   const pode = usePode()
@@ -39,7 +39,7 @@ export function FolhaNovaProgramacao({
       aoFechar={aoFechar}
       acoes={[
         {
-          titulo: 'Igual ao último sábado',
+          titulo: 'Igual ao último encontro',
           icone: 'copiar',
           descricao: ultimo
             ? `${ultimo.titulo}, ${dataCurtaDoEncontro(ultimo.inicio, ultimo.fuso)}: o roteiro e a equipe já vêm`
@@ -50,7 +50,7 @@ export function FolhaNovaProgramacao({
           aoPressionar: () => router.push('/evento/igual-ao-ultimo'),
         },
         {
-          titulo: 'Sábado padrão',
+          titulo: 'Encontro padrão',
           icone: 'modelo',
           descricao: 'As etapas de sempre, todas editáveis',
           navega: true,

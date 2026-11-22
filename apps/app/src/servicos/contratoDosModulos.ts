@@ -3,7 +3,7 @@
  * relatórios, exportações, notificações, privacidade e denúncias (F14 a F18).
  * Só tipos: as regras moram na API e em `@uj/dominio`. Datas chegam como ISO.
  */
-import type { TipoDeNotificacao, VisibilidadeDeOracao } from '@uj/dominio'
+import type { LinkDaMusica, TipoDeNotificacao, VisibilidadeDeOracao } from '@uj/dominio'
 
 import type { ResumoDoPdf } from './contratoDoPdf'
 
@@ -67,7 +67,10 @@ export interface Musica extends Base {
   titulo: string
   artista: string | null
   tom: string | null
+  /** O link antigo (um só). Só leitura: os links novos vão em `links` (D80). */
   link: string | null
+  /** Links do Drive e do YouTube (D80), até 3. Opcional: API antiga não manda. */
+  links?: LinkDaMusica[]
   /** Só no detalhe. */
   cifra?: string | null
   /** A lista traz só isto (o selo "Sem cifra"), nunca o texto da cifra. Opcional: API antiga não manda. */

@@ -36,8 +36,16 @@ import { CartaoDoLider } from './CartaoDoLider'
 import { CartaoDoMembro } from './CartaoDoMembro'
 import { useAndamentoDoCartao, useInicio, type RespostaDoInicioComMomento } from './consultas'
 import { FaixaDoEncanto, HaloDoEncanto, useEncantoDoInicio } from './EncantoDoSol'
+import { EncontrosDoDia } from './EncontrosDoDia'
 import { MinhaVisaoGeral } from './MinhaVisaoGeral'
-import { emOnde, momentoDoDia, quandoFoiSalva, textoDaDespedida } from './momento'
+import {
+  emOnde,
+  momentoDoDia,
+  quandoFoiSalva,
+  textoDaDespedida,
+  textoDoObrigado,
+  tituloDoBlocoDoDia,
+} from './momento'
 import { ParaResponder } from './ParaResponder'
 import { AvisoDeEspera } from './PecasDoCartao'
 
@@ -285,7 +293,7 @@ function ConteudoDoInicio({
     momento.recemTerminado && evento && organiza
       ? textoDaDespedida(momento.recemTerminado, new Date(momento.agora))
       : momento.recemTerminado?.euServi && !organiza
-        ? 'Obrigado por servir ontem.'
+        ? textoDoObrigado(momento.recemTerminado, new Date(momento.agora))
         : null
 
   const cartao = organiza ? (
@@ -296,7 +304,6 @@ function ConteudoDoInicio({
       semInternet={semInternet}
       versaoSalva={versaoSalva}
       andamento={andamento.data}
-      bandaCompleta={banda}
       {...(poseDoEncanto ? { poseDoEncanto } : {})}
       aoEncanto={aoEncanto}
       rodape={faixaAoLado}
@@ -319,6 +326,9 @@ function ConteudoDoInicio({
       comLigarOsAvisos={notificacoes === 'negada' || notificacoes === 'nao_perguntada'}
     />
   )
+
+  // Dois ou mais encontros no mesmo dia: o cartão é o próximo e o bloco lista todos (D79).
+  const tituloDoBloco = tituloDoBlocoDoDia(momento)
 
   // "Primeiros passos" é do líder e só depois do primeiro encontro criado (D62).
   const mostraMissao =
@@ -347,6 +357,16 @@ function ConteudoDoInicio({
           </View>
         </View>
       </EntradaEmCascata>
+
+      {tituloDoBloco && evento ? (
+        <EntradaEmCascata ordem={3}>
+          <EncontrosDoDia
+            titulo={tituloDoBloco}
+            encontros={momento.doDia ?? []}
+            idDoCartao={evento.id}
+          />
+        </EntradaEmCascata>
+      ) : null}
 
       {paraResponder.length > 0 ? (
         <EntradaEmCascata ordem={3}>
@@ -392,7 +412,7 @@ function parteParaResponder(item: EscalaDoInicio, fuso: string) {
   }
 }
 
-/** "Obrigado por servir ontem." (ou "Sábado de ontem terminou. 12 presentes."), com o sol no poente. */
+/** "Obrigado por servir ontem." (ou "O encontro de ontem terminou. 12 presentes."), com o sol no poente. */
 function LinhaDeDespedida({ texto }: { texto: string }) {
   return (
     <View

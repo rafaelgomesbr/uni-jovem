@@ -1,4 +1,11 @@
-import { formatarDuracaoDaMusica, metadadosDaCifra } from '@uj/dominio'
+import {
+  formatarDuracaoDaMusica,
+  metadadosDaCifra,
+  resumoDosLinksDaMusica,
+  type LinkDaMusica,
+} from '@uj/dominio'
+
+import type { ItemDoRepertorio } from '@/servicos/contratoDoRepertorio'
 
 interface DadosDaMusica {
   tomDoDia: string | null
@@ -12,6 +19,8 @@ interface DadosDaMusica {
   temCifra?: boolean
   /** PDF anexado (D76): com PDF a música não está "sem cifra", e a linha diz "PDF" em texto. */
   temPdf?: boolean
+  /** Links do Drive e do YouTube (D80): a linha diz "Links: YouTube" em texto, sem abrir nada. */
+  links?: readonly LinkDaMusica[] | null
 }
 
 /**
@@ -33,11 +42,33 @@ export function descricaoDaMusica(d: DadosDaMusica, { artista = false } = {}): s
   if (d.andamentoBpm) partes.push(`${d.andamentoBpm} bpm`)
   const duracao = formatarDuracaoDaMusica(d.duracaoSeg)
   if (duracao) partes.push(duracao)
-  if (artista && d.artista) partes.push(d.artista)
   const semCifra = d.cifra !== undefined ? !(d.cifra && d.cifra.trim()) : d.temCifra === false
   if (d.temPdf) partes.push(semCifra ? 'PDF' : 'Cifra e PDF')
   else if (semCifra) partes.push('Sem cifra')
+  const links = resumoDosLinksDaMusica(d.links)
+  if (links) partes.push(`Links: ${links}`)
+  if (artista && d.artista) partes.push(`de ${d.artista}`)
   return partes.join(' · ')
+}
+
+/**
+ * O que a linha de uma música do repertório do encontro diz, em texto: "Tom A (original G) · 72 bpm ·
+ * 4:05 · de Novo Tom". O artista vem com "de", para não ler como "mudou de tom" (auditoria de UX, 44).
+ */
+export function descricaoDoItem(item: ItemDoRepertorio): string {
+  return descricaoDaMusica(
+    {
+      tomDoDia: item.tomDoDia,
+      tomOriginal: item.tomOriginal,
+      andamentoBpm: item.andamentoBpm,
+      duracaoSeg: item.duracaoSeg,
+      artista: item.artista,
+      temCifra: item.temCifra,
+      temPdf: item.temPdf === true,
+      ...(item.links ? { links: item.links } : {}),
+    },
+    { artista: true },
+  )
 }
 
 /** "Sua parte: Violão" ou "Sua parte: Vocal e Violão" (sem repetir a mesma função). */

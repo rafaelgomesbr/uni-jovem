@@ -18,6 +18,7 @@ export type EstadoDaPermissao = 'concedida' | 'negada' | 'nao_perguntada' | 'ind
 export const NOTIFICACOES_DISPONIVEIS = true
 
 const CANAL_DO_VERSICULO = 'versiculo'
+const CANAL_DOS_AVISOS = 'avisos'
 
 function traduzir(p: Notifications.NotificationPermissionsStatus): EstadoDaPermissao {
   if (Platform.OS === 'ios') {
@@ -70,6 +71,12 @@ async function prepararCanais() {
     name: 'Versículo do dia',
     description: 'Um versículo por dia, no horário que você escolher.',
     importance: Notifications.AndroidImportance.DEFAULT,
+  })
+  // Avisos enviados pelo servidor (convocações, lembretes): o FCM aponta para este canal.
+  await Notifications.setNotificationChannelAsync(CANAL_DOS_AVISOS, {
+    name: 'Avisos do grupo',
+    description: 'Convocações, lembretes e avisos da sua comunidade.',
+    importance: Notifications.AndroidImportance.HIGH,
   })
 }
 

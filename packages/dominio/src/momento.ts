@@ -1,9 +1,10 @@
 import { ehFuncaoDaBanda, normalizarFuncaoDaBanda, semAcento } from './banda.ts'
-import { dataNoFuso, type DataLocal, type HoraLocal } from './recorrencia.ts'
+import { dataNoFuso, type DataLocal, type DiaDaSemana, type HoraLocal } from './recorrencia.ts'
 
 /**
  * Regras puras do app v3 (D66): o estado do cartão do momento, a data do
- * "Igual ao último sábado" e as sugestões de quem convocar para uma função.
+ * "Igual ao último encontro", o título que combina com o dia e as sugestões de quem convocar para
+ * uma função.
  * Nada aqui toca banco, rede ou relógio: quem chama passa o "agora".
  */
 
@@ -66,7 +67,7 @@ export function horaNoFuso(instante: Date, fuso: string): HoraLocal {
   return `${v('hour')}:${v('minute')}`
 }
 
-// ------------------------------------------------------------------ "Igual ao último sábado"
+// ------------------------------------------------------------------ "Igual ao último encontro"
 
 /**
  * A data do novo encontro quando a pessoa não pediu uma: o mesmo dia da semana do encontro de
@@ -89,6 +90,72 @@ export function proximaDataParaCopiar(entrada: {
   // Origem absurdamente antiga: cai no mesmo cálculo a partir de hoje, nunca em loop.
   return somarDias(entrada.hoje, 7)
 }
+
+// ------------------------------------------------------------------ título que combina com o dia
+
+/** Domingo é 0 e sábado é 6, como em `DiaDaSemana`. */
+export const NOMES_DOS_DIAS_DA_SEMANA = [
+  'Domingo',
+  'Segunda',
+  'Terça',
+  'Quarta',
+  'Quinta',
+  'Sexta',
+  'Sábado',
+] as const
+
+/** O mesmo, na forma curta de listas ("sex 12, sáb 13, dom 14"). */
+export const SIGLAS_DOS_DIAS_DA_SEMANA = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'] as const
+
+/** Dia da semana de uma data de parede (0 = domingo ... 6 = sábado). */
+export function diaDaSemanaDaData(data: DataLocal): DiaDaSemana {
+  const [a, m, d] = data.split('-').map(Number) as [number, number, number]
+  return new Date(Date.UTC(a, m - 1, d)).getUTCDay() as DiaDaSemana
+}
+
+/** "Domingo", "Quarta": o nome do dia da semana da data. */
+export function nomeDoDiaDaData(data: DataLocal): string {
+  return NOMES_DOS_DIAS_DA_SEMANA[diaDaSemanaDaData(data)]
+}
+
+/**
+ * O título de um encontro novo quando a pessoa não escreveu um: o nome do dia da data ("Domingo",
+ * "Quarta") ou "Encontro" enquanto não há data. Nunca fixa um dia que a data não tem.
+ */
+export function tituloPadraoDoEncontro(data?: DataLocal | null): string {
+  return data ? nomeDoDiaDaData(data) : 'Encontro'
+}
+
+/** Sem acento, sem caixa e sem o "-feira": "Terça-feira" e "terca" são o mesmo nome. */
+function nomeNormalizado(titulo: string): string {
+  return semAcento(titulo).replace(/-feira$/, '')
+}
+
+const NOMES_DOS_DIAS_NORMALIZADOS: ReadonlyMap<string, DiaDaSemana> = new Map(
+  NOMES_DOS_DIAS_DA_SEMANA.map((n, i) => [nomeNormalizado(n), i as DiaDaSemana]),
+)
+
+/** O título é só o nome de um dia da semana ("Sábado", "terça-feira")? Esse é o título padrão. */
+export function ehTituloDeDiaDaSemana(titulo: string): boolean {
+  return NOMES_DOS_DIAS_NORMALIZADOS.has(nomeNormalizado(titulo))
+}
+
+/**
+ * O título de um encontro numa data. Só o título que é APENAS o nome de um dia ("Sábado" copiado
+ * para um domingo) acompanha a data; qualquer outro, escrito pela pessoa ("Sábado Jovem",
+ * "Retiro"), fica exatamente como está.
+ */
+export function tituloNaData(titulo: string, data: DataLocal): string {
+  return ehTituloDeDiaDaSemana(titulo) ? nomeDoDiaDaData(data) : titulo
+}
+
+/** "sex 12": a sigla do dia e o número, para listar vários dias numa linha. */
+export function rotuloCurtoDoDia(data: DataLocal): string {
+  return `${SIGLAS_DOS_DIAS_DA_SEMANA[diaDaSemanaDaData(data)]} ${Number(data.slice(8, 10))}`
+}
+
+/** Quantos encontros uma única criação em lote aceita (duas semanas de dias seguidos). */
+export const MAXIMO_DE_ENCONTROS_EM_LOTE = 14
 
 // ------------------------------------------------------------------ sugestões de quem convocar
 

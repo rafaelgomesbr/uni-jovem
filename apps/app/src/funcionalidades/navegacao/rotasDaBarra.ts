@@ -17,6 +17,8 @@ export const ROTAS_SEM_BARRA_FLUTUANTE: ReadonlySet<string> = new Set([
   'trocar-comunidade',
   'como-conseguir-convite',
   'criar-comunidade',
+  // Formulário de criação (D78: página comum da pilha, não folha, para o encontro criado abrir por
+  // cima com a barra de abas).
   'evento/novo',
   'evento/[eventoId]/editar',
   'evento/[eventoId]/duplicar',
@@ -36,7 +38,6 @@ export const ROTAS_SEM_BARRA_FLUTUANTE: ReadonlySet<string> = new Set([
   'evento/[eventoId]/ao-vivo',
   // Check-in: a lista de pessoas usa a tela inteira (o protótipo aprovado não tem barra).
   'evento/[eventoId]/checkin',
-  'evento/igual-ao-ultimo',
   // Leitura da cifra (D61): a letra grande ocupa a tela, sem a barra no caminho.
   'meu-repertorio/[eventoId]/[itemId]',
 ])

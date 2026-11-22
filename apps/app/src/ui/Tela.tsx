@@ -304,6 +304,8 @@ export function Tela({
         )}
         {barraDeAcao ? (
           <View
+            // A barra solta (D78) deixa o toque passar pela área em volta dos botões.
+            pointerEvents="box-none"
             style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}
             onLayout={(e: LayoutChangeEvent) => {
               const altura = Math.ceil(e.nativeEvent.layout.height)

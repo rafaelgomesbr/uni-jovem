@@ -54,7 +54,7 @@ async function novaMusica(titulo: string, cifra = CIFRA): Promise<{ id: string; 
     titulo,
     tom: 'G',
     cifra,
-    link: 'https://exemplo.test/musica',
+    link: 'https://youtu.be/exemplo123',
     direitosConfirmados: true,
   })
   expect(r.statusCode).toBe(200)
@@ -149,7 +149,7 @@ describe('quem recebe o pacote', () => {
       tomDoDia: 'A',
       tomOriginal: 'G',
       cifra: CIFRA,
-      link: 'https://exemplo.test/musica',
+      link: 'https://youtu.be/exemplo123',
       musicaId: v['musica1'],
     })
     expect(j.itens[1]).toMatchObject({ ordem: 1, tomDoDia: null })

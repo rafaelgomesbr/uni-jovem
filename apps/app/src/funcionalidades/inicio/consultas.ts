@@ -5,7 +5,7 @@ import { api } from '@/servicos/api'
 import type { RespostaDoInicio, RetratoAoVivo } from '@/servicos/contratoDosEventos'
 import type { MomentoDoInicio } from '@/servicos/contratoV3'
 
-import { naComunidade } from '../eventos/consultas'
+import { comTituloDoDia, naComunidade } from '../eventos/consultas'
 
 /**
  * `GET /inicio` com o campo `momento` da D66 (o cartão do momento). Os campos de antes seguem:
@@ -17,10 +17,30 @@ export interface RespostaDoInicioComMomento extends RespostaDoInicio {
   momento?: MomentoDoInicio
 }
 
+/**
+ * Os títulos do `momento` com o nome do dia (D78): o encontro que se chama só "Sábado" e cai num
+ * domingo aparece como "Domingo", no cartão, na lista do dia e na faixa do encontro que terminou.
+ * Só a exibição; título escrito pela pessoa nunca muda.
+ */
+export function comTitulosDoDia(dados: RespostaDoInicioComMomento): RespostaDoInicioComMomento {
+  const m = dados.momento
+  if (!m) return dados
+  return {
+    ...dados,
+    momento: {
+      ...m,
+      evento: m.evento ? comTituloDoDia(m.evento) : m.evento,
+      recemTerminado: m.recemTerminado ? comTituloDoDia(m.recemTerminado) : m.recemTerminado,
+      ...(m.doDia ? { doDia: m.doDia.map(comTituloDoDia) } : {}),
+    },
+  }
+}
+
 export function useInicio(comunidadeId: string | null) {
   return useQuery({
     queryKey: CHAVES.inicio(comunidadeId ?? ''),
     queryFn: () => api.get<RespostaDoInicioComMomento>(`${naComunidade(comunidadeId!)}/inicio`),
+    select: comTitulosDoDia,
     enabled: comunidadeId !== null,
   })
 }

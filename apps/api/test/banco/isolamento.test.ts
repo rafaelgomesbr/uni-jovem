@@ -69,6 +69,11 @@ const CASOS: Record<string, Record<string, unknown> | undefined> = {
     inicio: '2026-12-01T10:00:00-03:00',
     duracaoMin: 30,
   },
+  // D78: vários dias de uma vez (um encontro por dia, tudo ou nada).
+  'POST /api/v1/c/:comunidadeId/eventos/em-lote': {
+    categoria: 'Outra',
+    dias: [{ data: '2026-12-01', hora: '10:00' }],
+  },
   'GET /api/v1/c/:comunidadeId/eventos/:eventoId': undefined,
   'PATCH /api/v1/c/:comunidadeId/eventos/:eventoId': { versao: 1, titulo: 'Tomado' },
   'DELETE /api/v1/c/:comunidadeId/eventos/:eventoId': undefined,
@@ -208,6 +213,11 @@ const CASOS: Record<string, Record<string, unknown> | undefined> = {
   },
   'PATCH /api/v1/c/:comunidadeId/eventos/:eventoId/repertorio/:repertorioItemId': {
     tomDoDia: 'A',
+  },
+  // D80: cadastrar a música direto no repertório do encontro (música e item numa transação só)
+  'POST /api/v1/c/:comunidadeId/eventos/:eventoId/repertorio/nova-musica': {
+    titulo: 'Invasão',
+    links: [{ url: 'https://youtu.be/invasao' }],
   },
   'DELETE /api/v1/c/:comunidadeId/eventos/:eventoId/repertorio/:repertorioItemId': undefined,
   'PUT /api/v1/c/:comunidadeId/eventos/:eventoId/repertorio/ordem': {
@@ -542,7 +552,7 @@ async function estadoDeB() {
             (select json_agg(row(texto_cifrado, visibilidade, respondido_em, versao) order by id) from uj.pedidos_oracao where comunidade_id = $1) as po,
             (select count(*) from uj.intercessoes where comunidade_id = $1) as io,
             (select json_agg(row(status, resposta, versao) order by id) from uj.sugestoes where comunidade_id = $1) as sg,
-            (select json_agg(row(titulo, versao) order by id) from uj.musicas where comunidade_id = $1) as mu,
+            (select json_agg(row(titulo, versao, links, link) order by id) from uj.musicas where comunidade_id = $1) as mu,
             (select json_agg(row(nome, versao) order by id) from uj.musicos where comunidade_id = $1) as mo,
             (select count(*) from uj.musica_musicos where comunidade_id = $1) as mm,
             (select json_agg(row(musica_id, nome, encode(hash, 'hex')) order by id) from uj.musica_pdfs where comunidade_id = $1) as pf,

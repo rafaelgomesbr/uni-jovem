@@ -92,6 +92,18 @@ interface Props {
   extraNasOpcoes?: ReactNode
   /** Abre "Mais opções" por um erro que mora fora dos campos (o fim da repetição). */
   abrirOpcoes?: boolean
+  /**
+   * Novo encontro (D78): no lugar da data e hora lado a lado, o bloco "Quando?" que a tela monta
+   * (calendário de vários dias e hora). Vem ANTES do título, que depende do dia escolhido.
+   */
+  quando?: ReactNode
+  /** O título como a tela o controla (acompanha o dia até a pessoa escrever): valor, ajuda e exemplo. */
+  titulo?: {
+    valor: string
+    aoMudar: (v: string) => void
+    exemplo?: string
+    ajuda?: string
+  }
 }
 
 function descreverLocal(l: Pick<Local, 'tipo' | 'endereco'>): string {
@@ -116,6 +128,8 @@ export function CamposDoEvento({
   simples = false,
   extraNasOpcoes,
   abrirOpcoes = false,
+  quando,
+  titulo: tituloDaTela,
 }: Props) {
   const [opcoesAbertas, setOpcoesAbertas] = useState(false)
   const sugestoes = CATEGORIAS_SUGERIDAS.slice(0, 8)
@@ -128,10 +142,11 @@ export function CamposDoEvento({
     <Campo
       ref={refs?.titulo}
       rotulo="Título"
-      value={r.titulo}
-      onChangeText={(v) => mudar('titulo', v)}
+      value={tituloDaTela?.valor ?? r.titulo}
+      onChangeText={tituloDaTela?.aoMudar ?? ((v) => mudar('titulo', v))}
       erro={erros.titulo ?? null}
-      exemplo="Sábado Jovem"
+      exemplo={tituloDaTela?.exemplo ?? 'Encontro de jovens'}
+      {...(tituloDaTela?.ajuda ? { ajuda: tituloDaTela.ajuda } : {})}
       maxLength={120}
     />
   )
@@ -361,12 +376,25 @@ export function CamposDoEvento({
     const aberto = opcoesAbertas || erroEscondido || abrirOpcoes
     return (
       <>
-        <Secao titulo="O essencial">
-          <CartaoDeVidro opaco intervalo={ESPACO.e16}>
-            {blocoDoTitulo}
-            {blocoDaData}
-          </CartaoDeVidro>
-        </Secao>
+        {quando ? (
+          <>
+            <Secao titulo="Quando?">
+              <CartaoDeVidro opaco intervalo={ESPACO.e16}>
+                {quando}
+              </CartaoDeVidro>
+            </Secao>
+            <Secao titulo="Título">
+              <CartaoDeVidro opaco>{blocoDoTitulo}</CartaoDeVidro>
+            </Secao>
+          </>
+        ) : (
+          <Secao titulo="O essencial">
+            <CartaoDeVidro opaco intervalo={ESPACO.e16}>
+              {blocoDoTitulo}
+              {blocoDaData}
+            </CartaoDeVidro>
+          </Secao>
+        )}
         <Secao titulo="Onde">{blocoDoLocal}</Secao>
         <View style={{ gap: ESPACO.e12 }}>
           <View style={{ alignItems: 'flex-start' }}>

@@ -47,6 +47,8 @@ export const RITMO = {
   entreCampos: ESPACO.e20,
   /** Antes de um grupo novo (sobrancelha fora de cartão). */
   antesDoGrupo: ESPACO.e24,
+  /** Recuo interno de todo cartão, linha de lista e aviso: 16 (D79; era 16, 18 e 20 conforme o cartão). */
+  recuoDoCartao: ESPACO.e16,
   /** Entre a sobrancelha de um grupo e o cartão. */
   rotuloDaSecao: ESPACO.e8,
   /** Entre itens dentro de um bloco (campos, parágrafos). */
@@ -119,6 +121,11 @@ export const RAIO = {
   marca: 6,
   /** Caixa de marcar de 24 (D64). */
   caixa: 8,
+  /**
+   * Etiqueta de estado (chip: "Rascunho", "Presente", "Cancelado"): retângulo arredondado pequeno,
+   * sem sombra, sem cara de botão (D79). Botão, filtro e segmento seguem na pílula.
+   */
+  etiqueta: 8,
   /** Célula do calendário, ladrilho de 32, segmento interno (14 - 4). */
   celula: 10,
   /** Aviso e toast (M). Botão é `pilula` e campo é `campo` (D64: a forma diz a função). */
@@ -137,7 +144,7 @@ export const RAIO = {
   barra: 28,
   /** Barra de abas flutuante: a metade da altura de 68 (cápsula, D65). */
   barraFlutuante: 34,
-  /** Pílula da comunidade, chip, pílula de filtro, avatar (M). */
+  /** Pílula da comunidade, botão, pílula de filtro, segmento e avatar (M). O chip de estado é `etiqueta`. */
   pilula: 999,
 } as const
 

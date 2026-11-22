@@ -10,11 +10,26 @@ import { DetalheDoEvento } from './DetalheDoEvento'
 /** Rota `/evento/[eventoId]`: o detalhe em tela cheia (celular e web estreita), com a própria tela. */
 export function TelaEvento() {
   const { comunidadeAtiva } = useSessao()
-  const params = useLocalSearchParams<{ eventoId: string; aba?: string; publicado?: string }>()
+  const params = useLocalSearchParams<{
+    eventoId: string
+    aba?: string
+    publicado?: string
+    funcao?: string
+    bloco?: string
+  }>()
   const eventoId = parametro(params.eventoId)
-  // Só a parte dos Convocados abre por link interno (o Início: "Ver quem falta responder").
-  const abaInicial = parametro(params.aba) === 'convocados' ? 'convocados' : undefined
-  // Veio de "Igual ao último sábado" depois de publicar: quantas pessoas foram avisadas.
+  // Links internos: "Ver quem falta responder" (Quem vai), o antigo link de uma etapa (Roteiro) e
+  // "Convocar bateria" (`?funcao=Bateria&bloco=louvor`), que abre a folha já no papel (D78).
+  const funcao = parametro(params.funcao)
+  const convocarInicial = funcao ? { funcao, bloco: parametro(params.bloco) } : null
+  const aba = parametro(params.aba)
+  const abaInicial =
+    convocarInicial || aba === 'convocados'
+      ? 'convocados'
+      : aba === 'roteiro'
+        ? 'roteiro'
+        : undefined
+  // Veio de "Igual ao último encontro" depois de publicar: quantas pessoas foram avisadas.
   const avisadas = Number(parametro(params.publicado))
   const avisadasAoPublicar =
     parametro(params.publicado) !== null && Number.isInteger(avisadas) && avisadas >= 0
@@ -32,6 +47,7 @@ export function TelaEvento() {
       comunidadeId={comunidadeAtiva.id}
       eventoId={eventoId}
       {...(abaInicial ? { abaInicial } : {})}
+      {...(convocarInicial ? { convocarInicial } : {})}
       avisadasAoPublicar={avisadasAoPublicar}
     />
   )

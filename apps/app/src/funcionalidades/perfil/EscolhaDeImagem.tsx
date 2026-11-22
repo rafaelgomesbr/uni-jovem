@@ -135,8 +135,7 @@ export function EscolhaDeImagem({
           {foto ? (
             <Botao
               titulo={textos.remover}
-              variante="terciario"
-              alinhado
+              variante="secundario"
               carregando={remover.isPending}
               desabilitado={enviar.isPending}
               aoPressionar={() => void pedirRemocao()}
@@ -145,8 +144,7 @@ export function EscolhaDeImagem({
           {alternativa ? (
             <Botao
               titulo={alternativa.titulo}
-              variante="terciario"
-              alinhado
+              variante="secundario"
               aoPressionar={alternativa.aoPressionar}
             />
           ) : null}

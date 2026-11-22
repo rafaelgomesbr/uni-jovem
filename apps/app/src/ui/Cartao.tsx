@@ -1,4 +1,4 @@
-import { ESPACO, RAIO } from '@uj/tokens'
+import { ESPACO, RAIO, RITMO } from '@uj/tokens'
 import type { ReactNode } from 'react'
 import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native'
 
@@ -43,7 +43,7 @@ function CartaoPlano({
   const { aumentarContraste } = usePreferenciasDeAcessibilidade()
   const caixa: ViewStyle = {
     alignSelf: 'stretch',
-    padding: ESPACO.e18,
+    padding: RITMO.recuoDoCartao,
     borderRadius: RAIO.cartao,
     backgroundColor: cores.superficie,
     borderWidth: aumentarContraste ? 2 : 1,

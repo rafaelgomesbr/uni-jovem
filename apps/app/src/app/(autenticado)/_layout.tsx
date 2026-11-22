@@ -70,14 +70,16 @@ export default function LayoutAutenticado() {
         <Stack.Screen name="plataforma/index" options={{ title: 'Plataforma' }} />
         <Stack.Screen name="plataforma/nova" options={{ title: 'Nova comunidade' }} />
         <Stack.Screen name="plataforma/[comunidadeId]" options={{ title: 'Comunidade' }} />
-        <Stack.Screen name="evento/novo" options={{ title: 'Novo encontro', ...telaCheia }} />
-        {/* "Igual ao último sábado" e "Marcar o próximo sábado" (D69): a conferência. */}
+        {/* D78: páginas comuns da pilha (não modais): o encontro que elas criam abre por cima com a
+            barra de abas, que um modal nativo cobriria. */}
+        <Stack.Screen name="evento/novo" options={{ title: 'Novo encontro' }} />
+        {/* "Igual ao último encontro" e "Marcar o próximo encontro" (D69): a conferência. */}
         <Stack.Screen
           name="evento/igual-ao-ultimo"
-          options={{ title: 'Igual ao último sábado', ...telaCheia }}
+          options={{ title: 'Igual ao último encontro' }}
         />
         <Stack.Screen name="evento/[eventoId]/index" options={{ title: 'Encontro' }} />
-        <Stack.Screen name="evento/[eventoId]/editar" options={{ title: 'Editar', ...telaCheia }} />
+        <Stack.Screen name="evento/[eventoId]/editar" options={{ title: 'Editar' }} />
         <Stack.Screen
           name="evento/[eventoId]/status"
           options={{ title: 'Cancelar ou adiar', presentation: 'modal' }}

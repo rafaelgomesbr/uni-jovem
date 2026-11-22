@@ -484,14 +484,17 @@ export function EmPar({ children }: { children: ReactNode }) {
  * Até 2 botões lado a lado, cada um com `flex: 1` e intervalo de 12 (D64). Com
  * fonte grande (`fontScale` de 1,35 ou mais), viram coluna, o primário em cima.
  * Com `larguraMinima` (a de cada botão, na fonte padrão), também viram coluna
- * quando a metade da linha não comporta o rótulo: nada de rótulo cortado.
+ * quando a metade da linha não comporta o rótulo: nada de rótulo cortado. `empilhar` força a coluna.
  */
 export function ParDeBotoes({
   children,
   larguraMinima,
+  empilhar = false,
 }: {
   children: ReactNode
   larguraMinima?: number
+  /** Sempre em coluna, o primário em cima, cada botão com a largura toda (o cartão do Início, D79). */
+  empilhar?: boolean
 }) {
   const { fontScale } = useWindowDimensions()
   // Largura real da linha (a do cartão em que o par está), medida no layout.
@@ -502,7 +505,7 @@ export function ParDeBotoes({
     larguraMinima !== undefined &&
     itens.length > 1 &&
     (metade === null || metade < larguraMinima * fontScale)
-  const coluna = fontScale >= 1.35 || naoCabe
+  const coluna = empilhar || fontScale >= 1.35 || naoCabe
   // Empilhado: o primário fica em cima (a ação principal é a primeira a ser lida).
   const ordenados =
     coluna && itens.length === 2 && ehPrimario(itens[1]) && !ehPrimario(itens[0])

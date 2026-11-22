@@ -1,8 +1,10 @@
+import { linksAbriveisDaMusica } from '@uj/dominio'
 import { router, useLocalSearchParams } from 'expo-router'
 
 import { useSessao } from '@/estado/sessao'
 import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao, BotaoIcone, ParDeBotoes } from '@/ui/Botao'
+import { Cartao } from '@/ui/Cartao'
 import { Chip } from '@/ui/Chip'
 import { EstadoVazio } from '@/ui/EstadoVazio'
 import { ErroDaTela } from '@/ui/Falha'
@@ -13,7 +15,9 @@ import { abrirLink } from '@/utilidades/compartilhar'
 import { parametro } from '@/utilidades/parametros'
 import { useState } from 'react'
 
+import { LinksDaMusica } from '../conteudos/LinksDaMusica'
 import { SemComunidade } from '../navegacao/SemComunidade'
+import { useEstaOnline } from '../offline/ProvedorOffline'
 import { CartaoDoPdf } from '../pdf/CartaoDoPdf'
 import { LeitorDeCifra } from './LeitorDeCifra'
 import { ModoPalco } from './ModoPalco'
@@ -126,6 +130,8 @@ function MusicaAberta({
   const proxima = posicao < total - 1 ? encontro.itens[posicao + 1] : undefined
   const pdf = item.pdf ?? null
   const temCifra = !!item.cifra && item.cifra.trim() !== ''
+  const online = useEstaOnline()
+  const temLinks = linksAbriveisDaMusica(item.links).length > 0
 
   // No palco a troca de música mantém o palco aberto: o músico não volta à leitura entre as duas.
   const ir = (destino: string) =>
@@ -216,12 +222,17 @@ function MusicaAberta({
           ajustes={ajustes}
         />
       )}
+      {/* Links do Drive e do YouTube (D80): só como texto no pacote, abrir exige internet. */}
+      {temLinks ? (
+        <Cartao sobrancelha="Links">
+          <LinksDaMusica links={item.links} musica={item.titulo} online={online} />
+        </Cartao>
+      ) : null}
       {item.link ? (
         <Botao
           titulo="Abrir o link da música"
-          variante="terciario"
+          variante="secundario"
           icone="externo"
-          alinhado
           rotuloAcessivel={`Abrir o link de ${item.titulo}`}
           aoPressionar={() => void abrirLink(item.link!)}
         />

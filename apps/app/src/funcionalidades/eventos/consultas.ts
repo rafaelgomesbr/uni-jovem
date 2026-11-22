@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { rotuloCurtoDoDia, tituloNaData } from '@uj/dominio'
 
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { api } from '@/servicos/api'
@@ -29,6 +30,21 @@ export function textoDeConsulta(parametros: Record<string, string | number | nul
   return pares.length ? `?${pares.join('&')}` : ''
 }
 
+/**
+ * O título que combina com o dia (D78): um encontro que se chama só "Sábado" e cai num domingo (o
+ * título padrão antigo, gravado antes de o app derivar o nome do dia) é mostrado como "Domingo".
+ * Título que a pessoa escreveu ("Sábado Jovem", "Retiro") nunca muda. Não mexe nos dados: é só a
+ * exibição, igual em toda tela que lê encontros daqui.
+ */
+export function comTituloDoDia<T extends { titulo: string; inicio: string; fuso: string }>(
+  e: T,
+): T {
+  const titulo = tituloNaData(e.titulo, dataDoInstante(e.inicio, e.fuso))
+  return titulo === e.titulo ? e : { ...e, titulo }
+}
+
+const listaComTituloDoDia = (eventos: ResumoDoEvento[]) => eventos.map(comTituloDoDia)
+
 /** Eventos com início em [de, ate). Passe sempre `de`: sem ele a API começa pelos mais antigos. */
 export function useEventosNoPeriodo(
   comunidadeId: string | null,
@@ -44,6 +60,7 @@ export function useEventosNoPeriodo(
           { sinal: signal },
         )
         .then((r) => r.eventos),
+    select: listaComTituloDoDia,
     enabled: comunidadeId !== null,
   })
 }
@@ -86,17 +103,54 @@ export function useEncontrosNoDia(
     }))
 }
 
-/** "Sábado Jovem, 16:00" ou "Sábado Jovem, 16:00 (rascunho)". */
+/** Um encontro que já existe num dos dias escolhidos no Novo encontro (D78). */
+export interface EncontroDeUmDia extends EncontroDoDia {
+  data: DataLocal
+}
+
+/**
+ * Os encontros (menos os cancelados) que já existem em qualquer um dos dias escolhidos: uma
+ * consulta só, do primeiro ao último dia. Sem dias, não pergunta nada.
+ */
+export function useEncontrosNosDias(
+  comunidadeId: string | null,
+  dias: readonly DataLocal[],
+  fuso: string,
+): EncontroDeUmDia[] {
+  const ordem = [...dias].sort()
+  const primeiro = ordem[0] ?? null
+  const ultimo = ordem.at(-1) ?? null
+  const de = primeiro ? instanteDeDataEHora(primeiro, '00:00', fuso) : null
+  const ate = ultimo ? instanteDeDataEHora(somarDias(ultimo, 1), '00:00', fuso) : null
+  const lista = useEventosNoPeriodo(primeiro ? comunidadeId : null, de, ate)
+  return (lista.data ?? [])
+    .filter((e) => e.status !== 'cancelado' && dias.includes(dataDoInstante(e.inicio, e.fuso)))
+    .map((e) => ({
+      id: e.id,
+      titulo: e.titulo,
+      hora: formatarHora(e.inicio, e.fuso),
+      status: e.status,
+      data: dataDoInstante(e.inicio, e.fuso),
+    }))
+}
+
+/** "Culto de jovens, 16:00" ou "Culto de jovens, 16:00 (rascunho)". */
 function descreverEncontroDoDia(e: EncontroDoDia): string {
   return `${e.titulo}, ${e.hora}${e.status === 'rascunho' ? ' (rascunho)' : ''}`
 }
 
-/** O aviso de data ocupada: "Já existe um encontro neste dia: Sábado Jovem, 16:00." */
+/** O aviso de data ocupada: "Já existe um encontro neste dia: Culto de jovens, 16:00." */
 export function avisoDeDataOcupada(encontros: readonly EncontroDoDia[]): string {
   const lista = encontros.map(descreverEncontroDoDia).join('; ')
   return encontros.length === 1
     ? `Já existe um encontro neste dia: ${lista}.`
     : `Já existem ${encontros.length} encontros neste dia: ${lista}.`
+}
+
+/** Vários dias: "Já existe encontro em sex 12 (Sexta, 16:00) e sáb 13 (Sábado, 16:00)." */
+export function avisoDeDiasOcupados(encontros: readonly EncontroDeUmDia[]): string {
+  const partes = encontros.map((e) => `${rotuloCurtoDoDia(e.data)} (${descreverEncontroDoDia(e)})`)
+  return `Já existe encontro em ${partes.join(' e ')}.`
 }
 
 /** A pergunta antes de criar outro por cima. */
@@ -111,6 +165,7 @@ export function useEvento(comunidadeId: string | null, eventoId: string | null) 
       api.get<DetalheDoEvento>(`${naComunidade(comunidadeId!)}/eventos/${eventoId}`, {
         sinal: signal,
       }),
+    select: comTituloDoDia,
     enabled: comunidadeId !== null && !!eventoId,
   })
 }
@@ -159,7 +214,7 @@ export function useInvalidarEventos(comunidadeId: string) {
 }
 
 /**
- * De onde copiar "Igual ao último sábado" (D66): até 3 encontros já realizados, um por título.
+ * De onde copiar "Igual ao último encontro" (D66): até 3 encontros já realizados, um por título.
  * Sob o prefixo dos eventos: publicar ou copiar recarrega. Só a organização chama (403 para o resto).
  */
 export function useAnterioresParaCopiar(comunidadeId: string | null, habilitado: boolean) {
@@ -183,7 +238,7 @@ export interface PedidoDeCopia {
 }
 
 /**
- * "Igual ao último sábado" (D66): cria o rascunho copiado e devolve o resumo da conferência.
+ * "Igual ao último encontro" (D66): cria o rascunho copiado e devolve o resumo da conferência.
  * Trocar a data ou as músicas refaz a cópia: o rascunho anterior desta tela é apagado antes
  * (rascunho nunca avisou ninguém, então apagar não machuca ninguém).
  */

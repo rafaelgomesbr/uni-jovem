@@ -75,14 +75,14 @@ export function TelaEditarEvento() {
 
   if (!comunidadeAtiva || !eventoId) {
     return (
-      <Tela pilha modal>
+      <Tela pilha>
         <SemComunidade oQue="o encontro" />
       </Tela>
     )
   }
   if (!pode('evento', 'editar')) {
     return (
-      <Tela pilha modal titulo="Editar encontro">
+      <Tela pilha titulo="Editar encontro">
         <Aviso tipo="info" titulo="Só a organização edita encontros">
           Você pode ver o encontro, mas não alterar.
         </Aviso>
@@ -91,7 +91,7 @@ export function TelaEditarEvento() {
   }
   if (evento.isPending) {
     return (
-      <Tela pilha modal titulo="Editar encontro">
+      <Tela pilha titulo="Editar encontro">
         <Esqueleto rotulo="Carregando o encontro">
           <CartaoDeEsqueleto titulo />
           <CartaoDeEsqueleto />
@@ -101,7 +101,7 @@ export function TelaEditarEvento() {
   }
   if (evento.error) {
     return (
-      <Tela pilha modal titulo="Editar encontro">
+      <Tela pilha titulo="Editar encontro">
         <ErroDaTela erro={evento.error} aoTentarDeNovo={() => void evento.refetch()} />
       </Tela>
     )
@@ -291,11 +291,10 @@ function EditarEvento({
   return (
     <Tela
       pilha
-      modal
       titulo="Editar encontro"
       descricao={inicial.titulo}
       barraDeAcao={
-        <BarraDeAcao>
+        <BarraDeAcao solta>
           <Botao
             titulo="Salvar alterações"
             tamanho="grande"

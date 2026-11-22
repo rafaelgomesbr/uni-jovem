@@ -1,4 +1,4 @@
-import { ALTURA, ESPACO, TIPO } from '@uj/tokens'
+import { ALTURA, ESPACO, RAIO, RITMO, TIPO } from '@uj/tokens'
 import { Children, createContext, useContext, useEffect, useId, type ReactNode } from 'react'
 import { View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -42,11 +42,23 @@ export function fimComBarraDeAcao(margemDeBaixo: number): number {
  * direita) ou o primário com o botão de ícone "Mais".
  * Quem a posiciona (e a faz subir com o teclado) é a `Tela`.
  *
+ * `solta` (D78): sem a faixa de vidro. Os botões flutuam sobre a tela, 12 acima da barra de abas
+ * (ou da área segura), alinhados à margem do conteúdo, sem fundo nem borda de outra cor. A tela
+ * reserva o espaço no fim da rolagem (a altura medida da barra), então nada fica coberto.
+ *
  * O motivo de um botão desabilitado fica numa linha própria, na largura toda,
  * embaixo dos botões (ao lado, na meia coluna, o texto ficava espremido). O
  * `aviso` (erro de envio, por exemplo) fica acima dos botões, sempre à vista.
  */
-export function BarraDeAcao({ children, aviso }: { children: ReactNode; aviso?: ReactNode }) {
+export function BarraDeAcao({
+  children,
+  aviso,
+  solta = false,
+}: {
+  children: ReactNode
+  aviso?: ReactNode
+  solta?: boolean
+}) {
   const { elevacao, cores } = useTema()
   const margens = useSafeAreaInsets()
   const barraFlutuante = useContext(ContextoDaBarraFlutuanteEmbaixo)
@@ -57,39 +69,57 @@ export function BarraDeAcao({ children, aviso }: { children: ReactNode; aviso?: 
   const idDoMotivo = `motivo-da-barra-${useId()}`
   const itens = Children.toArray(children).filter(Boolean)
   const motivos = itens.map(motivoDoFilho).filter((m): m is string => m !== null)
+  const conteudo = (
+    <View
+      // Solta, a área em volta dos botões deixa o toque passar para a rolagem por baixo.
+      pointerEvents={solta ? 'box-none' : 'auto'}
+      style={{
+        gap: ESPACO.e8,
+        paddingTop: ESPACO.e12,
+        paddingHorizontal: solta ? RITMO.margemDaTela : ESPACO.e20,
+        paddingBottom: base + ESPACO.e12,
+      }}
+    >
+      {aviso}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e12 }}>
+        <ContextoDoMotivoNaBarra.Provider value={idDoMotivo}>
+          <EmPar>
+            {itens.map((filho, i) => (
+              <View key={i} style={ehSoIcone(filho) ? null : { flex: 1 }}>
+                {filho}
+              </View>
+            ))}
+          </EmPar>
+        </ContextoDoMotivoNaBarra.Provider>
+      </View>
+      {motivos.length ? (
+        <View
+          style={[
+            { flexDirection: 'row', alignItems: 'flex-start', gap: ESPACO.e6 },
+            // Solta, o motivo fica sobre a rolagem: um fundo opaco evita o texto sobre texto.
+            solta
+              ? {
+                  backgroundColor: cores.fundo,
+                  borderRadius: RAIO.controle,
+                  padding: ESPACO.e8,
+                }
+              : null,
+          ]}
+        >
+          <View style={{ height: TIPO.legenda.altura, justifyContent: 'center' }}>
+            <Icone nome="cadeado" cor={cores.textoSuave} tamanho={14} />
+          </View>
+          <Texto variante="legenda" cor="textoSuave" nativeID={idDoMotivo} style={{ flex: 1 }}>
+            {motivos.join(' ')}
+          </Texto>
+        </View>
+      ) : null}
+    </View>
+  )
+  if (solta) return conteudo
   return (
     <Vidro borda="cima" style={sombra(elevacao.flutuante)}>
-      <View
-        style={{
-          gap: ESPACO.e8,
-          paddingTop: ESPACO.e12,
-          paddingHorizontal: ESPACO.e20,
-          paddingBottom: base + ESPACO.e12,
-        }}
-      >
-        {aviso}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e12 }}>
-          <ContextoDoMotivoNaBarra.Provider value={idDoMotivo}>
-            <EmPar>
-              {itens.map((filho, i) => (
-                <View key={i} style={ehSoIcone(filho) ? null : { flex: 1 }}>
-                  {filho}
-                </View>
-              ))}
-            </EmPar>
-          </ContextoDoMotivoNaBarra.Provider>
-        </View>
-        {motivos.length ? (
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: ESPACO.e6 }}>
-            <View style={{ height: TIPO.legenda.altura, justifyContent: 'center' }}>
-              <Icone nome="cadeado" cor={cores.textoSuave} tamanho={14} />
-            </View>
-            <Texto variante="legenda" cor="textoSuave" nativeID={idDoMotivo} style={{ flex: 1 }}>
-              {motivos.join(' ')}
-            </Texto>
-          </View>
-        ) : null}
-      </View>
+      {conteudo}
     </Vidro>
   )
 }

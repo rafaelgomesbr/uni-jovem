@@ -59,7 +59,7 @@ export function Aviso({ tipo = 'info', titulo, children, acao, anunciar = false 
       style={{
         flexDirection: 'row',
         gap: ESPACO.e12,
-        paddingVertical: ESPACO.e14,
+        paddingVertical: ESPACO.e12,
         paddingHorizontal: ESPACO.e16,
         borderRadius: RAIO.controle,
         backgroundColor: solido(cores[a.fundo]),

@@ -152,7 +152,8 @@ export function LeitorDeCifra({ cifra, tomOriginal, tomDoDia, tamanhoInicial, aj
         {a.ajuste !== 0 ? (
           <Botao
             titulo="Tom do dia"
-            variante="terciario"
+            variante="secundario"
+            tamanho="medio"
             rotuloAcessivel="Voltar ao tom do dia"
             aoPressionar={a.voltarAoTomDoDia}
           />

@@ -1,4 +1,4 @@
-import { ALTURA, ESPACO } from '@uj/tokens'
+import { ALTURA, ESPACO, TIPO } from '@uj/tokens'
 import { View } from 'react-native'
 
 import { Botao } from '@/ui/Botao'
@@ -59,14 +59,17 @@ export function PedemAjuda({
               key={s.id}
               style={{
                 flexDirection: 'row',
-                alignItems: 'center',
+                alignItems: 'flex-start',
                 gap: ESPACO.e12,
                 minHeight: ALTURA.linhaAlta,
                 paddingHorizontal: ESPACO.e16,
                 paddingVertical: ESPACO.e12,
               }}
             >
-              <Icone nome="trocar" cor={cores.destaque} tamanho={20} />
+              {/* Ícone, texto e botão na mesma coluna do texto: o botão não espreme o motivo (D79). */}
+              <View style={{ height: TIPO.tituloItem.altura, justifyContent: 'center' }}>
+                <Icone nome="trocar" cor={cores.destaque} tamanho={20} />
+              </View>
               <View style={{ flex: 1, gap: ESPACO.e4 }}>
                 <Texto variante="tituloItem">{nome}</Texto>
                 <Texto variante="meta" cor="textoSuave">
@@ -77,22 +80,24 @@ export function PedemAjuda({
                     {`Motivo: ${s.motivo}`}
                   </Texto>
                 ) : null}
+                <View style={{ marginTop: ESPACO.e8 }}>
+                  <Botao
+                    titulo="Assumir"
+                    tamanho="medio"
+                    desabilitado={semInternet}
+                    rotuloAcessivel={`Assumir ${nome}, ${falarQuando(s.evento.inicio, fuso)}`}
+                    aoPressionar={() =>
+                      assumir({
+                        id: s.id,
+                        funcao: s.funcao,
+                        etapa: s.etapa,
+                        inicio: s.evento.inicio,
+                        fuso,
+                      })
+                    }
+                  />
+                </View>
               </View>
-              <Botao
-                titulo="Assumir"
-                tamanho="medio"
-                desabilitado={semInternet}
-                rotuloAcessivel={`Assumir ${nome}, ${falarQuando(s.evento.inicio, fuso)}`}
-                aoPressionar={() =>
-                  assumir({
-                    id: s.id,
-                    funcao: s.funcao,
-                    etapa: s.etapa,
-                    inicio: s.evento.inicio,
-                    fuso,
-                  })
-                }
-              />
             </View>
           )
         })}

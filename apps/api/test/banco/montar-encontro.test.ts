@@ -931,3 +931,58 @@ describe('"Lembrar os N": quem não respondeu', () => {
     )
   })
 })
+
+/** A próxima data (AAAA-MM-DD) que cai no dia da semana pedido (0 = domingo), de 8 a 14 dias à frente. */
+function proximaDataDoDia(diaDaSemana: number): string {
+  const d = new Date(Date.now() + 8 * DIA)
+  while (d.getUTCDay() !== diaDaSemana) d.setTime(d.getTime() + DIA)
+  return d.toISOString().slice(0, 10)
+}
+
+describe('"Igual ao último encontro": o título combina com o dia (D78)', () => {
+  it('"Sábado" copiado para um domingo ou uma quarta vira "Domingo" e "Quarta"', async () => {
+    const { eventoId } = await encontroRealizado(comA, 'Sábado', sabadoPassado(3), orgA)
+    const domingo = await req('POST', comA, `/eventos/${eventoId}/copiar`, orgA, {
+      data: proximaDataDoDia(0),
+    })
+    expect(domingo.statusCode).toBe(200)
+    expect(domingo.json().titulo).toBe('Domingo')
+    const quarta = await req('POST', comA, `/eventos/${eventoId}/copiar`, orgA, {
+      data: proximaDataDoDia(3),
+    })
+    expect(quarta.json().titulo).toBe('Quarta')
+    const gravados = (
+      await b.su.query<{ titulo: string }>('select titulo from uj.eventos where id = any ($1)', [
+        [domingo.json().id, quarta.json().id],
+      ])
+    ).rows.map((e) => e.titulo)
+    expect(gravados.sort()).toEqual(['Domingo', 'Quarta'])
+  })
+
+  it('o mesmo dia da semana mantém o título, e o título que a pessoa escreveu nunca muda', async () => {
+    const dia = await encontroRealizado(comA, 'Sábado', sabadoPassado(5), orgA)
+    const igual = await req('POST', comA, `/eventos/${dia.eventoId}/copiar`, orgA, {
+      data: proximaDataDoDia(6),
+    })
+    expect(igual.json().titulo).toBe('Sábado')
+
+    const escrito = await encontroRealizado(comA, 'Sábado Jovem do Vale', sabadoPassado(6), orgA)
+    const emDomingo = await req('POST', comA, `/eventos/${escrito.eventoId}/copiar`, orgA, {
+      data: proximaDataDoDia(0),
+    })
+    expect(emDomingo.json().titulo).toBe('Sábado Jovem do Vale')
+    expect(
+      (
+        await b.su.query<{ titulo: string }>('select titulo from uj.eventos where id = $1', [
+          emDomingo.json().id,
+        ])
+      ).rows[0]!.titulo,
+    ).toBe('Sábado Jovem do Vale')
+  })
+
+  it('sem data pedida, a data sugerida decide o título (o dia da semana da origem)', async () => {
+    const { eventoId } = await encontroRealizado(comA, 'Sábado', sabadoPassado(7), orgA)
+    const r = await req('POST', comA, `/eventos/${eventoId}/copiar`, orgA, {})
+    expect(r.json().titulo).toBe('Sábado')
+  })
+})

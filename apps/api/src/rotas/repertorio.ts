@@ -4,6 +4,7 @@ import type pg from 'pg'
 import { z } from 'zod'
 import { ehConvocacaoDeLouvor, ehEtapaDeLouvor, nomeDoTom } from '@uj/dominio'
 import { ErroHttp, NAO_ENCONTRADO, traduzirErroDoBanco, validar } from '../http.ts'
+import { inserirConteudo, LINK_FORA_DA_REGRA, TIPO_MUSICAS } from './conteudos.ts'
 import { auditar, exigir, idDoCaminho, naComunidade } from './contexto.ts'
 import { RESUMO_DO_PDF, TEM_PDF } from './musica-pdf.ts'
 
@@ -57,6 +58,7 @@ function traduzir(e: unknown): never {
   const codigo = (e as { code?: string }).code
   const t = codigo ? ERROS_DO_BANCO[codigo] : undefined
   if (t) throw new ErroHttp(t[0], t[1], t[2])
+  if (codigo === 'UJ103') throw LINK_FORA_DA_REGRA()
   if (codigo === '23505') {
     throw new ErroHttp('ja_no_repertorio', 409, 'Esta música já está no repertório deste encontro.')
   }
@@ -67,7 +69,7 @@ function traduzir(e: unknown): never {
 const SELECAO_DO_ITEM = `r.id, r.ordem, r.musica_id as "musicaId", r.etapa_id as "etapaId",
        r.tom_do_dia as "tomDoDia", r.nota, r.versao,
        m.titulo, m.artista, m.tom as "tomOriginal", m.andamento_bpm as "andamentoBpm",
-       m.duracao_seg as "duracaoSeg", m.arquivada,
+       m.duracao_seg as "duracaoSeg", m.arquivada, m.links,
        (m.cifra is not null and btrim(m.cifra) <> '') as "temCifra",
        ${TEM_PDF('m.id')}, ${RESUMO_DO_PDF('m.id')}`
 
@@ -96,6 +98,49 @@ export function registrarRotasDeRepertorio(app: FastifyInstance, api: pg.Pool): 
   /** Serializa as mudanças do repertório de um encontro (ordem não colide em corrida). */
   async function travar(c: pg.PoolClient, eventoId: string) {
     await c.query('select pg_advisory_xact_lock(hashtextextended($1, 27))', [eventoId])
+  }
+
+  /**
+   * Põe uma música da comunidade no fim do repertório do encontro. Música ou etapa de outra
+   * comunidade (ou de outro encontro): 404, nunca 400. Sem etapa escolhida, vai para a etapa do
+   * Louvor, se o encontro tiver uma.
+   */
+  async function colocarNoRepertorio(
+    c: pg.PoolClient,
+    pedido: FastifyRequest,
+    eventoId: string,
+    corpo: {
+      musicaId: string
+      etapaId?: string | null | undefined
+      tomDoDia?: string | null | undefined
+      nota?: string | null | undefined
+    },
+  ) {
+    const comunidadeId = pedido.comunidade!.id
+    const musica = await c.query('select 1 from uj.musicas where id = $1 and comunidade_id = $2', [
+      corpo.musicaId,
+      comunidadeId,
+    ])
+    if (!musica.rowCount) throw NAO_ENCONTRADO()
+    const etapas = (
+      await c.query<{ id: string; titulo: string }>(
+        'select id, titulo from uj.etapas where evento_id = $1 and comunidade_id = $2 order by ordem',
+        [eventoId, comunidadeId],
+      )
+    ).rows
+    if (corpo.etapaId && !etapas.some((e) => e.id === corpo.etapaId)) throw NAO_ENCONTRADO()
+    const etapaId = corpo.etapaId ?? etapas.find((e) => ehEtapaDeLouvor(e.titulo))?.id ?? null
+    await travar(c, eventoId)
+    const { rows } = await c.query<{ id: string; ordem: number; versao: number }>(
+      `insert into uj.repertorio_itens (comunidade_id, evento_id, etapa_id, musica_id, ordem, tom_do_dia, nota)
+       values ($1, $2, $3, $4,
+               (select coalesce(max(ordem) + 1, 0) from uj.repertorio_itens where evento_id = $2),
+               $5, $6)
+       returning id, ordem, versao`,
+      [comunidadeId, eventoId, etapaId, corpo.musicaId, corpo.tomDoDia ?? null, corpo.nota ?? null],
+    )
+    await auditar(c, pedido, 'repertorio.item_adicionado', { tipo: 'evento', id: eventoId })
+    return rows[0]!
   }
 
   // ---------------------------------------------------------------- repertório do encontro
@@ -130,41 +175,36 @@ export function registrarRotasDeRepertorio(app: FastifyInstance, api: pg.Pool): 
       pedido.body,
     )
     return tx(pedido, async (c) => {
-      const comunidadeId = pedido.comunidade!.id
-      await exigirEvento(c, comunidadeId, eventoId)
-      // Música ou etapa de outra comunidade (ou de outro encontro): 404, nunca 400.
-      const musica = await c.query(
-        'select 1 from uj.musicas where id = $1 and comunidade_id = $2',
-        [corpo.musicaId, comunidadeId],
-      )
-      if (!musica.rowCount) throw NAO_ENCONTRADO()
-      const etapas = (
-        await c.query<{ id: string; titulo: string }>(
-          'select id, titulo from uj.etapas where evento_id = $1 and comunidade_id = $2 order by ordem',
-          [eventoId, comunidadeId],
-        )
-      ).rows
-      if (corpo.etapaId && !etapas.some((e) => e.id === corpo.etapaId)) throw NAO_ENCONTRADO()
-      // Sem etapa escolhida, o repertório fica na etapa do Louvor, se o encontro tiver uma.
-      const etapaId = corpo.etapaId ?? etapas.find((e) => ehEtapaDeLouvor(e.titulo))?.id ?? null
-      await travar(c, eventoId)
-      const { rows } = await c.query<{ id: string; ordem: number; versao: number }>(
-        `insert into uj.repertorio_itens (comunidade_id, evento_id, etapa_id, musica_id, ordem, tom_do_dia, nota)
-         values ($1, $2, $3, $4,
-                 (select coalesce(max(ordem) + 1, 0) from uj.repertorio_itens where evento_id = $2),
-                 $5, $6)
-         returning id, ordem, versao`,
-        [
-          comunidadeId,
-          eventoId,
-          etapaId,
-          corpo.musicaId,
-          corpo.tomDoDia ?? null,
-          corpo.nota ?? null,
-        ],
-      )
-      await auditar(c, pedido, 'repertorio.item_adicionado', { tipo: 'evento', id: eventoId })
-      return rows[0]
+      await exigirEvento(c, pedido.comunidade!.id, eventoId)
+      return colocarNoRepertorio(c, pedido, eventoId, corpo)
+    })
+  })
+
+  /**
+   * "Cadastrar direto" (D80): cria a música na biblioteca E a coloca no fim do repertório deste
+   * encontro, numa transação só (as duas coisas entram ou nenhuma). Os dados e as regras da música
+   * são os de `POST .../conteudos/musicas` (título, tom, cifra com o aceite de direitos, links do
+   * Drive e do YouTube). Pede as duas permissões: cadastrar conteúdo e montar o repertório. O PDF,
+   * que vai como corpo bruto, é enviado depois, pela rota de sempre.
+   */
+  app.post(`${ev}/repertorio/nova-musica`, naCom, async (pedido) => {
+    exigir(pedido, 'conteudo', 'gerenciar')
+    exigir(pedido, 'etapa', 'gerenciar')
+    const eventoId = idDoCaminho(pedido, 'eventoId')
+    const musicas = TIPO_MUSICAS()
+    const corpo = validar(
+      musicas.criar.extend({ etapaId: z.uuid().nullish() }),
+      pedido.body,
+    ) as Record<string, unknown>
+    const { etapaId, ...dadosDaMusica } = corpo
+    return tx(pedido, async (c) => {
+      await exigirEvento(c, pedido.comunidade!.id, eventoId)
+      const musica = await inserirConteudo(c, pedido, musicas, dadosDaMusica)
+      const item = await colocarNoRepertorio(c, pedido, eventoId, {
+        musicaId: musica.id,
+        etapaId: (etapaId as string | null | undefined) ?? null,
+      })
+      return { musicaId: musica.id, musicaVersao: musica.versao, ...item }
     })
   })
 
@@ -381,7 +421,7 @@ export function registrarRotasDeRepertorio(app: FastifyInstance, api: pg.Pool): 
         await c.query(
           `select r.id, r.ordem, r.musica_id as "musicaId", r.tom_do_dia as "tomDoDia", r.nota,
                   m.titulo, m.artista, m.tom as "tomOriginal", m.andamento_bpm as "andamentoBpm",
-                  m.duracao_seg as "duracaoSeg", m.link, m.cifra,
+                  m.duracao_seg as "duracaoSeg", m.link, m.links, m.cifra,
                   ${TEM_PDF('m.id')}, ${RESUMO_DO_PDF('m.id')}
              from uj.repertorio_itens r join uj.musicas m on m.id = r.musica_id
             where r.evento_id = $1 and r.comunidade_id = $2
@@ -478,7 +518,7 @@ export function registrarRotasDeRepertorio(app: FastifyInstance, api: pg.Pool): 
           `select r.evento_id as "eventoId", r.id, r.ordem, r.musica_id as "musicaId",
                   r.tom_do_dia as "tomDoDia", r.nota,
                   m.titulo, m.artista, m.tom as "tomOriginal", m.andamento_bpm as "andamentoBpm",
-                  m.duracao_seg as "duracaoSeg", m.link, m.cifra,
+                  m.duracao_seg as "duracaoSeg", m.link, m.links, m.cifra,
                   ${TEM_PDF('m.id')}, ${RESUMO_DO_PDF('m.id')}
              from uj.repertorio_itens r join uj.musicas m on m.id = r.musica_id
             where r.comunidade_id = $1 and r.evento_id = any ($2::uuid[])

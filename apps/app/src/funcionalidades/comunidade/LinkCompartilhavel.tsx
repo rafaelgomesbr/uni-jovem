@@ -94,8 +94,8 @@ export function LinkCompartilhavel({
           {mostrarQr ? (
             <Botao
               titulo={qrVisivel ? 'Esconder o QR' : 'Mostrar o QR'}
-              variante="terciario"
-              alinhado
+              variante="secundario"
+              icone="qr"
               expandido={qrVisivel}
               aoPressionar={() => setQrVisivel((v) => !v)}
             />

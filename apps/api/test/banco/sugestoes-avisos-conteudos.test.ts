@@ -229,7 +229,7 @@ describe('conteúdos', () => {
       titulo: 'Grande é o Senhor',
       artista: 'Ministério Exemplo',
       tom: 'G',
-      link: 'https://exemplo.test/musica',
+      link: 'https://youtu.be/exemplo123',
       cifra: 'G D Em C',
       direitosConfirmados: true,
     })

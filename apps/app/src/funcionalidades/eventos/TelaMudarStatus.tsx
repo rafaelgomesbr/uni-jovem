@@ -183,7 +183,7 @@ export function TelaMudarStatus() {
       titulo={titulo}
       descricao={e.titulo}
       barraDeAcao={
-        <BarraDeAcao>
+        <BarraDeAcao solta>
           <Botao
             titulo={
               acao === 'adiar'

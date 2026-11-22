@@ -1,4 +1,4 @@
-import { ESPACO, RAIO } from '@uj/tokens'
+import { ESPACO, RAIO, RITMO } from '@uj/tokens'
 import { useState, type ReactNode } from 'react'
 import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native'
 
@@ -59,7 +59,7 @@ function Caixa({
   const [pressionado, setPressionado] = useState(false)
   const caixa: ViewStyle = {
     alignSelf: 'stretch',
-    padding: ESPACO.e18,
+    padding: RITMO.recuoDoCartao,
     borderRadius: RAIO.cartao,
     backgroundColor: cores.fundo,
     borderWidth: aumentarContraste ? 2 : 0,
@@ -104,7 +104,7 @@ function Caixa({
         </Texto>
       ) : null}
       {children ? (
-        <View style={{ marginTop: titulo || descricao || meta ? ESPACO.e14 : 0 }}>{children}</View>
+        <View style={{ marginTop: titulo || descricao || meta ? ESPACO.e16 : 0 }}>{children}</View>
       ) : null}
     </>
   )
@@ -127,7 +127,7 @@ function Caixa({
       ) : (
         topo
       )}
-      {acoes ? <View style={{ marginTop: ESPACO.e14 }}>{acoes}</View> : null}
+      {acoes ? <View style={{ marginTop: ESPACO.e16 }}>{acoes}</View> : null}
     </View>
   )
 }

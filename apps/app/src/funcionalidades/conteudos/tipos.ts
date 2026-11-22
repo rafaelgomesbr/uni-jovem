@@ -3,6 +3,11 @@ import { formatarDuracaoDaMusica, lerDuracaoDaMusica, nomeDoTom } from '@uj/domi
 import type { TipoDeConteudo } from '@/servicos/contratoDosModulos'
 import type { NomeDoIcone } from '@/ui/Icone'
 
+import { escreverLinhas, lerLinhas, linhasDosLinks, validarLinhas } from './links'
+
+/** Ajuda do campo de links (D80). Mora aqui, e não no componente, para o `tipos` não importar tela. */
+export const AJUDA_DOS_LINKS = 'Cole o link do Drive ou do YouTube.'
+
 export interface DefinicaoDeCampo {
   campo: string
   rotulo: string
@@ -12,7 +17,7 @@ export interface DefinicaoDeCampo {
   multilinha?: boolean
   ajuda?: string
   /** Como o valor vai para a API. */
-  formato?: 'texto' | 'link' | 'numero' | 'lista' | 'tom' | 'duracao' | 'cifra'
+  formato?: 'texto' | 'link' | 'links' | 'numero' | 'lista' | 'tom' | 'duracao' | 'cifra'
   /** Para `numero`: o intervalo aceito (padrão 1 a 600) e a unidade mostrada ao lado. */
   faixa?: readonly [number, number]
   unidade?: string
@@ -78,12 +83,13 @@ export const TIPOS_DE_CONTEUDO: Readonly<Record<TipoDeConteudo, DefinicaoDoTipo>
         formato: 'duracao',
         ajuda: 'Minutos e segundos, como 3:45. Ajuda a somar o tempo do repertório.',
       },
+      // D80: até 3 links do Drive ou do YouTube, cada um com nome opcional. Substitui o link único.
       {
-        campo: 'link',
-        rotulo: 'Link (vídeo, cifra ou letra)',
-        max: 2000,
-        formato: 'link',
-        ajuda: 'Um link que comece com https://.',
+        campo: 'links',
+        rotulo: 'Links do Drive ou do YouTube',
+        max: 3,
+        formato: 'links',
+        ajuda: AJUDA_DOS_LINKS,
       },
       { campo: 'cifra', rotulo: 'Cifra ou letra', max: 20000, multilinha: true, formato: 'cifra' },
       observacoes,
@@ -189,6 +195,8 @@ export function textoDoCampo(valor: unknown): string {
 
 /** O valor do registro como o formulário e a leitura mostram (duração em minutos e segundos). */
 export function textoParaMostrar(c: DefinicaoDeCampo, valor: unknown): string {
+  // Os links viajam no formulário como um texto só (ver `links.ts`); sem nenhum, é vazio.
+  if (c.formato === 'links') return escreverLinhas(linhasDosLinks(valor))
   if (c.formato === 'duracao')
     return formatarDuracaoDaMusica(typeof valor === 'number' ? valor : null)
   return textoDoCampo(valor)
@@ -229,6 +237,13 @@ export function montarCorpo(
   const erros: Record<string, string> = {}
   const corpo: Record<string, unknown> = {}
   for (const c of def.campos) {
+    if (c.formato === 'links') {
+      const r = validarLinhas(lerLinhas(valores[c.campo]))
+      Object.assign(erros, r.erros)
+      // Lista vazia apaga os links na edição; na criação, vazio não vai.
+      corpo[c.campo] = r.links
+      continue
+    }
     const bruto = (valores[c.campo] ?? '').trim()
     if (!bruto) {
       if (c.obrigatorio) erros[c.campo] = `Informe ${c.rotulo.toLowerCase()}.`

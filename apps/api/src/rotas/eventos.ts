@@ -3,9 +3,13 @@ import type pg from 'pg'
 import { z } from 'zod'
 import {
   calcularHorarios,
+  dataValida,
+  instanteNoFuso,
+  MAXIMO_DE_ENCONTROS_EM_LOTE,
   MODELOS_EMBUTIDOS,
   podeMudarStatus,
   STATUS_DO_EVENTO,
+  tituloPadraoDoEncontro,
   type StatusDoEvento,
 } from '@uj/dominio'
 import { ErroHttp, NAO_ENCONTRADO, traduzirErroDoBanco, validar } from '../http.ts'
@@ -432,6 +436,104 @@ export function registrarRotasDeEventos(app: FastifyInstance, api: pg.Pool): voi
     })
   })
 
+  interface EtapasEChecklist {
+    etapas: { titulo: string; duracaoMin: number; descricao?: string | null }[]
+    checklist: { tipo: string; texto: string }[]
+  }
+
+  /** As etapas e o checklist do modelo (embutido ou da comunidade); sem modelo, nada. */
+  async function lerModelo(
+    c: pg.PoolClient,
+    comunidadeId: string,
+    modelo: string | undefined,
+  ): Promise<EtapasEChecklist> {
+    if (!modelo) return { etapas: [], checklist: [] }
+    const embutido = MODELOS_EMBUTIDOS.find((m) => m.chave === modelo)
+    if (embutido) return { etapas: [...embutido.etapas], checklist: [...embutido.checklist] }
+    const m = (
+      await c.query<EtapasEChecklist>(
+        'select etapas, checklist from uj.modelos where id = $1 and comunidade_id = $2',
+        [modelo, comunidadeId],
+      )
+    ).rows[0]
+    if (!m) throw NAO_ENCONTRADO()
+    return m
+  }
+
+  async function fusoDaComunidade(c: pg.PoolClient, comunidadeId: string): Promise<string> {
+    return (
+      await c.query<{ fuso: string }>('select fuso from uj.comunidades where id = $1', [
+        comunidadeId,
+      ])
+    ).rows[0]!.fuso
+  }
+
+  interface DadosDoEncontro {
+    titulo: string
+    descricao?: string | null | undefined
+    categoria: string
+    inicio: string | Date
+    localId?: string | null | undefined
+    capacidade?: number | null | undefined
+    inscricaoAte?: string | null | undefined
+    listaDeEspera?: boolean | undefined
+    informacoesUteis?: string | null | undefined
+    visibilidade?: 'interna' | 'publica' | undefined
+  }
+
+  /** Grava um encontro com as etapas e o checklist do modelo. */
+  async function inserirEncontro(
+    c: pg.PoolClient,
+    comunidadeId: string,
+    fuso: string,
+    e: DadosDoEncontro,
+    duracao: number,
+    modelo: EtapasEChecklist,
+    status: 'rascunho' | 'publicado',
+  ) {
+    const { rows } = await c.query<{ id: string; versao: number }>(
+      `insert into uj.eventos (comunidade_id, titulo, descricao, categoria, inicio, duracao_min, fuso,
+         local_id, capacidade, inscricao_ate, lista_de_espera, informacoes_uteis, visibilidade, status)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,coalesce($11,false),$12,coalesce($13,'interna'),$14)
+       returning id, versao`,
+      [
+        comunidadeId,
+        e.titulo,
+        e.descricao ?? null,
+        e.categoria,
+        e.inicio,
+        duracao,
+        fuso,
+        e.localId ?? null,
+        e.capacidade ?? null,
+        e.inscricaoAte ?? null,
+        e.listaDeEspera ?? null,
+        e.informacoesUteis ?? null,
+        e.visibilidade ?? null,
+        status,
+      ],
+    )
+    const id = rows[0]!.id
+    for (const [i, etapa] of modelo.etapas.entries()) {
+      await c.query(
+        `insert into uj.etapas (comunidade_id, evento_id, ordem, titulo, duracao_min, descricao)
+         values ($1, $2, $3, $4, $5, $6)`,
+        [comunidadeId, id, i, etapa.titulo, etapa.duracaoMin, etapa.descricao ?? null],
+      )
+    }
+    for (const [i, item] of modelo.checklist.entries()) {
+      await c.query(
+        `insert into uj.checklist_itens (comunidade_id, evento_id, tipo, texto, ordem)
+         values ($1, $2, $3, $4, $5)`,
+        [comunidadeId, id, item.tipo, item.texto, i],
+      )
+    }
+    return rows[0]!
+  }
+
+  const duracaoDoModelo = (duracaoMin: number | undefined, m: EtapasEChecklist) =>
+    duracaoMin ?? (m.etapas.reduce((s, x) => s + x.duracaoMin, 0) || 60)
+
   app.post(`${base}/eventos`, naCom, async (pedido) => {
     exigir(pedido, 'evento', 'criar')
     const e = validar(
@@ -444,69 +546,90 @@ export function registrarRotasDeEventos(app: FastifyInstance, api: pg.Pool): voi
     )
     return tx(api, pedido, async (c) => {
       const comunidadeId = pedido.comunidade!.id
-      let etapas: { titulo: string; duracaoMin: number; descricao?: string | null }[] = []
-      let checklist: { tipo: string; texto: string }[] = []
-      if (e.modelo) {
-        const embutido = MODELOS_EMBUTIDOS.find((m) => m.chave === e.modelo)
-        if (embutido) {
-          etapas = [...embutido.etapas]
-          checklist = [...embutido.checklist]
-        } else {
-          const m = (
-            await c.query<{ etapas: typeof etapas; checklist: typeof checklist }>(
-              'select etapas, checklist from uj.modelos where id = $1 and comunidade_id = $2',
-              [e.modelo, comunidadeId],
-            )
-          ).rows[0]
-          if (!m) throw NAO_ENCONTRADO()
-          etapas = m.etapas
-          checklist = m.checklist
-        }
-      }
-      const duracao = e.duracaoMin ?? (etapas.reduce((s, x) => s + x.duracaoMin, 0) || 60)
-      const fuso = (
-        await c.query<{ fuso: string }>('select fuso from uj.comunidades where id = $1', [
-          comunidadeId,
-        ])
-      ).rows[0]!.fuso
-      const { rows } = await c.query<{ id: string; versao: number }>(
-        `insert into uj.eventos (comunidade_id, titulo, descricao, categoria, inicio, duracao_min, fuso,
-           local_id, capacidade, inscricao_ate, lista_de_espera, informacoes_uteis, visibilidade)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,coalesce($11,false),$12,coalesce($13,'interna'))
-         returning id, versao`,
-        [
-          comunidadeId,
-          e.titulo,
-          e.descricao ?? null,
-          e.categoria,
-          e.inicio,
-          duracao,
-          fuso,
-          e.localId ?? null,
-          e.capacidade ?? null,
-          e.inscricaoAte ?? null,
-          e.listaDeEspera ?? null,
-          e.informacoesUteis ?? null,
-          e.visibilidade ?? null,
-        ],
+      const modelo = await lerModelo(c, comunidadeId, e.modelo)
+      const fuso = await fusoDaComunidade(c, comunidadeId)
+      const criado = await inserirEncontro(
+        c,
+        comunidadeId,
+        fuso,
+        e,
+        duracaoDoModelo(e.duracaoMin, modelo),
+        modelo,
+        'rascunho',
       )
-      const id = rows[0]!.id
-      for (const [i, etapa] of etapas.entries()) {
-        await c.query(
-          `insert into uj.etapas (comunidade_id, evento_id, ordem, titulo, duracao_min, descricao)
-           values ($1, $2, $3, $4, $5, $6)`,
-          [comunidadeId, id, i, etapa.titulo, etapa.duracaoMin, etapa.descricao ?? null],
+      await auditar(c, pedido, 'evento.criado', { tipo: 'evento', id: criado.id })
+      return criado
+    })
+  })
+
+  /**
+   * Vários dias de uma vez (D78): um encontro por dia escolhido no calendário, todos com os mesmos
+   * dados e cada um na própria data e hora. Tudo ou nada: se qualquer dia falhar, nenhum nasce
+   * (uma transação). Sem `titulo`, cada encontro leva o nome do próprio dia ("Sexta", "Sábado").
+   * Com `publicar`, os encontros já nascem publicados (a mesma permissão de publicar). A
+   * repetição (série) é outra rota e segue como era.
+   */
+  app.post(`${base}/eventos/em-lote`, naCom, async (pedido) => {
+    exigir(pedido, 'evento', 'criar')
+    const corpo = validar(
+      z.object({
+        titulo: z.string().trim().min(2, 'Dê um título ao evento.').max(120).nullish(),
+        descricao: campoEvento.descricao,
+        categoria: campoEvento.categoria,
+        duracaoMin: campoEvento.duracaoMin.optional(),
+        localId: campoEvento.localId,
+        capacidade: campoEvento.capacidade,
+        informacoesUteis: campoEvento.informacoesUteis,
+        visibilidade: campoEvento.visibilidade,
+        modelo: z.union([z.literal('sabado_padrao'), uuid]).optional(),
+        publicar: z.boolean().default(false),
+        dias: z
+          .array(
+            z.object({
+              data: z.string().refine(dataValida, 'Data no formato AAAA-MM-DD.'),
+              hora: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Hora no formato HH:MM.'),
+            }),
+          )
+          .min(1, 'Escolha pelo menos um dia.')
+          .max(MAXIMO_DE_ENCONTROS_EM_LOTE, `Escolha até ${MAXIMO_DE_ENCONTROS_EM_LOTE} dias.`)
+          .refine((d) => new Set(d.map((x) => x.data)).size === d.length, 'Há um dia repetido.'),
+      }),
+      pedido.body,
+    )
+    if (corpo.publicar) exigir(pedido, 'evento', 'publicar')
+    return tx(api, pedido, async (c) => {
+      const comunidadeId = pedido.comunidade!.id
+      const modelo = await lerModelo(c, comunidadeId, corpo.modelo)
+      const fuso = await fusoDaComunidade(c, comunidadeId)
+      const duracao = duracaoDoModelo(corpo.duracaoMin, modelo)
+      const status = corpo.publicar ? 'publicado' : 'rascunho'
+      const eventos: { id: string; titulo: string; inicio: Date; status: string }[] = []
+      // Na ordem das datas, para a resposta e a auditoria contarem a mesma história.
+      for (const dia of [...corpo.dias].sort((a, b) => a.data.localeCompare(b.data))) {
+        const inicio = instanteNoFuso(dia.data, dia.hora, fuso)
+        const titulo = corpo.titulo ?? tituloPadraoDoEncontro(dia.data)
+        const criado = await inserirEncontro(
+          c,
+          comunidadeId,
+          fuso,
+          { ...corpo, titulo, inicio },
+          duracao,
+          modelo,
+          status,
         )
+        await auditar(c, pedido, 'evento.criado', { tipo: 'evento', id: criado.id })
+        if (corpo.publicar) {
+          await auditar(
+            c,
+            pedido,
+            'evento.publicado',
+            { tipo: 'evento', id: criado.id },
+            { de: 'rascunho' },
+          )
+        }
+        eventos.push({ id: criado.id, titulo, inicio, status })
       }
-      for (const [i, item] of checklist.entries()) {
-        await c.query(
-          `insert into uj.checklist_itens (comunidade_id, evento_id, tipo, texto, ordem)
-           values ($1, $2, $3, $4, $5)`,
-          [comunidadeId, id, item.tipo, item.texto, i],
-        )
-      }
-      await auditar(c, pedido, 'evento.criado', { tipo: 'evento', id })
-      return rows[0]
+      return { eventos }
     })
   })
 

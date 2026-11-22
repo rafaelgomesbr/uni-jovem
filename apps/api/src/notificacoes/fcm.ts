@@ -113,7 +113,7 @@ export function transporteFcm(o: {
                 priority: 'HIGH',
                 ttl: '86400s',
                 // Na tela bloqueada segura, o Android mostra só "conteúdo oculto".
-                notification: { visibility: 'PRIVATE' },
+                notification: { visibility: 'PRIVATE', channel_id: 'avisos' },
               },
             },
           }),

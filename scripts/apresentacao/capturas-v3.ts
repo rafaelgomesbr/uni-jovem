@@ -288,6 +288,9 @@ class Sessao {
   }
 
   async tentar(nome: string, passo: () => Promise<void>) {
+    // `CAPTURAS_SO=inicio,agenda`: só as telas cujo nome começa por um dos prefixos (iteração rápida).
+    const so = process.env['CAPTURAS_SO']?.split(',')
+    if (so && !so.some((p) => nome.startsWith(p))) return
     this.telaAtual = nome
     try {
       await passo()
@@ -323,7 +326,9 @@ async function novoContexto(
 }
 
 interface MomentoSimulado {
-  evento?: { inicio: string } | null
+  evento?: { id: string; titulo: string; inicio: string; fuso: string } | null
+  doDia?: unknown[]
+  suaParte?: unknown[]
   estado?: string
   minutosParaInicio?: number
   agora?: string
@@ -353,7 +358,7 @@ const CIFRA_DE_EXEMPLO = [
   '[G]entregamos no [D]altar',
 ]
 
-type EstadoDoCartao = 'longe' | 'vespera' | 'no_dia' | 'acontecendo' | 'terminou'
+type EstadoDoCartao = 'longe' | 'vespera' | 'no_dia' | 'acontecendo' | 'terminou' | 'multi'
 
 /** O servidor decide o momento pelo relógio real; aqui o cartão é forçado para ver cada estado. */
 async function forcarMomento(page: Page, estado: EstadoDoCartao | null) {
@@ -364,10 +369,41 @@ async function forcarMomento(page: Page, estado: EstadoDoCartao | null) {
     const json = (await resposta.json()) as { momento?: MomentoSimulado }
     const m = json.momento
     if (m?.evento) {
-      const minutos = { vespera: 20 * 60, no_dia: 180, acontecendo: -30, terminou: -150 }[estado]
-      m.estado = estado
+      const minutos = {
+        vespera: 20 * 60,
+        no_dia: 180,
+        acontecendo: -30,
+        terminou: -150,
+        multi: 180,
+      }[estado]
+      m.estado = estado === 'multi' ? 'no_dia' : estado
       m.minutosParaInicio = minutos
       m.agora = new Date(new Date(m.evento.inicio).getTime() - minutos * 60_000).toISOString()
+      if (estado === 'multi') {
+        // Três encontros no mesmo dia (D79): um já terminou, o do cartão e um que se sobrepõe.
+        const ini = new Date(m.evento.inicio).getTime()
+        const h = (n: number) => new Date(ini + n * 3_600_000).toISOString()
+        const outro = (id: string, titulo: string, de: number, ate: number, situacao: string) => ({
+          id,
+          titulo,
+          inicio: h(de),
+          fim: h(ate),
+          duracaoMin: Math.round((ate - de) * 60),
+          fuso: m.evento!.fuso,
+          status: 'publicado',
+          situacao,
+          localNome: null,
+          suaParte: [],
+        })
+        m.doDia = [
+          outro('qa-0', 'Café da manhã', -7, -6, 'terminou'),
+          {
+            ...outro(m.evento.id, m.evento.titulo, 0, 1, 'adiante'),
+            suaParte: m.suaParte ?? [],
+          },
+          outro('qa-2', 'Oficina de violão', 0.5, 2, 'adiante'),
+        ]
+      }
     }
     await route.fulfill({ response: resposta, json })
   })
@@ -507,11 +543,20 @@ async function rodarVariante(navegador: Browser, id: IdDaVariante) {
     ['membro', membro],
     ['lider', admin],
   ] as const) {
-    for (const estado of ['longe', 'vespera', 'no_dia', 'acontecendo', 'terminou'] as const) {
+    for (const estado of [
+      'longe',
+      'vespera',
+      'no_dia',
+      'acontecendo',
+      'terminou',
+      'multi',
+    ] as const) {
       await s.tentar(`inicio-${papel}-${estado}`, async () => {
         await forcarMomento(pagina, estado)
         await irPara(pagina, '/')
-        await s.foto(pagina, `10-inicio-${papel}-${estado}`, { rolagem: estado === 'longe' })
+        await s.foto(pagina, `10-inicio-${papel}-${estado}`, {
+          rolagem: estado === 'longe' || estado === 'multi',
+        })
       })
     }
     await forcarMomento(pagina, null)
@@ -535,6 +580,41 @@ async function rodarVariante(navegador: Browser, id: IdDaVariante) {
     await irPara(admin, '/agenda')
     await s.foto(admin, '21-agenda-lider')
   })
+  // Vários encontros no mesmo dia (D79): a Agenda agrupa por dia e avisa "Ao mesmo tempo que ...".
+  for (const [papel, pagina] of [
+    ['membro', membro],
+    ['lider', admin],
+  ] as const) {
+    await s.tentar(`agenda-multipla-${papel}`, async () => {
+      await pagina.route('**/api/v1/c/*/eventos?*', async (route) => {
+        const resposta = await route.fetch()
+        const json = (await resposta.json()) as { eventos?: Evento[] & Record<string, unknown>[] }
+        const base = json.eventos?.find((e) => e.status === 'publicado')
+        if (base) {
+          const ini = new Date(base.inicio).getTime()
+          const copia = (id: string, titulo: string, horas: number, duracaoMin: number) => ({
+            ...base,
+            id,
+            titulo,
+            inicio: new Date(ini + horas * 3_600_000).toISOString(),
+            duracaoMin,
+          })
+          json.eventos?.push(
+            copia('qa-0', 'Café da manhã', -7, 60),
+            copia('qa-2', 'Oficina de violão', 0.5, 90),
+          )
+          json.eventos?.sort((a, b) => a.inicio.localeCompare(b.inicio))
+        }
+        await route.fulfill({ response: resposta, json })
+      })
+      try {
+        await irPara(pagina, '/agenda')
+        await s.foto(pagina, `21b-agenda-varios-no-dia-${papel}`)
+      } finally {
+        await pagina.unroute('**/api/v1/c/*/eventos?*')
+      }
+    })
+  }
   await s.tentar('agenda-so-o-meu', async () => {
     await irPara(membro, '/agenda?vista=lista&filtro=meu')
     await s.foto(membro, '22-agenda-so-o-que-e-meu')

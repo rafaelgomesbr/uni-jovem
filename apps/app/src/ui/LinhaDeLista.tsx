@@ -1,4 +1,4 @@
-import { ALTURA, ESPACO, RAIO, TAMANHO_DO_AVATAR, TIPO } from '@uj/tokens'
+import { ALTURA, ESPACO, RAIO, RITMO, TAMANHO_DO_AVATAR, TIPO } from '@uj/tokens'
 import { Children, Fragment, isValidElement, type ReactNode } from 'react'
 import { Pressable, View, type ViewStyle } from 'react-native'
 
@@ -21,16 +21,16 @@ export const LARGURA_DA_HORA = 44
  */
 export const RECUO_DA_LISTA = {
   /** Ladrilho de 32. */
-  ladrilho: 18 + ALTURA.ladrilho + 12,
+  ladrilho: RITMO.recuoDoCartao + ALTURA.ladrilho + 12,
   /** Avatar de 40. */
-  avatar: 18 + TAMANHO_DO_AVATAR.linha + 12,
+  avatar: RITMO.recuoDoCartao + TAMANHO_DO_AVATAR.linha + 12,
   /** Bloco de data ou coluna de hora, de 44. */
-  data: 18 + LARGURA_DA_HORA + 12,
-  hora: 18 + LARGURA_DA_HORA + 12,
+  data: RITMO.recuoDoCartao + LARGURA_DA_HORA + 12,
+  hora: RITMO.recuoDoCartao + LARGURA_DA_HORA + 12,
   /** Rádio ou caixa de marcar, de 24. */
-  caixa: 18 + 24 + 12,
+  caixa: RITMO.recuoDoCartao + 24 + 12,
   /** Sem elemento à esquerda (interruptor, texto). */
-  texto: 18,
+  texto: RITMO.recuoDoCartao,
 } as const
 
 /**
@@ -149,6 +149,9 @@ export function LinhaDeLista({
         ? 'destaque'
         : 'texto'
   const navega = !!aoPressionar && !semSeta && !destrutivo && !desabilitada
+  // Com um chip ao lado a coluna do texto fica estreita: sem limite de linhas, para o fim da frase
+  // nunca virar reticências (D79).
+  const limiteDaDescricao = extra && linhasDaDescricao === 2 ? 0 : linhasDaDescricao
 
   const esquerda = avatar ? (
     <Avatar
@@ -205,9 +208,11 @@ export function LinhaDeLista({
     flexDirection: 'row',
     alignItems: 'center',
     gap: ESPACO.e12,
-    paddingVertical: ESPACO.e10,
-    paddingHorizontal: ESPACO.e18,
-    ...(noCartaoLista ? {} : { marginHorizontal: -ESPACO.e18, borderRadius: RAIO.controle }),
+    paddingVertical: ESPACO.e12,
+    paddingHorizontal: RITMO.recuoDoCartao,
+    ...(noCartaoLista
+      ? {}
+      : { marginHorizontal: -RITMO.recuoDoCartao, borderRadius: RAIO.controle }),
     ...(atual ? { backgroundColor: solido(cores.quenteFundo) } : {}),
   }
   const marcaDeAtual = atual ? soNaWeb({ 'aria-current': 'step' }) : {}
@@ -234,7 +239,7 @@ export function LinhaDeLista({
         </Texto>
         {descricao ? (
           // Data, hora, local ou o que a linha abre: informação útil, em 15 (U-09).
-          <Texto variante="meta" cor="textoSuave" numberOfLines={linhasDaDescricao}>
+          <Texto variante="meta" cor="textoSuave" numberOfLines={limiteDaDescricao}>
             {descricao}
           </Texto>
         ) : null}
@@ -322,7 +327,8 @@ export function Lista({ children, recuo }: PropsDaLista) {
       {itens.map((item, i) => {
         const anterior = itens[i - 1]?.props as Partial<PropsDaLinhaDeLista> | undefined
         // Fora do cartão lista a linha sangra 18: o separador começa no mesmo x do texto.
-        const margem = (recuo ?? recuoDoSeparador(anterior)) - (noCartaoLista ? 0 : ESPACO.e18)
+        const margem =
+          (recuo ?? recuoDoSeparador(anterior)) - (noCartaoLista ? 0 : RITMO.recuoDoCartao)
         return (
           <Fragment key={item.key ?? i}>
             {i > 0 ? (

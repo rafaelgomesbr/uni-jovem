@@ -130,7 +130,7 @@ export function UsoSemInternet({ eventoId }: { eventoId: string }) {
         {guardado ? (
           <Botao
             titulo="Tirar do aparelho"
-            variante="terciario"
+            variante="secundario"
             tamanho="medio"
             carregando={remover.isPending}
             aoPressionar={() => remover.mutate()}

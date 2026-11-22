@@ -2,7 +2,7 @@
  * D69: o Encontro. Para o membro, UMA página ("Sua parte" no alto, quando e onde, roteiro enxuto,
  * quem serve, inscrição). Para a organização, três abas (Resumo, Roteiro, Convocados), o menu
  * "Mais" em grupos e o botão principal do momento na barra (publicar com Desfazer, lembrar, check-in,
- * ao vivo, marcar o próximo sábado).
+ * ao vivo, marcar o próximo encontro). D78: o Roteiro é um acordeão por etapa, com edição ali mesmo.
  */
 import { act, screen, userEvent, waitFor, within } from '@testing-library/react-native'
 import { router } from 'expo-router'
@@ -122,10 +122,124 @@ describe('Encontro: a organização', () => {
     await userEvent.setup().press(await screen.findByRole('radio', { name: 'Roteiro' }))
     expect(
       await screen.findByLabelText(
-        'Etapa 2 de 3: Louvor. Das 16:05 a 16:20, 15 min. Com Bruno Lima (responsável).',
+        'Etapa 2 de 3: Louvor. Das 16:05 a 16:20, 15 min. Com Bruno Lima (responsável). Recolhida, toque para ver.',
       ),
     ).toBeOnTheScreen()
+    expect(screen.getByText('15 min · Com Bruno')).toBeOnTheScreen()
     expect(screen.getByText('Total 30 min de 30 min previstos')).toBeOnTheScreen()
+  })
+
+  test('Roteiro: cada etapa é um acordeão e nada leva a outra tela (D78)', async () => {
+    const usuario = userEvent.setup()
+    await montar('organizador')
+    await usuario.press(await screen.findByRole('radio', { name: 'Roteiro' }))
+    // Recolhida: sem campos nem botões da etapa.
+    expect(screen.queryByRole('button', { name: 'Remover a etapa Louvor' })).toBeNull()
+    await usuario.press(await screen.findByRole('button', { name: /^Etapa 2 de 3: Louvor/ }))
+    expect(await screen.findByText('Quem cuida')).toBeOnTheScreen()
+    expect(screen.getByText('Bruno Lima')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Remover a etapa Louvor' })).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Chamar alguém para Louvor' })).toBeOnTheScreen()
+    // Aberta ou fechada, tocar numa etapa nunca navega.
+    expect(router.push).not.toHaveBeenCalled()
+  })
+
+  test('Roteiro: muda o nome e a duração ali mesmo e "Salvar etapa" manda só isso', async () => {
+    const usuario = userEvent.setup()
+    const { servidor } = await montar('organizador', {
+      [`PATCH ${CAMINHO}/etapas/${ETAPAS[0]}`]: () => ({ status: 200, corpo: { ok: true } }),
+    })
+    await usuario.press(await screen.findByRole('radio', { name: 'Roteiro' }))
+    await usuario.press(await screen.findByRole('button', { name: /^Etapa 1 de 3: Boas-vindas/ }))
+    const salvar = await screen.findByRole('button', { name: 'Salvar a etapa Boas-vindas' })
+    // Nada mudou: o botão espera.
+    expect(salvar).toBeDisabled()
+    const nome = screen.getByLabelText('Nome da etapa')
+    await usuario.clear(nome)
+    await usuario.type(nome, 'Acolhida')
+    const duracao = screen.getByLabelText('Duração')
+    await usuario.clear(duracao)
+    await usuario.type(duracao, '8')
+    await usuario.press(screen.getByRole('button', { name: 'Salvar a etapa Boas-vindas' }))
+    await waitFor(() =>
+      expect(pedidosPara(servidor, 'PATCH', `${CAMINHO}/etapas/${ETAPAS[0]}`)[0]?.corpo).toEqual({
+        versao: 1,
+        titulo: 'Acolhida',
+        duracaoMin: 8,
+        descricao: null,
+      }),
+    )
+  })
+
+  test('Roteiro: "Remover etapa" é um botão com texto, pergunta e apaga', async () => {
+    const usuario = userEvent.setup()
+    const { servidor } = await montar('organizador', {
+      [`DELETE ${CAMINHO}/etapas/${ETAPAS[2]}`]: () => ({ status: 200, corpo: { ok: true } }),
+    })
+    await usuario.press(await screen.findByRole('radio', { name: 'Roteiro' }))
+    await usuario.press(await screen.findByRole('button', { name: /^Etapa 3 de 3: Encerramento/ }))
+    await usuario.press(await screen.findByRole('button', { name: 'Remover a etapa Encerramento' }))
+    expect(confirmar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        titulo: 'Remover a etapa Encerramento?',
+        confirmar: 'Remover etapa',
+        destrutivo: true,
+      }),
+    )
+    await waitFor(() =>
+      expect(pedidosPara(servidor, 'DELETE', `${CAMINHO}/etapas/${ETAPAS[2]}`)).toHaveLength(1),
+    )
+  })
+
+  test('Roteiro: "Chamar alguém" abre a folha de convocar na própria tela', async () => {
+    const usuario = userEvent.setup()
+    await montar('organizador')
+    await usuario.press(await screen.findByRole('radio', { name: 'Roteiro' }))
+    await usuario.press(await screen.findByRole('button', { name: /^Etapa 1 de 3: Boas-vindas/ }))
+    await usuario.press(
+      await screen.findByRole('button', { name: 'Chamar alguém para Boas-vindas' }),
+    )
+    expect(await screen.findByText(/^Convocar/)).toBeOnTheScreen()
+    expect(router.push).not.toHaveBeenCalled()
+  })
+
+  test('o link do Início ("Convocar bateria") abre a folha JÁ na função e uma vez só', async () => {
+    const usuario = userEvent.setup()
+    await renderizarTela(
+      <DetalheDoEvento
+        comunidadeId={COMUNIDADE}
+        eventoId={EVENTO_ID}
+        abaInicial="convocados"
+        convocarInicial={{ funcao: 'Bateria', bloco: 'louvor' }}
+      />,
+      {
+        papel: 'organizador',
+        rotas: {
+          [`GET ${CAMINHO}`]: () => ({ status: 200, corpo: eventoDeTeste() }),
+          [`GET ${CAMINHO}/inscricoes`]: () => ({
+            status: 200,
+            corpo: { contagem: { confirmadas: 0, espera: 0, presentes: 0 }, inscricoes: [] },
+          }),
+          [`GET ${BASE}/minhas-escalas`]: () => ({ status: 200, corpo: { escalas: [] } }),
+          [`GET ${CAMINHO}/sugestoes-de-convocacao`]: () => ({
+            status: 200,
+            corpo: {
+              funcao: 'Bateria',
+              data: '2026-11-28',
+              sugeridas: [],
+              indisponiveis: [],
+              jaConvocadas: [],
+            },
+          }),
+        },
+      },
+    )
+    expect(await screen.findByText('Convocar para Bateria')).toBeOnTheScreen()
+    // Fechar e trocar de aba e voltar não reabre a folha.
+    await usuario.press(screen.getByRole('button', { name: 'Fechar' }))
+    await usuario.press(screen.getByRole('radio', { name: 'Resumo' }))
+    await usuario.press(await screen.findByRole('radio', { name: 'Quem vai' }))
+    await waitFor(() => expect(screen.queryByText('Convocar para Bateria')).toBeNull())
   })
 
   test('Roteiro: reordena por botão ("Descer Boas-vindas" manda a ordem nova)', async () => {
@@ -134,9 +248,9 @@ describe('Encontro: a organização', () => {
     })
     const usuario = userEvent.setup()
     await usuario.press(await screen.findByRole('radio', { name: 'Roteiro' }))
-    // Fora da edição, a ordem não se mexe por engano; "Editar etapas" mostra Subir e Descer.
+    // Recolhida, a ordem não se mexe por engano; abrir a etapa mostra Subir e Descer.
     expect(screen.queryByRole('button', { name: 'Descer Boas-vindas' })).toBeNull()
-    await usuario.press(screen.getByRole('button', { name: 'Editar etapas' }))
+    await usuario.press(await screen.findByRole('button', { name: /^Etapa 1 de 3: Boas-vindas/ }))
     await usuario.press(await screen.findByRole('button', { name: 'Descer Boas-vindas' }))
     await waitFor(() =>
       expect(pedidosPara(servidor, 'PUT', `${CAMINHO}/etapas/ordem`)[0]?.corpo).toEqual({
@@ -396,12 +510,12 @@ describe('Encontro: a organização', () => {
       expect(screen.getByRole('button', { name: 'Marcar quem chegou' })).toBeOnTheScreen()
     })
 
-    test('terminou: "Marcar o próximo sábado" leva à conferência', async () => {
+    test('terminou: "Marcar o próximo encontro" leva à conferência', async () => {
       const ontem = new Date(Date.now() - 86_400_000).toISOString()
       await montar('organizador', {}, eventoDeTeste({ inicio: ontem }))
       await userEvent
         .setup()
-        .press(await screen.findByRole('button', { name: 'Marcar o próximo sábado' }))
+        .press(await screen.findByRole('button', { name: 'Marcar o próximo encontro' }))
       expect(router.push).toHaveBeenCalledWith('/evento/igual-ao-ultimo')
     })
   })
@@ -426,7 +540,7 @@ describe('Encontro: o membro', () => {
     expect(screen.queryByRole('button', { name: 'Mais ações' })).toBeNull()
     expect(screen.queryByRole('button', { name: /^Inscrições/ })).toBeNull()
     expect(screen.queryByRole('button', { name: /^Check-in/ })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Editar etapas' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Adicionar etapa' })).toBeNull()
     // Sem parte, "Sua parte" nem existe.
     expect(screen.queryByText('Sua parte')).toBeNull()
   })

@@ -220,7 +220,7 @@ function ConteudoDaCaixa() {
   ) : caixa.hasNextPage ? (
     <Botao
       titulo="Mostrar mais antigas"
-      variante="terciario"
+      variante="secundario"
       aoPressionar={() => void caixa.fetchNextPage()}
     />
   ) : (

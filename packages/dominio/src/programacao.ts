@@ -24,14 +24,16 @@ export interface ModeloEmbutido {
 }
 
 /**
- * A programação habitual de sábado (cerca de 1 hora). É ponto de partida:
- * etapas e ordem são editáveis em cada evento, e nenhuma é obrigatória.
+ * A programação habitual do encontro (cerca de 1 hora). É ponto de partida:
+ * etapas e ordem são editáveis em cada evento, e nenhuma é obrigatória. O modelo
+ * não impõe o dia da semana (D78): a chave `sabado_padrao` fica só por compatibilidade
+ * com o que já foi gravado e com as rotas.
  */
 export const MODELO_SABADO_PADRAO: ModeloEmbutido = {
   chave: 'sabado_padrao',
-  nome: 'Sábado padrão',
-  categoria: 'Programação de sábado',
-  descricao: 'Programação habitual de sábado, com cerca de uma hora.',
+  nome: 'Encontro padrão',
+  categoria: 'Programação semanal',
+  descricao: 'Programação habitual do encontro, com cerca de uma hora.',
   etapas: [
     { titulo: 'Boas-vindas', duracaoMin: 5 },
     { titulo: 'Louvor', duracaoMin: 15 },
@@ -56,7 +58,7 @@ export const MODELOS_EMBUTIDOS: readonly ModeloEmbutido[] = [MODELO_SABADO_PADRA
 
 /** Sugestões de categoria (texto livre também é aceito). */
 export const CATEGORIAS_SUGERIDAS = [
-  'Programação de sábado',
+  'Programação semanal',
   'Noite de jogos',
   'Luau musical',
   'Sarau',

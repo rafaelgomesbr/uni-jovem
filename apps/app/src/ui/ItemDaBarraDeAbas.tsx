@@ -45,7 +45,8 @@ export function escalaDoRotuloDaBarra(
   const teto = Math.min(fontScale, TIPO.aba.teto ?? fontScale, ESCALA_MAXIMA_PELA_ALTURA)
   const util =
     larguraDaTela - 2 * BARRA_DE_ABAS.margemLateral - 2 * (BARRA_DE_ABAS.preenchimento + 1)
-  // O item tem 2 de cada lado (o `paddingHorizontal` dele).
+  // Estimativa por excesso: conta 2 de cada lado como folga, embora o item não tenha recuo lateral
+  // (D79: a web não encolhe o rótulo sozinha, e em 375 "Comunidade" perdia 2 pt e virava "Comunida...").
   const disponivel = util / itens - 2 * ESPACO.e2
   const maiorEm1 = Math.max(...rotulos.map((r) => larguraEstimada(r, TIPO.aba.tamanho)))
   if (maiorEm1 <= 0) return Math.max(1, teto)
@@ -128,7 +129,7 @@ export function ItemDaBarraDeAbas({
         flex: 1,
         minWidth: 0,
         minHeight: Math.max(ALVO, ALTURA.aba),
-        paddingHorizontal: ESPACO.e2,
+        paddingHorizontal: 0,
         alignItems: 'center',
         justifyContent: 'center',
         gap: ESPACO.e2,

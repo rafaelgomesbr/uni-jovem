@@ -145,8 +145,8 @@ function FormularioDeConvite({ comunidade }: { comunidade: ComunidadeDoVinculo }
         />
         <Botao
           titulo="Criar outro convite"
-          variante="terciario"
-          alinhado
+          variante="secundario"
+          icone="convidar"
           aoPressionar={() => {
             pedirFoco()
             criar.reset()

@@ -211,7 +211,7 @@ export function TelaLimparProximos() {
         titulo="Confirme a limpeza"
         descricao={comunidadeAtiva.nome}
         barraDeAcao={
-          <BarraDeAcao>
+          <BarraDeAcao solta>
             <Botao
               titulo="Mudar a escolha"
               variante="secundario"
@@ -266,7 +266,7 @@ export function TelaLimparProximos() {
       titulo={TITULO}
       descricao={comunidadeAtiva.nome}
       barraDeAcao={
-        <BarraDeAcao>
+        <BarraDeAcao solta>
           <Botao
             titulo="Cancelar"
             variante="secundario"

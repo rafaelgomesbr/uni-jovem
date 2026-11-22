@@ -31,6 +31,11 @@ export interface PropsDoDeslizarParaResponder {
   descricao?: string
   /** Um chip da situação, ao lado do texto (use `Chip situacao="aguardando"`). */
   extra?: ReactNode
+  /**
+   * Coluna à esquerda do conteúdo (a hora, na Agenda do dia, D79): a linha que pede resposta
+   * tem o MESMO esqueleto da linha comum, e os botões ficam na coluna do título.
+   */
+  inicio?: ReactNode
   aoAceitar: () => void
   aoRecusar: () => void
   /** O texto do botão e do fundo que o gesto revela ("Aceitar"). */
@@ -65,6 +70,7 @@ export function DeslizarParaResponder({
   titulo,
   descricao,
   extra,
+  inicio,
   aoAceitar,
   aoRecusar,
   rotuloDeAceitar = 'Aceitar',
@@ -228,60 +234,71 @@ export function DeslizarParaResponder({
                   backgroundColor: cores.superficie,
                   paddingTop: ESPACO.e12,
                   paddingHorizontal: ESPACO.e16,
-                  paddingBottom: ESPACO.e14,
+                  paddingBottom: ESPACO.e12,
                   gap: ESPACO.e8,
                 },
                 estiloDaFrente,
               ]}
             >
-              {/* O `extra` (chip da situação, "Você: Louvor") fica FORA do botão do título: o rótulo
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: ESPACO.e12 }}>
+                {inicio}
+                <View style={{ flex: 1, gap: ESPACO.e8 }}>
+                  {/* O `extra` (chip da situação, "Você: Louvor") fica FORA do botão do título: o rótulo
                   do botão esconde os filhos, e a situação é lida como o que ela é, um item à parte. */}
-              <View style={{ gap: ESPACO.e6 }}>
-                <Pressable
-                  accessibilityRole={aoPressionar ? 'button' : 'text'}
-                  accessibilityLabel={[titulo, descricao].filter(Boolean).join('. ')}
-                  accessibilityActions={acoesDeAcessibilidade}
-                  onAccessibilityAction={(e) => {
-                    if (e.nativeEvent.actionName === 'aceitar') aceitar()
-                    if (e.nativeEvent.actionName === 'recusar') recusar()
-                  }}
-                  disabled={!aoPressionar}
-                  onPress={aoPressionar}
-                  style={{ minHeight: ALVO, justifyContent: 'center', gap: ESPACO.e2 }}
-                >
-                  <Texto variante="tituloItem">{titulo}</Texto>
-                  {descricao ? (
-                    <Texto variante="meta" cor="textoSuave">
-                      {descricao}
-                    </Texto>
+                  <View style={{ gap: ESPACO.e6 }}>
+                    <Pressable
+                      accessibilityRole={aoPressionar ? 'button' : 'text'}
+                      accessibilityLabel={[titulo, descricao].filter(Boolean).join('. ')}
+                      accessibilityActions={acoesDeAcessibilidade}
+                      onAccessibilityAction={(e) => {
+                        if (e.nativeEvent.actionName === 'aceitar') aceitar()
+                        if (e.nativeEvent.actionName === 'recusar') recusar()
+                      }}
+                      disabled={!aoPressionar}
+                      onPress={aoPressionar}
+                      style={{
+                        minHeight: ALVO,
+                        justifyContent: inicio ? 'flex-start' : 'center',
+                        gap: ESPACO.e2,
+                      }}
+                    >
+                      <Texto variante="tituloItem">{titulo}</Texto>
+                      {descricao ? (
+                        <Texto variante="meta" cor="textoSuave">
+                          {descricao}
+                        </Texto>
+                      ) : null}
+                    </Pressable>
+                    {extra}
+                  </View>
+                  <ParDeBotoes larguraMinima={150}>
+                    <Botao
+                      titulo={rotuloDeRecusar}
+                      variante="secundario"
+                      tamanho="medio"
+                      desabilitado={desabilitado || respondida}
+                      aoPressionar={recusar}
+                    />
+                    <Botao
+                      titulo={rotuloDeAceitar}
+                      variante="primario"
+                      tamanho="medio"
+                      desabilitado={desabilitado || respondida}
+                      aoPressionar={aceitar}
+                    />
+                  </ParDeBotoes>
+                  {desabilitado && motivo ? (
+                    <View
+                      style={{ flexDirection: 'row', gap: ESPACO.e6, alignItems: 'flex-start' }}
+                    >
+                      <Icone nome="cadeado" cor={cores.textoSuave} tamanho={14} />
+                      <Texto variante="legenda" cor="textoSuave" style={{ flex: 1 }}>
+                        {motivo}
+                      </Texto>
+                    </View>
                   ) : null}
-                </Pressable>
-                {extra}
-              </View>
-              <ParDeBotoes>
-                <Botao
-                  titulo={rotuloDeRecusar}
-                  variante="secundario"
-                  tamanho="medio"
-                  desabilitado={desabilitado || respondida}
-                  aoPressionar={recusar}
-                />
-                <Botao
-                  titulo={rotuloDeAceitar}
-                  variante="primario"
-                  tamanho="medio"
-                  desabilitado={desabilitado || respondida}
-                  aoPressionar={aceitar}
-                />
-              </ParDeBotoes>
-              {desabilitado && motivo ? (
-                <View style={{ flexDirection: 'row', gap: ESPACO.e6, alignItems: 'flex-start' }}>
-                  <Icone nome="cadeado" cor={cores.textoSuave} tamanho={14} />
-                  <Texto variante="legenda" cor="textoSuave" style={{ flex: 1 }}>
-                    {motivo}
-                  </Texto>
                 </View>
-              ) : null}
+              </View>
             </Animated.View>
           </GestureDetector>
         </View>

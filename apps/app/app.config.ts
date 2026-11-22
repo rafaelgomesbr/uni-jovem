@@ -13,6 +13,12 @@ import { NOME_DO_APP } from '../../packages/dominio/src/produto.ts'
 
 type Variante = 'desenvolvimento' | 'homologacao' | 'producao'
 
+/**
+ * google-services.json do Firebase (push do Android): fora do git, só na máquina de build.
+ * O build liga com UJ_COM_FIREBASE=sim quando o arquivo está em credentials/android/.
+ */
+const COM_FIREBASE = process.env['UJ_COM_FIREBASE'] === 'sim'
+
 function varianteAtual(): Variante {
   const bruta = process.env['UJ_VARIANTE'] ?? process.env['EAS_BUILD_PROFILE'] ?? 'desenvolvimento'
   if (bruta === 'producao' || bruta === 'homologacao') return bruta
@@ -120,6 +126,11 @@ const config: ExpoConfig = {
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
     predictiveBackGestureEnabled: false,
+    // Push no Android (FCM): o arquivo do Firebase fica fora do git (credentials/ é ignorado).
+    // Sem ele o build sai igual, só que sem token de push. Só a produção usa o projeto.
+    ...(VARIANTE === 'producao' && COM_FIREBASE
+      ? { googleServicesFile: './credentials/android/google-services.json' }
+      : {}),
     permissions: ['android.permission.CAMERA'],
     blockedPermissions: [
       'android.permission.RECORD_AUDIO',
@@ -197,6 +208,8 @@ const config: ExpoConfig = {
       {
         icon: './assets/images/notification-icon.png',
         color: '#B83E1A',
+        // Canal dos avisos do servidor (push FCM): sem isso caem em "Diversos".
+        defaultChannel: 'avisos',
       },
     ],
   ],

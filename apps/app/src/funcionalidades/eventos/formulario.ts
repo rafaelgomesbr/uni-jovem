@@ -69,11 +69,6 @@ export function rascunhoVazio(): RascunhoDoEvento {
   }
 }
 
-/** Próximo sábado a partir de hoje (hoje, se já for sábado). */
-export function proximoSabado(hoje: DataLocal): DataLocal {
-  return somarDias(hoje, (6 - diaDaSemana(hoje) + 7) % 7)
-}
-
 export function rascunhoDoEvento(e: DetalheDoEvento): RascunhoDoEvento {
   return {
     ...rascunhoVazio(),

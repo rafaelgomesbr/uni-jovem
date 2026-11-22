@@ -1,3 +1,4 @@
+import { INICIO } from '@/testes/fixturas'
 import {
   RELOGIO,
   eventoDoMomento,
@@ -16,7 +17,11 @@ import {
   frasesDoQueFalta,
   momentoDoDia,
   quandoFoiSalva,
+  posicaoNoDia,
+  seloDoCartaoDoLider,
   textoDaDespedida,
+  textoDoObrigado,
+  tituloDoBlocoDoDia,
   tocaNoLouvor,
   type EntradaDoQueFalta,
   type SituacaoDoLider,
@@ -138,24 +143,30 @@ describe('a faixa de cima quando o encontro de ontem terminou (D73): diz QUAL en
     presentes: 12,
   }
 
-  test('"Sábado de ontem terminou. 12 presentes." (não "Sábado terminou" ao lado de "Sábado, em 6 dias")', () => {
-    expect(textoDaDespedida(ontem, agora)).toBe('Sábado de ontem terminou. 12 presentes.')
+  test('"O encontro de ontem terminou. 12 presentes.": sem o nome do encontro, que nunca vira texto fixo (D79)', () => {
+    expect(textoDaDespedida(ontem, agora)).toBe('O encontro de ontem terminou. 12 presentes.')
     expect(textoDaDespedida({ ...ontem, presentes: 1 }, agora)).toBe(
-      'Sábado de ontem terminou. 1 presente.',
+      'O encontro de ontem terminou. 1 presente.',
     )
+    // Nenhum texto fixo cita o dia da semana: o título do encontro não entra na frase.
+    expect(textoDaDespedida(ontem, agora)).not.toMatch(/sábado/i)
   })
 
   test('presença zerada ou desconhecida não entra: o zero não é um fato, é "ninguém marcou"', () => {
-    expect(textoDaDespedida({ ...ontem, presentes: 0 }, agora)).toBe('Sábado de ontem terminou.')
-    expect(textoDaDespedida({ ...ontem, presentes: null }, agora)).toBe('Sábado de ontem terminou.')
+    expect(textoDaDespedida({ ...ontem, presentes: 0 }, agora)).toBe(
+      'O encontro de ontem terminou.',
+    )
+    expect(textoDaDespedida({ ...ontem, presentes: null }, agora)).toBe(
+      'O encontro de ontem terminou.',
+    )
   })
 
   test('terminou hoje cedo: "de hoje"; passou mais de um dia: a data entre parênteses', () => {
     expect(textoDaDespedida({ ...ontem, inicio: '2026-11-22T11:00:00.000Z' }, agora)).toBe(
-      'Sábado de hoje terminou. 12 presentes.',
+      'O encontro de hoje terminou. 12 presentes.',
     )
     expect(textoDaDespedida(ontem, new Date('2026-11-24T13:00:00.000Z'))).toBe(
-      'Sábado (Sáb., 21 de nov.) terminou. 12 presentes.',
+      'O encontro de 21 nov. terminou. 12 presentes.',
     )
   })
 })
@@ -246,12 +257,24 @@ describe('a UMA próxima ação do cartão do LÍDER (D75, ordem do documento de
     pendentes: 0,
     faltaFuncao: [],
     semMusicas: false,
+    semConvocados: false,
     naHoraDoCheckin: false,
     terminou: false,
     proximoAMarcar: false,
     semEncontro: false,
   }
   const acao = (s: Partial<SituacaoDoLider>) => acoesDoLider({ ...base, ...s })
+
+  test('ninguém convocado ainda: "Chamar quem vai" vem ANTES do repertório (D79)', () => {
+    expect(acao({ semConvocados: true, semMusicas: true })).toEqual({
+      primaria: 'chamar',
+      secundaria: 'repertorio',
+    })
+    expect(acao({ semConvocados: true })).toEqual({ primaria: 'chamar', secundaria: 'ver' })
+    // O rascunho e o check-in ainda vêm antes.
+    expect(acao({ semConvocados: true, rascunho: true }).primaria).toBe('publicar')
+    expect(acao({ semConvocados: true, momento: 'agora' }).primaria).toBe('conduzir')
+  })
 
   test('1. sem encontro marcado: "Marcar o próximo encontro", sem secundário', () => {
     expect(acao({ semEncontro: true })).toEqual({ primaria: 'marcarProximo', secundaria: null })
@@ -418,5 +441,87 @@ describe('"o que falta" do cartão: no máximo 2 frases (D75)', () => {
         }
       }
     }
+  })
+})
+
+describe('vários encontros no mesmo dia (D79)', () => {
+  const doDia = (ids: string[]) =>
+    ids.map((id) => ({
+      id,
+      titulo: id,
+      inicio: INICIO,
+      fim: INICIO,
+      duracaoMin: 60,
+      fuso: 'America/Sao_Paulo',
+      status: 'publicado' as const,
+      situacao: 'adiante' as const,
+      localNome: null,
+      suaParte: [],
+    }))
+
+  test('"1 de 3": a posição do cartão entre os encontros do dia; um só ou sem lista, nada', () => {
+    const m = momentoDeTeste({
+      evento: eventoDoMomento({ id: 'b' }),
+      doDia: doDia(['a', 'b', 'c']),
+    })
+    expect(posicaoNoDia(m)).toEqual({ indice: 2, total: 3 })
+    expect(posicaoNoDia(momentoDeTeste({ doDia: doDia(['e1']) }))).toBeNull()
+    expect(posicaoNoDia(momentoDeTeste())).toBeNull()
+  })
+
+  test('o título do bloco: "Hoje: 3 encontros", "Amanhã: 2 encontros" ou o dia', () => {
+    const base = { evento: eventoDoMomento() }
+    expect(
+      tituloDoBlocoDoDia(
+        momentoDeTeste({ ...base, ...RELOGIO.dia, doDia: doDia(['a', 'b', 'c']) }),
+      ),
+    ).toBe('Hoje: 3 encontros')
+    expect(
+      tituloDoBlocoDoDia(momentoDeTeste({ ...base, ...RELOGIO.vespera, doDia: doDia(['a', 'b']) })),
+    ).toBe('Amanhã: 2 encontros')
+    expect(tituloDoBlocoDoDia(momentoDeTeste({ ...base, doDia: doDia(['a', 'b']) }))).toMatch(
+      /^Sáb\., \d+ de [a-z]{3}\.: 2 encontros$/,
+    )
+    expect(tituloDoBlocoDoDia(momentoDeTeste({ ...base, doDia: doDia(['a']) }))).toBeNull()
+  })
+})
+
+describe('o selo do cartão do líder: só o que o botão principal não diz (D79)', () => {
+  test('"Montar o repertório" já diz que está vazio: sem selo; outra ação: "Sem músicas"', () => {
+    expect(
+      seloDoCartaoDoLider({ primaria: 'repertorio', faltaFuncao: [], semMusicas: true }),
+    ).toBeNull()
+    expect(seloDoCartaoDoLider({ primaria: 'lembrar', faltaFuncao: [], semMusicas: true })).toBe(
+      'Sem músicas',
+    )
+  })
+
+  test('"Convocar bateria" já diz que falta: sem selo; outra ação: "Falta: bateria"; no máximo um', () => {
+    expect(
+      seloDoCartaoDoLider({
+        primaria: 'convocarFuncao',
+        faltaFuncao: ['Bateria'],
+        semMusicas: false,
+      }),
+    ).toBeNull()
+    expect(
+      seloDoCartaoDoLider({ primaria: 'lembrar', faltaFuncao: ['Bateria'], semMusicas: true }),
+    ).toBe('Falta: bateria')
+  })
+})
+
+describe('o agradecimento a quem serviu: não diz "ontem" quando foi hoje (D79)', () => {
+  const agora = new Date('2026-11-22T13:00:00.000Z')
+  const fuso = 'America/Sao_Paulo'
+  test('hoje, ontem e uma data', () => {
+    expect(textoDoObrigado({ inicio: '2026-11-22T11:00:00.000Z', fuso }, agora)).toBe(
+      'Obrigado por servir hoje.',
+    )
+    expect(textoDoObrigado({ inicio: '2026-11-21T19:00:00.000Z', fuso }, agora)).toBe(
+      'Obrigado por servir ontem.',
+    )
+    expect(textoDoObrigado({ inicio: '2026-11-19T19:00:00.000Z', fuso }, agora)).toBe(
+      'Obrigado por servir em 19 nov.',
+    )
   })
 })

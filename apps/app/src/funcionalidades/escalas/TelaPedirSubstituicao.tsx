@@ -97,7 +97,7 @@ function PedirSubstituicao({
       titulo="Preciso de alguém no meu lugar"
       descricao="Você continua na sua parte até alguém assumir. Quem assumir fica no seu lugar."
       barraDeAcao={
-        <BarraDeAcao>
+        <BarraDeAcao solta>
           <Botao
             titulo="Enviar pedido"
             tamanho="grande"

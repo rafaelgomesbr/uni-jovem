@@ -3,7 +3,7 @@ import { Redirect, useLocalSearchParams } from 'expo-router'
 import { parametro } from '@/utilidades/parametros'
 
 /**
- * `/evento/[eventoId]/duplicar` deixou de ser tela (D69): "Duplicar" e "Igual ao último sábado" eram
+ * `/evento/[eventoId]/duplicar` deixou de ser tela (D69): "Duplicar" e "Igual ao último encontro" eram
  * a mesma ideia. "Copiar este encontro" leva à conferência, que copia o roteiro E a equipe (como
  * "aguardando resposta") e deixa publicar com Desfazer. Links antigos continuam abrindo.
  */

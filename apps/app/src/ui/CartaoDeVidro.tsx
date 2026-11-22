@@ -1,4 +1,4 @@
-import { ESPACO, RAIO } from '@uj/tokens'
+import { ESPACO, RAIO, RITMO } from '@uj/tokens'
 import { createContext, useContext, useState, type ReactNode } from 'react'
 import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native'
 
@@ -84,7 +84,7 @@ export function CartaoDeVidro({
           alignItems: 'center',
           gap: ESPACO.e8,
           minHeight: 16,
-          ...(lista ? { paddingHorizontal: ESPACO.e18, paddingTop: ESPACO.e12 } : {}),
+          ...(lista ? { paddingHorizontal: RITMO.recuoDoCartao, paddingTop: ESPACO.e12 } : {}),
         }}
       >
         {sobrancelha ? (
@@ -109,7 +109,7 @@ export function CartaoDeVidro({
           variante="tituloItem"
           style={{
             marginTop: cabecalho ? ESPACO.e4 : 0,
-            ...(lista ? { paddingHorizontal: ESPACO.e18 } : {}),
+            ...(lista ? { paddingHorizontal: RITMO.recuoDoCartao } : {}),
           }}
         >
           {titulo}
@@ -157,8 +157,8 @@ export function CartaoDeVidro({
       {acoes ? (
         <View
           style={{
-            marginTop: children || titulo ? ESPACO.e14 : ESPACO.e8,
-            ...(lista ? { paddingHorizontal: ESPACO.e18, paddingBottom: ESPACO.e12 } : {}),
+            marginTop: children || titulo ? ESPACO.e16 : ESPACO.e8,
+            ...(lista ? { paddingHorizontal: RITMO.recuoDoCartao, paddingBottom: ESPACO.e12 } : {}),
           }}
         >
           {acoes}
@@ -175,7 +175,7 @@ export function CartaoDeVidro({
     borderColor: aumentarContraste ? cores.texto : cores.superficieBorda,
     ...(lista
       ? { paddingVertical: ESPACO.e6, paddingHorizontal: 0, overflow: 'hidden' }
-      : { padding: ESPACO.e18 }),
+      : { padding: RITMO.recuoDoCartao }),
     ...sombra(elevacao.cartao),
   }
 

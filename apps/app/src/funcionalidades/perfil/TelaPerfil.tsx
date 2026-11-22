@@ -212,7 +212,7 @@ export function TelaPerfil({ naPilha = false }: { naPilha?: boolean }) {
           desabilitado={saindo}
           {...(armado
             ? {}
-            : { dica: 'Você vai precisar do e-mail e da senha para entrar de novo.' })}
+            : { dica: 'Você vai precisar entrar de novo, do mesmo jeito que entrou.' })}
           aoPressionar={() => {
             if (!armado) {
               setArmado(true)
@@ -334,13 +334,14 @@ function Identidade({ conta, funcao }: { conta: Conta; funcao: string | null }) 
               {funcao}
             </Texto>
           ) : null}
-          {/* Uma linha só: o e-mail partido no meio da palavra ("...invali / d") lê pior que o corte. */}
-          <Texto variante="legenda" cor="textoSuave" selectable numberOfLines={1}>
-            {conta.email}
-          </Texto>
         </View>
         <Icone nome="avancar" cor={cores.textoSuave} tamanho={18} />
       </View>
+      {/* O e-mail ganha a largura toda do cartão, numa linha só, sem corte (D79): na coluna ao lado
+          do avatar ele perdia o fim ("...unijovem.i..."). */}
+      <Texto variante="legenda" cor="textoSuave" selectable style={{ marginTop: ESPACO.e8 }}>
+        {conta.email}
+      </Texto>
     </Cartao>
   )
 }

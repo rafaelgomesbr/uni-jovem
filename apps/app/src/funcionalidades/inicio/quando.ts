@@ -44,8 +44,17 @@ export function dataCurta(inicio: string, fuso: string): string {
   return `${dia.endsWith('.') ? dia : `${dia}.`}, ${d} de ${MESES[mes - 1] ?? ''}.`
 }
 
-/** "16:00 às 17:00". */
-export function faixaDeHorario(inicio: string, duracaoMin: number, fuso: string): string {
-  const fim = new Date(new Date(inicio).getTime() + duracaoMin * 60_000).toISOString()
-  return `${formatarHora(inicio, fuso)} às ${formatarHora(fim, fuso)}`
+/** "Dom., 29 nov.": o dia da semana e o dia, sem o "de" (cabe numa linha só ao lado do sol do cartão). */
+export function dataCompacta(inicio: string, fuso: string): string {
+  return dataCurta(inicio, fuso).replace(' de ', ' ')
+}
+
+/** "29 nov.": só o dia e o mês, para frases ("O encontro de 21 nov. terminou."). */
+export function diaEMes(inicio: string, fuso: string): string {
+  return dataCompacta(inicio, fuso).split(', ')[1] ?? dataCompacta(inicio, fuso)
+}
+
+/** "Dom., 29 nov. · 16:00": a linha de data e hora do cartão do momento (D79); a duração fica no encontro. */
+export function dataEHoraDoCartao(inicio: string, fuso: string): string {
+  return `${dataCompacta(inicio, fuso)} · ${formatarHora(inicio, fuso)}`
 }

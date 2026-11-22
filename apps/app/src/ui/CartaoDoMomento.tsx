@@ -1,4 +1,4 @@
-import { ESPACO, POSE_DO_MOMENTO, RAIO, type MomentoDoDia, type PoseDoSol } from '@uj/tokens'
+import { ESPACO, POSE_DO_MOMENTO, RAIO, RITMO, type MomentoDoDia, type PoseDoSol } from '@uj/tokens'
 import type { ReactNode } from 'react'
 import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native'
 
@@ -123,9 +123,9 @@ export function CartaoDoMomento({
           style={{
             borderRadius: raioDoMiolo,
             overflow: 'hidden',
-            paddingTop: ESPACO.e18,
-            paddingHorizontal: ESPACO.e20,
-            paddingBottom: ESPACO.e20,
+            paddingTop: RITMO.recuoDoCartao,
+            paddingHorizontal: RITMO.recuoDoCartao,
+            paddingBottom: RITMO.recuoDoCartao,
             backgroundColor: cores.momentoBase,
             backgroundImage: `linear-gradient(160deg, ${cores.momentoTopo}, ${cores.momentoBase})`,
           }}
@@ -168,8 +168,8 @@ export function CartaoDoMomento({
               topo
             )}
           </View>
-          {children ? <View style={{ marginTop: ESPACO.e14 }}>{children}</View> : null}
-          {acoes ? <View style={{ marginTop: ESPACO.e14 }}>{acoes}</View> : null}
+          {children ? <View style={{ marginTop: ESPACO.e16 }}>{children}</View> : null}
+          {acoes ? <View style={{ marginTop: ESPACO.e16 }}>{acoes}</View> : null}
         </View>
       </View>
     </ProvedorDeSuperficie>

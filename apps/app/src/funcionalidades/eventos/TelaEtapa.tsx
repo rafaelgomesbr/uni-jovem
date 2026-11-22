@@ -1,33 +1,21 @@
-import { useMutation } from '@tanstack/react-query'
-import { ESPACO } from '@uj/tokens'
-import { useLocalSearchParams } from 'expo-router'
+import { Redirect, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
-import { View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
-import { api } from '@/servicos/api'
-import type { DetalheDoEvento, Etapa } from '@/servicos/contratoDosEventos'
+import type { DetalheDoEvento } from '@/servicos/contratoDosEventos'
 import { Aviso } from '@/ui/Aviso'
-import { BarraDeAcao } from '@/ui/BarraDeAcao'
-import { Botao, BotaoIcone } from '@/ui/Botao'
-import { Campo } from '@/ui/Campo'
+import { Botao } from '@/ui/Botao'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
-import { EstadoVazio } from '@/ui/EstadoVazio'
-import { AvisoDeFalha, ErroDaTela } from '@/ui/Falha'
-import { MenuDeAcoes } from '@/ui/FolhaNaTela'
+import { ErroDaTela } from '@/ui/Falha'
 import { Lista } from '@/ui/LinhaDeLista'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
-import { mostrarToast } from '@/ui/Toast'
-import { confirmar } from '@/utilidades/confirmar'
-import { formatarDuracao, formatarHora } from '@/utilidades/datas'
 import { parametro } from '@/utilidades/parametros'
-import { voltarOu } from '@/ui/navegacao'
 
 import { usePode } from '../comunidade/permissoes'
 import { SemComunidade } from '../navegacao/SemComunidade'
-import { naComunidade, useEvento, useInvalidarEventos } from './consultas'
+import { useEvento } from './consultas'
 import { AVISO_DE_RASCUNHO, FolhaDeConvocar, useTirarDaConvocacao } from './Convocacao'
 import { useConvocadosEmEspera, useRemovidasEmEspera } from './convocadosOtimistas'
 import { montarQuemVai, type PessoaNaLista } from './listaDeQuemVai'
@@ -36,17 +24,17 @@ import { EQUIPE_GERAL, LinhaDaPessoaNaEquipe } from './QuemVai'
 export { EQUIPE_GERAL }
 
 /**
- * Rota `/evento/[eventoId]/etapa/[etapaId]` (3.4.4, "Etapa e equipe"): o
- * cartão "DETALHES" (nome, duração e descrição) com "Salvar" na barra, e o
- * cartão lista "CONVOCADOS" com "Convocar pessoa". Com `etapaId = geral`, os
- * convocados do evento todo.
+ * Rota `/evento/[eventoId]/etapa/[etapaId]`. Desde a D78 a etapa vive no acordeão do Roteiro, na
+ * página do encontro (editar, subir, descer, chamar gente, remover): o link de uma etapa só leva
+ * para lá. Com `etapaId = geral` a rota segue sendo a equipe do encontro inteiro (quem ajuda sem
+ * ser de uma etapa).
  */
 export function TelaEtapa() {
   const { comunidadeAtiva } = useSessao()
   const params = useLocalSearchParams<{ eventoId: string; etapaId: string }>()
   const eventoId = parametro(params.eventoId)
   const etapaId = parametro(params.etapaId)
-  const evento = useEvento(comunidadeAtiva?.id ?? null, eventoId)
+  const evento = useEvento(comunidadeAtiva?.id ?? null, etapaId === EQUIPE_GERAL ? eventoId : null)
 
   if (!comunidadeAtiva || !eventoId || !etapaId) {
     return (
@@ -55,10 +43,15 @@ export function TelaEtapa() {
       </Tela>
     )
   }
+  if (etapaId !== EQUIPE_GERAL) {
+    return (
+      <Redirect href={{ pathname: '/evento/[eventoId]', params: { eventoId, aba: 'roteiro' } }} />
+    )
+  }
   if (evento.isPending) {
     return (
       <Tela pilha>
-        <Esqueleto rotulo="Carregando a etapa">
+        <Esqueleto rotulo="Carregando a equipe">
           <CartaoDeEsqueleto titulo />
           <CartaoDeEsqueleto />
         </Esqueleto>
@@ -72,210 +65,21 @@ export function TelaEtapa() {
       </Tela>
     )
   }
-  const etapa = etapaId === EQUIPE_GERAL ? null : evento.data.etapas.find((e) => e.id === etapaId)
-  if (etapa === undefined) {
-    return (
-      <Tela pilha>
-        <EstadoVazio
-          icone="etapas"
-          titulo="Etapa não encontrada"
-          descricao="Ela pode ter sido removida por outra pessoa."
-          acao={{
-            titulo: 'Voltar para o encontro',
-            aoPressionar: () => voltarOu('/agenda'),
-          }}
-        />
-      </Tela>
-    )
-  }
   return (
-    <EtapaEEquipe
-      key={etapa ? `${etapa.id}-${etapa.versao}` : EQUIPE_GERAL}
-      etapa={etapa}
-      evento={evento.data}
-      comunidadeId={comunidadeAtiva.id}
-    />
-  )
-}
-
-function EtapaEEquipe({
-  etapa,
-  evento,
-  comunidadeId,
-}: {
-  etapa: Etapa | null
-  evento: DetalheDoEvento
-  comunidadeId: string
-}) {
-  const pode = usePode()
-  const invalidar = useInvalidarEventos(comunidadeId)
-  const gerenciar = !!etapa && pode('etapa', 'gerenciar')
-  const [titulo, setTitulo] = useState(etapa?.titulo ?? '')
-  const [duracao, setDuracao] = useState(etapa ? String(etapa.duracaoMin) : '')
-  const [descricao, setDescricao] = useState(etapa?.descricao ?? '')
-  const [erros, setErros] = useState<{ titulo?: string; duracao?: string }>({})
-  const [menu, setMenu] = useState(false)
-  const base = etapa ? `${naComunidade(comunidadeId)}/eventos/${evento.id}/etapas/${etapa.id}` : ''
-
-  const salvar = useMutation({
-    mutationFn: (corpo: object) => api.patch(base, { versao: etapa?.versao, ...corpo }),
-    onSuccess: async () => {
-      mostrarToast({ texto: 'Etapa salva.' })
-      await invalidar(evento.id)
-    },
-  })
-  const remover = useMutation({
-    mutationFn: () => api.delete(base),
-    onSuccess: async () => {
-      mostrarToast({ texto: 'Etapa removida.' })
-      await invalidar(evento.id)
-      voltarOu({ pathname: '/evento/[eventoId]', params: { eventoId: evento.id } })
-    },
-  })
-
-  async function pedirRemocao() {
-    if (!etapa) return
-    const ok = await confirmar({
-      titulo: `Remover a etapa ${etapa.titulo}?`,
-      mensagem: 'As etapas seguintes sobem de posição e os horários são recalculados.',
-      confirmar: 'Remover etapa',
-      destrutivo: true,
-    })
-    if (ok) remover.mutate()
-  }
-
-  function enviar() {
-    const minutos = Number(duracao)
-    const novos = {
-      ...(titulo.trim() ? {} : { titulo: 'Dê um nome à etapa.' }),
-      ...(Number.isInteger(minutos) && minutos >= 1 && minutos <= 600
-        ? {}
-        : { duracao: 'Use de 1 a 600 minutos.' }),
-    }
-    setErros(novos)
-    if (Object.keys(novos).length) return
-    salvar.mutate({
-      titulo: titulo.trim(),
-      duracaoMin: minutos,
-      descricao: descricao.trim() || null,
-    })
-  }
-
-  const algumErro = !!(erros.titulo || erros.duracao)
-  return (
-    <Tela
-      pilha
-      titulo={etapa ? etapa.titulo : 'Para o encontro inteiro'}
-      descricao={
-        etapa
-          ? `${evento.titulo} · das ${formatarHora(etapa.inicioPrevisto, evento.fuso)} às ${formatarHora(etapa.fimPrevisto, evento.fuso)}`
-          : `Equipe de ${evento.titulo}`
-      }
-      {...(gerenciar
-        ? {
-            acoes: (
-              <BotaoIcone
-                icone="maisAcoes"
-                rotulo="Mais ações"
-                circular
-                aoPressionar={() => setMenu(true)}
-              />
-            ),
-            barraDeAcao: (
-              <BarraDeAcao>
-                <Botao
-                  titulo="Salvar"
-                  rotuloAcessivel="Salvar a etapa"
-                  tamanho="grande"
-                  carregando={salvar.isPending}
-                  aoPressionar={enviar}
-                />
-              </BarraDeAcao>
-            ),
-          }
-        : {})}
-    >
-      {salvar.error ? <AvisoDeFalha erro={salvar.error} titulo="A etapa não foi salva" /> : null}
-      {remover.error ? (
-        <AvisoDeFalha erro={remover.error} titulo="A etapa não foi removida" />
-      ) : null}
-      {gerenciar ? (
-        <CartaoDeVidro sobrancelha="Detalhes" opaco intervalo={ESPACO.e16}>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: ESPACO.e12 }}>
-            <View style={{ flex: 2 }}>
-              <Campo
-                rotulo="Nome da etapa"
-                value={titulo}
-                onChangeText={setTitulo}
-                erro={erros.titulo ?? null}
-                maxLength={120}
-                reservarApoio={algumErro}
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Campo
-                rotulo="Duração"
-                value={duracao}
-                onChangeText={(v) => setDuracao(v.replace(/\D/g, ''))}
-                erro={erros.duracao ?? null}
-                sufixo="min"
-                keyboardType="number-pad"
-                maxLength={3}
-                reservarApoio={algumErro}
-              />
-            </View>
-          </View>
-          <Campo
-            rotulo="Descrição"
-            opcional
-            value={descricao}
-            onChangeText={setDescricao}
-            multiline
-            maxLength={2000}
-          />
-        </CartaoDeVidro>
-      ) : etapa ? (
-        <CartaoDeVidro sobrancelha="Detalhes">
-          <Texto variante="corpo">{`${formatarDuracao(etapa.duracaoMin)}${etapa.descricao ? `. ${etapa.descricao}` : ''}`}</Texto>
-        </CartaoDeVidro>
-      ) : null}
-      <Equipe evento={evento} etapa={etapa} comunidadeId={comunidadeId} />
-      {gerenciar ? (
-        <MenuDeAcoes
-          aberto={menu}
-          titulo="Mais ações"
-          aoFechar={() => setMenu(false)}
-          acoes={[
-            {
-              titulo: 'Remover etapa',
-              icone: 'excluir',
-              descricao: 'As etapas seguintes sobem de posição',
-              destrutiva: true,
-              aoPressionar: () => void pedirRemocao(),
-            },
-          ]}
-        />
-      ) : null}
+    <Tela pilha titulo="Para o encontro inteiro" descricao={`Equipe de ${evento.data.titulo}`}>
+      <Equipe evento={evento.data} comunidadeId={comunidadeAtiva.id} />
     </Tela>
   )
 }
 
-function Equipe({
-  evento,
-  etapa,
-  comunidadeId,
-}: {
-  evento: DetalheDoEvento
-  etapa: Etapa | null
-  comunidadeId: string
-}) {
+function Equipe({ evento, comunidadeId }: { evento: DetalheDoEvento; comunidadeId: string }) {
   const pode = usePode()
   const [convocando, setConvocando] = useState(false)
   const tirar = useTirarDaConvocacao(evento, comunidadeId)
   const emEspera = useConvocadosEmEspera(evento.id)
   const removidas = useRemovidasEmEspera()
   const atribuir = pode('escala', 'atribuir')
-  const daEtapa = [
+  const doEncontro = [
     ...evento.atribuicoes
       .filter((a) => !removidas.has(a.id))
       .map((a) => ({ ...a, emEspera: false })),
@@ -288,14 +92,14 @@ function Equipe({
       nome: c.nome,
       emEspera: true,
     })),
-  ].filter((a) => a.etapaId === (etapa?.id ?? null))
-  // Uma linha por pessoa, com todos os papéis dela nesta etapa.
-  const { banda, equipe } = montarQuemVai(daEtapa, evento.etapas)
+  ].filter((a) => a.etapaId === null)
+  // Uma linha por pessoa, com todos os papéis dela.
+  const { banda, equipe } = montarQuemVai(doEncontro, evento.etapas)
   const pessoas: PessoaNaLista[] = [...banda, ...equipe]
 
   const convocar = atribuir ? (
     <Botao
-      titulo="Convocar pessoa"
+      titulo="Chamar alguém"
       icone="adicionar"
       variante="terciario"
       alinhado
@@ -330,7 +134,7 @@ function Equipe({
       {atribuir ? (
         <FolhaDeConvocar
           evento={evento}
-          etapa={etapa}
+          etapa={null}
           comunidadeId={comunidadeId}
           aberta={convocando}
           aoFechar={() => setConvocando(false)}

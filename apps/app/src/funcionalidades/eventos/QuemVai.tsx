@@ -1,9 +1,9 @@
-import { FUNCOES_PARA_CONVOCAR_NO_LOUVOR, resumoDaBanda } from '@uj/dominio'
+import { FUNCOES_PARA_CONVOCAR_NO_LOUVOR, resumoDaBanda, semAcento } from '@uj/dominio'
 import { ESPACO } from '@uj/tokens'
-import { useState } from 'react'
+import { useEffect, useEffectEvent, useState } from 'react'
 import { View } from 'react-native'
 
-import type { Atribuicao, DetalheDoEvento } from '@/servicos/contratoDosEventos'
+import type { Atribuicao, DetalheDoEvento, Etapa } from '@/servicos/contratoDosEventos'
 import { Aviso } from '@/ui/Aviso'
 import { BarraDeProgresso } from '@/ui/BarraDeProgresso'
 import { Botao } from '@/ui/Botao'
@@ -96,6 +96,23 @@ function useTirarPessoa(evento: DetalheDoEvento, comunidadeId: string) {
   }
 }
 
+/** O que a rota pede para abrir já na folha de convocar. */
+export interface PedidoDeConvocacao {
+  funcao: string
+  /** O bloco do roteiro: o id da etapa ou o nome dela ("louvor"). */
+  bloco: string | null
+}
+
+/** A etapa que o `bloco` da rota nomeia (por id ou pelo nome, sem acento nem caixa). */
+export function etapaDoBloco(
+  evento: Pick<DetalheDoEvento, 'etapas'>,
+  bloco: string | null,
+): Etapa | null {
+  if (!bloco) return null
+  const alvo = semAcento(bloco)
+  return evento.etapas.find((e) => e.id === bloco || semAcento(e.titulo) === alvo) ?? null
+}
+
 /**
  * Quem vai (D74, antes "Convocados"): UMA lista do encontro. No alto, "N de M responderam", quem
  * falta, "Falta: bateria" e "Lembrar os N" (um lembrete a quem não respondeu, com Desfazer). Depois,
@@ -108,11 +125,20 @@ export function QuemVai({
   evento,
   comunidadeId,
   lembrete,
+  convocarInicial = null,
+  aoUsarPedido,
 }: {
   evento: DetalheDoEvento
   comunidadeId: string
   /** O lembrete a quem não respondeu (o mesmo botão que a barra do encontro usa). */
   lembrete: LembreteDoEncontro
+  /**
+   * "Convocar bateria" do Início (D78): a rota traz `?funcao=Bateria&bloco=louvor` e a folha abre
+   * JÁ no papel, no bloco certo. Só vale na abertura da tela.
+   */
+  convocarInicial?: PedidoDeConvocacao | null
+  /** A folha já abriu pelo pedido: quem guarda o pedido o esquece. */
+  aoUsarPedido?: () => void
 }) {
   const { cores } = useTema()
   const pode = usePode()
@@ -125,9 +151,17 @@ export function QuemVai({
     funcao: string | null
     /** Abre sem papel escolhido ("Convocar para a banda": a pessoa escolhe qual). */
     semPapel: boolean
+    /** O bloco do roteiro de onde veio o pedido (só o link do Início traz). */
+    etapa: Etapa | null
     aberta: boolean
     chave: number
-  }>({ funcao: null, semPapel: false, aberta: false, chave: 0 })
+  }>(() => ({
+    funcao: convocarInicial?.funcao ?? null,
+    semPapel: false,
+    etapa: etapaDoBloco(evento, convocarInicial?.bloco ?? null),
+    aberta: convocarInicial !== null,
+    chave: 0,
+  }))
 
   // Quem tirou e ainda espera o Desfazer já não aparece; quem foi convocado e ainda espera, sim.
   const doServidor = evento.atribuicoes.filter((a) => !removidas.has(a.id))
@@ -155,7 +189,14 @@ export function QuemVai({
   const semConvocados = todas.length === 0
 
   const abrirFolha = (funcao: string | null = null, semPapel = false) =>
-    setFolha((f) => ({ funcao, semPapel, aberta: true, chave: f.chave + 1 }))
+    setFolha((f) => ({ funcao, semPapel, etapa: null, aberta: true, chave: f.chave + 1 }))
+  // O pedido já foi atendido ao montar (estado inicial da folha): avisa quem o guarda.
+  const usarPedido = useEffectEvent(() => {
+    if (convocarInicial) aoUsarPedido?.()
+  })
+  useEffect(() => {
+    usarPedido()
+  }, [])
   const pedirParaTirar = atribuir ? saida.pedir : undefined
   const quemSai = saida.escolhida
   // Mais de um papel: a pessoa escolhe de qual tirar, ou de todos.
@@ -369,7 +410,7 @@ export function QuemVai({
           <FolhaDeConvocar
             key={folha.chave}
             evento={evento}
-            etapa={null}
+            etapa={folha.etapa}
             comunidadeId={comunidadeId}
             aberta={folha.aberta}
             funcaoInicial={folha.funcao}

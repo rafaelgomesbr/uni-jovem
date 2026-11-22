@@ -1,5 +1,5 @@
 /**
- * D69: "Igual ao último sábado" e "Marcar o próximo sábado". A tela abre já na CONFERÊNCIA: o app
+ * D69, D78: "Igual ao último encontro" e "Marcar o próximo encontro". A tela abre já na CONFERÊNCIA: o app
  * copia o último encontro (rascunho, sem avisar ninguém) e mostra o que foi copiado e quem não
  * está disponível; publicar é o botão do líder, com Desfazer. D74: o botão e o cabeçalho dizem
  * "Publicando em N s" durante a contagem, o fim diz "Publicado. 11 pessoas foram avisadas.", a data
@@ -93,6 +93,9 @@ function respostaDaCopia(parcial: object = {}) {
   }
 }
 
+/** A conferência carregou: o cartão do rascunho e o roteiro (as etapas vêm do encontro copiado). */
+const aguardarConferencia = () => screen.findByText(/^Roteiro: \d+ etapas?, /)
+
 function rotas(extras: object = {}) {
   return {
     [`GET ${BASE}/eventos/anteriores-para-copiar`]: () => ({
@@ -134,7 +137,7 @@ function montar(papel: 'organizador' | 'membro' = 'organizador', extras: object 
   )
 }
 
-describe('Igual ao último sábado (a conferência)', () => {
+describe('Igual ao último encontro (a conferência)', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     jest.mocked(useLocalSearchParams).mockReturnValue({})
@@ -149,29 +152,86 @@ describe('Igual ao último sábado (a conferência)', () => {
 
   test('abre já copiado, sem toque: o rascunho nasce com a data sugerida e a conferência mostra o resumo', async () => {
     const { servidor } = await montar()
-    expect(await screen.findByText('Roteiro: 7 etapas, 1 h')).toBeOnTheScreen()
+    expect(await aguardarConferencia()).toBeOnTheScreen()
     // Uma cópia só, sem corpo escolhido pela pessoa (vale a data sugerida pelo servidor).
     const copias = pedidosPara(servidor, 'POST', `${BASE}/eventos/${ORIGEM}/copiar`)
     expect(copias).toHaveLength(1)
     expect(copias[0]?.corpo).toEqual({ incluirMusicas: false })
     expect(screen.getByText('Sáb., 28 de nov. · 16:00 · Salão da igreja')).toBeOnTheScreen()
     expect(screen.getByText('Banda e equipe: 11 pessoas')).toBeOnTheScreen()
-    // "Ninguém foi avisado": é rascunho.
-    expect(screen.getByText('Rascunho · ninguém foi avisado')).toBeOnTheScreen()
-    expect(screen.getByText('Bruno avisou que não pode neste dia.')).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Trocar Bruno Lima: Violão' })).toBeOnTheScreen()
+    // É rascunho: a etiqueta é curta (uma palavra, não quebra) e a frase diz que ninguém foi avisado.
+    expect(screen.getByText('Rascunho')).toBeOnTheScreen()
+    expect(
+      screen.getByText('Ninguém foi avisado ainda. Ao publicar, 11 pessoas recebem o aviso.'),
+    ).toBeOnTheScreen()
+    // Quem não pode fica à vista mesmo com a Banda e equipe recolhida.
+    expect(screen.getByText('1 não pode')).toBeOnTheScreen()
   })
 
-  test('"Publicar e avisar 11 pessoas": o botão e o cabeçalho dizem "Publicando em 10 s" e só então publica e leva ao encontro', async () => {
+  test('Roteiro e Banda e equipe são acordeões: abrem e fecham na mesma tela, sem navegar', async () => {
+    const usuario = userEvent.setup()
+    await montar()
+    await aguardarConferencia()
+    // Recolhidos: nada das etapas nem das pessoas na tela.
+    expect(screen.queryByText('Boas-vindas')).toBeNull()
+    expect(screen.queryByText('Avisou que não pode neste dia. Violão')).toBeNull()
+
+    await usuario.press(
+      screen.getByRole('button', { name: /^Roteiro: 3 etapas, 30 min\. Recolhido/ }),
+    )
+    expect(await screen.findByText('Boas-vindas')).toBeOnTheScreen()
+    expect(screen.getByText('Encerramento')).toBeOnTheScreen()
+    await usuario.press(screen.getByRole('button', { name: /^Roteiro\. Aberto/ }))
+    await waitFor(() => expect(screen.queryByText('Boas-vindas')).toBeNull())
+
+    await usuario.press(screen.getByRole('button', { name: /^Banda e equipe: 11 pessoas/ }))
+    expect(await screen.findByText('Avisou que não pode neste dia. Violão')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Trocar Bruno Lima: Violão' })).toBeOnTheScreen()
+    // Nenhum toque levou a outra tela.
+    expect(router.push).not.toHaveBeenCalled()
+    expect(router.replace).not.toHaveBeenCalled()
+  })
+
+  test('o título acompanha o dia: "Sábado" copiado para um domingo é "Domingo"', async () => {
+    await montar('organizador', {
+      [`POST ${BASE}/eventos/${ORIGEM}/copiar`]: () => ({
+        status: 200,
+        corpo: respostaDaCopia({
+          inicio: '2026-11-29T19:00:00.000Z',
+          resumo: {
+            ...respostaDaCopia().resumo,
+            origem: { id: ORIGEM, titulo: 'Sábado', inicio: OPCAO.inicio },
+          },
+        }),
+      }),
+      [`GET ${BASE}/eventos/${NOVO}`]: () => ({
+        status: 200,
+        corpo: eventoDeTeste({
+          id: NOVO,
+          status: 'rascunho',
+          titulo: 'Domingo',
+          inicio: '2026-11-29T19:00:00.000Z',
+          atribuicoes: ONZE,
+        }),
+      }),
+    })
+    expect(await screen.findByText('Domingo')).toBeOnTheScreen()
+    expect(screen.queryByText('Sábado')).toBeNull()
+    expect(screen.getByText(/^Dom\., 29 de nov\. · 16:00/)).toBeOnTheScreen()
+  })
+
+  test('"Publicar": o botão e o cabeçalho dizem "Publicando em 10 s" e só então publica e leva ao encontro', async () => {
     const usuario = userEvent.setup()
     const { servidor } = await montar()
-    await usuario.press(await screen.findByRole('button', { name: 'Publicar e avisar 11 pessoas' }))
+    await usuario.press(await screen.findByRole('button', { name: 'Publicar' }))
     expect(await screen.findByText('Publicando e avisando 11 pessoas.')).toBeOnTheScreen()
     // Estado único e honesto: o topo NUNCA diz "Rascunho" enquanto o botão diz "Publicado".
     expect(screen.queryByRole('button', { name: 'Publicado' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Publicando em 10 s · Desfazer' })).toBeEnabled()
-    expect(screen.getByText('Publicando em 10 s · ninguém foi avisado ainda')).toBeOnTheScreen()
-    expect(screen.queryByText('Rascunho · ninguém foi avisado')).toBeNull()
+    expect(screen.getByText('Publicando em 10 s')).toBeOnTheScreen()
+    expect(screen.queryByText('Rascunho')).toBeNull()
+    // Na contagem o Desfazer toma a barra toda: "Salvar rascunho" sai do caminho.
+    expect(screen.queryByRole('button', { name: 'Salvar rascunho' })).toBeNull()
     expect(pedidosPara(servidor, 'POST', `${BASE}/eventos/${NOVO}/status`)).toHaveLength(0)
 
     await act(async () => confirmarAgora())
@@ -195,7 +255,7 @@ describe('Igual ao último sábado (a conferência)', () => {
   test('o app vai para segundo plano durante a contagem: a publicação sai na hora, sem perder', async () => {
     const usuario = userEvent.setup()
     const { servidor } = await montar()
-    await usuario.press(await screen.findByRole('button', { name: 'Publicar e avisar 11 pessoas' }))
+    await usuario.press(await screen.findByRole('button', { name: 'Publicar' }))
     expect(pedidosPara(servidor, 'POST', `${BASE}/eventos/${NOVO}/status`)).toHaveLength(0)
     await act(async () => aoMudarEstadoDoApp('background'))
     await waitFor(() =>
@@ -211,28 +271,24 @@ describe('Igual ao último sábado (a conferência)', () => {
         corpo: { erro: 'transicao_invalida', mensagem: 'Não dá.' },
       }),
     })
-    await usuario.press(await screen.findByRole('button', { name: 'Publicar e avisar 11 pessoas' }))
+    await usuario.press(await screen.findByRole('button', { name: 'Publicar' }))
     await act(async () => confirmarAgora())
     expect(
       await screen.findByText(
         'Não deu para publicar. Nada foi enviado nem ninguém foi avisado. O rascunho continua salvo. Toque em Tentar de novo.',
       ),
     ).toBeOnTheScreen()
-    expect(
-      await screen.findByRole('button', { name: 'Publicar e avisar 11 pessoas' }),
-    ).toBeEnabled()
-    expect(screen.getByText('Rascunho · ninguém foi avisado')).toBeOnTheScreen()
+    expect(await screen.findByRole('button', { name: 'Publicar' })).toBeEnabled()
+    expect(screen.getByText('Rascunho')).toBeOnTheScreen()
     expect(router.replace).not.toHaveBeenCalled()
   })
 
   test('Desfazer: o botão volta e ninguém é avisado (nunca o app publica sozinho)', async () => {
     const usuario = userEvent.setup()
     const { servidor } = await montar()
-    await usuario.press(await screen.findByRole('button', { name: 'Publicar e avisar 11 pessoas' }))
+    await usuario.press(await screen.findByRole('button', { name: 'Publicar' }))
     await usuario.press(await screen.findByRole('button', { name: 'Desfazer' }))
-    expect(
-      await screen.findByRole('button', { name: 'Publicar e avisar 11 pessoas' }),
-    ).toBeEnabled()
+    expect(await screen.findByRole('button', { name: 'Publicar' })).toBeEnabled()
     expect(pedidosPara(servidor, 'POST', `${BASE}/eventos/${NOVO}/status`)).toHaveLength(0)
     expect(router.replace).not.toHaveBeenCalled()
   })
@@ -251,7 +307,7 @@ describe('Igual ao último sábado (a conferência)', () => {
 
   test('sair sem salvar nem publicar apaga o rascunho que a abertura criou (nada solto na Agenda)', async () => {
     const { servidor, unmount } = await montar()
-    await screen.findByText('Roteiro: 7 etapas, 1 h')
+    await aguardarConferencia()
     await unmount()
     await waitFor(() =>
       expect(pedidosPara(servidor, 'DELETE', `${BASE}/eventos/${NOVO}`)).toHaveLength(1),
@@ -285,7 +341,7 @@ describe('Igual ao último sábado (a conferência)', () => {
   test('mudar a data: as opções mostram as datas e escolher refaz a cópia nela', async () => {
     const usuario = userEvent.setup()
     const { servidor } = await montar()
-    await screen.findByText('Roteiro: 7 etapas, 1 h')
+    await aguardarConferencia()
     expect(screen.getByRole('radio', { name: 'Sáb., 28 de nov.' })).toBeChecked()
     await usuario.press(screen.getByRole('radio', { name: 'Sáb., 5 de dez.' }))
     await waitFor(() =>
@@ -362,7 +418,7 @@ describe('Igual ao último sábado (a conferência)', () => {
       ),
     ).toBeOnTheScreen()
 
-    await usuario.press(await screen.findByRole('button', { name: 'Publicar e avisar 11 pessoas' }))
+    await usuario.press(await screen.findByRole('button', { name: 'Publicar' }))
     await waitFor(() =>
       expect(confirmar).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -379,22 +435,22 @@ describe('Igual ao último sábado (a conferência)', () => {
 
     // Disse que sim: segue para a contagem.
     jest.mocked(confirmar).mockResolvedValue(true)
-    await usuario.press(screen.getByRole('button', { name: 'Publicar e avisar 11 pessoas' }))
+    await usuario.press(screen.getByRole('button', { name: 'Publicar' }))
     expect(await screen.findByText('Publicando e avisando 11 pessoas.')).toBeOnTheScreen()
   })
 
   test('dia livre: sem aviso e sem pergunta', async () => {
     const usuario = userEvent.setup()
     await montar()
-    await screen.findByText('Roteiro: 7 etapas, 1 h')
+    await aguardarConferencia()
     expect(screen.queryByText(/Já existe um encontro neste dia/)).toBeNull()
-    await usuario.press(await screen.findByRole('button', { name: 'Publicar e avisar 11 pessoas' }))
+    await usuario.press(await screen.findByRole('button', { name: 'Publicar' }))
     expect(confirmar).not.toHaveBeenCalled()
   })
 
   test('"Outra data" está sempre à vista, ao lado das duas datas, e a data padrão é a do servidor (nunca longe)', async () => {
     await montar()
-    await screen.findByText('Roteiro: 7 etapas, 1 h')
+    await aguardarConferencia()
     expect(screen.getByRole('radio', { name: 'Sáb., 28 de nov.' })).toBeChecked()
     expect(screen.getByRole('radio', { name: 'Sáb., 5 de dez.' })).toBeOnTheScreen()
     expect(screen.getByRole('radio', { name: 'Outra data' })).toBeOnTheScreen()
@@ -403,7 +459,7 @@ describe('Igual ao último sábado (a conferência)', () => {
   test('o rascunho é anotado como provisório e deixa de ser quando se salva', async () => {
     const usuario = userEvent.setup()
     await montar()
-    await screen.findByText('Roteiro: 7 etapas, 1 h')
+    await aguardarConferencia()
     await waitFor(async () =>
       expect(await lerPreferenciaLocal('uj.rascunhos-provisorios')).toEqual([
         { comunidadeId: COMUNIDADE, eventoId: NOVO },
@@ -424,7 +480,7 @@ describe('Igual ao último sábado (a conferência)', () => {
     const { servidor } = await montar('organizador', {
       [`DELETE ${BASE}/eventos/${SOBRA}`]: () => ({ status: 200, corpo: { ok: true } }),
     })
-    await screen.findByText('Roteiro: 7 etapas, 1 h')
+    await aguardarConferencia()
     await waitFor(() =>
       expect(pedidosPara(servidor, 'DELETE', `${BASE}/eventos/${SOBRA}`)).toHaveLength(1),
     )
@@ -446,7 +502,8 @@ describe('Igual ao último sábado (a conferência)', () => {
         corpo: { ok: true },
       }),
     })
-    // "Trocar" só habilita quando o encontro copiado já carregou (precisa saber quem tirar).
+    // "Trocar" mora na Banda e equipe: abre o acordeão e só habilita quando o encontro carregou.
+    await usuario.press(await screen.findByRole('button', { name: /^Banda e equipe: 11 pessoas/ }))
     const trocar = await screen.findByRole('button', { name: 'Trocar Bruno Lima: Violão' })
     await waitFor(() => expect(trocar).toBeEnabled())
     await usuario.press(trocar)
@@ -461,7 +518,7 @@ describe('Igual ao último sábado (a conferência)', () => {
   test('"Copiar este encontro" (com `origem`) não lista os anteriores: copia direto daquele', async () => {
     jest.mocked(useLocalSearchParams).mockReturnValue({ origem: ORIGEM })
     const { servidor } = await montar()
-    expect(await screen.findByText('Roteiro: 7 etapas, 1 h')).toBeOnTheScreen()
+    expect(await aguardarConferencia()).toBeOnTheScreen()
     expect(pedidosPara(servidor, 'GET', `${BASE}/eventos/anteriores-para-copiar`)).toHaveLength(0)
     expect(pedidosPara(servidor, 'POST', `${BASE}/eventos/${ORIGEM}/copiar`)).toHaveLength(1)
   })
@@ -483,7 +540,7 @@ describe('Igual ao último sábado (a conferência)', () => {
     )
   })
 
-  test('primeira vez, sem encontro realizado: oferece o Sábado padrão e o Em branco', async () => {
+  test('primeira vez, sem encontro realizado: oferece o Encontro padrão e o Em branco', async () => {
     const usuario = userEvent.setup()
     const { servidor } = await montar('organizador', {
       [`GET ${BASE}/eventos/anteriores-para-copiar`]: () => ({
@@ -493,7 +550,7 @@ describe('Igual ao último sábado (a conferência)', () => {
     })
     expect(await screen.findByText('Ainda não há um encontro para copiar.')).toBeOnTheScreen()
     expect(pedidosPara(servidor, 'POST', `${BASE}/eventos/${ORIGEM}/copiar`)).toHaveLength(0)
-    await usuario.press(screen.getByRole('button', { name: 'Usar o Sábado padrão' }))
+    await usuario.press(screen.getByRole('button', { name: 'Usar o Encontro padrão' }))
     expect(router.replace).toHaveBeenCalledWith({
       pathname: '/evento/novo',
       params: { modelo: 'sabado_padrao' },
@@ -520,7 +577,7 @@ describe('Igual ao último sábado (a conferência)', () => {
     expect(await screen.findByText('Não deu para copiar o encontro')).toBeOnTheScreen()
     expect(screen.getByText('Escolha uma data que ainda não passou.')).toBeOnTheScreen()
     await usuario.press(screen.getByRole('button', { name: 'Tentar de novo' }))
-    expect(await screen.findByText('Roteiro: 7 etapas, 1 h')).toBeOnTheScreen()
+    expect(await aguardarConferencia()).toBeOnTheScreen()
   })
 
   test('o membro não marca encontros', async () => {

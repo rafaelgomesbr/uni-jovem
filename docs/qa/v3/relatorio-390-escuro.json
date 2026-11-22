@@ -2,26 +2,11 @@
   "variante": "390-escuro",
   "capturadas": [
     {
-      "nome": "01-login",
-      "arquivos": ["01-login--390-escuro.jpg"]
-    },
-    {
-      "nome": "02-login-com-email",
-      "arquivos": ["02-login-com-email--390-escuro.jpg"]
-    },
-    {
-      "nome": "03-criar-conta",
-      "arquivos": ["03-criar-conta--390-escuro.jpg"]
-    },
-    {
-      "nome": "04-link-do-codigo-invalido",
-      "arquivos": ["04-link-do-codigo-invalido--390-escuro.jpg"]
-    },
-    {
       "nome": "10-inicio-membro-longe",
       "arquivos": [
         "10-inicio-membro-longe--390-escuro.jpg",
-        "10-inicio-membro-longe--390-escuro-p2.jpg"
+        "10-inicio-membro-longe--390-escuro-p2.jpg",
+        "10-inicio-membro-longe--390-escuro-p3.jpg"
       ]
     },
     {
@@ -41,10 +26,19 @@
       "arquivos": ["10-inicio-membro-terminou--390-escuro.jpg"]
     },
     {
+      "nome": "10-inicio-membro-multi",
+      "arquivos": [
+        "10-inicio-membro-multi--390-escuro.jpg",
+        "10-inicio-membro-multi--390-escuro-p2.jpg",
+        "10-inicio-membro-multi--390-escuro-p3.jpg"
+      ]
+    },
+    {
       "nome": "10-inicio-lider-longe",
       "arquivos": [
         "10-inicio-lider-longe--390-escuro.jpg",
-        "10-inicio-lider-longe--390-escuro-p2.jpg"
+        "10-inicio-lider-longe--390-escuro-p2.jpg",
+        "10-inicio-lider-longe--390-escuro-p3.jpg"
       ]
     },
     {
@@ -64,11 +58,20 @@
       "arquivos": ["10-inicio-lider-terminou--390-escuro.jpg"]
     },
     {
+      "nome": "10-inicio-lider-multi",
+      "arquivos": [
+        "10-inicio-lider-multi--390-escuro.jpg",
+        "10-inicio-lider-multi--390-escuro-p2.jpg",
+        "10-inicio-lider-multi--390-escuro-p3.jpg"
+      ]
+    },
+    {
       "nome": "11-sino",
       "arquivos": [
         "11-sino--390-escuro.jpg",
         "11-sino--390-escuro-p2.jpg",
-        "11-sino--390-escuro-p3.jpg"
+        "11-sino--390-escuro-p3.jpg",
+        "11-sino--390-escuro-p4.jpg"
       ]
     },
     {
@@ -93,10 +96,29 @@
       ]
     },
     {
+      "nome": "21b-agenda-varios-no-dia-membro",
+      "arquivos": [
+        "21b-agenda-varios-no-dia-membro--390-escuro.jpg",
+        "21b-agenda-varios-no-dia-membro--390-escuro-p2.jpg",
+        "21b-agenda-varios-no-dia-membro--390-escuro-p3.jpg",
+        "21b-agenda-varios-no-dia-membro--390-escuro-p4.jpg"
+      ]
+    },
+    {
+      "nome": "21b-agenda-varios-no-dia-lider",
+      "arquivos": [
+        "21b-agenda-varios-no-dia-lider--390-escuro.jpg",
+        "21b-agenda-varios-no-dia-lider--390-escuro-p2.jpg",
+        "21b-agenda-varios-no-dia-lider--390-escuro-p3.jpg",
+        "21b-agenda-varios-no-dia-lider--390-escuro-p4.jpg"
+      ]
+    },
+    {
       "nome": "22-agenda-so-o-que-e-meu",
       "arquivos": [
         "22-agenda-so-o-que-e-meu--390-escuro.jpg",
-        "22-agenda-so-o-que-e-meu--390-escuro-p2.jpg"
+        "22-agenda-so-o-que-e-meu--390-escuro-p2.jpg",
+        "22-agenda-so-o-que-e-meu--390-escuro-p3.jpg"
       ]
     },
     {
@@ -116,54 +138,6 @@
       "arquivos": ["25-agenda-novo-encontro--390-escuro.jpg"]
     },
     {
-      "nome": "30-encontro-membro",
-      "arquivos": [
-        "30-encontro-membro--390-escuro.jpg",
-        "30-encontro-membro--390-escuro-p2.jpg",
-        "30-encontro-membro--390-escuro-p3.jpg",
-        "30-encontro-membro--390-escuro-p4.jpg"
-      ]
-    },
-    {
-      "nome": "31-encontro-organizacao-resumo",
-      "arquivos": [
-        "31-encontro-organizacao-resumo--390-escuro.jpg",
-        "31-encontro-organizacao-resumo--390-escuro-p2.jpg"
-      ]
-    },
-    {
-      "nome": "32-encontro-organizacao-roteiro",
-      "arquivos": [
-        "32-encontro-organizacao-roteiro--390-escuro.jpg",
-        "32-encontro-organizacao-roteiro--390-escuro-p2.jpg"
-      ]
-    },
-    {
-      "nome": "33-encontro-organizacao-convocados",
-      "arquivos": [
-        "33-encontro-organizacao-convocados--390-escuro.jpg",
-        "33-encontro-organizacao-convocados--390-escuro-p2.jpg",
-        "33-encontro-organizacao-convocados--390-escuro-p3.jpg",
-        "33-encontro-organizacao-convocados--390-escuro-p4.jpg"
-      ]
-    },
-    {
-      "nome": "34-convocar-em-lote",
-      "arquivos": ["34-convocar-em-lote--390-escuro.jpg"]
-    },
-    {
-      "nome": "35-igual-ao-ultimo-sabado",
-      "arquivos": ["35-igual-ao-ultimo-sabado--390-escuro.jpg"]
-    },
-    {
-      "nome": "36-novo-encontro",
-      "arquivos": ["36-novo-encontro--390-escuro.jpg", "36-novo-encontro--390-escuro-p2.jpg"]
-    },
-    {
-      "nome": "37-editar-encontro",
-      "arquivos": ["37-editar-encontro--390-escuro.jpg", "37-editar-encontro--390-escuro-p2.jpg"]
-    },
-    {
       "nome": "40-comunidade-membro",
       "arquivos": [
         "40-comunidade-membro--390-escuro.jpg",
@@ -178,12 +152,9 @@
       "nome": "42-comunidade-lider-organizacao-aberta",
       "arquivos": [
         "42-comunidade-lider-organizacao-aberta--390-escuro.jpg",
-        "42-comunidade-lider-organizacao-aberta--390-escuro-p2.jpg"
+        "42-comunidade-lider-organizacao-aberta--390-escuro-p2.jpg",
+        "42-comunidade-lider-organizacao-aberta--390-escuro-p3.jpg"
       ]
-    },
-    {
-      "nome": "43-pessoas",
-      "arquivos": ["43-pessoas--390-escuro.jpg", "43-pessoas--390-escuro-p2.jpg"]
     },
     {
       "nome": "50-perfil-membro",
@@ -199,204 +170,29 @@
         "52-perfil-mais-opcoes--390-escuro.jpg",
         "52-perfil-mais-opcoes--390-escuro-p2.jpg"
       ]
-    },
-    {
-      "nome": "60-avisos",
-      "arquivos": ["60-avisos--390-escuro.jpg"]
-    },
-    {
-      "nome": "61-aviso-novo",
-      "arquivos": ["61-aviso-novo--390-escuro.jpg"]
-    },
-    {
-      "nome": "62-oracao-lista",
-      "arquivos": [
-        "62-oracao-lista--390-escuro.jpg",
-        "62-oracao-lista--390-escuro-p2.jpg",
-        "62-oracao-lista--390-escuro-p3.jpg"
-      ]
-    },
-    {
-      "nome": "63-pedir-oracao",
-      "arquivos": ["63-pedir-oracao--390-escuro.jpg", "63-pedir-oracao--390-escuro-p2.jpg"]
-    },
-    {
-      "nome": "70-checkin",
-      "arquivos": [
-        "70-checkin--390-escuro.jpg",
-        "70-checkin--390-escuro-p2.jpg",
-        "70-checkin--390-escuro-p3.jpg"
-      ]
-    },
-    {
-      "nome": "71-ao-vivo-lider",
-      "arquivos": ["71-ao-vivo-lider--390-escuro.jpg", "71-ao-vivo-lider--390-escuro-p2.jpg"]
-    },
-    {
-      "nome": "72-ao-vivo-membro",
-      "arquivos": ["72-ao-vivo-membro--390-escuro.jpg", "72-ao-vivo-membro--390-escuro-p2.jpg"]
-    },
-    {
-      "nome": "80-meu-repertorio",
-      "arquivos": ["80-meu-repertorio--390-escuro.jpg", "80-meu-repertorio--390-escuro-p2.jpg"]
-    },
-    {
-      "nome": "80b-meu-repertorio-lider",
-      "arquivos": ["80b-meu-repertorio-lider--390-escuro.jpg"]
-    },
-    {
-      "nome": "81-repertorio-do-encontro",
-      "arquivos": [
-        "81-repertorio-do-encontro--390-escuro.jpg",
-        "81-repertorio-do-encontro--390-escuro-p2.jpg",
-        "81-repertorio-do-encontro--390-escuro-p3.jpg"
-      ]
-    },
-    {
-      "nome": "82-leitor-de-cifra",
-      "arquivos": ["82-leitor-de-cifra--390-escuro.jpg", "82-leitor-de-cifra--390-escuro-p2.jpg"]
-    },
-    {
-      "nome": "83-modo-palco",
-      "arquivos": ["83-modo-palco--390-escuro.jpg"]
-    },
-    {
-      "nome": "84-louvor",
-      "arquivos": ["84-louvor--390-escuro.jpg"]
-    },
-    {
-      "nome": "85-biblioteca",
-      "arquivos": ["85-biblioteca--390-escuro.jpg", "85-biblioteca--390-escuro-p2.jpg"]
-    },
-    {
-      "nome": "85b-biblioteca-membro",
-      "arquivos": ["85b-biblioteca-membro--390-escuro.jpg"]
-    },
-    {
-      "nome": "90-comece-por-aqui",
-      "arquivos": ["90-comece-por-aqui--390-escuro.jpg"]
-    },
-    {
-      "nome": "91-tenho-um-codigo",
-      "arquivos": ["91-tenho-um-codigo--390-escuro.jpg"]
-    },
-    {
-      "nome": "92-boas-vindas",
-      "arquivos": ["92-boas-vindas--390-escuro.jpg"]
-    },
-    {
-      "nome": "93-procurar-comunidade",
-      "arquivos": ["93-procurar-comunidade--390-escuro.jpg"]
-    },
-    {
-      "nome": "95-redirecionou-escalas",
-      "arquivos": ["95-redirecionou-escalas--390-escuro.jpg"]
-    },
-    {
-      "nome": "96-redirecionou-programacoes",
-      "arquivos": ["96-redirecionou-programacoes--390-escuro.jpg"]
-    },
-    {
-      "nome": "97-rota-inexistente",
-      "arquivos": ["97-rota-inexistente--390-escuro.jpg"]
     }
   ],
   "puladas": [],
   "achados": [
     {
-      "tela": "login",
+      "tela": "inicio",
       "tipo": "http-401",
       "detalhe": "POST /api/auth/renovar"
     },
     {
-      "tela": "login",
+      "tela": "inicio",
       "tipo": "console.error",
       "detalhe": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
     },
     {
-      "tela": "login-email",
+      "tela": "inicio",
       "tipo": "http-401",
       "detalhe": "POST /api/auth/renovar"
     },
     {
-      "tela": "login-email",
+      "tela": "inicio",
       "tipo": "console.error",
       "detalhe": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
-    },
-    {
-      "tela": "criar-conta",
-      "tipo": "http-401",
-      "detalhe": "POST /api/auth/renovar"
-    },
-    {
-      "tela": "criar-conta",
-      "tipo": "console.error",
-      "detalhe": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
-    },
-    {
-      "tela": "tenho-um-codigo-publico",
-      "tipo": "http-401",
-      "detalhe": "POST /api/auth/renovar"
-    },
-    {
-      "tela": "tenho-um-codigo-publico",
-      "tipo": "console.error",
-      "detalhe": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
-    },
-    {
-      "tela": "tenho-um-codigo-publico",
-      "tipo": "http-404",
-      "detalhe": "POST /api/auth/codigo/previa"
-    },
-    {
-      "tela": "tenho-um-codigo-publico",
-      "tipo": "console.error",
-      "detalhe": "Failed to load resource: the server responded with a status of 404 (Not Found)"
-    },
-    {
-      "tela": "04-link-do-codigo-invalido",
-      "tipo": "rota-nao-encontrada",
-      "detalhe": "http://localhost:8090/app/entrar/ABCD-EFGH"
-    },
-    {
-      "tela": "04-link-do-codigo-invalido",
-      "tipo": "http-401",
-      "detalhe": "POST /api/auth/renovar"
-    },
-    {
-      "tela": "04-link-do-codigo-invalido",
-      "tipo": "console.error",
-      "detalhe": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
-    },
-    {
-      "tela": "04-link-do-codigo-invalido",
-      "tipo": "http-401",
-      "detalhe": "POST /api/auth/renovar"
-    },
-    {
-      "tela": "04-link-do-codigo-invalido",
-      "tipo": "console.error",
-      "detalhe": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
-    },
-    {
-      "tela": "25-agenda-novo-encontro",
-      "tipo": "texto-cortado",
-      "detalhe": "\"Sábado Jovem, Sáb., 21 de nov.: o roteiro e a equipe já vêm\" (156x60 em 156x40)"
-    },
-    {
-      "tela": "95-redirecionou-escalas",
-      "tipo": "info-url",
-      "detalhe": "http://localhost:8090/app/agenda?vista=lista&filtro=meu"
-    },
-    {
-      "tela": "96-redirecionou-programacoes",
-      "tipo": "info-url",
-      "detalhe": "http://localhost:8090/app/agenda?vista=lista"
-    },
-    {
-      "tela": "97-rota-inexistente",
-      "tipo": "rota-nao-encontrada",
-      "detalhe": "http://localhost:8090/app/nao-existe-esta-tela"
     }
   ]
 }

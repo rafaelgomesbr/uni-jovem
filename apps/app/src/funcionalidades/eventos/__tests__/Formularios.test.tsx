@@ -1,23 +1,28 @@
 import { act, fireEvent, screen, userEvent, waitFor } from '@testing-library/react-native'
+import { rotuloCurtoDoDia } from '@uj/dominio'
 import { router, useLocalSearchParams, usePreventRemove } from 'expo-router'
-import { Alert } from 'react-native'
+import { Alert, Dimensions } from 'react-native'
 
 import { DIA_DO_INICIO, EVENTO_ID, eventoDeTeste, INICIO } from '@/testes/fixturas'
 import { BASE, pedidosPara, renderizarTela } from '@/testes/telas'
 import { HospedeiroDeToast } from '@/ui/Toast'
+import {
+  formatarDataPorExtenso,
+  hojeNoFuso,
+  instanteDeDataEHora,
+  somarDias,
+} from '@/utilidades/datas'
 import { confirmarAgora, reiniciarDesfazer } from '@/ui/ToastComDesfazer'
 
 import { TelaEditarEvento } from '../TelaEditarEvento'
 import { TelaMudarStatus } from '../TelaMudarStatus'
 import { TelaNovoEvento } from '../TelaNovoEvento'
+import { diasDoAtalho, resumoDosDias } from '../variosDias'
 
 // Datas relativas a hoje: um sábado entre 7 e 13 dias à frente (o horário já
 // passou se a data for fixa, e a tela recusa publicar no passado).
 const [ANO, MES, DIA] = DIA_DO_INICIO.split('-').map(Number) as [number, number, number]
-const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
-const DATA_ESCOLHIDA = new Date(ANO, MES - 1, DIA, 12)
 const HORA_ESCOLHIDA = new Date(ANO, MES - 1, DIA, 16, 0)
-const ROTULO_DA_DATA = new RegExp(`^Data: Sáb\\., ${DIA} de ${MESES[MES - 1]}\\. de ${ANO}`)
 
 jest.mock('expo-router', () => ({
   router: {
@@ -45,26 +50,53 @@ async function escolher(rotulo: RegExp, valor: Date) {
   await usuario.press(screen.getByRole('button', { name: rotulo }))
 }
 const CAMINHO = `${BASE}/eventos/${EVENTO_ID}`
-const SABADO = {
+const MODELO_PADRAO = {
   chave: 'sabado_padrao',
-  nome: 'Sábado padrão',
-  categoria: 'Programação de sábado',
-  descricao: 'Programação habitual de sábado, com cerca de uma hora.',
+  nome: 'Encontro padrão',
+  categoria: 'Programação semanal',
+  descricao: 'Programação habitual do encontro, com cerca de uma hora.',
   etapas: [{ titulo: 'Boas-vindas', duracaoMin: 60 }],
   checklist: [],
 }
 const ROTAS_DO_FORMULARIO = {
   [`GET ${BASE}/modelos`]: () => ({
     status: 200,
-    corpo: { embutidos: [SABADO], daComunidade: [] },
+    corpo: { embutidos: [MODELO_PADRAO], daComunidade: [] },
   }),
   [`GET ${BASE}/locais`]: () => ({ status: 200, corpo: { locais: [] } }),
 }
 
-describe('criar encontro', () => {
-  beforeEach(() => jest.clearAllMocks())
+/** O preset do Jest simula fonte grande (2x); a grade do mês só aparece com a fonte normal. */
+function usarFonte(fontScale: number) {
+  const janela = { width: 390, height: 844, scale: 3, fontScale }
+  Dimensions.set({ window: janela, screen: janela })
+}
 
-  test('Sábado padrão vem preenchido e cria o rascunho com o modelo', async () => {
+/**
+ * Marca um dia no calendário de vários dias (D78): vira o mês até achar o dia e toca nele. O nome do
+ * dia é o que o leitor de tela diz ("sábado, 28 de novembro de 2026").
+ */
+async function marcarDia(data: string) {
+  const usuario = userEvent.setup()
+  const nome = formatarDataPorExtenso(data)
+  for (let i = 0; i < 18; i++) {
+    const celula = screen.queryByRole('checkbox', { name: nome })
+    if (celula) {
+      await usuario.press(celula)
+      return
+    }
+    await usuario.press(screen.getByRole('button', { name: 'Próximo mês' }))
+  }
+  throw new Error(`O dia ${data} não apareceu no calendário.`)
+}
+
+describe('criar encontro', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    usarFonte(1)
+  })
+
+  test('Encontro padrão: a hora já vem, o título nasce com o nome do dia e o rascunho sai com o modelo', async () => {
     parametros.mockReturnValue({ modelo: 'sabado_padrao' })
     const { servidor } = await renderizarTela(<TelaNovoEvento />, {
       rotas: {
@@ -73,17 +105,20 @@ describe('criar encontro', () => {
       },
     })
 
-    expect(await screen.findByDisplayValue('Sábado')).toBeOnTheScreen()
-    // A hora do Sábado padrão já vem escolhida; a data vem do seletor, nada é digitado.
+    // O modelo não impõe dia: sem data escolhida, o título é "Encontro".
+    expect(await screen.findByDisplayValue('Encontro')).toBeOnTheScreen()
+    expect(screen.getByText('Nenhum dia escolhido.')).toBeOnTheScreen()
+    // A hora do Encontro padrão já vem escolhida; o dia vem do calendário, nada é digitado.
     expect(screen.getByRole('button', { name: 'Hora: 16:00' })).toBeOnTheScreen()
-    await escolher(/^Data:/, DATA_ESCOLHIDA)
-    expect(screen.getByRole('button', { name: ROTULO_DA_DATA })).toBeTruthy()
+    await marcarDia(DIA_DO_INICIO)
+    // Marcou um sábado: o título acompanha o dia.
+    expect(await screen.findByDisplayValue('Sábado')).toBeOnTheScreen()
     await userEvent.setup().press(screen.getByRole('button', { name: 'Salvar rascunho' }))
 
     await waitFor(() => expect(pedidosPara(servidor, 'POST', `${BASE}/eventos`)).toHaveLength(1))
     expect(pedidosPara(servidor, 'POST', `${BASE}/eventos`)[0]?.corpo).toMatchObject({
       titulo: 'Sábado',
-      categoria: 'Programação de sábado',
+      categoria: 'Programação semanal',
       modelo: 'sabado_padrao',
       // 16:00 em São Paulo.
       inicio: INICIO,
@@ -101,12 +136,68 @@ describe('criar encontro', () => {
     )
   })
 
-  test('o formulário é curto: título, data, hora e local; o resto fica dobrado em "Mais opções"', async () => {
+  test('o título acompanha o dia escolhido: domingo vira "Domingo", quarta vira "Quarta"', async () => {
+    parametros.mockReturnValue({})
+    await renderizarTela(<TelaNovoEvento />, { rotas: ROTAS_DO_FORMULARIO })
+    // O dia do INICIO é um sábado: o dia seguinte é domingo; três dias depois, terça... e quarta.
+    const domingo = somarDias(DIA_DO_INICIO, 1)
+    const quarta = somarDias(DIA_DO_INICIO, 4)
+    await screen.findByLabelText('Título')
+    await marcarDia(domingo)
+    expect(await screen.findByDisplayValue('Domingo')).toBeOnTheScreen()
+    // Trocou o dia sem ter escrito título: o título vai junto.
+    await marcarDia(domingo)
+    await marcarDia(quarta)
+    expect(await screen.findByDisplayValue('Quarta')).toBeOnTheScreen()
+    expect(screen.queryByDisplayValue('Domingo')).toBeNull()
+  })
+
+  test('o título que a pessoa escreveu nunca é trocado, mesmo mudando o dia', async () => {
+    parametros.mockReturnValue({})
+    const { servidor } = await renderizarTela(<TelaNovoEvento />, {
+      rotas: {
+        ...ROTAS_DO_FORMULARIO,
+        [`POST ${BASE}/eventos`]: () => ({ status: 200, corpo: { id: 'novo-3', versao: 1 } }),
+      },
+    })
+    await fireEvent.changeText(await screen.findByLabelText('Título'), 'Culto de jovens')
+    await marcarDia(somarDias(DIA_DO_INICIO, 1))
+    await escolher(/^Hora:/, HORA_ESCOLHIDA)
+    expect(screen.getByDisplayValue('Culto de jovens')).toBeOnTheScreen()
+    await userEvent.setup().press(screen.getByRole('button', { name: 'Salvar rascunho' }))
+    await waitFor(() => expect(pedidosPara(servidor, 'POST', `${BASE}/eventos`)).toHaveLength(1))
+    expect(pedidosPara(servidor, 'POST', `${BASE}/eventos`)[0]?.corpo).toMatchObject({
+      titulo: 'Culto de jovens',
+    })
+  })
+
+  test('título apagado e salvo em branco: vale o nome do dia (nunca vai vazio)', async () => {
+    parametros.mockReturnValue({})
+    const { servidor } = await renderizarTela(<TelaNovoEvento />, {
+      rotas: {
+        ...ROTAS_DO_FORMULARIO,
+        [`POST ${BASE}/eventos`]: () => ({ status: 200, corpo: { id: 'novo-4', versao: 1 } }),
+      },
+    })
+    await fireEvent.changeText(await screen.findByLabelText('Título'), 'Algo')
+    await fireEvent.changeText(screen.getByLabelText('Título'), '')
+    await marcarDia(somarDias(DIA_DO_INICIO, 1))
+    await escolher(/^Hora:/, HORA_ESCOLHIDA)
+    await userEvent.setup().press(screen.getByRole('button', { name: 'Salvar rascunho' }))
+    await waitFor(() => expect(pedidosPara(servidor, 'POST', `${BASE}/eventos`)).toHaveLength(1))
+    expect(pedidosPara(servidor, 'POST', `${BASE}/eventos`)[0]?.corpo).toMatchObject({
+      titulo: 'Domingo',
+    })
+  })
+
+  test('o formulário é curto: quando, título, local; o resto fica dobrado em "Mais opções"', async () => {
     parametros.mockReturnValue({})
     await renderizarTela(<TelaNovoEvento />, { rotas: ROTAS_DO_FORMULARIO })
     const usuario = userEvent.setup()
     expect(await screen.findByLabelText('Título')).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: /^Data:/ })).toBeOnTheScreen()
+    expect(screen.getByText('Quando?')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Esta semana' })).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Fim de semana' })).toBeOnTheScreen()
     expect(screen.getByRole('button', { name: /^Hora:/ })).toBeOnTheScreen()
     expect(screen.getByText('Onde')).toBeOnTheScreen()
     // Categoria, duração, quem vê e repetição só depois de abrir.
@@ -118,7 +209,7 @@ describe('criar encontro', () => {
     expect(screen.getByLabelText('Duração')).toBeOnTheScreen()
     expect(screen.getByText('Repetição')).toBeOnTheScreen()
     // Em branco, o caminho curto já tem categoria e duração: o líder só preenche o essencial.
-    expect(screen.getByDisplayValue('Encontro')).toBeOnTheScreen()
+    expect(screen.getByLabelText('Categoria')).toHaveDisplayValue('Encontro')
     expect(screen.getByDisplayValue('60')).toBeOnTheScreen()
   })
 
@@ -131,7 +222,7 @@ describe('criar encontro', () => {
       },
     })
     await fireEvent.changeText(await screen.findByLabelText('Título'), 'Noite de Louvor')
-    await escolher(/^Data:/, DATA_ESCOLHIDA)
+    await marcarDia(DIA_DO_INICIO)
     await escolher(/^Hora:/, HORA_ESCOLHIDA)
     await userEvent.setup().press(screen.getByRole('button', { name: 'Salvar rascunho' }))
     await waitFor(() => expect(pedidosPara(servidor, 'POST', `${BASE}/eventos`)).toHaveLength(1))
@@ -148,7 +239,7 @@ describe('criar encontro', () => {
     const { servidor } = await renderizarTela(<TelaNovoEvento />, { rotas: ROTAS_DO_FORMULARIO })
     const usuario = userEvent.setup()
     await fireEvent.changeText(await screen.findByLabelText('Título'), 'Luau')
-    await escolher(/^Data:/, DATA_ESCOLHIDA)
+    await marcarDia(DIA_DO_INICIO)
     await escolher(/^Hora:/, HORA_ESCOLHIDA)
     await usuario.press(screen.getByRole('button', { name: 'Mais opções' }))
     await fireEvent.changeText(screen.getByLabelText('Duração'), '2')
@@ -159,12 +250,14 @@ describe('criar encontro', () => {
     expect(pedidosPara(servidor, 'POST', `${BASE}/eventos`)).toHaveLength(0)
   })
 
-  test('"Novo encontro neste dia" (Agenda): a data já vem escolhida', async () => {
+  test('"Novo encontro neste dia" (Agenda): o dia já vem marcado e o título é o dele', async () => {
     parametros.mockReturnValue({ data: '2026-12-05' })
     await renderizarTela(<TelaNovoEvento />, { rotas: ROTAS_DO_FORMULARIO })
+    expect(await screen.findByText('Sábado, 5 de dezembro')).toBeOnTheScreen()
     expect(
-      await screen.findByRole('button', { name: /^Data: Sáb\., 5 de dez\. de 2026/ }),
-    ).toBeOnTheScreen()
+      screen.getByRole('checkbox', { name: formatarDataPorExtenso('2026-12-05') }),
+    ).toBeChecked()
+    expect(screen.getByDisplayValue('Sábado')).toBeOnTheScreen()
   })
 
   test('data no passado: publicar avisa antes; "Cancelar" não cria nada', async () => {
@@ -240,7 +333,7 @@ describe('criar encontro', () => {
     alerta.mockRestore()
   })
 
-  test('com algo mudado, fechar o formulário pergunta antes de descartar', async () => {
+  test('com algo mudado, voltar do formulário pergunta antes de descartar', async () => {
     parametros.mockReturnValue({})
     await renderizarTela(<TelaNovoEvento />, { rotas: ROTAS_DO_FORMULARIO })
     const prevenir = usePreventRemove as jest.Mock
@@ -250,14 +343,24 @@ describe('criar encontro', () => {
     expect(prevenir).toHaveBeenLastCalledWith(true, expect.any(Function))
   })
 
+  test('marcar um dia também conta como mudança a descartar', async () => {
+    parametros.mockReturnValue({})
+    await renderizarTela(<TelaNovoEvento />, { rotas: ROTAS_DO_FORMULARIO })
+    const prevenir = usePreventRemove as jest.Mock
+    await screen.findByRole('button', { name: 'Salvar rascunho' })
+    await marcarDia(DIA_DO_INICIO)
+    expect(prevenir).toHaveBeenLastCalledWith(true, expect.any(Function))
+  })
+
   test('campos inválidos não vão à rede e mostram o erro junto do campo', async () => {
     parametros.mockReturnValue({})
     const { servidor } = await renderizarTela(<TelaNovoEvento />, { rotas: ROTAS_DO_FORMULARIO })
 
     await userEvent.setup().press(await screen.findByRole('button', { name: 'Salvar rascunho' }))
 
-    expect(await screen.findByText('Dê um título com pelo menos 2 letras.')).toBeOnTheScreen()
-    expect(screen.getByText('Escolha a data.')).toBeOnTheScreen()
+    // O título nunca falta (o nome do dia); faltam o dia e a hora.
+    expect(await screen.findByText('Escolha pelo menos um dia no calendário.')).toBeOnTheScreen()
+    expect(screen.getByText('Escolha a hora.')).toBeOnTheScreen()
     // O resumo do topo diz quantos campos faltam.
     expect(screen.getByText(/^Faltam \d+ campos$/)).toBeOnTheScreen()
     expect(pedidosPara(servidor, 'POST', `${BASE}/eventos`)).toHaveLength(0)
@@ -273,13 +376,13 @@ describe('criar encontro', () => {
     })
     const usuario = userEvent.setup()
 
-    await fireEvent.changeText(await screen.findByLabelText('Título'), 'Sábado')
-    await escolher(/^Data:/, DATA_ESCOLHIDA)
+    await fireEvent.changeText(await screen.findByLabelText('Título'), 'Culto semanal')
+    await marcarDia(DIA_DO_INICIO)
     await escolher(/^Hora:/, HORA_ESCOLHIDA)
     // A repetição mora em "Mais opções" (D69): o formulário curto não a mostra.
     expect(screen.queryByRole('radio', { name: 'Toda semana' })).toBeNull()
     await usuario.press(screen.getByRole('button', { name: 'Mais opções' }))
-    await fireEvent.changeText(screen.getByLabelText('Categoria'), 'Programação de sábado')
+    await fireEvent.changeText(screen.getByLabelText('Categoria'), 'Programação semanal')
     await fireEvent.changeText(screen.getByLabelText('Duração'), '60')
     await usuario.press(await screen.findByRole('radio', { name: 'Toda semana' }))
     expect(await screen.findByText('Toda semana, aos sábados, às 16:00')).toBeOnTheScreen()
@@ -293,6 +396,248 @@ describe('criar encontro', () => {
       duracaoMin: 60,
       publicar: true,
     })
+  })
+})
+
+describe('criar vários dias de uma vez (D78)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    usarFonte(1)
+  })
+
+  const SEXTA = somarDias(DIA_DO_INICIO, -1)
+  const SABADO_DO_INICIO = DIA_DO_INICIO
+  const DOMINGO = somarDias(DIA_DO_INICIO, 1)
+
+  const rotasDoLote = (extras: object = {}) => ({
+    ...ROTAS_DO_FORMULARIO,
+    [`POST ${BASE}/eventos/em-lote`]: () => ({
+      status: 200,
+      corpo: { eventos: [{ id: 'e1' }, { id: 'e2' }, { id: 'e3' }] },
+    }),
+    ...extras,
+  })
+
+  test('marcar três dias mostra "3 encontros: sex, sáb, dom" antes de criar', async () => {
+    parametros.mockReturnValue({})
+    await renderizarTela(<TelaNovoEvento />, { rotas: rotasDoLote() })
+    await screen.findByLabelText('Título')
+    await marcarDia(SEXTA)
+    await marcarDia(SABADO_DO_INICIO)
+    await marcarDia(DOMINGO)
+    expect(
+      await screen.findByText(
+        `3 encontros: ${[SEXTA, SABADO_DO_INICIO, DOMINGO].map(rotuloCurtoDoDia).join(', ')}`,
+      ),
+    ).toBeOnTheScreen()
+    // Sem título escrito, cada encontro leva o nome do dia (o campo fica vazio, com a explicação).
+    expect(
+      screen.getByText('Em branco, cada encontro leva o nome do próprio dia.'),
+    ).toBeOnTheScreen()
+    // Cada dia marcado mostra o check e diz que está marcado.
+    expect(screen.getByRole('checkbox', { name: formatarDataPorExtenso(SEXTA) })).toBeChecked()
+    // Desmarcar tira o dia.
+    await userEvent
+      .setup()
+      .press(screen.getByRole('checkbox', { name: formatarDataPorExtenso(SEXTA) }))
+    expect(
+      await screen.findByText(
+        `2 encontros: ${[SABADO_DO_INICIO, DOMINGO].map(rotuloCurtoDoDia).join(', ')}`,
+      ),
+    ).toBeOnTheScreen()
+  })
+
+  test('cria um encontro por dia numa chamada só, com a mesma hora, sem título (o nome do dia)', async () => {
+    parametros.mockReturnValue({})
+    const { servidor } = await renderizarTela(<TelaNovoEvento />, { rotas: rotasDoLote() })
+    await screen.findByLabelText('Título')
+    await marcarDia(SABADO_DO_INICIO)
+    await marcarDia(DOMINGO)
+    await escolher(/^Hora/, HORA_ESCOLHIDA)
+    await userEvent.setup().press(screen.getByRole('button', { name: 'Publicar' }))
+    await waitFor(() =>
+      expect(pedidosPara(servidor, 'POST', `${BASE}/eventos/em-lote`)).toHaveLength(1),
+    )
+    const corpo = pedidosPara(servidor, 'POST', `${BASE}/eventos/em-lote`)[0]?.corpo
+    expect(corpo).toMatchObject({
+      categoria: 'Encontro',
+      duracaoMin: 60,
+      publicar: true,
+      dias: [
+        { data: SABADO_DO_INICIO, hora: '16:00' },
+        { data: DOMINGO, hora: '16:00' },
+      ],
+    })
+    expect(corpo).not.toHaveProperty('titulo')
+    // Nenhum POST de encontro avulso nem de série.
+    expect(pedidosPara(servidor, 'POST', `${BASE}/eventos`)).toHaveLength(0)
+    expect(pedidosPara(servidor, 'POST', `${BASE}/series`)).toHaveLength(0)
+    // Volta para a Agenda dizendo o que criou.
+    await waitFor(() =>
+      expect(router.replace).toHaveBeenCalledWith({
+        pathname: '/agenda',
+        params: { vista: 'lista' },
+      }),
+    )
+  })
+
+  test('título escrito vale para todos os dias', async () => {
+    parametros.mockReturnValue({})
+    const { servidor } = await renderizarTela(<TelaNovoEvento />, { rotas: rotasDoLote() })
+    await fireEvent.changeText(await screen.findByLabelText('Título'), 'Retiro de jovens')
+    await marcarDia(SABADO_DO_INICIO)
+    await marcarDia(DOMINGO)
+    await escolher(/^Hora/, HORA_ESCOLHIDA)
+    await userEvent.setup().press(screen.getByRole('button', { name: 'Salvar rascunho' }))
+    await waitFor(() =>
+      expect(pedidosPara(servidor, 'POST', `${BASE}/eventos/em-lote`)).toHaveLength(1),
+    )
+    expect(pedidosPara(servidor, 'POST', `${BASE}/eventos/em-lote`)[0]?.corpo).toMatchObject({
+      titulo: 'Retiro de jovens',
+      publicar: false,
+    })
+  })
+
+  test('"Horários diferentes": cada dia pode ter a própria hora', async () => {
+    parametros.mockReturnValue({})
+    const { servidor } = await renderizarTela(<TelaNovoEvento />, { rotas: rotasDoLote() })
+    const usuario = userEvent.setup()
+    await screen.findByLabelText('Título')
+    await marcarDia(SABADO_DO_INICIO)
+    await marcarDia(DOMINGO)
+    await escolher(/^Hora/, HORA_ESCOLHIDA)
+    await usuario.press(screen.getByRole('button', { name: /^Horários diferentes\. Recolhido/ }))
+    // Domingo às 10:00; o sábado segue na hora de todos.
+    await escolher(
+      new RegExp(`^${resumoDosDias([DOMINGO])}`),
+      new Date(ANO, MES - 1, DIA + 1, 10, 0),
+    )
+    expect(await screen.findByText('Horários diferentes (1)')).toBeOnTheScreen()
+    await usuario.press(screen.getByRole('button', { name: 'Salvar rascunho' }))
+    await waitFor(() =>
+      expect(pedidosPara(servidor, 'POST', `${BASE}/eventos/em-lote`)).toHaveLength(1),
+    )
+    expect(pedidosPara(servidor, 'POST', `${BASE}/eventos/em-lote`)[0]?.corpo).toMatchObject({
+      dias: [
+        { data: SABADO_DO_INICIO, hora: '16:00' },
+        { data: DOMINGO, hora: '10:00' },
+      ],
+    })
+  })
+
+  test('atalho "Fim de semana": marca sábado e domingo de uma vez', async () => {
+    parametros.mockReturnValue({})
+    await renderizarTela(<TelaNovoEvento />, { rotas: rotasDoLote() })
+    await userEvent.setup().press(await screen.findByRole('button', { name: 'Fim de semana' }))
+    const dias = diasDoAtalho('fim_de_semana', hojeNoFuso('America/Sao_Paulo'))
+    expect(dias.length).toBeGreaterThan(0)
+    expect(await screen.findByText(resumoDosDias(dias))).toBeOnTheScreen()
+  })
+
+  test('mais de um dia desliga a repetição e avisa que cada dia é um encontro próprio', async () => {
+    parametros.mockReturnValue({})
+    await renderizarTela(<TelaNovoEvento />, { rotas: rotasDoLote() })
+    const usuario = userEvent.setup()
+    await screen.findByLabelText('Título')
+    await marcarDia(SABADO_DO_INICIO)
+    await marcarDia(DOMINGO)
+    await usuario.press(screen.getByRole('button', { name: 'Mais opções' }))
+    expect(screen.queryByRole('radio', { name: 'Toda semana' })).toBeNull()
+    expect(screen.getByText(/^A repetição vale para um dia só/)).toBeOnTheScreen()
+    expect(screen.getByText('Encontros independentes')).toBeOnTheScreen()
+  })
+
+  test('dias já ocupados: a tela avisa quais, e criar pergunta antes', async () => {
+    parametros.mockReturnValue({})
+    const alerta = jest
+      .spyOn(Alert, 'alert')
+      .mockImplementation((_t, _m, botoes) => botoes?.[1]?.onPress?.())
+    const { servidor } = await renderizarTela(<TelaNovoEvento />, {
+      rotas: rotasDoLote({
+        [`GET ${BASE}/eventos`]: () => ({
+          status: 200,
+          corpo: {
+            eventos: [
+              {
+                id: 'ja-existe',
+                titulo: 'Noite de jogos',
+                categoria: 'Encontro',
+                inicio: instanteDeDataEHora(DOMINGO, '19:30', 'America/Sao_Paulo'),
+                duracaoMin: 60,
+                fuso: 'America/Sao_Paulo',
+                status: 'publicado',
+                visibilidade: 'publica',
+                serieId: null,
+                versao: 1,
+                localNome: null,
+                localTipo: null,
+                quantidadeDeEtapas: 0,
+              },
+            ],
+          },
+        }),
+      }),
+    })
+    await screen.findByLabelText('Título')
+    await marcarDia(SABADO_DO_INICIO)
+    await marcarDia(DOMINGO)
+    expect(
+      await screen.findByText(
+        `Já existe encontro em ${rotuloCurtoDoDia(DOMINGO)} (Noite de jogos, 19:30). Se criar estes também, a Agenda terá os dois.`,
+      ),
+    ).toBeOnTheScreen()
+    await escolher(/^Hora/, HORA_ESCOLHIDA)
+    await userEvent.setup().press(screen.getByRole('button', { name: 'Salvar rascunho' }))
+    await waitFor(() => expect(alerta).toHaveBeenCalled())
+    expect(alerta.mock.calls[0]![0]).toBe('Já existe encontro nesses dias')
+    await waitFor(() =>
+      expect(pedidosPara(servidor, 'POST', `${BASE}/eventos/em-lote`)).toHaveLength(1),
+    )
+    alerta.mockRestore()
+  })
+
+  test('com fonte grande o mês vira uma lista de dias com caixa de marcar', async () => {
+    usarFonte(2)
+    parametros.mockReturnValue({})
+    await renderizarTela(<TelaNovoEvento />, { rotas: rotasDoLote() })
+    const usuario = userEvent.setup()
+    await screen.findByLabelText('Título')
+    // Sem a grade de sete colunas: cada dia é uma linha.
+    expect(
+      screen.queryByRole('checkbox', { name: formatarDataPorExtenso(SABADO_DO_INICIO) }),
+    ).toBeNull()
+    for (const dia of [SABADO_DO_INICIO, DOMINGO]) {
+      const nome = formatarDataPorExtenso(dia, false)
+      for (let i = 0; i < 18 && !screen.queryByRole('checkbox', { name: nome }); i++) {
+        await usuario.press(screen.getByRole('button', { name: 'Próximo mês' }))
+      }
+      await usuario.press(screen.getByRole('checkbox', { name: nome }))
+    }
+    expect(
+      await screen.findByText(
+        `2 encontros: ${[SABADO_DO_INICIO, DOMINGO].map(rotuloCurtoDoDia).join(', ')}`,
+      ),
+    ).toBeOnTheScreen()
+    usarFonte(1)
+  })
+
+  test('o servidor recusa o lote: erro em palavras e nada de navegar', async () => {
+    parametros.mockReturnValue({})
+    await renderizarTela(<TelaNovoEvento />, {
+      rotas: rotasDoLote({
+        [`POST ${BASE}/eventos/em-lote`]: () => ({
+          status: 400,
+          corpo: { erro: 'dados_invalidos', mensagem: 'Escolha até 14 dias.' },
+        }),
+      }),
+    })
+    await screen.findByLabelText('Título')
+    await marcarDia(SABADO_DO_INICIO)
+    await marcarDia(DOMINGO)
+    await escolher(/^Hora/, HORA_ESCOLHIDA)
+    await userEvent.setup().press(screen.getByRole('button', { name: 'Salvar rascunho' }))
+    expect(await screen.findByText('O encontro não foi salvo')).toBeOnTheScreen()
+    expect(router.replace).not.toHaveBeenCalled()
   })
 })
 
