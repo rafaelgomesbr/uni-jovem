@@ -11,21 +11,26 @@ Convenções que valem em todas:
 
 ## Resumo
 
-| Rota                                                                | Permissão                                       | Para que serve                                             |
-| ------------------------------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------- |
-| `GET /c/:id/inicio` (campo novo `momento`)                          | `evento.ler` (todo membro)                      | Cartão do momento do Início                                |
-| `GET /c/:id/eventos/anteriores-para-copiar`                         | `evento.criar` (organizador, administrador)     | "Igual ao último sábado": de onde copiar e a data sugerida |
-| `POST /c/:id/eventos/:eventoId/copiar`                              | `evento.criar` e `escala.atribuir`              | Cria o rascunho copiado, com a equipe aguardando resposta  |
-| `POST /c/:id/eventos/:eventoId/atribuicoes/lote`                    | `escala.atribuir`                               | Convocar várias pessoas de uma vez                         |
-| `GET /c/:id/eventos/:eventoId/sugestoes-de-convocacao?funcao=`      | `escala.atribuir`                               | Quem convocar para uma função                              |
-| `POST /c/:id/eventos/:eventoId/lembrar-pendentes`                   | `escala.atribuir`                               | "Lembrar os N" (quem não respondeu)                        |
-| `GET /c/:id/mural`                                                  | `aviso.ler` (todo membro)                       | Aba Comunidade: aviso à vista, "3 novos", pessoas          |
-| `GET /eu/notificacoes/caixa` (campos novos) e `.../caixa/nao-lidas` | sessão                                          | Sino com título real e quebra por assunto                  |
-| `POST /api/auth/codigo/previa`                                      | pública (sem sessão)                            | Prévia da comunidade ao digitar o código                   |
-| `GET /c/:id/eventos/:eventoId/repertorio/pacote`                    | `evento.ler_pacote_offline` e tocar no encontro | Modo palco e uso sem internet                              |
-| `PUT /c/:id/conteudos/musicas/:musicaId/pdf` (D76, migração 0029)   | `conteudo.gerenciar` (organizador)              | Anexar ou trocar o PDF da música                           |
-| `GET /c/:id/conteudos/musicas/:musicaId/pdf` (D76)                  | `conteudo.ler` (todo membro)                    | Baixar o PDF da música, com ETag                           |
-| `DELETE /c/:id/conteudos/musicas/:musicaId/pdf` (D76)               | `conteudo.gerenciar` (organizador)              | Remover o PDF da música                                    |
+| Rota                                                                | Permissão                                             | Para que serve                                               |
+| ------------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------ |
+| `GET /c/:id/inicio` (campo novo `momento`)                          | `evento.ler` (todo membro)                            | Cartão do momento do Início                                  |
+| `GET /c/:id/eventos/anteriores-para-copiar`                         | `evento.criar` (organizador, administrador)           | "Igual ao último sábado": de onde copiar e a data sugerida   |
+| `POST /c/:id/eventos/:eventoId/copiar`                              | `evento.criar` e `escala.atribuir`                    | Cria o rascunho copiado, com a equipe aguardando resposta    |
+| `POST /c/:id/eventos/:eventoId/atribuicoes/lote`                    | `escala.atribuir`                                     | Convocar várias pessoas de uma vez                           |
+| `GET /c/:id/eventos/:eventoId/sugestoes-de-convocacao?funcao=`      | `escala.atribuir`                                     | Quem convocar para uma função                                |
+| `POST /c/:id/eventos/:eventoId/lembrar-pendentes`                   | `escala.atribuir`                                     | "Lembrar os N" (quem não respondeu)                          |
+| `GET /c/:id/mural`                                                  | `aviso.ler` (todo membro)                             | Aba Comunidade: aviso à vista, "3 novos", pessoas            |
+| `GET /eu/notificacoes/caixa` (campos novos) e `.../caixa/nao-lidas` | sessão                                                | Sino com título real e quebra por assunto                    |
+| `POST /api/auth/codigo/previa`                                      | pública (sem sessão)                                  | Prévia da comunidade ao digitar o código                     |
+| `GET /c/:id/eventos/:eventoId/repertorio/pacote`                    | `evento.ler_pacote_offline` e tocar no encontro       | Modo palco e uso sem internet                                |
+| `PUT /c/:id/conteudos/musicas/:musicaId/pdf` (D76, migração 0029)   | `conteudo.gerenciar` (organizador)                    | Anexar ou trocar o PDF da música                             |
+| `GET /c/:id/conteudos/musicas/:musicaId/pdf` (D76)                  | `conteudo.ler` (todo membro)                          | Baixar o PDF da música, com ETag                             |
+| `DELETE /c/:id/conteudos/musicas/:musicaId/pdf` (D76)               | `conteudo.gerenciar` (organizador)                    | Remover o PDF da música                                      |
+| `GET /c/:id/eventos/limpar-proximos` (D77, migração 0030)           | `evento.limpar_proximos` (organizador, administrador) | Contar o que a limpeza alcança                               |
+| `POST /c/:id/eventos/limpar-proximos` (D77)                         | `evento.limpar_proximos`                              | Apagar sem avisar ou cancelar e avisar os próximos encontros |
+| `POST /c/:id/excluir` (D77, ADR 0009)                               | `comunidade.excluir` (só administrador)               | Pedir a exclusão da comunidade (30 dias de carência)         |
+| `POST /c/:id/exclusao/desfazer` (D77)                               | `comunidade.desfazer_exclusao` (só administrador)     | Desfazer a exclusão dentro da carência                       |
+| `GET /eu/comunidades-em-exclusao` (D77)                             | sessão (só aparecem as que a pessoa administra)       | Lista "Em exclusão" com a data                               |
 
 ## `GET /c/:id/inicio`: campo `momento`
 
@@ -193,9 +198,29 @@ Migração `0029_pdf_da_musica.sql` (tabela `uj.musica_pdfs`, `bytea` no Postgre
 - **Log e auditoria:** só o id da música (`conteudo.pdf_anexado`, `conteudo.pdf_trocado`, `conteudo.pdf_removido`). Nome e conteúdo nunca vão a log, auditoria nem log de mudanças; o nome viaja na consulta, que o registro técnico descarta.
 - **Permissão nova:** nenhuma (`conteudo.gerenciar` e `conteudo.ler`); `docs/matriz-permissoes.md` não mudou. Inventário do isolamento: 3 rotas novas em `isolamento.test.ts`.
 
+## Limpar os próximos encontros: `GET` e `POST /c/:id/eventos/limpar-proximos` (D77)
+
+Migração `0030_limpar_encontros_e_excluir_comunidade.sql` (função de leitura `uj.resumo_dos_proximos_encontros`). Tipos no app: `apps/app/src/servicos/contratoDaExclusao.ts`. Código: `apps/api/src/rotas/eventos.ts`. "Próximos" é tudo que ainda não começou (`inicio > now()`), em qualquer situação.
+
+- **`GET`:** `200 { total, rascunhos, publicados, adiados, cancelados, encerrados, pessoasAAvisar, repeticoesAtivas }`. `pessoasAAvisar` conta só quem receberia o aviso de cancelamento de fato (vínculo e conta ativos, sem ter desligado esse tipo de aviso) e não conta quem está limpando. `repeticoesAtivas` são as séries que seguem criando encontros depois.
+- **`POST`:** `{ modo: 'apagar' | 'cancelar_e_avisar', confirmo: true, totalEsperado, motivo? }`. `apagar` apaga tudo e **não avisa ninguém** (o aviso nasce da mudança de status no gatilho do banco; apagar não muda status). `cancelar_e_avisar` apaga os rascunhos e cancela os publicados e adiados com `motivo` (padrão "Agenda reorganizada pela liderança."), que avisa como o cancelamento de sempre; os já cancelados ficam como estão. Resposta `200 { ok, modo, apagados, cancelados, pessoasAvisadas }`.
+- **Seguro e idempotente:** sem nada a limpar responde `200` com zeros. Se o total mudou desde a contagem que a pessoa viu (`totalEsperado`), **409** `agenda_mudou` e nada é alterado. Sem `confirmo: true` ou sem modo: 400.
+- **Permissão nova:** `evento.limpar_proximos`, a partir de organizador (a soma de `evento.excluir` e `evento.cancelar_ou_adiar`, que já são dele). Membro: 403; outra comunidade: 404 com os dados intactos.
+- **Auditoria:** `evento.proximos_limpos`, só com o modo e as contagens. Nenhum título.
+
+## Excluir a comunidade (D77, ADR 0009)
+
+Migração 0030: tabelas `uj.exclusoes_de_comunidade` (quem pediu) e `uj.ciclos_de_vida_autorizados` (sem privilégio para o aplicativo), funções `agendar_exclusao_da_comunidade`, `desfazer_exclusao_da_comunidade` e `minhas_comunidades_em_exclusao`, e o gatilho `guardar_comunidade` com a exceção por transação marcada.
+
+- **`POST /c/:id/excluir`** `{ nome, confirmo: true }`: só administrador (outros papéis 403; outra comunidade 404; suspensa 409). O `nome` é o que a pessoa leu na tela: se a comunidade foi renomeada, **422** `confirmacao_necessaria`. Resposta `200 { ok, estado: 'exclusao_agendada', apagadaEm }` (30 dias depois). A comunidade some das listas, nenhuma rota dela responde mais (404 para todos) e os demais vínculos recebem um aviso genérico, sem o nome. Repetir depois de agendada: 404.
+- **`POST /c/:id/exclusao/desfazer`:** `200 { ok, estado: 'ativa' }`. Só a administração desta comunidade, só dentro da carência e só se o pedido foi da própria administração; qualquer outro caso é **404**. Os demais vínculos são avisados de que a exclusão foi desfeita.
+- **`GET /eu/comunidades-em-exclusao`:** `200 { comunidades: [{ id, nome, apagadaEm, pedidaEm }] }`, só as que a pessoa pode desfazer.
+- **Apagar de vez:** a rotina diária de retenção (`uj.excluir_comunidades_vencidas`, 0019) ao fim dos 30 dias. As contas das pessoas continuam; a auditoria que sobra não identifica ninguém.
+- **Permissões novas:** `comunidade.excluir` e `comunidade.desfazer_exclusao` (só administrador); `docs/matriz-permissoes.md` regenerado. Inventário do isolamento: 4 rotas novas em `isolamento.test.ts` (a administração de A em B recebe 404 e B segue intacta, inclusive o estado).
+
 ## O que não foi criado, e por quê
 
 - **Envio com espera e "Desfazer" no servidor:** não é preciso; é só do app (acima).
 - **Histórico "tocada há 2 semanas":** é a fatia 3 do modo músico; fica para depois.
 - **Rota própria para recusar e aceitar com desfazer:** `POST /atribuicoes/:id/confirmar` e `/recusar` já existem; o desfazer é segurar a chamada por 10 s. Depois de enviada, aceitar de novo ou recusar de novo funciona (o estado pode mudar de recusada para confirmada).
-- **Permissão nova:** nenhuma. As rotas usam `evento.criar`, `escala.atribuir`, `aviso.ler`, `evento.ler_pacote_offline` e a regra de "toca neste encontro". O PDF da música (D76) também não criou permissão.
+- **Permissão nova:** nenhuma nas rotas acima (a limpeza e a exclusão da comunidade, D77, criaram as suas, descritas nas seções delas). As rotas usam `evento.criar`, `escala.atribuir`, `aviso.ler`, `evento.ler_pacote_offline` e a regra de "toca neste encontro". O PDF da música (D76) também não criou permissão.

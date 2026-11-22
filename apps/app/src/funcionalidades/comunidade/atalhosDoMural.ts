@@ -125,6 +125,16 @@ export function useAtalhosDoMural(ativa: boolean) {
           },
         ]
       : []),
+    ...(pode('evento', 'limpar_proximos') && ativa
+      ? [
+          {
+            href: '/limpar-proximos-encontros' as const,
+            rotulo: 'Limpar próximos encontros',
+            descricao: 'Apaga ou cancela de uma vez os encontros que ainda não começaram.',
+            icone: 'excluir' as const,
+          },
+        ]
+      : []),
     ...(pode('modelo', 'ler')
       ? [
           {

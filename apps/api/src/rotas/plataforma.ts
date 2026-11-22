@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type pg from 'pg'
 import { z } from 'zod'
-import { permite, type Acao } from '@uj/dominio'
+import { DIAS_DE_CARENCIA_DA_EXCLUSAO_DA_COMUNIDADE, permite, type Acao } from '@uj/dominio'
 import { gerarToken, hmacDeToken } from '../autenticacao/cripto.ts'
 import { doisFatoresRecente } from '../autenticacao/jwt.ts'
 import { emTransacao } from '../banco/contexto.ts'
@@ -16,7 +16,7 @@ import {
 } from './comunidades.ts'
 import { auditar, exigir, exigirCriador, idDoCaminho } from './contexto.ts'
 
-const DIAS_DE_CARENCIA_DA_EXCLUSAO = 30
+const DIAS_DE_CARENCIA_DA_EXCLUSAO = DIAS_DE_CARENCIA_DA_EXCLUSAO_DA_COMUNIDADE
 /** P1: fuso padrão de comunidade nova. */
 const FUSO_PADRAO = 'America/Sao_Paulo'
 const motivo = z

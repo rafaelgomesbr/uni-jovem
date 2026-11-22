@@ -58,6 +58,8 @@ export const CHAVES = {
   notificacoesNaoLidas: ['eu', 'caixa', 'nao-lidas'] as const,
   /** ADR 0007: os próprios pedidos de entrada (da conta, fora de qualquer comunidade). */
   meusPedidos: ['eu', 'pedidos'] as const,
+  /** D77: as comunidades em carência que a administradora ainda pode desfazer (prefixo ['eu']). */
+  comunidadesEmExclusao: ['eu', 'comunidades-em-exclusao'] as const,
   /** Busca de comunidades que escolheram aparecer; o item tocado vira a "encontrada". */
   buscaDeComunidades: (q: string, cidade: string) => ['comunidades', 'busca', q, cidade] as const,
   comunidadeEncontrada: (idPublico: string) => ['comunidades', 'encontrada', idPublico] as const,

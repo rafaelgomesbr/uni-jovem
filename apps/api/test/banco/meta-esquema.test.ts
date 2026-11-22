@@ -12,7 +12,15 @@ import { novoBanco, type BancoDeTeste } from '../apoio/banco.ts'
 // log faria cada envio gerar uma mudança só para quem enviou, sem utilidade.
 // `denuncias_de_comunidade` (ADR 0007) é da fila da Plataforma: anunciá-la no
 // log contaria aos membros que alguém denunciou a comunidade.
-const SEM_LOG = new Set(['auditoria', 'mudancas', 'sync_operacoes', 'denuncias_de_comunidade'])
+// `exclusoes_de_comunidade` (D77) guarda quem pediu a exclusão da comunidade: ela só vale
+// quando a comunidade já saiu de todas as listas, então não há a quem anunciar a mudança.
+const SEM_LOG = new Set([
+  'auditoria',
+  'mudancas',
+  'sync_operacoes',
+  'denuncias_de_comunidade',
+  'exclusoes_de_comunidade',
+])
 
 let b: BancoDeTeste
 beforeAll(async () => {

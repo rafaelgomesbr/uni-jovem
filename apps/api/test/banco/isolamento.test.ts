@@ -54,6 +54,15 @@ const CASOS: Record<string, Record<string, unknown> | undefined> = {
   'POST /api/v1/c/:comunidadeId/modelos': { nome: 'Modelo', categoria: 'Outra', etapas: [] },
   'DELETE /api/v1/c/:comunidadeId/modelos/:modeloId': undefined,
   'GET /api/v1/c/:comunidadeId/eventos': undefined,
+  // D77: limpar os próximos encontros (a contagem e a limpeza) e excluir a comunidade
+  'GET /api/v1/c/:comunidadeId/eventos/limpar-proximos': undefined,
+  'POST /api/v1/c/:comunidadeId/eventos/limpar-proximos': {
+    modo: 'apagar',
+    confirmo: true,
+    totalEsperado: 1,
+  },
+  'POST /api/v1/c/:comunidadeId/excluir': { nome: 'Comunidade B', confirmo: true },
+  'POST /api/v1/c/:comunidadeId/exclusao/desfazer': undefined,
   'POST /api/v1/c/:comunidadeId/eventos': {
     titulo: 'Invasão',
     categoria: 'Outra',
@@ -550,7 +559,8 @@ async function estadoDeB() {
             (select encode(hash, 'hex') from uj.logos_comunidades where comunidade_id = $1) as lg,
             (select json_agg(row(conta_id, bloqueada_conta_id) order by id) from uj.bloqueios where comunidade_id = $1) as bl,
             (select json_agg(row(estado, mensagem, decidido_por) order by id) from uj.pedidos_de_entrada where comunidade_id = $1) as pe,
-            (select row(encode(codigo_hmac, 'hex'), modo_entrada, encontravel, cidade, verificacao)::text from uj.comunidades where id = $1) as cod,
+            (select row(encode(codigo_hmac, 'hex'), modo_entrada, encontravel, cidade, verificacao, estado, exclusao_agendada_para)::text from uj.comunidades where id = $1) as cod,
+            (select count(*) from uj.exclusoes_de_comunidade where comunidade_id = $1) as ex2,
             (select count(*) from uj.consentimentos where comunidade_id = $1) as cs,
             (select json_agg(encode(f.hash, 'hex') order by f.conta_id) from uj.fotos_contas f
                join uj.vinculos v on v.conta_id = f.conta_id where v.comunidade_id = $1) as fo`,

@@ -271,6 +271,33 @@ describe('Organização, dobrada, só para quem organiza', () => {
   })
 })
 
+describe('Limpar próximos encontros na Organização (D77)', () => {
+  test.each(['organizador', 'admin'] as const)(
+    '%s: o atalho leva à tela de limpeza, que é da Organização e vem dobrado',
+    async (papel) => {
+      await renderizarTela(<TelaComunidade />, {
+        papel,
+        rotas: { [`GET ${BASE}/mural`]: mural({ organizacao: { pedidosDeEntrada: 0 } }) },
+      })
+      const usuario = userEvent.setup()
+      await usuario.press(await screen.findByRole('button', { name: /^Organização/ }))
+      await usuario.press(
+        await screen.findByRole('button', { name: /^Limpar próximos encontros[.]/ }),
+      )
+      expect(router.push).toHaveBeenLastCalledWith('/limpar-proximos-encontros')
+    },
+  )
+
+  test('o membro não vê o atalho nem a Organização', async () => {
+    await renderizarTela(<TelaComunidade />, {
+      papel: 'membro',
+      rotas: { [`GET ${BASE}/mural`]: mural() },
+    })
+    await screen.findByText('Pessoas')
+    expect(screen.queryByRole('button', { name: /Limpar próximos encontros/ })).toBeNull()
+  })
+})
+
 describe('ações rápidas por papel', () => {
   test('administração: "Novo aviso" e "Convidar"', async () => {
     await renderizarTela(<TelaComunidade />, {

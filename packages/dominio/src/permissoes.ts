@@ -65,6 +65,10 @@ export const MATRIZ = {
     // Aceite do termo do administrador (TC-16) por quem foi promovido depois
     // da criação, ou a cada versão nova do termo.
     aceitar_termo_do_admin: [papel('admin')],
+    // Excluir a PRÓPRIA comunidade (D77, ADR 0009): só a administração, com 30 dias de
+    // carência. Não é `plataforma.excluir_comunidade` (essa é do Criador, com 2FA).
+    excluir: [papel('admin')],
+    desfazer_exclusao: [papel('admin')],
   },
   pedido_entrada: {
     // Pedidos de quem quer entrar (código com aprovação ou busca).
@@ -92,6 +96,9 @@ export const MATRIZ = {
     publicar: [papel('organizador')],
     cancelar_ou_adiar: [papel('organizador')],
     excluir: [papel('organizador')],
+    // Limpar de uma vez os próximos encontros (D77): apagar sem avisar ou cancelar e
+    // avisar. É a soma de `excluir` e `cancelar_ou_adiar`, as duas já do organizador.
+    limpar_proximos: [papel('organizador')],
     // Pacote para uso sem internet (F13): o mesmo que a pessoa já lê, com validade.
     ler_pacote_offline: [papel('membro')],
   },

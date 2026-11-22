@@ -3,6 +3,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
+import type {
+  ComunidadeEmExclusao,
+  ResultadoDoPedidoDeExclusao,
+} from '@/servicos/contratoDaExclusao'
 import { chamadasV3 } from '@/servicos/contratoV3'
 import type {
   CodigoDaComunidade,
@@ -130,5 +134,49 @@ export function useTrocarCodigo(comunidadeId: string) {
   return useMutation({
     mutationFn: () => api.post<CodigoDaComunidade>(`/api/v1/c/${comunidadeId}/codigo/trocar`),
     onSuccess: (novo) => consultas.setQueryData(CHAVES.codigoDaComunidade(comunidadeId), novo),
+  })
+}
+
+/**
+ * As comunidades em carência de exclusão que a pessoa (administradora) ainda pode desfazer (D77).
+ * Fora do cache persistido: o nome some do aparelho quando a carência acaba.
+ */
+export function useComunidadesEmExclusao() {
+  return useQuery({
+    queryKey: CHAVES.comunidadesEmExclusao,
+    queryFn: ({ signal }) =>
+      api
+        .get<{ comunidades: ComunidadeEmExclusao[] }>('/api/v1/eu/comunidades-em-exclusao', {
+          sinal: signal,
+        })
+        .then((r) => r.comunidades),
+    staleTime: 0,
+    gcTime: 0,
+  })
+}
+
+/**
+ * Pede a exclusão da comunidade (`POST /c/:id/excluir`). O nome vai junto: é o que a pessoa leu na
+ * tela de confirmação, e a API recusa se a comunidade foi renomeada nesse meio tempo. Depois, ela
+ * deixa de existir para a sessão (`/eu` não a lista mais) e aparece em "em exclusão".
+ */
+export function useExcluirComunidade(comunidadeId: string) {
+  const consultas = useQueryClient()
+  return useMutation({
+    mutationFn: (nome: string) =>
+      api.post<ResultadoDoPedidoDeExclusao>(`/api/v1/c/${comunidadeId}/excluir`, {
+        nome,
+        confirmo: true,
+      }),
+    onSuccess: () => consultas.invalidateQueries({ queryKey: CHAVES.eu }),
+  })
+}
+
+/** Desfaz a exclusão dentro da carência (`POST /c/:id/exclusao/desfazer`): a comunidade volta ao `/eu`. */
+export function useDesfazerExclusao() {
+  const consultas = useQueryClient()
+  return useMutation({
+    mutationFn: (comunidadeId: string) => api.post(`/api/v1/c/${comunidadeId}/exclusao/desfazer`),
+    onSuccess: () => consultas.invalidateQueries({ queryKey: CHAVES.eu }),
   })
 }

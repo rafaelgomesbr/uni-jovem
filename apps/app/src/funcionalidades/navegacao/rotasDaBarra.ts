@@ -29,6 +29,9 @@ export const ROTAS_SEM_BARRA_FLUTUANTE: ReadonlySet<string> = new Set([
   'avisos/novo',
   'conteudos/[tipo]/novo',
   'plataforma/nova',
+  // Confirmações que apagam (D77): terminam ou se cancelam, sem trocar de aba no meio.
+  'limpar-proximos-encontros',
+  'excluir-comunidade',
   // Condução ao vivo.
   'evento/[eventoId]/ao-vivo',
   // Check-in: a lista de pessoas usa a tela inteira (o protótipo aprovado não tem barra).

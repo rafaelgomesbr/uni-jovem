@@ -121,3 +121,11 @@ export function ehCodigoDaComunidade(codigo: string): boolean {
     codigo.length === TAMANHO_DO_CODIGO && [...codigo].every((c) => ALFABETO_DO_CODIGO.includes(c))
   )
 }
+
+/**
+ * Carência da exclusão de uma comunidade (D77, ADR 0009): dias entre o pedido (da administração, do
+ * Criador ou da conta de quem criou) e o apagamento definitivo pela rotina de retenção. Dentro dela
+ * a comunidade some das listas e não aceita acessos, e a administração pode desfazer. O banco usa o
+ * mesmo número (`agendar_exclusao_da_comunidade`, migração 0030: o teste confere).
+ */
+export const DIAS_DE_CARENCIA_DA_EXCLUSAO_DA_COMUNIDADE = 30

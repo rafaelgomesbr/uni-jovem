@@ -325,6 +325,113 @@ export function registrarRotasDeEventos(app: FastifyInstance, api: pg.Pool): voi
     }))
   })
 
+  // ---------------------------------------------------------------- limpar os próximos encontros (D77)
+
+  /** Os números da tela de confirmação (a função do banco confere o papel de novo). */
+  async function resumoDosProximos(c: pg.PoolClient) {
+    const { rows } = await c.query<{
+      rascunhos: number
+      publicados: number
+      adiados: number
+      cancelados: number
+      encerrados: number
+      pessoas_a_avisar: number
+      repeticoes_ativas: number
+    }>('select * from uj.resumo_dos_proximos_encontros()')
+    const r = rows[0]
+    if (!r) throw NAO_ENCONTRADO()
+    return {
+      total: r.rascunhos + r.publicados + r.adiados + r.cancelados + r.encerrados,
+      rascunhos: r.rascunhos,
+      publicados: r.publicados,
+      adiados: r.adiados,
+      cancelados: r.cancelados,
+      encerrados: r.encerrados,
+      // Quem receberia o aviso se os encontros publicados fossem cancelados (sem contar a própria pessoa).
+      pessoasAAvisar: r.pessoas_a_avisar,
+      repeticoesAtivas: r.repeticoes_ativas,
+    }
+  }
+
+  app.get(`${base}/eventos/limpar-proximos`, naCom, async (pedido) => {
+    exigir(pedido, 'evento', 'limpar_proximos')
+    return tx(api, pedido, resumoDosProximos)
+  })
+
+  /**
+   * Limpa de uma vez TODOS os encontros que ainda não começaram (rascunhos, publicados,
+   * adiados e cancelados), útil para tirar dados de teste. Dois modos:
+   * - `apagar`: apaga tudo e não avisa ninguém (o aviso nasce da MUDANÇA de status, no
+   *   banco; apagar não muda status). É irreversível: some até o que as pessoas já viam;
+   * - `cancelar_e_avisar`: rascunhos são apagados; publicados e adiados viram cancelados
+   *   (quem participa é avisado pelo gatilho de sempre) e ficam na agenda como cancelados.
+   * Reusa as regras que já existem (apagar rascunho, cancelar com motivo). `totalEsperado`
+   * é o número que a pessoa viu: se a agenda mudou no meio do caminho, 409 e a tela
+   * mostra os números novos. Sem nada a limpar, responde 200 com zeros (repetir é seguro).
+   * A auditoria leva só o modo e as contagens, nunca títulos.
+   */
+  app.post(`${base}/eventos/limpar-proximos`, naCom, async (pedido) => {
+    exigir(pedido, 'evento', 'limpar_proximos')
+    const corpo = validar(
+      z.object({
+        modo: z.enum(['apagar', 'cancelar_e_avisar'], { error: 'Escolha o que fazer.' }),
+        confirmo: z.literal(true, { error: 'Confirme a limpeza.' }),
+        totalEsperado: z.number().int().min(0).max(100000),
+        motivo: texto(500).optional(),
+      }),
+      pedido.body,
+    )
+    return tx(api, pedido, async (c) => {
+      const antes = await resumoDosProximos(c)
+      if (antes.total === 0) {
+        return { ok: true, modo: corpo.modo, apagados: 0, cancelados: 0, pessoasAvisadas: 0 }
+      }
+      if (antes.total !== corpo.totalEsperado) {
+        throw new ErroHttp(
+          'agenda_mudou',
+          409,
+          'A agenda mudou enquanto você decidia. Confira os números de novo.',
+        )
+      }
+      const comunidadeId = pedido.comunidade!.id
+      let apagados: number
+      let cancelados = 0
+      if (corpo.modo === 'apagar') {
+        apagados =
+          (
+            await c.query('delete from uj.eventos where comunidade_id = $1 and inicio > now()', [
+              comunidadeId,
+            ])
+          ).rowCount ?? 0
+      } else {
+        apagados =
+          (
+            await c.query(
+              "delete from uj.eventos where comunidade_id = $1 and inicio > now() and status = 'rascunho'",
+              [comunidadeId],
+            )
+          ).rowCount ?? 0
+        cancelados =
+          (
+            await c.query(
+              `update uj.eventos set status = 'cancelado', motivo_status = $2
+                where comunidade_id = $1 and inicio > now() and status in ('publicado', 'adiado')`,
+              [comunidadeId, corpo.motivo?.trim() || 'Agenda reorganizada pela liderança.'],
+            )
+          ).rowCount ?? 0
+      }
+      const pessoasAvisadas = corpo.modo === 'cancelar_e_avisar' ? antes.pessoasAAvisar : 0
+      await auditar(
+        c,
+        pedido,
+        'evento.proximos_limpos',
+        { tipo: 'comunidade', id: comunidadeId },
+        { modo: corpo.modo, apagados, cancelados, pessoasAvisadas },
+      )
+      return { ok: true, modo: corpo.modo, apagados, cancelados, pessoasAvisadas }
+    })
+  })
+
   app.post(`${base}/eventos`, naCom, async (pedido) => {
     exigir(pedido, 'evento', 'criar')
     const e = validar(

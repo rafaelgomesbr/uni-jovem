@@ -258,6 +258,45 @@ function Formulario({
           />
         </CartaoDeVidro>
       </Secao>
+      <ZonaDeCuidado ativa={detalhe.estado === 'ativa'} />
     </Tela>
+  )
+}
+
+/**
+ * O que apaga coisas, separado do resto e no fim (D77): "Limpar próximos encontros" (organização)
+ * e "Excluir esta comunidade" (só a administração, com 30 dias para desfazer). Cada uma abre a
+ * própria tela de confirmação em dois passos; nada aqui apaga com um toque.
+ */
+function ZonaDeCuidado({ ativa }: { ativa: boolean }) {
+  const pode = usePode()
+  const limpar = pode('evento', 'limpar_proximos') && ativa
+  const excluir = pode('comunidade', 'excluir') && ativa
+  if (!limpar && !excluir) return null
+  return (
+    <Secao
+      titulo="Cuidado: apaga dados"
+      rodape="Cada uma pede duas confirmações antes de apagar qualquer coisa."
+    >
+      <CartaoDeVidro lista>
+        {limpar ? (
+          <LinhaDeLista
+            icone="excluir"
+            titulo="Limpar próximos encontros"
+            descricao="Apaga ou cancela todos os encontros que ainda não começaram."
+            aoPressionar={() => router.push('/limpar-proximos-encontros')}
+          />
+        ) : null}
+        {excluir ? (
+          <LinhaDeLista
+            icone="excluir"
+            titulo="Excluir esta comunidade"
+            descricao="Some para todos agora e é apagada de vez em 30 dias."
+            destrutivo
+            aoPressionar={() => router.push('/excluir-comunidade')}
+          />
+        ) : null}
+      </CartaoDeVidro>
+    </Secao>
   )
 }

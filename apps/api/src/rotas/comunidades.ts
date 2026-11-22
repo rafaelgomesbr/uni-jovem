@@ -153,6 +153,26 @@ export function registrarRotasDeComunidade(app: FastifyInstance, d: Dependencias
     )
   })
 
+  /** Comunidades em carência que a própria pessoa (administradora) ainda pode desfazer (D77). */
+  app.get(
+    '/api/v1/eu/comunidades-em-exclusao',
+    { preHandler: app.exigirSessao },
+    async (pedido) => {
+      const s = pedido.sessao!
+      return emTransacao(
+        api,
+        { contaId: s.contaId, comunidadeId: null, prova: s.prova },
+        async (c) => {
+          const { rows } = await c.query(
+            `select id, nome, exclusao_agendada_para as "apagadaEm", pedida_em as "pedidaEm"
+             from uj.minhas_comunidades_em_exclusao()`,
+          )
+          return { comunidades: rows }
+        },
+      )
+    },
+  )
+
   app.patch('/api/v1/eu', { preHandler: app.exigirSessao }, async (pedido) => {
     const corpo = validar(
       z
@@ -488,6 +508,90 @@ export function registrarRotasDeComunidade(app: FastifyInstance, d: Dependencias
       }
     })
   })
+
+  // ---------------------------------------------------------------- excluir a comunidade (D77, ADR 0009)
+
+  /**
+   * A administração pede a exclusão da PRÓPRIA comunidade. Não apaga na hora: a comunidade
+   * vai para `exclusao_agendada` (some das listas e não aceita acessos) e fica 30 dias
+   * assim; a rotina diária de retenção apaga de vez. O nome vem da tela (a pessoa viu
+   * o nome escrito antes de confirmar): se a comunidade foi renomeada nesse meio tempo,
+   * a confirmação não vale. As contas das pessoas continuam; só o vínculo e os dados
+   * da comunidade saem. O banco (função `agendar_exclusao_da_comunidade`) confere o
+   * papel de novo e é o único caminho para o administrador mudar o estado.
+   */
+  app.post('/api/v1/c/:comunidadeId/excluir', naCom, async (pedido) => {
+    exigir(pedido, 'comunidade', 'excluir')
+    const corpo = validar(
+      z.object({
+        nome: z.string().trim().min(1, 'Confirme o nome da comunidade.').max(80),
+        confirmo: z.literal(true, { error: 'Confirme que quer excluir a comunidade.' }),
+      }),
+      pedido.body,
+    )
+    return naComunidade(api, pedido, async (c) => {
+      try {
+        const atual = (
+          await c.query<{ nome: string }>('select nome from uj.comunidades where id = $1', [
+            pedido.comunidade!.id,
+          ])
+        ).rows[0]
+        if (!atual) throw NAO_ENCONTRADO()
+        if (corpo.nome !== atual.nome) {
+          throw new ErroHttp(
+            'confirmacao_necessaria',
+            422,
+            'O nome não confere com o da comunidade. Volte e confira antes de excluir.',
+          )
+        }
+        // Antes da função: depois dela a comunidade deixa de ser contexto e a auditoria não entra.
+        await auditar(c, pedido, 'comunidade.exclusao_agendada', {
+          tipo: 'comunidade',
+          id: pedido.comunidade!.id,
+        })
+        const r = await c.query<{ fim: Date | null }>(
+          'select uj.agendar_exclusao_da_comunidade() as fim',
+        )
+        const fim = r.rows[0]?.fim
+        if (!fim) throw NAO_ENCONTRADO()
+        return { ok: true, estado: 'exclusao_agendada', apagadaEm: fim }
+      } catch (e) {
+        if (e instanceof ErroHttp) throw e
+        traduzirErroDoBanco(e)
+      }
+    })
+  })
+
+  /**
+   * Desfaz a exclusão dentro da carência. Não usa `comComunidade`: a comunidade em exclusão
+   * não é mais contexto de ninguém. Quem responde é a função do banco, que só aceita a
+   * administradora ativa e só o pedido que a própria administração fez; qualquer outro
+   * caso (outra comunidade, outro papel, prazo vencido) é 404, sem dizer que ela existe.
+   */
+  app.post(
+    '/api/v1/c/:comunidadeId/exclusao/desfazer',
+    { preHandler: app.exigirSessao },
+    async (pedido) => {
+      const comunidadeId = idDoCaminho(pedido, 'comunidadeId')
+      const s = pedido.sessao!
+      return emTransacao(api, { contaId: s.contaId, comunidadeId, prova: s.prova }, async (c) => {
+        const r = await c.query<{ ok: boolean }>(
+          'select uj.desfazer_exclusao_da_comunidade($1) as ok',
+          [comunidadeId],
+        )
+        if (!r.rows[0]?.ok) throw NAO_ENCONTRADO()
+        await auditar(
+          c,
+          pedido,
+          'comunidade.exclusao_desfeita',
+          { tipo: 'comunidade', id: comunidadeId },
+          {},
+          comunidadeId,
+        )
+        return { ok: true, estado: 'ativa' }
+      })
+    },
+  )
 
   // ---------------------------------------------------------------- convites
 

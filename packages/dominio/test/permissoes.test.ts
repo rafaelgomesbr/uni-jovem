@@ -40,6 +40,9 @@ const ESPERADO: Record<string, string> = {
   'comunidade.ver_codigo': 'A',
   'comunidade.trocar_codigo': 'A',
   'comunidade.aceitar_termo_do_admin': 'A',
+  // D77: excluir a própria comunidade (30 dias de carência) e desfazer dentro da carência.
+  'comunidade.excluir': 'A',
+  'comunidade.desfazer_exclusao': 'A',
   'pedido_entrada.ler': 'O',
   'pedido_entrada.decidir': 'O',
   'vinculo.listar': 'M',
@@ -58,6 +61,8 @@ const ESPERADO: Record<string, string> = {
   'evento.publicar': 'O',
   'evento.cancelar_ou_adiar': 'O',
   'evento.excluir': 'O',
+  // D77: limpar de uma vez os próximos encontros (soma de excluir e cancelar_ou_adiar).
+  'evento.limpar_proximos': 'O',
   'evento.ler_pacote_offline': 'M',
   'modelo.ler': 'O',
   'modelo.gerenciar': 'O',

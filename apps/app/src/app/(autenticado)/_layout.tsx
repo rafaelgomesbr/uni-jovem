@@ -6,6 +6,7 @@ import { useOpcoesDaPilha } from '@/funcionalidades/navegacao/opcoesDaPilha'
 import { TermoDoAdminPendente } from '@/funcionalidades/comunidade/TermoDoAdminPendente'
 import { AgendadorDoAparelho } from '@/funcionalidades/notificacoes/AgendadorDoAparelho'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
+import { opcoesDaFolhaNativa } from '@/ui/opcoesDaFolha'
 import { Tela } from '@/ui/Tela'
 import { useTema } from '@/ui/tema'
 
@@ -14,13 +15,8 @@ export default function LayoutAutenticado() {
   const { estado } = useSessao()
   const opcoesDaPilha = useOpcoesDaPilha()
   const { cores } = useTema()
-  // Folha nativa (2.12.19): grabber do sistema, raio 28 e a superfície elevada nas outras plataformas.
-  const folha = {
-    presentation: 'formSheet',
-    sheetGrabberVisible: true,
-    sheetCornerRadius: 28,
-    contentStyle: { backgroundColor: cores.superficieElevada },
-  } as const
+  // Folha nativa (2.12.19): com a altura do conteúdo, nunca uma lista de alturas (ver `opcoesDaFolha`).
+  const folha = opcoesDaFolhaNativa(cores)
   // Formulário longo e câmera (3.4.3 e 3.5.3): tela cheia, com "Fechar" no lugar de "Voltar".
   const telaCheia = { presentation: 'fullScreenModal' } as const
   if (estado === 'anonimo') return <Redirect href="/entrar" />
@@ -44,17 +40,10 @@ export default function LayoutAutenticado() {
         screenLayout={leiauteDaTelaNaPilha}
       >
         <Stack.Screen name="(abas)" options={{ headerShown: false, title: 'Início' }} />
-        <Stack.Screen
-          name="trocar-comunidade"
-          options={{ title: 'Comunidade', ...folha, sheetAllowedDetents: [0.5, 1] }}
-        />
+        <Stack.Screen name="trocar-comunidade" options={{ title: 'Comunidade', ...folha }} />
         <Stack.Screen
           name="como-conseguir-convite"
-          options={{
-            title: 'Como conseguir um convite',
-            ...folha,
-            sheetAllowedDetents: 'fitToContents',
-          }}
+          options={{ title: 'Como conseguir um convite', ...folha }}
         />
         <Stack.Screen name="convidar" options={{ title: 'Convidar' }} />
         {/* ADR 0007: entrar sem convite, criar comunidade e o código da comunidade. */}
@@ -149,6 +138,12 @@ export default function LayoutAutenticado() {
         {/* Antiga aba Escalas (D68): redireciona para a Agenda, "Só o que é meu". */}
         <Stack.Screen name="escalas/index" options={{ title: 'Agenda' }} />
         <Stack.Screen name="excluir-conta" options={{ title: 'Excluir conta' }} />
+        {/* D77: limpar os próximos encontros e excluir a comunidade (dois passos, sem digitar). */}
+        <Stack.Screen
+          name="limpar-proximos-encontros"
+          options={{ title: 'Limpar próximos encontros' }}
+        />
+        <Stack.Screen name="excluir-comunidade" options={{ title: 'Excluir comunidade' }} />
       </Stack>
       {/* A barra de abas também nas telas empilhadas de navegação (D56), por cima da pilha. */}
       <BarraDaPilha />

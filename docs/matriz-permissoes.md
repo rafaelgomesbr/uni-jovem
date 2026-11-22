@@ -27,6 +27,8 @@ da plataforma, um atributo global e não um papel de comunidade. Tudo que não e
 | comunidade | ver_codigo | Administrador ou acima |
 | comunidade | trocar_codigo | Administrador ou acima |
 | comunidade | aceitar_termo_do_admin | Administrador ou acima |
+| comunidade | excluir | Administrador ou acima |
+| comunidade | desfazer_exclusao | Administrador ou acima |
 | pedido_entrada | ler | Organizador ou acima |
 | pedido_entrada | decidir | Organizador ou acima |
 | vinculo | listar | Membro ou acima |
@@ -45,6 +47,7 @@ da plataforma, um atributo global e não um papel de comunidade. Tudo que não e
 | evento | publicar | Organizador ou acima |
 | evento | cancelar_ou_adiar | Organizador ou acima |
 | evento | excluir | Organizador ou acima |
+| evento | limpar_proximos | Organizador ou acima |
 | evento | ler_pacote_offline | Membro ou acima |
 | modelo | ler | Organizador ou acima |
 | modelo | gerenciar | Organizador ou acima |

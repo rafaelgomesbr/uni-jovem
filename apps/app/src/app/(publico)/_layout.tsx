@@ -4,6 +4,7 @@ import { useSessao } from '@/estado/sessao'
 import { useRedirecionamentoSegurado } from '@/funcionalidades/autenticacao/sucessoDaEntrada'
 import { lerConviteEmEspera } from '@/funcionalidades/convite/conviteEmEspera'
 import { useOpcoesDaPilha } from '@/funcionalidades/navegacao/opcoesDaPilha'
+import { opcoesDaFolhaNativa } from '@/ui/opcoesDaFolha'
 import { useTema } from '@/ui/tema'
 
 /**
@@ -41,11 +42,7 @@ export default function LayoutPublico() {
         name="colar-convite"
         options={{
           title: 'Tenho um convite ou código',
-          presentation: 'formSheet',
-          sheetAllowedDetents: 'fitToContents',
-          sheetGrabberVisible: true,
-          sheetCornerRadius: 28,
-          contentStyle: { backgroundColor: cores.superficieElevada },
+          ...opcoesDaFolhaNativa(cores),
         }}
       />
     </Stack>

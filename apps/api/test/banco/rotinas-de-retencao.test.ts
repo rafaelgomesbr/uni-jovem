@@ -298,6 +298,11 @@ describe('exclusão de comunidade ao fim da carência', () => {
        values ($1, $2, 'spam')`,
       [x, membro.id],
     )
+    // D77: o registro de quem pediu a exclusão (a linha some com a comunidade, por cascata).
+    await b.su.query(
+      'insert into uj.exclusoes_de_comunidade (comunidade_id, pedida_por) values ($1, $2)',
+      [x, admin.id],
+    )
     // Auditoria da comunidade com tudo que identifica: conta, IP e detalhe livre.
     await b.su.query(
       `insert into uj.auditoria (conta_id, comunidade_id, acao, recurso_tipo, recurso_id, detalhes, ip_truncado)
