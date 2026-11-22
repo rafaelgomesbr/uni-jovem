@@ -11,8 +11,9 @@ import { ehErroDaApi } from '@/servicos/erros'
 import { usePreferenciasDeAcessibilidade } from '@/ui/acessibilidade'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
-import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
+import { Cartao } from '@/ui/Cartao'
 import { AvisoDeFalha } from '@/ui/Falha'
+import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
 
 /**
@@ -66,25 +67,28 @@ export function ProvaDeSegundoFator({ aoConfirmar, aoCancelar, motivo }: PropsDa
 
   if (conta && !conta.doisFatores) {
     return (
-      <CartaoDeDestaque
+      <Cartao
         sobrancelha="Segurança"
         titulo="Ligue o código extra ao entrar"
-        descricao="Ações da plataforma pedem um código do app autenticador. Ligue o código extra ao entrar (verificação em duas etapas) e volte aqui."
         acoes={
           <View style={{ gap: ESPACO.e8, alignItems: 'flex-start' }}>
             <Botao titulo="Ativar agora" aoPressionar={() => router.push('/ativar-2fa')} />
             {cancelar}
           </View>
         }
-      />
+      >
+        <Texto variante="corpo" cor="textoSuave">
+          Ações da plataforma pedem um código do app autenticador. Ligue o código extra ao entrar
+          (verificação em duas etapas) e volte aqui.
+        </Texto>
+      </Cartao>
     )
   }
 
   return (
-    <CartaoDeDestaque
+    <Cartao
       sobrancelha="Confirme que é você"
       titulo="Código do autenticador"
-      descricao={`${motivo ? `${motivo}, digite` : 'Digite'} o código de 6 números do seu app autenticador. Ações da plataforma sempre pedem o código, mesmo com a sessão aberta.`}
       acoes={
         <View style={{ gap: ESPACO.e8, alignItems: 'flex-start' }}>
           <Botao titulo="Confirmar" carregando={provar.isPending} aoPressionar={enviar} />
@@ -93,6 +97,9 @@ export function ProvaDeSegundoFator({ aoConfirmar, aoCancelar, motivo }: PropsDa
       }
     >
       <View style={{ gap: ESPACO.e8 }}>
+        <Texto variante="corpo" cor="textoSuave">
+          {`${motivo ? `${motivo}, digite` : 'Digite'} o código de 6 números do seu app autenticador. Ações da plataforma sempre pedem o código, mesmo com a sessão aberta.`}
+        </Texto>
         <Campo
           rotulo="Código do app autenticador"
           ajuda="São 6 números. Sem o celular, use um dos seus códigos de recuperação."
@@ -110,7 +117,7 @@ export function ProvaDeSegundoFator({ aoConfirmar, aoCancelar, motivo }: PropsDa
           <AvisoDeFalha erro={provar.error} titulo="O código não foi aceito" />
         ) : null}
       </View>
-    </CartaoDeDestaque>
+    </Cartao>
   )
 }
 

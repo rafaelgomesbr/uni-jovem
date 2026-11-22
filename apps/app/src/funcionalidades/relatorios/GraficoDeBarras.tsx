@@ -86,15 +86,15 @@ export function GraficoDeBarras({ titulo, barras }: { titulo: string; barras: re
 }
 
 /**
- * Número de relatório (3.7.5): cartão de vidro compacto com o valor em
- * `numero` (Bricolage 800 28/32, `tabular-nums`) e o rótulo escrito em
- * `legenda`, sem depender de cor.
+ * Número de relatório (D70): cartão de tinta compacto com o valor grande em `contador`
+ * (Bricolage 800 40/40, `tabular-nums`; o `numero` de 28 ficava pequeno para o que a tela
+ * existe para mostrar) e o rótulo escrito em `legenda`, sem depender de cor.
  */
 export function Numero({ rotulo, valor }: { rotulo: string; valor: string | number }) {
   return (
     <CartaoDeVidro style={{ flex: 1, padding: ESPACO.e16 }}>
       <View accessible accessibilityLabel={`${rotulo}: ${valor}`} style={{ gap: ESPACO.e4 }}>
-        <Texto variante="numero" tabular accessibilityRole="text" testID="numero-do-relatorio">
+        <Texto variante="contador" tabular accessibilityRole="text" testID="numero-do-relatorio">
           {String(valor)}
         </Texto>
         <Texto variante="legenda" cor="textoSuave">

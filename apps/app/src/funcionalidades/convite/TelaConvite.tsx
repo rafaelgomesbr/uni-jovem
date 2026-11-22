@@ -11,7 +11,7 @@ import type { ConsultaDeConvite, SituacaoDoConvite } from '@/servicos/contrato'
 import { AvisoDeFalha } from '@/ui/Falha'
 import { useTokenDoFragmento } from '@/utilidades/fragmento'
 import { Avatar } from '@/ui/Avatar'
-import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
+import { Cartao } from '@/ui/Cartao'
 import { Chip } from '@/ui/Chip'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
@@ -40,37 +40,63 @@ interface PropsDoCartaoDoConvite {
   comunidade: { nome: string; cor: string }
   papel: Papel
   emailDestinoMascarado?: string | null
+  /**
+   * Versão baixa, de tinta, para a entrada por convite sem conta: nela o cartão do momento
+   * (cerca de 230 pt) empurraria os botões para fora do iPhone SE. O texto é o mesmo.
+   */
+  compacto?: boolean
 }
 
 /**
- * O convite em destaque (3.1.2): avatar da comunidade de 56 à esquerda; à
- * direita, "Você foi convidado para", o nome em 24/28 e o chip do papel; e,
- * se houver, o e-mail a que o convite se destina.
+ * O convite em destaque (3.1.2, direção A): o cartão do momento com o sol nascendo, "Você foi
+ * convidado para" na etiqueta, o nome da comunidade no título, o avatar com a cor dela e o chip
+ * do papel; e, se houver, o e-mail a que o convite se destina.
  */
 export function CartaoDoConvite({
   comunidade,
   papel,
   emailDestinoMascarado,
+  compacto = false,
 }: PropsDoCartaoDoConvite) {
   const nomeDoPapel = NOME_DO_PAPEL[papel]
-  return (
-    <CartaoDeDestaque>
-      <View
-        accessible
-        accessibilityLabel={`Você foi convidado para ${comunidade.nome}, como ${nomeDoPapel}.${emailDestinoMascarado ? ` Convite para ${emailDestinoMascarado}.` : ''}`}
-        style={{ gap: ESPACO.e12 }}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e16 }}>
-          <Avatar nome={comunidade.nome} cor={comunidade.cor} tamanho="comunidade" decorativo />
-          <View style={{ flex: 1, gap: ESPACO.e4 }}>
-            <Texto variante="rotulo" cor="textoSuave">
-              Você foi convidado para
-            </Texto>
-            <Texto variante="tituloCartao" accessibilityRole="text">
-              {comunidade.nome}
-            </Texto>
+  const rotulo = `Você foi convidado para ${comunidade.nome}, como ${nomeDoPapel}.${emailDestinoMascarado ? ` Convite para ${emailDestinoMascarado}.` : ''}`
+  if (compacto) {
+    return (
+      <Cartao>
+        <View accessible accessibilityLabel={rotulo} style={{ gap: ESPACO.e8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e12 }}>
+            <Avatar nome={comunidade.nome} cor={comunidade.cor} lado={44} decorativo />
+            <View style={{ flex: 1 }}>
+              <Texto variante="legenda" cor="textoSuave">
+                Você foi convidado para
+              </Texto>
+              <Texto variante="tituloItem" accessibilityRole="text">
+                {comunidade.nome}
+              </Texto>
+            </View>
             <Chip texto={nomeDoPapel} tom={papel === 'admin' ? 'quente' : 'neutro'} />
           </View>
+          {emailDestinoMascarado ? (
+            <Texto variante="legenda" cor="textoSuave">
+              Convite para {emailDestinoMascarado}
+            </Texto>
+          ) : null}
+        </View>
+      </Cartao>
+    )
+  }
+  return (
+    <Cartao
+      variante="momento"
+      pose="nascendo"
+      etiqueta="Você foi convidado para"
+      titulo={comunidade.nome}
+      rotuloAcessivel={rotulo}
+    >
+      <View style={{ gap: ESPACO.e12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e12 }}>
+          <Avatar nome={comunidade.nome} cor={comunidade.cor} lado={44} decorativo />
+          <Chip texto={nomeDoPapel} tom={papel === 'admin' ? 'quente' : 'neutro'} />
         </View>
         {emailDestinoMascarado ? (
           <Texto variante="legenda" cor="textoSuave">
@@ -78,7 +104,7 @@ export function CartaoDoConvite({
           </Texto>
         ) : null}
       </View>
-    </CartaoDeDestaque>
+    </Cartao>
   )
 }
 
@@ -184,7 +210,14 @@ export function TelaConvite() {
     <CadastroPorConvite
       token={token}
       comunidade={convite.comunidade.nome}
-      cartaoDoConvite={cartao}
+      cartaoDoConvite={
+        <CartaoDoConvite
+          comunidade={convite.comunidade}
+          papel={convite.papel}
+          emailDestinoMascarado={convite.emailDestinoMascarado ?? null}
+          compacto
+        />
+      }
     />
   )
 }

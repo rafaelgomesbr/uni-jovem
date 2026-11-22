@@ -29,7 +29,7 @@ import { reordenarEtapas } from './regras'
 interface Props {
   evento: DetalheDoEvento
   comunidadeId: string
-  /** Estado vazio de quem não monta etapas: volta para a visão geral. */
+  /** Estado vazio de quem não monta etapas: volta para o resumo. */
   aoVerVisaoGeral: () => void
 }
 
@@ -92,11 +92,11 @@ export function SecaoEtapas({ evento, comunidadeId, aoVerVisaoGeral }: Props) {
       <>
         <EstadoVazio
           icone="etapas"
-          titulo="Nenhuma etapa ainda"
+          titulo="O roteiro ainda não foi montado."
           descricao={
             gerenciar
               ? 'Monte o roteiro com as etapas do encontro, cada uma com a sua duração.'
-              : 'A organização ainda não montou o roteiro deste encontro.'
+              : 'Quando a organização montar, ele aparece aqui.'
           }
           acao={
             gerenciar
@@ -106,7 +106,7 @@ export function SecaoEtapas({ evento, comunidadeId, aoVerVisaoGeral }: Props) {
                   aoPressionar: () => setAdicionando(true),
                 }
               : {
-                  titulo: 'Ver a visão geral',
+                  titulo: 'Ver o resumo',
                   variante: 'secundario',
                   aoPressionar: aoVerVisaoGeral,
                 }
@@ -183,7 +183,7 @@ export function SecaoEtapas({ evento, comunidadeId, aoVerVisaoGeral }: Props) {
       </CartaoDeVidro>
       {passou ? (
         <Aviso tipo="alerta" titulo="As etapas passam da duração">
-          {`Somam ${formatarDuracao(total)}, mais que os ${formatarDuracao(evento.duracaoMin)} previstos. Ajuste as etapas ou a duração do evento.`}
+          {`Somam ${formatarDuracao(total)}, mais que os ${formatarDuracao(evento.duracaoMin)} previstos. Ajuste as etapas ou a duração do encontro.`}
         </Aviso>
       ) : null}
       {folha}
@@ -211,13 +211,13 @@ function LinhaDaEtapa({
   const horario = `${formatarHora(etapa.inicioPrevisto, evento.fuso)} a ${formatarHora(etapa.fimPrevisto, evento.fuso)}`
   const quem = pessoas.map((p) => `${p.nome} (${p.funcao})`).join(', ')
   const nomes = pessoas.map((p) => p.nome.split(' ')[0]).join(', ')
-  const falado = `Etapa ${posicao + 1} de ${quantas}: ${etapa.titulo}. Das ${horario}, ${formatarDuracao(etapa.duracaoMin)}.${quem ? ` Com ${quem}.` : ' Ninguém escalado.'}`
+  const falado = `Etapa ${posicao + 1} de ${quantas}: ${etapa.titulo}. Das ${horario}, ${formatarDuracao(etapa.duracaoMin)}.${quem ? ` Com ${quem}.` : ' Ninguém convocado.'}`
   // Fora da edição, a etapa é lida de uma vez (com toque ou sem), com a hora e quem cuida.
   return (
     <LinhaDeLista
       hora={formatarHora(etapa.inicioPrevisto, evento.fuso)}
       titulo={etapa.titulo}
-      descricao={`${formatarDuracao(etapa.duracaoMin)} · ${nomes ? `Com ${nomes}` : 'Ninguém escalado'}`}
+      descricao={`${formatarDuracao(etapa.duracaoMin)} · ${nomes ? `Com ${nomes}` : 'Ninguém convocado'}`}
       {...(editando
         ? {
             extra: (
@@ -234,7 +234,7 @@ function LinhaDaEtapa({
           ? {
               aoPressionar: abrir,
               rotuloAcessivel: falado,
-              dica: 'Abre a etapa para editar e escalar.',
+              dica: 'Abre a etapa para editar e convocar.',
             }
           : { rotuloAcessivel: falado })}
     />

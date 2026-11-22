@@ -1,4 +1,5 @@
-import { fireEvent, screen, userEvent, waitFor } from '@testing-library/react-native'
+import { onlineManager } from '@tanstack/react-query'
+import { act, fireEvent, screen, userEvent, waitFor } from '@testing-library/react-native'
 import { QUEM_VE_O_PEDIDO } from '@uj/dominio'
 import { router, useLocalSearchParams } from 'expo-router'
 import { Alert } from 'react-native'
@@ -8,6 +9,7 @@ import { BASE, pedidosPara, PESSOAS, renderizarTela } from '@/testes/telas'
 import { AVISO_DO_TEXTO, TelaNovoPedido } from '../TelaNovoPedido'
 import { TelaOracao } from '../TelaOracao'
 import { TelaPedidoDeOracao } from '../TelaPedidoDeOracao'
+import { quemVaiVer } from '../visibilidade'
 
 jest.mock('expo-router', () => ({
   router: {
@@ -89,7 +91,7 @@ describe('novo pedido de oração', () => {
     expect(dialogo).not.toHaveBeenCalled()
   })
 
-  test('publicar para a comunidade mostra quantas pessoas leem e pede confirmação', async () => {
+  test('publicar para a comunidade abre o resumo com quantas pessoas leem; Voltar não envia e o texto fica', async () => {
     const dialogo = responderDialogos(false)
     const { servidor } = await renderizarTela(<TelaNovoPedido />, {
       papel: 'membro',
@@ -106,16 +108,130 @@ describe('novo pedido de oração', () => {
     await fireEvent.changeText(screen.getByLabelText('Seu pedido'), 'Pela minha família')
     await fireEvent.press(screen.getByRole('button', { name: 'Publicar pedido' }))
 
-    await waitFor(() => expect(dialogo).toHaveBeenCalled())
-    expect(dialogo.mock.calls[0]![0]).toBe('Publicar para toda a comunidade?')
-    expect(dialogo.mock.calls[0]![1]).toBe(`${outras} pessoas vão poder ler este pedido.`)
-    // Voltou no diálogo: nada é enviado.
+    // O resumo é uma folha (não o diálogo nativo): a frase, o aviso e o botão com o verbo.
+    expect(
+      await screen.findByText(`Vai aparecer com o seu nome para ${outras} pessoas.`),
+    ).toBeOnTheScreen()
+    expect(screen.getAllByText(AVISO_DO_TEXTO).length).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: 'Publicar com meu nome' })).toBeOnTheScreen()
+    expect(dialogo).not.toHaveBeenCalled()
+
+    // Voltar fecha sem publicar, e o texto continua no campo.
+    await fireEvent.press(screen.getAllByRole('button', { name: 'Voltar' }).at(-1)!)
     expect(pedidosPara(servidor, 'POST', `${BASE}/oracao`)).toHaveLength(0)
+    expect(screen.getByLabelText('Seu pedido')).toHaveDisplayValue('Pela minha família')
+
+    // Publicando de fato: um envio só.
+    await fireEvent.press(screen.getByRole('button', { name: 'Publicar pedido' }))
+    await fireEvent.press(await screen.findByRole('button', { name: 'Publicar com meu nome' }))
+    await waitFor(() => expect(pedidosPara(servidor, 'POST', `${BASE}/oracao`)).toHaveLength(1))
+    expect(pedidosPara(servidor, 'POST', `${BASE}/oracao`)[0]!.corpo).toEqual({
+      texto: 'Pela minha família',
+      visibilidade: 'comunidade',
+      anonimo: false,
+    })
+  })
+
+  test('para a equipe de oração vazia, o resumo diz a verdade: só você vê por enquanto', async () => {
+    await renderizarTela(<TelaNovoPedido />, { papel: 'membro' })
+    await fireEvent.press(await screen.findByRole('radio', { name: 'Equipe de oração' }))
+    await fireEvent.changeText(screen.getByLabelText('Seu pedido'), 'Pela equipe')
+    await fireEvent.press(screen.getByRole('button', { name: 'Publicar pedido' }))
+    expect(
+      await screen.findByText(
+        'Hoje ninguém além de você está na equipe de oração, então só você vê até alguém ser designado.',
+      ),
+    ).toBeOnTheScreen()
+  })
+
+  test('texto vazio: o erro aparece e a folha nem abre', async () => {
+    await renderizarTela(<TelaNovoPedido />, { papel: 'membro' })
+    await fireEvent.press(await screen.findByRole('radio', { name: 'Comunidade' }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Publicar pedido' }))
+    expect(await screen.findByText('Escreva o seu pedido.')).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: 'Publicar com meu nome' })).toBeNull()
+  })
+
+  test('sem internet: o botão diz que precisa de internet e que o texto não é guardado no aparelho', async () => {
+    await renderizarTela(<TelaNovoPedido />, { papel: 'membro' })
+    await screen.findByRole('radio', { name: 'Somente eu (padrão)' })
+    await act(async () => onlineManager.setOnline(false))
+    try {
+      expect(
+        await screen.findByText(
+          'Precisa de internet para publicar. O texto não é guardado no aparelho.',
+        ),
+      ).toBeOnTheScreen()
+      expect(screen.getByRole('button', { name: 'Publicar pedido' })).toBeDisabled()
+    } finally {
+      await act(async () => onlineManager.setOnline(true))
+    }
+  })
+
+  test('falha ao publicar: a mensagem não promete guardar o texto e o campo continua preenchido', async () => {
+    await renderizarTela(<TelaNovoPedido />, {
+      papel: 'membro',
+      rotas: {
+        [`POST ${BASE}/oracao`]: () => ({
+          status: 500,
+          corpo: { codigo: 'erro_interno', mensagem: 'falha' },
+        }),
+      },
+    })
+    await fireEvent.changeText(await screen.findByLabelText('Seu pedido'), 'Pela minha saúde')
+    await fireEvent.press(screen.getByRole('button', { name: 'Publicar pedido' }))
+    expect(await screen.findByText('Não deu para publicar')).toBeOnTheScreen()
+    expect(
+      screen.getByText(/O texto está só nesta tela: não é guardado no aparelho/),
+    ).toBeOnTheScreen()
+    expect(screen.getByLabelText('Seu pedido')).toHaveDisplayValue('Pela minha saúde')
+  })
+
+  test('as frases do resumo (quemVaiVer)', () => {
+    const c = { equipe: 3, comunidade: 14 }
+    expect(quemVaiVer('comunidade', true, c)).toBe('Vai aparecer como Anônimo para 14 pessoas.')
+    expect(quemVaiVer('comunidade', false, c)).toBe('Vai aparecer com o seu nome para 14 pessoas.')
+    expect(quemVaiVer('comunidade', false, { equipe: 0, comunidade: 1 })).toBe(
+      'Vai aparecer com o seu nome para 1 pessoa.',
+    )
+    expect(quemVaiVer('equipe_oracao', true, c)).toBe(
+      'Vai aparecer como Anônimo para a equipe de oração (3 pessoas).',
+    )
+    expect(quemVaiVer('comunidade', true, { equipe: null, comunidade: null })).toBe(
+      'Vai aparecer como Anônimo para toda a comunidade.',
+    )
+    expect(quemVaiVer('somente_eu', true, c)).toBe('Só você vai ver este pedido.')
   })
 })
 
 describe('lista e pedido', () => {
   afterEach(() => jest.restoreAllMocks())
+
+  test('vazio: o sol, o convite a ser o primeiro e a ação "Pedir oração"', async () => {
+    await renderizarTela(<TelaOracao />, {
+      papel: 'membro',
+      rotas: { [`GET ${BASE}/oracao`]: () => ({ status: 200, corpo: { pedidos: [] } }) },
+    })
+    expect(await screen.findByText('Nenhum pedido ainda.')).toBeOnTheScreen()
+    expect(screen.getByText(/Você pode ser o primeiro/)).toBeOnTheScreen()
+    const pedir = screen.getAllByRole('button', { name: 'Pedir oração' })
+    await userEvent.setup().press(pedir.at(-1)!)
+    expect(router.push).toHaveBeenLastCalledWith('/oracao/novo')
+  })
+
+  test('erro: texto humano e "Tentar de novo"', async () => {
+    await renderizarTela(<TelaOracao />, {
+      papel: 'membro',
+      rotas: {
+        [`GET ${BASE}/oracao`]: () => ({
+          status: 500,
+          corpo: { codigo: 'erro_interno', mensagem: 'falha' },
+        }),
+      },
+    })
+    expect(await screen.findByText('Não deu para carregar os pedidos')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeOnTheScreen()
+  })
 
   test('"Estou orando" em pedido de outra pessoa e denúncia só no que é da comunidade', async () => {
     const { servidor } = await renderizarTela(<TelaOracao />, {

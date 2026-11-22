@@ -5,16 +5,16 @@ import { useSessao } from '@/estado/sessao'
 import type { ComunidadeDoVinculo } from '@/servicos/contrato'
 import { AvisoDeFalha } from '@/ui/Falha'
 import { formatarData } from '@/utilidades/formatos'
-import { confirmar } from '@/utilidades/confirmar'
 import { Botao } from '@/ui/Botao'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
-import { EstadoVazio } from '@/ui/EstadoVazio'
+import { Cartao } from '@/ui/Cartao'
 import { LinhaDeLista, Lista, RECUO_DA_LISTA } from '@/ui/LinhaDeLista'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { mostrarToast } from '@/ui/Toast'
 
+import { VazioComSol } from '../entrada/VazioComSol'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { bloquearPessoa, useBloqueios, useDesbloquear, type PessoaBloqueada } from './bloqueios'
 
@@ -49,23 +49,20 @@ function ListaDeBloqueios({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
   }
   if (lista.data.length === 0) {
     return (
-      <EstadoVazio
-        icone="pessoas"
+      <VazioComSol
         titulo="Ninguém bloqueado"
         descricao={`Para bloquear alguém em ${comunidade.nome}, abra um pedido de oração, uma sugestão ou um aviso dessa pessoa e toque em "Bloquear esta pessoa".`}
-        acao={{
-          titulo: 'Ver pedidos de oração',
-          icone: 'oracao',
-          aoPressionar: () => router.push('/oracao'),
-        }}
+        acao={{ titulo: 'Ver pedidos de oração', aoPressionar: () => router.push('/oracao') }}
       />
     )
   }
   return (
     <>
-      <Texto variante="corpo" cor="textoSuave">
-        {`Em ${comunidade.nome}, você não vê os pedidos de oração nem as sugestões com nome destas pessoas. Avisos e encontros continuam aparecendo, e o papel de ninguém muda.`}
-      </Texto>
+      <Cartao>
+        <Texto variante="corpo" cor="textoSuave">
+          {`Em ${comunidade.nome}, você não vê os pedidos de oração nem as sugestões com nome destas pessoas. Avisos e encontros continuam aparecendo, e o papel de ninguém muda.`}
+        </Texto>
+      </Cartao>
       <CartaoDeVidro lista>
         {/* O separador começa no texto, depois do avatar de 40, como na aba Comunidade. */}
         <Lista recuo={RECUO_DA_LISTA.avatar}>
@@ -100,14 +97,8 @@ function LinhaDaPessoa({
     }
   }
 
-  async function pedir() {
-    const certeza = await confirmar({
-      titulo: `Desbloquear ${pessoa.nome}?`,
-      mensagem:
-        'Os pedidos de oração e as sugestões dessa pessoa voltam a aparecer para você nesta comunidade. Ela não é avisada.',
-      confirmar: 'Desbloquear',
-    })
-    if (!certeza) return
+  // Desfazer em vez de "tem certeza?" (UX v3, P5): desbloquear é reversível e a pessoa nem é avisada.
+  function pedir() {
     const vinculoId = pessoa.vinculoId
     desbloquear.mutate(pessoa.id, {
       onSuccess: () =>
@@ -136,7 +127,7 @@ function LinhaDaPessoa({
             tamanho="medio"
             carregando={desbloquear.isPending}
             rotuloAcessivel={`Desbloquear ${pessoa.nome}`}
-            aoPressionar={() => void pedir()}
+            aoPressionar={pedir}
           />
         }
       />

@@ -126,8 +126,8 @@ function EscolhaDoAvatar({ conta }: { conta: Conta }) {
               {conta.nome}
             </Texto>
             <Texto variante="legenda" cor="textoSuave">
-              É assim que as pessoas das suas comunidades veem você: na lista de pessoas, nas
-              escalas, no check-in e em quem está orando.
+              É assim que as pessoas das suas comunidades veem você: na lista de pessoas, nos
+              encontros, no check-in e em quem está orando.
             </Texto>
           </View>
         </View>

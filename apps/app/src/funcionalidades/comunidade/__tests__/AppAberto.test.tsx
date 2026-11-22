@@ -6,7 +6,6 @@ import { BASE, COMUNIDADE, FUSO, pedidosPara, renderizarTela, respostaEu } from 
 import { confirmar } from '@/utilidades/confirmar'
 
 import { mensagemDoConvite, TelaCodigoDaComunidade } from '../TelaCodigoDaComunidade'
-import { TelaComunidade } from '../TelaComunidade'
 import { TelaConfigurarComunidade } from '../TelaConfigurarComunidade'
 import { RESUMO_DO_TERMO_DO_ADMIN, TelaCriarComunidade } from '../TelaCriarComunidade'
 import { TermoDoAdminPendente } from '../TermoDoAdminPendente'
@@ -235,81 +234,6 @@ describe('Código da comunidade (admin)', () => {
     const { servidor } = await renderizarTela(<TelaCodigoDaComunidade />, { papel: 'membro' })
     expect(await screen.findByText('Só a administração vê o código')).toBeOnTheScreen()
     expect(pedidosPara(servidor, 'GET', `${BASE}/codigo`)).toHaveLength(0)
-  })
-})
-
-describe('Equipe › Pedidos', () => {
-  const PEDIDOS = {
-    pedidos: [
-      {
-        id: 'pe1',
-        nome: 'Pedro Alves',
-        mensagem: 'Sou do grupo de sábado',
-        origem: 'busca',
-        estado: 'pendente',
-        criadoEm: '2026-11-15T12:00:00.000Z',
-        decididoEm: null,
-      },
-    ],
-  }
-
-  test('organizador vê o contador, aceita e recusa com confirmação', async () => {
-    jest.mocked(useLocalSearchParams).mockReturnValue({ segmento: 'pedidos' })
-    const { servidor } = await renderizarTela(<TelaComunidade />, {
-      papel: 'organizador',
-      rotas: {
-        [`GET ${BASE}/pedidos`]: () => ({ status: 200, corpo: PEDIDOS }),
-        [`POST ${BASE}/pedidos/pe1/aceitar`]: () => ({ status: 200, corpo: { estado: 'aceito' } }),
-      },
-    })
-    // O parâmetro da notificação abre direto nos pedidos; o contador vai no segmento.
-    expect(await screen.findByRole('radio', { name: 'Pedidos (1)' })).toBeOnTheScreen()
-    expect(await screen.findByText('“Sou do grupo de sábado”')).toBeOnTheScreen()
-    expect(screen.getByText(/pela busca/)).toBeOnTheScreen()
-    // Organizador não vê convites (só admin).
-    expect(screen.queryByRole('radio', { name: /^Convites/ })).toBeNull()
-    await fireEvent.press(screen.getByRole('button', { name: 'Aceitar o pedido de Pedro Alves' }))
-    await waitFor(() =>
-      expect(pedidosPara(servidor, 'POST', `${BASE}/pedidos/pe1/aceitar`)).toHaveLength(1),
-    )
-  })
-
-  test('recusar pergunta antes; "Cancelar" não manda nada', async () => {
-    jest.mocked(confirmar).mockResolvedValueOnce(false)
-    jest.mocked(useLocalSearchParams).mockReturnValue({ segmento: 'pedidos' })
-    const { servidor } = await renderizarTela(<TelaComunidade />, {
-      papel: 'admin',
-      rotas: {
-        [`GET ${BASE}/pedidos`]: () => ({ status: 200, corpo: PEDIDOS }),
-        [`GET ${BASE}/convites`]: () => ({ status: 200, corpo: { convites: [] } }),
-      },
-    })
-    await fireEvent.press(
-      await screen.findByRole('button', { name: 'Recusar o pedido de Pedro Alves' }),
-    )
-    await waitFor(() => expect(confirmar).toHaveBeenCalledTimes(1))
-    expect(pedidosPara(servidor, 'POST', `${BASE}/pedidos/pe1/recusar`)).toHaveLength(0)
-  })
-
-  test('membro não vê o segmento de pedidos e a API não é chamada', async () => {
-    const { servidor } = await renderizarTela(<TelaComunidade />, { papel: 'membro' })
-    expect(await screen.findByText('Bruno Lima')).toBeOnTheScreen()
-    expect(screen.queryByRole('radio', { name: /^Pedidos/ })).toBeNull()
-    expect(pedidosPara(servidor, 'GET', `${BASE}/pedidos`)).toHaveLength(0)
-  })
-
-  test('admin: a identidade no topo abre as Configurações', async () => {
-    await renderizarTela(<TelaComunidade />, {
-      papel: 'admin',
-      rotas: {
-        [`GET ${BASE}/pedidos`]: () => ({ status: 200, corpo: { pedidos: [] } }),
-        [`GET ${BASE}/convites`]: () => ({ status: 200, corpo: { convites: [] } }),
-      },
-    })
-    await fireEvent.press(
-      await screen.findByRole('button', { name: 'Configurações da comunidade Jovens Centro' }),
-    )
-    expect(router.push).toHaveBeenCalledWith('/configurar-comunidade')
   })
 })
 

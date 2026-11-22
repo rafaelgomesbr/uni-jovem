@@ -6,6 +6,7 @@
 import { calcularHorarios, podeMudarStatus, type StatusDoEvento } from '@uj/dominio'
 
 import type { DetalheDoEvento } from '@/servicos/contratoDosEventos'
+import { dataDoInstante, hojeNoFuso } from '@/utilidades/datas'
 
 export interface AcoesDeStatus {
   publicar: boolean
@@ -76,4 +77,58 @@ export function reordenarEtapas(evento: DetalheDoEvento, ids: readonly string[])
       fimPrevisto: horarios[i]!.fim.toISOString(),
     })),
   }
+}
+
+// ------------------------------------------------------------ o relógio do encontro (D69)
+
+/** Onde o encontro está no relógio: decide a luz da tela, a etiqueta e o botão principal. */
+export type FaseDoEncontro = 'longe' | 'vespera' | 'no_dia' | 'checkin' | 'acontecendo' | 'terminou'
+
+/** Antes dele, o check-in já abre (o "Fazer check-in" aparece 2 h antes). */
+export const MINUTOS_DO_CHECKIN_ANTES = 120
+
+/** Dias de calendário, no fuso do encontro, de hoje até o dia dele (negativo se já passou). */
+export function diasAteOEncontro(
+  evento: Pick<DetalheDoEvento, 'inicio' | 'fuso'>,
+  agora: Date = new Date(),
+): number {
+  const dia = dataDoInstante(evento.inicio, evento.fuso)
+  const hoje = hojeNoFuso(evento.fuso, agora)
+  return Math.round((Date.parse(`${dia}T00:00:00Z`) - Date.parse(`${hoje}T00:00:00Z`)) / 86_400_000)
+}
+
+export function faseDoEncontro(
+  evento: Pick<DetalheDoEvento, 'inicio' | 'fuso' | 'duracaoMin'>,
+  agora: Date = new Date(),
+): FaseDoEncontro {
+  const inicio = Date.parse(evento.inicio)
+  const fim = inicio + evento.duracaoMin * 60_000
+  if (agora.getTime() > fim) return 'terminou'
+  if (agora.getTime() >= inicio) return 'acontecendo'
+  const dias = diasAteOEncontro(evento, agora)
+  if (dias <= 0) {
+    return (inicio - agora.getTime()) / 60_000 <= MINUTOS_DO_CHECKIN_ANTES ? 'checkin' : 'no_dia'
+  }
+  return dias === 1 ? 'vespera' : 'longe'
+}
+
+/** "Em 5 dias", "Amanhã", "Hoje", "Acontecendo agora", "Terminou": a etiqueta ao lado do título. */
+export function etiquetaDoEncontro(
+  evento: Pick<DetalheDoEvento, 'inicio' | 'fuso' | 'duracaoMin'>,
+  agora: Date = new Date(),
+): string {
+  const fase = faseDoEncontro(evento, agora)
+  if (fase === 'terminou') return 'Terminou'
+  if (fase === 'acontecendo') return 'Acontecendo agora'
+  if (fase === 'checkin' || fase === 'no_dia') return 'Hoje'
+  if (fase === 'vespera') return 'Amanhã'
+  return `Em ${diasAteOEncontro(evento, agora)} dias`
+}
+
+/** A luz de base e a pose do sol que acompanham a fase (os mesmos nomes da `Tela`). */
+export function momentoDaFase(fase: FaseDoEncontro): 'longe' | 'vespera' | 'dia' | 'agora' | 'fim' {
+  if (fase === 'terminou') return 'fim'
+  if (fase === 'acontecendo') return 'agora'
+  if (fase === 'checkin' || fase === 'no_dia') return 'dia'
+  return fase
 }

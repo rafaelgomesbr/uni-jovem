@@ -20,12 +20,12 @@ jest.mock('expo-router', () => ({
 describe('atalho Louvor (D61)', () => {
   beforeEach(() => jest.clearAllMocks())
 
-  test('leva ao Meu repertório, às músicas, aos músicos e aos encontros', async () => {
+  test('leva ao Meu repertório, à Biblioteca, aos músicos e aos encontros', async () => {
     await renderizarTela(<TelaLouvor />, { papel: 'membro' })
     const usuario = userEvent.setup()
     await usuario.press(await screen.findByRole('button', { name: /^Meu repertório\./ }))
     expect(router.push).toHaveBeenLastCalledWith('/meu-repertorio')
-    await usuario.press(screen.getByRole('button', { name: /^Músicas\./ }))
+    await usuario.press(screen.getByRole('button', { name: /^Biblioteca de músicas\./ }))
     expect(router.push).toHaveBeenLastCalledWith({
       pathname: '/conteudos',
       params: { tipo: 'musicas' },

@@ -5,18 +5,18 @@ import { View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
 import { STATUS_DA_SUGESTAO, type StatusDaSugestao } from '@/servicos/contratoDosModulos'
-import { mensagemDoErro, SemConexao } from '@/servicos/erros'
 import { formatarData } from '@/utilidades/formatos'
-import { BotaoIcone } from '@/ui/Botao'
-import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Chip } from '@/ui/Chip'
-import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
-import { EstadoVazio } from '@/ui/EstadoVazio'
+import { Botao } from '@/ui/Botao'
+import { Cartao } from '@/ui/Cartao'
+import { Esqueleto, LinhaDeEsqueleto } from '@/ui/Esqueleto'
+import { ErroDaTela } from '@/ui/Falha'
 import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
 import { PilulasDeFiltro } from '@/ui/PilulasDeFiltro'
 import { Tela } from '@/ui/Tela'
 
 import { usePode } from '../comunidade/permissoes'
+import { VazioComSol } from '../comunidade/VazioComSol'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { NOME_DO_STATUS, TOM_DO_STATUS, useSugestoes } from './consultas'
 
@@ -45,11 +45,10 @@ export function TelaSugestoes() {
       {...(comunidadeAtiva
         ? {
             acoes: (
-              <BotaoIcone
-                icone="adicionar"
-                rotulo="Nova sugestão"
-                texto="Nova"
-                circular
+              <Botao
+                titulo="Sugerir uma ideia"
+                icone="sugestao"
+                variante="secundario"
                 aoPressionar={novaSugestao}
               />
             ),
@@ -84,28 +83,28 @@ function ListaDeSugestoes({ comunidadeId, modera }: { comunidadeId: string; mode
       ) : null}
       {sugestoes.isPending ? (
         <Esqueleto rotulo="Carregando as sugestões">
-          <CartaoDeEsqueleto />
+          <LinhaDeEsqueleto altura={72} />
+          <LinhaDeEsqueleto altura={72} />
+          <LinhaDeEsqueleto altura={72} />
         </Esqueleto>
       ) : sugestoes.error ? (
-        <EstadoVazio
-          icone={sugestoes.error instanceof SemConexao ? 'semConexao' : 'erro'}
-          titulo="Não deu para carregar as sugestões"
-          descricao={mensagemDoErro(sugestoes.error)}
-          acao={{ titulo: 'Tentar de novo', aoPressionar: () => void sugestoes.refetch() }}
+        <ErroDaTela
+          erro={sugestoes.error}
+          oQue="as sugestões"
+          aoTentarDeNovo={() => void sugestoes.refetch()}
         />
       ) : sugestoes.data.length === 0 ? (
-        <EstadoVazio
-          icone="sugestao"
-          titulo="Nenhuma sugestão por aqui"
+        <VazioComSol
+          titulo="Nenhuma sugestão por aqui."
           descricao={
             modera
               ? 'Quando alguém da comunidade sugerir algo, aparece aqui para você analisar.'
               : 'Tem uma ideia para os encontros? Mande para a organização; dá para enviar sem mostrar seu nome.'
           }
-          acao={{ titulo: 'Nova sugestão', icone: 'adicionar', aoPressionar: novaSugestao }}
+          acao={{ titulo: 'Sugerir uma ideia', icone: 'sugestao', aoPressionar: novaSugestao }}
         />
       ) : (
-        <CartaoDeVidro lista>
+        <Cartao lista>
           <Lista>
             {sugestoes.data.map((s) => {
               const quem = s.minha
@@ -146,7 +145,7 @@ function ListaDeSugestoes({ comunidadeId, modera }: { comunidadeId: string; mode
               )
             })}
           </Lista>
-        </CartaoDeVidro>
+        </Cartao>
       )}
     </>
   )

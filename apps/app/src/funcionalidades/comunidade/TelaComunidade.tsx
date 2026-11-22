@@ -1,59 +1,53 @@
-import { NOME_DO_PAPEL } from '@uj/dominio'
-import { ESPACO } from '@uj/tokens'
+import { BORDA, ESPACO, RAIO } from '@uj/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
-import { useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
-import type { ComunidadeDoVinculo, Membro } from '@/servicos/contrato'
+import type { ComunidadeDoVinculo } from '@/servicos/contrato'
+import type { MuralDaComunidade } from '@/servicos/contratoV3'
+import { Acordeao } from '@/ui/Acordeao'
+import { Avatar } from '@/ui/Avatar'
 import { Aviso } from '@/ui/Aviso'
-import { Botao } from '@/ui/Botao'
-import { CampoDeBusca } from '@/ui/Campo'
-import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
-import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { Botao, ParDeBotoes } from '@/ui/Botao'
+import { Cartao } from '@/ui/Cartao'
 import { Chip } from '@/ui/Chip'
-import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
-import { EstadoVazio } from '@/ui/EstadoVazio'
-import { AvisoDeFalha, ErroDaTela } from '@/ui/Falha'
-import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
-import { Secao } from '@/ui/Secao'
-import { Segmentos } from '@/ui/Segmentos'
+import { Esqueleto, LinhaDeEsqueleto, BlocoDeEsqueleto } from '@/ui/Esqueleto'
+import { ErroDaTela } from '@/ui/Falha'
+import { Icone } from '@/ui/Icone'
+import { LinhaDeLista, Lista, RECUO_DA_LISTA } from '@/ui/LinhaDeLista'
+import { EntradaEmCascata } from '@/ui/primitivasDeMovimento'
+import { Texto } from '@/ui/Texto'
+import { useTema } from '@/ui/tema'
 import { parametro } from '@/utilidades/parametros'
 
-import { useGruposDoMais, type ItemDoMais } from '../navegacao/mais'
 import { SemComunidade } from '../navegacao/SemComunidade'
+import { fotoDoMembro } from '../perfil/imagens'
 import { TelaDoApp } from '../navegacao/TelaDoApp'
-import { logoDaComunidade } from '../perfil/imagens'
+import { useEstaOnline } from '../offline/ProvedorOffline'
+import { CabecalhoDeAcordeao } from './CabecalhoDeAcordeao'
 import { AvisoDeComunidadeNova } from './ComunidadeNova'
-import { useConvites, useDetalheDaComunidade, useMembros, usePedidosDeEntrada } from './consultas'
-import { linhaDoMembro } from './LinhaDoMembro'
+import { useDetalheDaComunidade, useMembros, useMural } from './consultas'
+import { dataRelativa } from './datasRelativas'
+import { useAtalhosDoMural, type AcaoRapida, type AtalhoDoMural } from './atalhosDoMural'
 import { CHIP_DO_ESTADO_DA_COMUNIDADE, NOME_CURTO_DO_ESTADO_DA_COMUNIDADE } from './nomes'
 import { usePode } from './permissoes'
-import { useSairDaComunidade } from './sairDaComunidade'
-import { SecaoConvites } from './SecaoConvites'
-import { SecaoPedidos } from './SecaoPedidos'
+import { VazioComSol } from './VazioComSol'
 
-type Aba = 'pessoas' | 'pedidos' | 'convites'
-
-/** `/comunidade?segmento=pedidos` (toque na notificação de pedido) abre direto nos pedidos. */
-function abaDoParametro(valor: string | null): Aba | null {
-  return valor === 'pessoas' || valor === 'pedidos' || valor === 'convites' ? valor : null
+/** `/comunidade?segmento=pedidos` (toque na notificação de pedido) abre os pedidos de entrada. */
+function segmentoDosPedidos(valor: string | null): 'pedidos' | 'convites' | null {
+  return valor === 'pedidos' || valor === 'convites' ? valor : null
 }
 
-function semAcento(texto: string): string {
-  return texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-}
+const pessoas = (n: number) => `${n} ${n === 1 ? 'pessoa' : 'pessoas'}`
 
 /**
- * Aba Comunidade (rota `/comunidade`, D57, 3.6.1 e quadro 08): o papel e
- * quantas pessoas no subtítulo; no topo, os atalhos da comunidade (avisos,
- * pedidos de oração, sugestões, conteúdos e, para a organização, relatórios,
- * locais, modelos e denúncias); a identidade da comunidade (para o admin, as
- * Configurações e o código); o destaque "Convidar pessoas" para quem
- * convida; os segmentos Pessoas, Pedidos (admin e organizador, ADR 0007) e
- * Convites e, no fim, "Sair". Cada bloco só aparece para quem pode usá-lo
- * (mesma matriz da API, que decide de verdade). Entrar em outra comunidade,
- * criar e denunciar ficam no Perfil, em "Mais opções".
+ * Aba Comunidade (rota `/comunidade`, D70): um mural curto, não um menu de links (UX 3.6).
+ * Do alto para baixo: as duas ações rápidas, o aviso à vista (título, não só atalho), os
+ * pedidos de oração (só o número de novos: o texto nunca aparece aqui), as pessoas, "Mais"
+ * (Biblioteca, Louvor para quem toca ou organiza, Sugestões) e, para quem organiza, a
+ * "Organização" dobrada. Tudo vem de uma chamada (`GET /mural`). Cada bloco só aparece
+ * para quem pode usá-lo; quem decide de verdade é a API.
  */
 export function TelaComunidade() {
   const { comunidadeAtiva } = useSessao()
@@ -64,60 +58,43 @@ export function TelaComunidade() {
       </TelaDoApp>
     )
   }
-  return <Comunidade comunidade={comunidadeAtiva} />
+  return <Mural comunidade={comunidadeAtiva} />
 }
 
-function Comunidade({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
-  const pode = usePode()
-  const grupos = useGruposDoMais()
-  const membros = useMembros(comunidade.id)
-  const verConvites = pode('convite', 'listar')
-  const convites = useConvites(comunidade.id, verConvites)
-  const verPedidos = pode('pedido_entrada', 'ler')
-  const pedidos = usePedidosDeEntrada(comunidade.id, verPedidos)
-  const detalhe = useDetalheDaComunidade(comunidade.id)
-  const parametros = useLocalSearchParams<{ segmento?: string }>()
-  const segmento = abaDoParametro(parametro(parametros.segmento))
-  const [aba, setAba] = useState<Aba>(segmento ?? 'pessoas')
-  // A aba fica montada: um toque novo na notificação troca o segmento já aberto.
-  const [ultimoSegmento, setUltimoSegmento] = useState(segmento)
-  if (segmento !== ultimoSegmento) {
-    setUltimoSegmento(segmento)
-    if (segmento) setAba(segmento)
-  }
-  const configurar = pode('comunidade', 'configurar')
+function Mural({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
   const ativa = comunidade.estado === 'ativa'
-  const podeConvidar = pode('convite', 'criar')
-  const sair = useSairDaComunidade(comunidade)
-  const [naComunidade, organizacao] = [
-    grupos.find((g) => g.titulo === 'Comunidade'),
-    grupos.find((g) => g.titulo === 'Organização'),
-  ]
-  const oracao = comunidade.designacoes.includes('equipe_oracao')
+  const pode = usePode()
+  const online = useEstaOnline()
+  const mural = useMural(comunidade.id)
+  const detalhe = useDetalheDaComunidade(comunidade.id)
+  const { acoes, mais, organizacao, verPedidosEConvites, verPedidos } = useAtalhosDoMural(ativa)
+  const equipeDeOracao = comunidade.designacoes.includes('equipe_oracao')
 
-  const ativos = membros.data?.filter((m) => m.estado === 'ativo').length
-  const papel = NOME_DO_PAPEL[comunidade.papel]
-  const descricao =
-    ativos === undefined
-      ? `Você é ${papel}`
-      : `Você é ${papel} · ${ativos} ${ativos === 1 ? 'pessoa' : 'pessoas'}`
-  const validos = convites.data?.filter((c) => c.situacao === 'valido').length ?? 0
-  const pendentes = pedidos.data?.length ?? 0
-  const segmentos = [
-    { valor: 'pessoas' as const, rotulo: 'Pessoas' },
-    ...(verPedidos
-      ? [{ valor: 'pedidos' as const, rotulo: pendentes ? `Pedidos (${pendentes})` : 'Pedidos' }]
-      : []),
-    ...(verConvites
-      ? [{ valor: 'convites' as const, rotulo: validos ? `Convites (${validos})` : 'Convites' }]
-      : []),
-  ]
-  const abaVisivel: Aba =
-    (aba === 'pedidos' && !verPedidos) || (aba === 'convites' && !verConvites) ? 'pessoas' : aba
+  // Notificação de pedido de entrada: abre a tela dos pedidos uma vez por toque. Limpar o
+  // parâmetro antes de empurrar deixa o toque seguinte (mesmo valor) valer de novo.
+  const segmento = segmentoDosPedidos(
+    parametro(useLocalSearchParams<{ segmento?: string }>().segmento),
+  )
+  const tratado = useRef<string | null>(null)
+  useEffect(() => {
+    if (!segmento) {
+      tratado.current = null
+      return
+    }
+    if (tratado.current === segmento) return
+    tratado.current = segmento
+    if (!verPedidosEConvites) return
+    router.setParams({ segmento: undefined })
+    router.push({ pathname: '/pedidos-de-entrada', params: { segmento } })
+  }, [segmento, verPedidosEConvites])
+
+  const dados = mural.data
+  const total = dados?.pessoas.total
+  const descricao = total === undefined ? undefined : pessoas(total)
 
   return (
-    <TelaDoApp titulo="Comunidade" descricao={descricao}>
-      {!ativa || oracao ? (
+    <TelaDoApp titulo="Comunidade" {...(descricao ? { descricao } : {})}>
+      {!ativa || equipeDeOracao ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
           {!ativa ? (
             <Chip
@@ -125,42 +102,9 @@ function Comunidade({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
               tom={CHIP_DO_ESTADO_DA_COMUNIDADE[comunidade.estado].tom}
             />
           ) : null}
-          {oracao ? <Chip texto="Equipe de oração" tom="quente" /> : null}
+          {equipeDeOracao ? <Chip texto="Equipe de oração" tom="quente" /> : null}
         </View>
       ) : null}
-
-      {naComunidade?.itens.length ? (
-        <Atalhos titulo="Na comunidade" itens={naComunidade.itens} />
-      ) : null}
-      {organizacao?.itens.length ? (
-        <Atalhos titulo="Organização" itens={organizacao.itens} />
-      ) : null}
-
-      {configurar && ativa ? (
-        <CartaoDeVidro lista>
-          <Lista>
-            <LinhaDeLista
-              avatar={{
-                nome: comunidade.nome,
-                cor: comunidade.cor,
-                dados: { foto: logoDaComunidade(comunidade) },
-              }}
-              titulo={comunidade.nome}
-              descricao="Nome, cor, logotipo, cidade e quem pode entrar"
-              rotuloAcessivel={`Configurações da comunidade ${comunidade.nome}`}
-              aoPressionar={() => router.push('/configurar-comunidade')}
-            />
-            <LinhaDeLista
-              icone="qr"
-              titulo="Código da comunidade"
-              descricao="Código, QR e envio pelo WhatsApp"
-              aoPressionar={() => router.push('/codigo-da-comunidade')}
-            />
-          </Lista>
-        </CartaoDeVidro>
-      ) : null}
-
-      {verPedidos ? <AvisoDeComunidadeNova detalhe={detalhe.data} /> : null}
 
       {!ativa ? (
         <Aviso tipo="alerta" titulo="Comunidade sem alterações por enquanto">
@@ -170,201 +114,332 @@ function Comunidade({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
         </Aviso>
       ) : null}
 
-      {podeConvidar && ativa ? (
-        <CartaoDeDestaque
-          sobrancelha="Convites"
-          titulo="Convidar pessoas"
-          descricao="Mande um link para quem vai servir com você. Você escolhe o papel e quantos dias ele vale."
-          acoes={
-            <Botao
-              titulo="Criar convite"
-              icone="link"
-              rotuloAcessivel={`Criar convite para ${comunidade.nome}`}
-              aoPressionar={() => router.push('/convidar')}
+      {dados && !online ? (
+        <Aviso tipo="alerta" titulo="Sem internet">
+          Você vê a última versão. As ações que avisam pessoas esperam a conexão.
+        </Aviso>
+      ) : null}
+
+      <EntradaEmCascata ordem={0}>
+        <AcoesRapidas acoes={acoes} online={online} />
+      </EntradaEmCascata>
+
+      {mural.isPending ? (
+        <EsqueletoDoMural />
+      ) : mural.isError && !dados ? (
+        <ErroDaTela
+          erro={mural.error}
+          oQue="a comunidade"
+          aoTentarDeNovo={() => void mural.refetch()}
+        />
+      ) : dados ? (
+        <>
+          <EntradaEmCascata ordem={1}>
+            <BlocoDeAvisos
+              avisos={dados.avisos}
+              podePublicar={pode('aviso', 'publicar')}
+              acaoJaNoTopo={acoes.some((a) => a.id === 'novo_aviso')}
             />
-          }
-        />
+          </EntradaEmCascata>
+          <EntradaEmCascata ordem={2}>
+            <PedidosEPessoas comunidadeId={comunidade.id} dados={dados} />
+          </EntradaEmCascata>
+        </>
       ) : null}
 
-      {segmentos.length > 1 ? (
-        <Segmentos
-          rotulo="Quem está na comunidade"
-          valor={abaVisivel}
-          aoMudar={setAba}
-          segmentos={segmentos}
-        />
+      <EntradaEmCascata ordem={3}>
+        <View style={{ gap: ESPACO.e8 }}>
+          <TituloDaSecao>Mais</TituloDaSecao>
+          <Cartao lista>
+            <Lista>
+              {mais.map((a) => (
+                <LinhaDeLista
+                  key={a.rotulo}
+                  icone={a.icone}
+                  titulo={a.rotulo}
+                  descricao={a.descricao}
+                  rotuloAcessivel={`${a.rotulo}. ${a.descricao}`}
+                  aoPressionar={() => router.push(a.href)}
+                />
+              ))}
+            </Lista>
+          </Cartao>
+        </View>
+      </EntradaEmCascata>
+
+      {organizacao.length > 0 || verPedidosEConvites ? (
+        <EntradaEmCascata ordem={4}>
+          <Organizacao
+            itens={organizacao}
+            mostrarPedidos={verPedidosEConvites}
+            pedidosDeEntrada={verPedidos ? (dados?.organizacao?.pedidosDeEntrada ?? 0) : 0}
+          />
+        </EntradaEmCascata>
       ) : null}
 
-      {abaVisivel === 'convites' ? (
-        <SecaoConvites comunidade={comunidade} podeAlterar={ativa && podeConvidar} />
-      ) : abaVisivel === 'pedidos' ? (
-        <SecaoPedidos comunidade={comunidade} pedidos={pedidos} podeAlterar={ativa} />
-      ) : (
-        <Pessoas comunidadeId={comunidade.id} podeAlterar={ativa} membros={membros} />
-      )}
-
-      {sair.erro ? <AvisoDeFalha erro={sair.erro} titulo="Você continua na comunidade" /> : null}
-      <CartaoDeVidro lista opaco>
-        <LinhaDeLista
-          icone="sair"
-          titulo={`Sair de ${comunidade.nome}`}
-          {...(sair.saindo ? { descricao: 'Saindo da comunidade' } : {})}
-          destrutivo
-          dica="Apaga só o seu vínculo com esta comunidade. Sua conta continua existindo."
-          {...(sair.saindo ? {} : { aoPressionar: () => void sair.pedirParaSair() })}
-        />
-      </CartaoDeVidro>
+      {verPedidos ? <AvisoDeComunidadeNova detalhe={detalhe.data} /> : null}
     </TelaDoApp>
   )
 }
 
-/** Atalhos de um grupo: sobrancelha fora do cartão e um cartão lista. */
-function Atalhos({ titulo, itens }: { titulo: string; itens: readonly ItemDoMais[] }) {
+/** Título de seção do mural (16 em 600, como o protótipo): a sobrancelha é só dos cartões. */
+function TituloDaSecao({ children }: { children: string }) {
   return (
-    <Secao titulo={titulo}>
-      <CartaoDeVidro lista>
-        <Lista>
-          {itens.map((i) => (
-            <LinhaDeLista
-              key={i.rotulo}
-              icone={i.icone}
-              titulo={i.rotulo}
-              descricao={i.descricao}
-              aoPressionar={() => router.push(i.href)}
-            />
-          ))}
-        </Lista>
-      </CartaoDeVidro>
-    </Secao>
+    <Texto variante="tituloItem" accessibilityRole="header" nivel={2}>
+      {children}
+    </Texto>
   )
 }
 
-function Pessoas({
+/**
+ * Duas ações rápidas lado a lado, secundárias de verdade (o que a pessoa vem fazer aqui).
+ * Sem internet ficam desabilitadas e a linha de baixo diz por quê (o motivo nunca é só a
+ * cor apagada).
+ */
+function AcoesRapidas({ acoes, online }: { acoes: readonly AcaoRapida[]; online: boolean }) {
+  const { cores } = useTema()
+  const motivo = online ? null : (acoes[0]?.motivoSemInternet ?? null)
+  return (
+    <View>
+      <ParDeBotoes larguraMinima={150}>
+        {acoes.map((a) => (
+          <Botao
+            key={a.id}
+            titulo={a.titulo}
+            icone={a.icone}
+            variante="secundario"
+            desabilitado={!online}
+            aoPressionar={() => router.push(a.href)}
+          />
+        ))}
+      </ParDeBotoes>
+      {motivo ? (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: ESPACO.e8,
+            marginTop: ESPACO.e8,
+          }}
+        >
+          <Icone nome="cadeado" cor={cores.textoSuave} tamanho={14} />
+          <Texto variante="meta" cor="textoSuave" style={{ flex: 1 }}>
+            {motivo}
+          </Texto>
+        </View>
+      ) : null}
+    </View>
+  )
+}
+
+/** O aviso mais importante com título (o fixado, ou o mais recente) e o caminho para todos. */
+function BlocoDeAvisos({
+  avisos,
+  podePublicar,
+  acaoJaNoTopo,
+}: {
+  avisos: MuralDaComunidade['avisos']
+  podePublicar: boolean
+  /** "Novo aviso" já é uma ação rápida do topo: o vazio não repete o botão (sem duplicação). */
+  acaoJaNoTopo: boolean
+}) {
+  const destaque = avisos.destaque
+  return (
+    <View style={{ gap: ESPACO.e8 }}>
+      <TituloDaSecao>Avisos</TituloDaSecao>
+      {destaque ? (
+        <>
+          <Cartao lista>
+            <Lista>
+              <LinhaDeLista
+                variante="checkin"
+                icone={destaque.fixado ? 'fixar' : 'aviso'}
+                titulo={destaque.fixado ? `Fixado: ${destaque.titulo}` : destaque.titulo}
+                descricao={dataRelativa(destaque.publicadoEm)}
+                rotuloAcessivel={`${destaque.fixado ? 'Aviso fixado' : 'Último aviso'}: ${destaque.titulo}, ${dataRelativa(destaque.publicadoEm)}`}
+                aoPressionar={() =>
+                  router.push({
+                    pathname: '/avisos/[avisoId]',
+                    params: { avisoId: destaque.id },
+                  })
+                }
+              />
+            </Lista>
+          </Cartao>
+          <View style={{ alignItems: 'center' }}>
+            <Botao
+              titulo={`Ver todos os avisos, ${avisos.total}`}
+              variante="terciario"
+              aoPressionar={() => router.push('/avisos')}
+            />
+          </View>
+        </>
+      ) : (
+        <VazioComSol
+          titulo="Nenhum aviso por enquanto."
+          descricao={
+            podePublicar ? 'Escreva o primeiro aviso.' : 'Os avisos da liderança aparecem aqui.'
+          }
+          {...(podePublicar && !acaoJaNoTopo
+            ? {
+                acao: {
+                  titulo: 'Novo aviso',
+                  icone: 'aviso' as const,
+                  aoPressionar: () => router.push('/avisos/novo'),
+                },
+              }
+            : {})}
+        />
+      )}
+    </View>
+  )
+}
+
+/**
+ * Pedidos de oração (só o número de novos, em texto: nunca o texto de um pedido) e Pessoas
+ * (três avatares e o total). O número "novos" vem do servidor, que conta o que a pessoa já
+ * pode ler e ainda não marcou.
+ */
+function PedidosEPessoas({
   comunidadeId,
-  podeAlterar,
-  membros,
+  dados,
 }: {
   comunidadeId: string
-  podeAlterar: boolean
-  membros: ReturnType<typeof useMembros>
+  dados: MuralDaComunidade
 }) {
-  const pode = usePode()
-  const { conta } = useSessao()
-  const [busca, setBusca] = useState('')
-  const podeEditar =
-    podeAlterar &&
-    (pode('vinculo', 'alterar_papel') ||
-      pode('vinculo', 'desativar') ||
-      pode('vinculo', 'designar_equipe_oracao'))
-
-  if (membros.isPending) {
-    return (
-      <Esqueleto rotulo="Carregando as pessoas">
-        <CartaoDeEsqueleto />
-        <CartaoDeEsqueleto />
-      </Esqueleto>
-    )
-  }
-  if (membros.error) {
-    return (
-      <ErroDaTela
-        erro={membros.error}
-        titulo="As pessoas não carregaram"
-        aoTentarDeNovo={() => void membros.refetch()}
-      />
-    )
-  }
-
-  const termo = semAcento(busca.trim())
-  const casa = (m: Membro) => !termo || semAcento(m.nome).includes(termo)
-  const ativos = membros.data.filter((m) => m.estado === 'ativo')
-  const fora = membros.data.filter((m) => m.estado !== 'ativo')
-
-  function linha(membro: Membro) {
-    const ehVoce = membro.contaId === conta?.id
-    // Ninguém mexe no próprio vínculo nem no do Criador (a API recusa os dois).
-    const editavel = podeEditar && !ehVoce && !membro.criador
-    return linhaDoMembro({
-      comunidadeId,
-      membro,
-      ehVoce,
-      ...(editavel
-        ? {
-            aoPressionar: () =>
-              router.push({
-                pathname: '/membro/[vinculoId]',
-                params: { vinculoId: membro.vinculoId },
-              }),
-          }
-        : {}),
-    })
-  }
-
-  if (ativos.length <= 1 && fora.length === 0) {
-    return (
-      <>
-        <CartaoDeVidro lista>
-          <Lista>{ativos.map(linha)}</Lista>
-        </CartaoDeVidro>
-        <EstadoVazio
-          icone="convidar"
-          titulo="Por enquanto, só você"
-          descricao={
-            pode('convite', 'criar')
-              ? 'Convide as pessoas da liderança para começar.'
-              : 'Quando a administração convidar mais gente, as pessoas aparecem aqui.'
-          }
-          acao={
-            pode('convite', 'criar') && podeAlterar
-              ? {
-                  titulo: 'Criar convite',
-                  icone: 'link',
-                  variante: 'secundario',
-                  aoPressionar: () => router.push('/convidar'),
-                }
-              : {
-                  titulo: 'Ver a agenda',
-                  variante: 'secundario',
-                  aoPressionar: () => router.push('/agenda'),
-                }
-          }
-        />
-      </>
-    )
-  }
-
-  const ativosVisiveis = ativos.filter(casa)
-  const foraVisiveis = fora.filter(casa)
+  const { cores } = useTema()
+  const membros = useMembros(comunidadeId)
+  const novos = dados.oracao.novos
+  const rostos = (membros.data ?? []).filter((m) => m.estado === 'ativo').slice(0, 3)
   return (
-    <>
-      <CampoDeBusca rotulo="Buscar pelo nome" valor={busca} aoMudar={setBusca} />
-      {ativosVisiveis.length + foraVisiveis.length === 0 ? (
-        <EstadoVazio
-          icone="buscar"
-          titulo="Ninguém com esse nome"
-          descricao="Confira a grafia ou busque por outra parte do nome."
-          acao={{
-            titulo: 'Limpar a busca',
-            variante: 'secundario',
-            aoPressionar: () => setBusca(''),
-          }}
+    <Cartao lista>
+      <Lista>
+        <LinhaDeLista
+          icone="coracao"
+          titulo="Pedidos de oração"
+          rotuloAcessivel={`Pedidos de oração${novos > 0 ? `. ${novos} ${novos === 1 ? 'novo' : 'novos'}` : ''}`}
+          {...(novos > 0
+            ? {
+                extra: (
+                  <Chip situacao="novo" texto={`${novos} ${novos === 1 ? 'novo' : 'novos'}`} />
+                ),
+              }
+            : {})}
+          aoPressionar={() => router.push('/oracao')}
         />
-      ) : null}
-      {ativosVisiveis.length ? (
-        <CartaoDeVidro lista>
-          <Lista>{ativosVisiveis.map(linha)}</Lista>
-        </CartaoDeVidro>
-      ) : null}
-      {foraVisiveis.length ? (
-        <Secao
-          titulo="Desativados e removidos"
-          rodape="Desativado pode ser reativado. Removido só volta com um convite novo."
-        >
-          <CartaoDeVidro lista>
-            <Lista>{foraVisiveis.map(linha)}</Lista>
-          </CartaoDeVidro>
-        </Secao>
-      ) : null}
-    </>
+        <LinhaDeLista
+          icone="pessoas"
+          titulo="Pessoas"
+          rotuloAcessivel={`Pessoas. ${pessoas(dados.pessoas.total)}`}
+          extra={
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}>
+              <View style={{ flexDirection: 'row' }}>
+                {rostos.map((m, i) => (
+                  <View
+                    key={m.vinculoId}
+                    style={{
+                      marginLeft: i === 0 ? 0 : -ESPACO.e8,
+                      borderRadius: RAIO.pilula,
+                      borderWidth: BORDA.anel,
+                      borderColor: cores.superficie,
+                    }}
+                  >
+                    <Avatar
+                      nome={m.nome}
+                      avatar={m.avatar ?? null}
+                      foto={fotoDoMembro(comunidadeId, m)}
+                      lado={28}
+                      decorativo
+                    />
+                  </View>
+                ))}
+              </View>
+              <Texto variante="corpo" cor="textoSuave" tabular>
+                {String(dados.pessoas.total)}
+              </Texto>
+            </View>
+          }
+          aoPressionar={() => router.push('/pessoas')}
+        />
+      </Lista>
+    </Cartao>
+  )
+}
+
+/**
+ * Organização, dobrada (só para quem organiza): pedidos de entrada e convites, relatórios,
+ * locais, modelos, denúncias, configurações e código. O número de pedidos esperando fica
+ * visível mesmo com o bloco fechado, em texto.
+ */
+function Organizacao({
+  itens,
+  mostrarPedidos,
+  pedidosDeEntrada,
+}: {
+  itens: readonly AtalhoDoMural[]
+  mostrarPedidos: boolean
+  pedidosDeEntrada: number
+}) {
+  const textoDosPedidos = `${pedidosDeEntrada} ${pedidosDeEntrada === 1 ? 'pedido' : 'pedidos'}`
+  return (
+    <Cartao lista>
+      <Acordeao
+        chave="organizacao-da-comunidade"
+        recuo={RECUO_DA_LISTA.texto}
+        rotuloRecolhido={`Organização${pedidosDeEntrada ? `, ${textoDosPedidos} de entrada` : ''}. Recolhido, toque para ver.`}
+        rotuloAberto="Organização. Aberto, toque para recolher."
+        cabecalho={() => (
+          <CabecalhoDeAcordeao
+            icone="ajustes"
+            titulo="Organização"
+            {...(pedidosDeEntrada > 0
+              ? { extra: <Chip situacao="novo" texto={textoDosPedidos} /> }
+              : {})}
+          />
+        )}
+      >
+        <Lista>
+          {[
+            ...(mostrarPedidos
+              ? [
+                  <LinhaDeLista
+                    key="pedidos"
+                    icone="convidar"
+                    titulo="Pedidos de entrada e convites"
+                    descricao="Quem pediu para entrar e os convites criados."
+                    rotuloAcessivel={`Pedidos de entrada e convites${pedidosDeEntrada ? `. ${textoDosPedidos} esperando` : ''}`}
+                    {...(pedidosDeEntrada > 0
+                      ? { extra: <Chip situacao="novo" texto={textoDosPedidos} /> }
+                      : {})}
+                    aoPressionar={() => router.push('/pedidos-de-entrada')}
+                  />,
+                ]
+              : []),
+            ...itens.map((i) => (
+              <LinhaDeLista
+                key={i.rotulo}
+                icone={i.icone}
+                titulo={i.rotulo}
+                descricao={i.descricao}
+                rotuloAcessivel={`${i.rotulo}. ${i.descricao}`}
+                aoPressionar={() => router.push(i.href)}
+              />
+            )),
+          ]}
+        </Lista>
+      </Acordeao>
+    </Cartao>
+  )
+}
+
+/** Três blocos de esqueleto com a altura do conteúdo final: avisos, pedidos e pessoas. */
+function EsqueletoDoMural() {
+  return (
+    <Esqueleto rotulo="Carregando a comunidade">
+      <BlocoDeEsqueleto largura="24%" altura={18} />
+      <LinhaDeEsqueleto altura={72} />
+      <LinhaDeEsqueleto altura={64} />
+      <LinhaDeEsqueleto altura={64} />
+    </Esqueleto>
   )
 }

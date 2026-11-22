@@ -1,9 +1,10 @@
+import { ESPACO } from '@uj/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
+import { View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
 import type { Agrupamento } from '@/servicos/contratoDosModulos'
-import { mensagemDoErro, SemConexao } from '@/servicos/erros'
 import {
   dataDoInstante,
   formatarDataLocal,
@@ -14,8 +15,8 @@ import {
 import { parametro } from '@/utilidades/parametros'
 import { Aviso } from '@/ui/Aviso'
 import { BotaoIcone } from '@/ui/Botao'
-import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
-import { EstadoVazio } from '@/ui/EstadoVazio'
+import { BlocoDeEsqueleto, CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
+import { ErroDaTela } from '@/ui/Falha'
 import { PilulasDeFiltro } from '@/ui/PilulasDeFiltro'
 import { Segmentos } from '@/ui/Segmentos'
 import { Tela } from '@/ui/Tela'
@@ -31,7 +32,7 @@ import { periodoDosUltimos, SeletorDePeriodo, type Periodo } from './SeletorDePe
 const TIPOS: { valor: TipoDeRelatorio; rotulo: string }[] = [
   { valor: 'presenca', rotulo: 'Presença' },
   { valor: 'inscricoes', rotulo: 'Inscrições' },
-  { valor: 'escalas', rotulo: 'Escalas' },
+  { valor: 'escalas', rotulo: 'Convocações' },
   { valor: 'atividade', rotulo: 'Atividade' },
 ]
 
@@ -150,17 +151,23 @@ function Estado({
   if (consulta.isPending) {
     return (
       <Esqueleto rotulo="Calculando o relatório">
+        <View style={{ flexDirection: 'row', gap: ESPACO.e12 }}>
+          <View style={{ flex: 1 }}>
+            <BlocoDeEsqueleto altura={96} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <BlocoDeEsqueleto altura={96} />
+          </View>
+        </View>
         <CartaoDeEsqueleto titulo />
-        <CartaoDeEsqueleto />
       </Esqueleto>
     )
   }
   return (
-    <EstadoVazio
-      icone={consulta.error instanceof SemConexao ? 'semConexao' : 'erro'}
+    <ErroDaTela
+      erro={consulta.error}
       titulo="Não deu para calcular o relatório"
-      descricao={mensagemDoErro(consulta.error)}
-      acao={{ titulo: 'Tentar de novo', aoPressionar: () => void consulta.refetch() }}
+      aoTentarDeNovo={() => void consulta.refetch()}
     />
   )
 }
@@ -241,7 +248,7 @@ function Escalas({ comunidadeId, filtros }: PropsDoRelatorio) {
   return (
     <>
       <GradeDeNumeros>
-        <Numero rotulo="escalas" valor={totais.escalas} />
+        <Numero rotulo="convocações" valor={totais.escalas} />
         <Numero rotulo="cumpridas" valor={totais.cumpridas} />
         <Numero rotulo="recusadas" valor={totais.recusadas} />
         <Numero rotulo="sem resposta" valor={totais.semResposta} />
@@ -249,7 +256,7 @@ function Escalas({ comunidadeId, filtros }: PropsDoRelatorio) {
         <Numero rotulo="substituições assumidas" valor={totais.substituicoesAssumidas} />
       </GradeDeNumeros>
       <GraficoDeBarras
-        titulo="Escalas por pessoa"
+        titulo="Convocações por pessoa"
         barras={porPessoa.map((p) => ({
           rotulo: p.nome,
           valor: p.escalas,

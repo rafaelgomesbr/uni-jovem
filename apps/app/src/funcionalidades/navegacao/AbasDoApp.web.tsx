@@ -165,7 +165,7 @@ function PularParaOConteudo() {
 }
 
 /**
- * Web: barra lateral (os cinco itens e os módulos) em janela larga; a mesma
+ * Web: barra lateral (os quatro itens e os módulos) em janela larga; a mesma
  * barra flutuante do celular em janela estreita. Os gatilhos ficam como
  * filhos diretos da TabList, e ela, filha direta de `Tabs` (é só ali que o
  * `Tabs` os procura). O conteúdo fica sempre na mesma posição entre os

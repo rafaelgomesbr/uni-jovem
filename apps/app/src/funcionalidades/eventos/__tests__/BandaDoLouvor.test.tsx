@@ -1,11 +1,11 @@
-import { screen, userEvent, waitFor } from '@testing-library/react-native'
+import { act, screen, userEvent, waitFor } from '@testing-library/react-native'
 import { router } from 'expo-router'
 
 import type { Atribuicao } from '@/servicos/contratoDosEventos'
 import { ETAPAS, EVENTO_ID, eventoDeTeste } from '@/testes/fixturas'
 import { BASE, COMUNIDADE, PESSOAS, pedidosPara, renderizarTela } from '@/testes/telas'
 import { mostrarToast } from '@/ui/Toast'
-import { confirmar } from '@/utilidades/confirmar'
+import { confirmarAgora, desfazerAgora } from '@/ui/ToastComDesfazer'
 
 import { DetalheDoEvento } from '../DetalheDoEvento'
 
@@ -57,7 +57,10 @@ function montar(
 }
 
 describe('banda do encontro nos Convocados (D61)', () => {
-  beforeEach(() => jest.clearAllMocks())
+  beforeEach(() => {
+    jest.clearAllMocks()
+    desfazerAgora()
+  })
 
   test('o louvor agrupa por função e diz o que falta: "Falta: bateria"', async () => {
     await montar('organizador', [
@@ -72,9 +75,13 @@ describe('banda do encontro nos Convocados (D61)', () => {
     expect(screen.getByText('Violão · 1')).toBeOnTheScreen()
     expect(screen.getByText('Bateria · 1')).toBeOnTheScreen()
     expect(screen.getByText('Carla Dias')).toBeOnTheScreen()
-    expect(
-      screen.getByText('Ninguém convocado: guitarra, teclado, baixo, projeção, som.'),
-    ).toBeOnTheScreen()
+    // As funções sem ninguém ficam à vista, cada uma com o seu "Convocar".
+    expect(screen.getByText('Ninguém convocado')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Convocar para Guitarra' })).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Convocar para Som' })).toBeOnTheScreen()
+    // O resumo de cima conta quem respondeu (quem recusou também respondeu).
+    expect(screen.getByText('3 de 3 responderam')).toBeOnTheScreen()
+    expect(screen.getByText('Falta: bateria')).toBeOnTheScreen()
   })
 
   test('banda completa não mostra "Falta"', async () => {
@@ -87,15 +94,17 @@ describe('banda do encontro nos Convocados (D61)', () => {
     expect(screen.queryByText(/Falta:/)).toBeNull()
   })
 
-  test('o resumo geral e os outros grupos seguem como antes', async () => {
+  test('o resumo diz "0 de 1 responderam" e quem falta; o chip da pessoa tem a palavra', async () => {
     await montar('organizador', [pessoa(1, 'Vocal', 'pendente', 'Bruno Lima')])
     await userEvent.setup().press(await screen.findByRole('radio', { name: 'Convocados' }))
-    expect(await screen.findByText('1 convocado: 1 aguardando')).toBeOnTheScreen()
+    expect(await screen.findByText('0 de 1 responderam')).toBeOnTheScreen()
+    expect(screen.getByText('Faltam: Bruno Lima')).toBeOnTheScreen()
+    expect(screen.getAllByText('Aguardando resposta').length).toBeGreaterThan(0)
     // Ninguém aceitou ainda: a função que foi convocada aparece como a que falta.
     expect(screen.getByText('0 de 1 aceitaram. Falta: vocal')).toBeOnTheScreen()
   })
 
-  test('"Avisar a banda" nos Convocados confirma e avisa', async () => {
+  test('"Avisar a banda" nos Convocados avisa depois do Desfazer', async () => {
     const { servidor } = await montar(
       'organizador',
       [pessoa(1, 'Vocal', 'confirmada', 'Bruno Lima')],
@@ -109,7 +118,9 @@ describe('banda do encontro nos Convocados (D61)', () => {
     const usuario = userEvent.setup()
     await usuario.press(await screen.findByRole('radio', { name: 'Convocados' }))
     await usuario.press(await screen.findByRole('button', { name: 'Avisar a banda' }))
-    expect(confirmar).toHaveBeenCalledWith(expect.objectContaining({ titulo: 'Avisar a banda?' }))
+    // D71: avisar gente não pede "tem certeza?": o Desfazer de 10 s segura o envio e só então sai.
+    expect(pedidosPara(servidor, 'POST', `${CAMINHO}/repertorio/avisar`)).toHaveLength(0)
+    await act(async () => confirmarAgora())
     await waitFor(() =>
       expect(pedidosPara(servidor, 'POST', `${CAMINHO}/repertorio/avisar`)).toHaveLength(1),
     )
@@ -122,7 +133,9 @@ describe('banda do encontro nos Convocados (D61)', () => {
     await montar('organizador', [])
     const usuario = userEvent.setup()
     await usuario.press(await screen.findByRole('radio', { name: 'Convocados' }))
-    await usuario.press(screen.getByRole('button', { name: /^Convocar pessoa: .*Louvor$/ }))
+    // Sem ninguém convocado, o vazio convida; a folha pergunta "Onde" e, no Louvor, a função é a da banda.
+    await usuario.press(screen.getByRole('button', { name: 'Convocar pessoas' }))
+    await usuario.press(await screen.findByRole('radio', { name: 'Louvor' }))
     for (const funcao of [
       'Vocal',
       'Violão',
@@ -198,38 +211,5 @@ describe('repertório no Roteiro do encontro (D61)', () => {
     await montar('organizador', [])
     await userEvent.setup().press(await screen.findByRole('radio', { name: 'Roteiro' }))
     expect(await screen.findByRole('button', { name: 'Montar repertório' })).toBeOnTheScreen()
-  })
-
-  test('membro não convocado e sem músicas: nada de cartão de repertório', async () => {
-    await montar('membro', [])
-    await userEvent.setup().press(await screen.findByRole('radio', { name: 'Roteiro' }))
-    await screen.findByText(/Total .* previstos/)
-    expect(screen.queryByText('Repertório do louvor')).toBeNull()
-  })
-
-  test('membro convocado ao louvor ganha o atalho "Meu repertório" no encontro', async () => {
-    await montar('membro', [], {
-      [`GET ${BASE}/meu-repertorio`]: () => ({
-        status: 200,
-        corpo: {
-          encontros: [
-            {
-              evento: {
-                id: EVENTO_ID,
-                titulo: 'Sábado',
-                inicio: '2026-11-28T19:00:00.000Z',
-                fuso: 'America/Sao_Paulo',
-              },
-              convocacoes: [{ atribuicaoId: 'a1', funcao: 'Violão', estado: 'confirmada' }],
-              itens: [],
-            },
-          ],
-        },
-      }),
-    })
-    const usuario = userEvent.setup()
-    await usuario.press(await screen.findByRole('radio', { name: 'Roteiro' }))
-    await usuario.press(await screen.findByRole('button', { name: /^Abrir o meu repertório/ }))
-    expect(router.push).toHaveBeenCalledWith('/meu-repertorio')
   })
 })

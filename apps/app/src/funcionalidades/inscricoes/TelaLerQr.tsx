@@ -24,7 +24,7 @@ import { usePode } from '../comunidade/permissoes'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { useOffline, usePacoteDoEvento } from '../offline/ProvedorOffline'
 import { listaDeCheckinLocal } from '../offline/vistaLocal'
-import { useListaDeCheckin, useMarcarPresenca } from './consultas'
+import { useDesfazerPresenca, useListaDeCheckin, useMarcarPresenca } from './consultas'
 import { codigoDeEntradaValido, formatarCodigo } from './nomes'
 import { useMarcarPresencaNoAparelho } from './TelaCheckin'
 
@@ -73,6 +73,7 @@ function LerQr({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: str
   const [permissao, pedirPermissao] = useCameraPermissions()
   const lista = useListaDeCheckin(comunidadeId, eventoId)
   const marcar = useMarcarPresenca(comunidadeId, eventoId)
+  const desfazer = useDesfazerPresenca(comunidadeId, eventoId)
   const offline = useOffline()
   const guardado = usePacoteDoEvento(eventoId).data ?? null
   const listaLocal = guardado ? listaDeCheckinLocal(guardado.pacote, offline.operacoes) : null
@@ -137,7 +138,24 @@ function LerQr({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: str
           mostrarToast(
             r.jaRegistrada
               ? { texto: `${nome ?? 'Esta pessoa'} já estava com presença.`, tipo: 'info' }
-              : { texto: `Presença de ${nome ?? 'quem tem este código'} registrada.` },
+              : {
+                  texto: `Presença de ${nome ?? 'quem tem este código'} registrada.`,
+                  // A câmera continua aberta: se leu a pessoa errada, o Desfazer está a um toque.
+                  acao: {
+                    titulo: 'Desfazer',
+                    aoPressionar: () =>
+                      desfazer.mutate(
+                        { presencaId: r.id, nome: nome ?? 'quem tem este código' },
+                        {
+                          onSuccess: () =>
+                            mostrarToast({
+                              texto: `Presença de ${nome ?? 'quem tem este código'} desfeita.`,
+                              tipo: 'info',
+                            }),
+                        },
+                      ),
+                  },
+                },
           ),
         onError: (erro) =>
           mostrarToast({

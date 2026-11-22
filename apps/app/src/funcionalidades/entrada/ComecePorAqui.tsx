@@ -1,111 +1,42 @@
-import { ALTURA, ESPACO, RAIO } from '@uj/tokens'
-import { router, type Href } from 'expo-router'
-import { View } from 'react-native'
+import { router } from 'expo-router'
 
-import { Botao, type VarianteDoBotao } from '@/ui/Botao'
-import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
-import { Icone, type NomeDoIcone } from '@/ui/Icone'
-import { Texto } from '@/ui/Texto'
-import { useTema } from '@/ui/tema'
+import { Botao } from '@/ui/Botao'
 
 import { CartaoDoVersiculo } from '../versiculo/CartaoDoVersiculo'
 import { MeusPedidos } from './MeusPedidos'
-
-interface Caminho {
-  icone: NomeDoIcone
-  titulo: string
-  descricao: string
-  acao: string
-  destino: Href
-  variante: VarianteDoBotao
-}
+import { VazioComSol } from './VazioComSol'
 
 /**
- * Os três caminhos, do mais comum ao menos comum. Um primário só na tela:
- * quem recebeu um código é a maioria; os outros dois são alternativas.
- */
-const CAMINHOS: readonly Caminho[] = [
-  {
-    icone: 'qr',
-    titulo: 'Tenho um código ou convite',
-    descricao: 'Digite o código que a liderança passou, leia o QR com a câmera ou cole o link.',
-    acao: 'Usar código ou convite',
-    destino: '/tenho-um-codigo',
-    variante: 'primario',
-  },
-  {
-    icone: 'buscar',
-    titulo: 'Procurar minha comunidade',
-    descricao: 'Busque pelo nome da igreja ou do grupo e pela cidade, e peça para entrar.',
-    acao: 'Procurar comunidade',
-    destino: '/procurar-comunidade',
-    variante: 'secundario',
-  },
-  {
-    icone: 'adicionar',
-    titulo: 'Criar uma comunidade',
-    descricao:
-      'Para quem lidera um grupo e quer organizar tudo por aqui. Você vira o administrador.',
-    acao: 'Criar comunidade',
-    destino: '/criar-comunidade',
-    variante: 'secundario',
-  },
-]
-
-/** Um caminho: ladrilho de 48 com o ícone, o título, uma frase e o botão com o verbo. */
-function CartaoDoCaminho({ caminho }: { caminho: Caminho }) {
-  const { cores, solido } = useTema()
-  return (
-    <CartaoDeVidro
-      acoes={
-        <Botao
-          titulo={caminho.acao}
-          variante={caminho.variante}
-          larguraTotal
-          aoPressionar={() => router.push(caminho.destino)}
-        />
-      }
-    >
-      <View style={{ flexDirection: 'row', gap: ESPACO.e12, alignItems: 'flex-start' }}>
-        <View
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          style={{
-            width: ALTURA.controle,
-            height: ALTURA.controle,
-            borderRadius: RAIO.controle,
-            backgroundColor: solido(cores.quenteFundo),
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Icone nome={caminho.icone} cor={cores.destaque} tamanho={24} />
-        </View>
-        <View style={{ flex: 1, gap: ESPACO.e4 }}>
-          <Texto variante="tituloItem" accessibilityRole="header">
-            {caminho.titulo}
-          </Texto>
-          <Texto variante="corpo" cor="textoSuave">
-            {caminho.descricao}
-          </Texto>
-        </View>
-      </View>
-    </CartaoDeVidro>
-  )
-}
-
-/**
- * "Comece por aqui" (ADR 0007): a conta sem comunidade vê três caminhos
- * grandes, cada um com um botão de texto (nada só em ícone), o versículo do
- * dia e, se houver, os próprios pedidos de entrada.
+ * "Comece por aqui" (UX v3, fluxo a): UMA pergunta e UMA ação principal. Quem recebeu um código ou
+ * um link é a maioria, então "Tenho um código" é o único botão grande; procurar a comunidade e
+ * criar uma são links de texto, com o mesmo alvo de 44 pt mas sem o mesmo peso (criar quase
+ * ninguém faz). Antes dela, os pedidos de entrada da própria conta (com "Cancelar pedido"), se
+ * houver. O sol atrás do horizonte diz "ainda não" sem ocupar uma linha de texto. O versículo do
+ * dia continua por último (o Início sem comunidade o mostrava e não atrapalha a decisão).
  */
 export function ComecePorAqui() {
   return (
     <>
       <MeusPedidos />
-      {CAMINHOS.map((c) => (
-        <CartaoDoCaminho key={c.titulo} caminho={c} />
-      ))}
+      <VazioComSol
+        titulo="Você recebeu um código ou um link?"
+        descricao="Com ele você entra no seu grupo em poucos segundos."
+        acao={{ titulo: 'Tenho um código', aoPressionar: () => router.push('/tenho-um-codigo') }}
+        rodape={
+          <>
+            <Botao
+              titulo="Procurar minha comunidade"
+              variante="terciario"
+              aoPressionar={() => router.push('/procurar-comunidade')}
+            />
+            <Botao
+              titulo="Criar uma comunidade"
+              variante="terciario"
+              aoPressionar={() => router.push('/criar-comunidade')}
+            />
+          </>
+        }
+      />
       <CartaoDoVersiculo />
     </>
   )

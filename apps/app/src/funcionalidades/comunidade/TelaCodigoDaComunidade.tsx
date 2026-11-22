@@ -7,7 +7,7 @@ import { useSessao } from '@/estado/sessao'
 import type { CodigoDaComunidade, ComunidadeDoVinculo } from '@/servicos/contrato'
 import { Aviso } from '@/ui/Aviso'
 import { Botao, ParDeBotoes } from '@/ui/Botao'
-import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
+import { Cartao } from '@/ui/Cartao'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { CodigoQR } from '@/ui/CodigoQR'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
@@ -190,7 +190,7 @@ function Codigo({
           A comunidade foi criada. Envie o logotipo de novo em Configurações da comunidade.
         </Aviso>
       ) : null}
-      <CartaoDeDestaque
+      <Cartao
         sobrancelha="Código da comunidade"
         acoes={
           <View style={{ gap: ESPACO.e12 }}>
@@ -231,7 +231,7 @@ function Codigo({
             link.
           </Texto>
         </View>
-      </CartaoDeDestaque>
+      </Cartao>
 
       <Texto variante="corpo">{avisoDoCodigo(modo)}</Texto>
 

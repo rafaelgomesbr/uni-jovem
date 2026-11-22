@@ -1,9 +1,11 @@
-import { fireEvent, screen, userEvent, waitFor } from '@testing-library/react-native'
+import { act, fireEvent, screen, userEvent, waitFor } from '@testing-library/react-native'
 import { router, useLocalSearchParams, usePreventRemove } from 'expo-router'
 import { Alert } from 'react-native'
 
 import { DIA_DO_INICIO, EVENTO_ID, eventoDeTeste, INICIO } from '@/testes/fixturas'
 import { BASE, pedidosPara, renderizarTela } from '@/testes/telas'
+import { HospedeiroDeToast } from '@/ui/Toast'
+import { confirmarAgora } from '@/ui/ToastComDesfazer'
 
 import { TelaEditarEvento } from '../TelaEditarEvento'
 import { TelaMudarStatus } from '../TelaMudarStatus'
@@ -15,7 +17,7 @@ const [ANO, MES, DIA] = DIA_DO_INICIO.split('-').map(Number) as [number, number,
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 const DATA_ESCOLHIDA = new Date(ANO, MES - 1, DIA, 12)
 const HORA_ESCOLHIDA = new Date(ANO, MES - 1, DIA, 16, 0)
-const ROTULO_DA_DATA = new RegExp(`^Data: Sáb\., ${DIA} de ${MESES[MES - 1]}\. de ${ANO}`)
+const ROTULO_DA_DATA = new RegExp(`^Data: Sáb\\., ${DIA} de ${MESES[MES - 1]}\\. de ${ANO}`)
 
 jest.mock('expo-router', () => ({
   router: {
@@ -99,6 +101,64 @@ describe('criar encontro', () => {
     )
   })
 
+  test('o formulário é curto: título, data, hora e local; o resto fica dobrado em "Mais opções"', async () => {
+    parametros.mockReturnValue({})
+    await renderizarTela(<TelaNovoEvento />, { rotas: ROTAS_DO_FORMULARIO })
+    const usuario = userEvent.setup()
+    expect(await screen.findByLabelText('Título')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: /^Data:/ })).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: /^Hora:/ })).toBeOnTheScreen()
+    expect(screen.getByText('Onde')).toBeOnTheScreen()
+    // Categoria, duração, quem vê e repetição só depois de abrir.
+    expect(screen.queryByLabelText('Categoria')).toBeNull()
+    expect(screen.queryByLabelText('Duração')).toBeNull()
+    expect(screen.queryByRole('radio', { name: 'Toda semana' })).toBeNull()
+    await usuario.press(screen.getByRole('button', { name: 'Mais opções' }))
+    expect(await screen.findByLabelText('Categoria')).toBeOnTheScreen()
+    expect(screen.getByLabelText('Duração')).toBeOnTheScreen()
+    expect(screen.getByText('Repetição')).toBeOnTheScreen()
+    // Em branco, o caminho curto já tem categoria e duração: o líder só preenche o essencial.
+    expect(screen.getByDisplayValue('Encontro')).toBeOnTheScreen()
+    expect(screen.getByDisplayValue('60')).toBeOnTheScreen()
+  })
+
+  test('só com o essencial (em branco), cria o rascunho com os padrões', async () => {
+    parametros.mockReturnValue({})
+    const { servidor } = await renderizarTela(<TelaNovoEvento />, {
+      rotas: {
+        ...ROTAS_DO_FORMULARIO,
+        [`POST ${BASE}/eventos`]: () => ({ status: 200, corpo: { id: 'novo-2', versao: 1 } }),
+      },
+    })
+    await fireEvent.changeText(await screen.findByLabelText('Título'), 'Noite de Louvor')
+    await escolher(/^Data:/, DATA_ESCOLHIDA)
+    await escolher(/^Hora:/, HORA_ESCOLHIDA)
+    await userEvent.setup().press(screen.getByRole('button', { name: 'Salvar rascunho' }))
+    await waitFor(() => expect(pedidosPara(servidor, 'POST', `${BASE}/eventos`)).toHaveLength(1))
+    expect(pedidosPara(servidor, 'POST', `${BASE}/eventos`)[0]?.corpo).toMatchObject({
+      titulo: 'Noite de Louvor',
+      categoria: 'Encontro',
+      duracaoMin: 60,
+      inicio: INICIO,
+    })
+  })
+
+  test('erro em campo escondido abre "Mais opções" sozinho, para o campo com erro ficar à vista', async () => {
+    parametros.mockReturnValue({})
+    const { servidor } = await renderizarTela(<TelaNovoEvento />, { rotas: ROTAS_DO_FORMULARIO })
+    const usuario = userEvent.setup()
+    await fireEvent.changeText(await screen.findByLabelText('Título'), 'Luau')
+    await escolher(/^Data:/, DATA_ESCOLHIDA)
+    await escolher(/^Hora:/, HORA_ESCOLHIDA)
+    await usuario.press(screen.getByRole('button', { name: 'Mais opções' }))
+    await fireEvent.changeText(screen.getByLabelText('Duração'), '2')
+    await usuario.press(screen.getByRole('button', { name: 'Mais opções' }))
+    // Dobrou, mas a duração está inválida: ao salvar, a seção volta aberta com o erro.
+    await usuario.press(screen.getByRole('button', { name: 'Salvar rascunho' }))
+    expect(await screen.findByText('Use minutos inteiros, de 5 a 1440.')).toBeOnTheScreen()
+    expect(pedidosPara(servidor, 'POST', `${BASE}/eventos`)).toHaveLength(0)
+  })
+
   test('"Novo encontro neste dia" (Agenda): a data já vem escolhida', async () => {
     parametros.mockReturnValue({ data: '2026-12-05' })
     await renderizarTela(<TelaNovoEvento />, { rotas: ROTAS_DO_FORMULARIO })
@@ -163,11 +223,14 @@ describe('criar encontro', () => {
     const usuario = userEvent.setup()
 
     await fireEvent.changeText(await screen.findByLabelText('Título'), 'Sábado')
-    await fireEvent.changeText(screen.getByLabelText('Categoria'), 'Programação de sábado')
     await escolher(/^Data:/, DATA_ESCOLHIDA)
     await escolher(/^Hora:/, HORA_ESCOLHIDA)
+    // A repetição mora em "Mais opções" (D69): o formulário curto não a mostra.
+    expect(screen.queryByRole('radio', { name: 'Toda semana' })).toBeNull()
+    await usuario.press(screen.getByRole('button', { name: 'Mais opções' }))
+    await fireEvent.changeText(screen.getByLabelText('Categoria'), 'Programação de sábado')
     await fireEvent.changeText(screen.getByLabelText('Duração'), '60')
-    await usuario.press(screen.getByRole('radio', { name: 'Toda semana' }))
+    await usuario.press(await screen.findByRole('radio', { name: 'Toda semana' }))
     expect(await screen.findByText('Toda semana, aos sábados, às 16:00')).toBeOnTheScreen()
     await usuario.press(screen.getByRole('button', { name: 'Publicar' }))
 
@@ -270,14 +333,14 @@ describe('cancelar ou adiar', () => {
     })
     const usuario = userEvent.setup()
 
-    await usuario.press(await screen.findByRole('button', { name: 'Cancelar encontro' }))
+    await usuario.press(await screen.findByRole('button', { name: 'Cancelar o encontro' }))
     expect(
       await screen.findByText('Explique o motivo: ele vai para quem participa.'),
     ).toBeOnTheScreen()
     expect(pedidosPara(servidor, 'POST', `${CAMINHO}/status`)).toHaveLength(0)
 
     await fireEvent.changeText(screen.getByLabelText('Motivo'), 'Chuva forte na região')
-    await usuario.press(screen.getByRole('button', { name: 'Cancelar encontro' }))
+    await usuario.press(screen.getByRole('button', { name: 'Cancelar o encontro' }))
 
     await waitFor(() =>
       expect(pedidosPara(servidor, 'POST', `${CAMINHO}/status`)[0]?.corpo).toEqual({
@@ -294,7 +357,67 @@ describe('cancelar ou adiar', () => {
       papel: 'membro',
       rotas: { [`GET ${CAMINHO}`]: () => ({ status: 200, corpo: eventoDeTeste() }) },
     })
-    expect(await screen.findByText('Só a organização cancela ou adia eventos.')).toBeOnTheScreen()
-    expect(screen.queryByRole('button', { name: 'Cancelar encontro' })).toBeNull()
+    expect(await screen.findByText('Só a organização cancela ou adia encontros.')).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: 'Cancelar o encontro' })).toBeNull()
+  })
+
+  test('a consequência vem escrita: "Vai avisar 1 pessoa convocada e quem se inscreveu."', async () => {
+    parametros.mockReturnValue({ eventoId: EVENTO_ID, acao: 'cancelar' })
+    await renderizarTela(<TelaMudarStatus />, {
+      rotas: { [`GET ${CAMINHO}`]: () => ({ status: 200, corpo: eventoDeTeste() }) },
+    })
+    expect(
+      await screen.findByText(/Vai avisar 1 pessoa convocada e quem se inscreveu\./),
+    ).toBeOnTheScreen()
+    // Os dois caminhos na mesma tela: adiar e cancelar.
+    expect(screen.getByRole('radio', { name: 'Cancelar' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Adiar' })).toBeOnTheScreen()
+  })
+
+  test('adiar avisa gente: volta ao encontro e o aviso espera 10 s, com Desfazer', async () => {
+    parametros.mockReturnValue({ eventoId: EVENTO_ID, acao: 'adiar' })
+    const { servidor } = await renderizarTela(
+      <>
+        <TelaMudarStatus />
+        <HospedeiroDeToast />
+      </>,
+      {
+        rotas: {
+          [`GET ${CAMINHO}`]: () => ({ status: 200, corpo: eventoDeTeste() }),
+          [`POST ${CAMINHO}/status`]: () => ({ status: 200, corpo: { id: EVENTO_ID } }),
+        },
+      },
+    )
+    const usuario = userEvent.setup()
+    expect(await screen.findByRole('radio', { name: 'Adiar' })).toBeChecked()
+    await fireEvent.changeText(screen.getByLabelText('Motivo'), 'Falta de energia no salão')
+    await usuario.press(screen.getByRole('button', { name: 'Adiar o encontro' }))
+
+    expect(await screen.findByText('Adiando e avisando 1 pessoa.')).toBeOnTheScreen()
+    expect(router.back).toHaveBeenCalled()
+    expect(pedidosPara(servidor, 'POST', `${CAMINHO}/status`)).toHaveLength(0)
+    await act(async () => confirmarAgora())
+    await waitFor(() =>
+      expect(pedidosPara(servidor, 'POST', `${CAMINHO}/status`)[0]?.corpo).toEqual({
+        status: 'adiado',
+        motivo: 'Falta de energia no salão',
+      }),
+    )
+  })
+
+  test('adiar e desistir: Desfazer não envia nada', async () => {
+    parametros.mockReturnValue({ eventoId: EVENTO_ID, acao: 'adiar' })
+    const { servidor } = await renderizarTela(
+      <>
+        <TelaMudarStatus />
+        <HospedeiroDeToast />
+      </>,
+      { rotas: { [`GET ${CAMINHO}`]: () => ({ status: 200, corpo: eventoDeTeste() }) } },
+    )
+    const usuario = userEvent.setup()
+    await fireEvent.changeText(await screen.findByLabelText('Motivo'), 'Falta de energia')
+    await usuario.press(screen.getByRole('button', { name: 'Adiar o encontro' }))
+    await usuario.press(await screen.findByRole('button', { name: 'Desfazer' }))
+    expect(pedidosPara(servidor, 'POST', `${CAMINHO}/status`)).toHaveLength(0)
   })
 })

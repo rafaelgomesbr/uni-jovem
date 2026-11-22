@@ -85,13 +85,22 @@ export function CartaoDoVersiculo({ fixoAberto = false }: Props) {
         {v.referencia} · {SIGLA}
       </Texto>
       {fixoAberto ? null : (
-        <Botao
-          titulo="Sobre a tradução"
-          variante="terciario"
-          alinhado
-          rotuloAcessivel={`Sobre a tradução: ${ATRIBUICAO.traducao}, ${ATRIBUICAO.licenca}`}
-          aoPressionar={() => router.push('/versiculo/traducao')}
-        />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: ESPACO.e16 }}>
+          <Botao
+            titulo="Ler com calma"
+            variante="terciario"
+            alinhado
+            rotuloAcessivel="Ler o versículo do dia com calma e escolher o horário"
+            aoPressionar={() => router.push('/versiculo')}
+          />
+          <Botao
+            titulo="Sobre a tradução"
+            variante="terciario"
+            alinhado
+            rotuloAcessivel={`Sobre a tradução: ${ATRIBUICAO.traducao}, ${ATRIBUICAO.licenca}`}
+            aoPressionar={() => router.push('/versiculo/traducao')}
+          />
+        </View>
       )}
     </>
   )

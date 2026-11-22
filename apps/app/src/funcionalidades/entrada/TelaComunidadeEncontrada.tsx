@@ -8,10 +8,10 @@ import { Aviso } from '@/ui/Aviso'
 import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
-import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { EstadoVazio } from '@/ui/EstadoVazio'
 import { AvisoDeFalha } from '@/ui/Falha'
+import { useSemConexao } from '@/ui/IndicadorDeConexao'
 import { useConfirmarDescarte, useTravaDeEnvio } from '@/ui/navegacao'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
@@ -25,6 +25,7 @@ import {
   useComunidadeEncontrada,
   usePedirParaEntrar,
 } from './consultas'
+import { PedidoEnviado } from './PedidoEnviado'
 import { AvisoDoPedido, ajudaDaMensagem } from './TextosDoPedido'
 import { SeloVerificada } from './TelaProcurarComunidade'
 
@@ -59,6 +60,7 @@ export function TelaComunidadeEncontrada() {
 function Detalhe({ comunidade }: { comunidade: ComunidadeEncontrada }) {
   const [mensagem, setMensagem] = useState('')
   const pedir = usePedirParaEntrar(comunidade.idPublico)
+  const semConexao = useSemConexao()
   const consentimento = useConsentimentoDaEntrada()
   const trava = useTravaDeEnvio()
   const liberarSaida = useConfirmarDescarte(!pedir.isSuccess && mensagem.trim().length > 0)
@@ -74,7 +76,9 @@ function Detalhe({ comunidade }: { comunidade: ComunidadeEncontrada }) {
         onError: consentimento.aoFalhar,
         onSuccess: (r) => {
           liberarSaida()
-          if (r.resultado === 'membro') router.replace('/')
+          if (r.resultado === 'membro') {
+            router.replace({ pathname: '/boas-vindas', params: { comunidade: comunidade.nome } })
+          }
         },
         onSettled: () => trava.soltar(),
       },
@@ -82,16 +86,7 @@ function Detalhe({ comunidade }: { comunidade: ComunidadeEncontrada }) {
   }
 
   if (pedir.data?.resultado === 'pedido_pendente') {
-    return (
-      <Tela pilha titulo="Pedido enviado">
-        <CartaoDeDestaque
-          sobrancelha="Aguardando a liderança"
-          titulo={comunidade.nome}
-          descricao="A liderança vai ver o seu pedido. Quando decidirem, o sino do app avisa, e a comunidade aparece para você."
-          acoes={<Botao titulo="Voltar para o início" aoPressionar={() => router.replace('/')} />}
-        />
-      </Tela>
-    )
+    return <PedidoEnviado comunidade={comunidade.nome} />
   }
 
   return (
@@ -108,8 +103,12 @@ function Detalhe({ comunidade }: { comunidade: ComunidadeEncontrada }) {
                   tamanho="grande"
                   rotuloAcessivel={`${direta ? 'Entrar em' : 'Pedir para entrar em'} ${comunidade.nome}`}
                   carregando={pedir.isPending}
-                  desabilitado={consentimento.motivo !== null || consentimento.menor}
-                  {...(consentimento.motivo ? { motivo: consentimento.motivo } : {})}
+                  desabilitado={semConexao || consentimento.motivo !== null || consentimento.menor}
+                  {...(semConexao
+                    ? { motivo: 'Precisa de internet para pedir.' }
+                    : consentimento.motivo
+                      ? { motivo: consentimento.motivo }
+                      : {})}
                   aoPressionar={enviar}
                 />
               </BarraDeAcao>
@@ -142,7 +141,7 @@ function Detalhe({ comunidade }: { comunidade: ComunidadeEncontrada }) {
       {soConvite ? (
         <Aviso tipo="info" titulo="Esta comunidade só aceita convite">
           Peça um convite a alguém da liderança. Quando receber o link, abra no celular ou cole em
-          "Tenho um código ou convite".
+          "Tenho um código".
         </Aviso>
       ) : (
         <CartaoDeVidro opaco intervalo={ESPACO.e8}>

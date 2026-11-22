@@ -1,12 +1,12 @@
-import { fireEvent, screen, userEvent, waitFor } from '@testing-library/react-native'
-import { router, useLocalSearchParams } from 'expo-router'
+import { fireEvent, screen } from '@testing-library/react-native'
+import { useLocalSearchParams } from 'expo-router'
 
 import { BASE, PESSOAS, pedidosPara, renderizarTela, respostaEu } from '@/testes/telas'
 import { mostrarToast } from '@/ui/Toast'
 import { confirmar } from '@/utilidades/confirmar'
 
 import { TelaComunidade } from '../TelaComunidade'
-import { TelaConvidar } from '../TelaConvidar'
+import { resumoDoConvite, TelaConvidar } from '../TelaConvidar'
 import { TelaMembro } from '../TelaMembro'
 
 jest.mock('expo-router', () => ({
@@ -49,122 +49,7 @@ beforeEach(() => {
   jest.mocked(useLocalSearchParams).mockReturnValue({})
 })
 
-describe('aba Comunidade (D57)', () => {
-  test('membro: atalhos da comunidade no topo, sem os da organização nem os da conta', async () => {
-    await renderizarTela(<TelaComunidade />, { papel: 'membro' })
-    expect(await screen.findByText('Você é Membro · 3 pessoas')).toBeOnTheScreen()
-    const usuario = userEvent.setup()
-    for (const [nome, rota] of [
-      ['Avisos', '/avisos'],
-      ['Pedidos de oração', '/oracao'],
-      ['Sugestões', '/sugestoes'],
-      ['Conteúdos', '/conteudos'],
-    ] as const) {
-      await usuario.press(screen.getByRole('button', { name: new RegExp(`^${nome}[.]`) }))
-      expect(router.push).toHaveBeenLastCalledWith(rota)
-    }
-    expect(screen.getByText('Bruno Lima')).toBeOnTheScreen()
-    // "Louvor" é só de quem toca ou organiza (D62): este membro não foi convocado ao louvor.
-    expect(screen.queryByRole('button', { name: /^Louvor[.]/ })).toBeNull()
-    // Organização é só para quem organiza.
-    expect(screen.queryByRole('button', { name: /^Relatórios\./ })).toBeNull()
-    expect(screen.queryByRole('button', { name: /^Locais\./ })).toBeNull()
-    // Criar, entrar em outra e denunciar moram no Perfil, em "Mais opções".
-    expect(screen.queryByRole('button', { name: 'Criar comunidade' })).toBeNull()
-    expect(screen.queryByRole('button', { name: /^Entrar em outra comunidade/ })).toBeNull()
-    // Membro não convida nem vê a lista de convites.
-    expect(screen.queryByRole('button', { name: /^Criar convite/ })).toBeNull()
-    expect(screen.queryByRole('radio', { name: /^Convites/ })).toBeNull()
-  })
-
-  test('"Louvor" aparece para o membro convocado ao louvor, com a descrição nova (D62)', async () => {
-    await renderizarTela(<TelaComunidade />, {
-      papel: 'membro',
-      rotas: {
-        [`GET ${BASE}/minhas-escalas`]: () => ({
-          status: 200,
-          corpo: {
-            escalas: [
-              {
-                id: 'a1',
-                funcao: 'Violão',
-                estado: 'confirmada',
-                eventoId: 'e1',
-                eventoTitulo: 'Sábado',
-                eventoInicio: '2026-11-28T19:00:00.000Z',
-                eventoStatus: 'publicado',
-                etapaTitulo: 'Louvor',
-                substituicaoAberta: null,
-              },
-            ],
-          },
-        }),
-      },
-    })
-    const louvor = await screen.findByRole('button', { name: /^Louvor[.]/ })
-    expect(louvor).toBeOnTheScreen()
-    expect(screen.getByText('Repertório e cifras do encontro.')).toBeOnTheScreen()
-    // "Conteúdos" é a biblioteca; o vocabulário musical não vaza para cá.
-    expect(screen.getByText('Biblioteca da comunidade.')).toBeOnTheScreen()
-    await userEvent.setup().press(louvor)
-    expect(router.push).toHaveBeenLastCalledWith('/louvor')
-  })
-
-  test('"Louvor" não aparece para quem só foi convocado a outra função', async () => {
-    await renderizarTela(<TelaComunidade />, {
-      papel: 'membro',
-      rotas: {
-        [`GET ${BASE}/minhas-escalas`]: () => ({
-          status: 200,
-          corpo: {
-            escalas: [
-              {
-                id: 'a1',
-                funcao: 'Recepção',
-                estado: 'confirmada',
-                eventoId: 'e1',
-                eventoTitulo: 'Sábado',
-                eventoInicio: '2026-11-28T19:00:00.000Z',
-                eventoStatus: 'publicado',
-                etapaTitulo: 'Boas-vindas',
-                substituicaoAberta: null,
-              },
-            ],
-          },
-        }),
-      },
-    })
-    await screen.findByRole('button', { name: /^Avisos[.]/ })
-    expect(screen.queryByRole('button', { name: /^Louvor[.]/ })).toBeNull()
-  })
-
-  test('"Louvor" aparece para quem organiza, sem precisar de convocação', async () => {
-    await renderizarTela(<TelaComunidade />, { papel: 'organizador' })
-    expect(await screen.findByRole('button', { name: /^Louvor[.]/ })).toBeOnTheScreen()
-  })
-
-  test('admin: atalhos da organização, Configurações uma vez só e sem a Plataforma', async () => {
-    await renderizarTela(<TelaComunidade />, {
-      papel: 'admin',
-      rotas: {
-        // Admin e Criador ao mesmo tempo: mesmo assim, a Plataforma não aparece aqui.
-        'GET /api/v1/eu': () => {
-          const base = respostaEu('admin')
-          return { status: 200, corpo: { ...base, conta: { ...base.conta, criador: true } } }
-        },
-        [`GET ${BASE}/convites`]: () => ({ status: 200, corpo: { convites: [] } }),
-      },
-    })
-    expect(await screen.findByRole('button', { name: /^Relatórios\./ })).toBeOnTheScreen()
-    for (const nome of ['Locais', 'Modelos', 'Denúncias']) {
-      expect(screen.getByRole('button', { name: new RegExp(`^${nome}[.]`) })).toBeOnTheScreen()
-    }
-    expect(screen.getAllByRole('button', { name: /^Configurações da comunidade/ })).toHaveLength(1)
-    expect(screen.getByRole('button', { name: /^Código da comunidade/ })).toBeOnTheScreen()
-    // A Plataforma do Criador fica só no Perfil.
-    expect(screen.queryByRole('button', { name: /^Plataforma/ })).toBeNull()
-  })
-
+describe('aba Comunidade sem comunidade', () => {
   test('o Criador sem comunidade vê como criar a primeira e entrar com convite', async () => {
     await renderizarTela(<TelaComunidade />, {
       rotas: { 'GET /api/v1/eu': euComoCriador(false) },
@@ -174,22 +59,6 @@ describe('aba Comunidade (D57)', () => {
     expect(
       screen.getByRole('button', { name: 'Sem comunidade. Entrar numa comunidade' }),
     ).toBeOnTheScreen()
-  })
-
-  test('admin vê membros com papel e o cartão de convidar', async () => {
-    await renderizarTela(<TelaComunidade />, {
-      papel: 'admin',
-      rotas: { [`GET ${BASE}/convites`]: () => ({ status: 200, corpo: { convites: [] } }) },
-    })
-    expect(
-      await screen.findByRole('button', { name: 'Criar convite para Jovens Centro' }),
-    ).toBeOnTheScreen()
-    // Papel em chip: Administrador, Organizador e Membro, em texto.
-    expect(await screen.findByText('Bruno Lima')).toBeOnTheScreen()
-    expect(screen.getAllByText('Membro').length).toBeGreaterThan(0)
-    await userEvent.setup().press(screen.getByRole('radio', { name: /^Convites/ }))
-    expect(await screen.findByText('Ainda não há convites')).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Convidar a primeira pessoa' })).toBeOnTheScreen()
   })
 })
 
@@ -208,8 +77,15 @@ describe('papéis que cada um concede', () => {
     expect(screen.queryByRole('button', { name: 'Salvar papel' })).toBeNull()
   })
 
-  test('admin concede até administrador', async () => {
+  test('admin concede até administrador (em "Mais opções", fechado por padrão)', async () => {
     await renderizarTela(<TelaConvidar />, { papel: 'admin' })
+    expect(
+      await screen.findByRole('button', { name: 'Convidar para Jovens Centro' }),
+    ).toBeOnTheScreen()
+    expect(screen.queryByRole('radio', { name: 'Administrador' })).toBeNull()
+    await fireEvent.press(
+      screen.getByRole('button', { name: /^Mais opções: função, validade e e-mail/ }),
+    )
     expect(await screen.findByRole('radio', { name: 'Administrador' })).toBeOnTheScreen()
     expect(screen.getByRole('radio', { name: 'Organizador' })).toBeOnTheScreen()
     expect(screen.getByRole('radio', { name: 'Membro' })).toBeOnTheScreen()
@@ -217,6 +93,19 @@ describe('papéis que cada um concede', () => {
 })
 
 describe('convites', () => {
+  test('um botão só: o padrão (Membro, 7 dias, para quem abrir primeiro) está escrito abaixo', async () => {
+    await renderizarTela(<TelaConvidar />, { papel: 'admin' })
+    expect(
+      await screen.findByText('Entra como Membro. O link vale 7 dias, para quem abrir primeiro.'),
+    ).toBeOnTheScreen()
+    expect(resumoDoConvite('organizador', '3', 'lia@exemplo.com')).toBe(
+      'Entra como Organizador. O link vale 3 dias, só para lia@exemplo.com.',
+    )
+    expect(resumoDoConvite('membro', '1', '')).toBe(
+      'Entra como Membro. O link vale 1 dia, para quem abrir primeiro.',
+    )
+  })
+
   test('criar convite mostra o link com Copiar, Compartilhar e o QR', async () => {
     const { servidor } = await renderizarTela(<TelaConvidar />, {
       papel: 'admin',
@@ -228,7 +117,7 @@ describe('convites', () => {
       },
     })
     await fireEvent.press(
-      await screen.findByRole('button', { name: 'Criar convite de membro para Jovens Centro' }),
+      await screen.findByRole('button', { name: 'Convidar para Jovens Centro' }),
     )
 
     expect(await screen.findByRole('button', { name: 'Copiar link' })).toBeOnTheScreen()
@@ -242,58 +131,5 @@ describe('convites', () => {
       papel: 'membro',
       validadeDias: 7,
     })
-  })
-
-  test('cancelar o convite pede confirmação antes de chamar a API', async () => {
-    const { servidor } = await renderizarTela(<TelaComunidade />, {
-      papel: 'admin',
-      rotas: {
-        [`GET ${BASE}/convites`]: () => ({
-          status: 200,
-          corpo: {
-            convites: [
-              {
-                id: 'c1',
-                papel: 'organizador',
-                emailDestino: 'lia@exemplo.com',
-                criadoEm: '2026-11-14T12:00:00.000Z',
-                expiraEm: '2026-11-21T12:00:00.000Z',
-                situacao: 'valido',
-              },
-            ],
-          },
-        }),
-        [`POST ${BASE}/convites/c1/revogar`]: () => ({ status: 200, corpo: { ok: true } }),
-      },
-    })
-    const usuario = userEvent.setup()
-    await usuario.press(await screen.findByRole('radio', { name: 'Convites (1)' }))
-    const convite = await screen.findByRole('button', {
-      name: /^Convite de Organizador\. Válido\. Para lia@exemplo\.com/,
-    })
-    expect(screen.getByText('Válido')).toBeOnTheScreen()
-
-    // Tocar no convite abre a folha; "Cancelar convite" pede a confirmação nativa.
-    jest.mocked(confirmar).mockResolvedValueOnce(false)
-    await usuario.press(convite)
-    await usuario.press(await screen.findByRole('button', { name: /^Cancelar convite/ }))
-    await waitFor(() => expect(confirmar).toHaveBeenCalledTimes(1))
-    expect(jest.mocked(confirmar).mock.calls[0]?.[0]).toMatchObject({
-      titulo: 'Cancelar este convite?',
-      destrutivo: true,
-    })
-    expect(pedidosPara(servidor, 'POST', `${BASE}/convites/c1/revogar`)).toHaveLength(0)
-
-    jest.mocked(confirmar).mockResolvedValueOnce(true)
-    await usuario.press(convite)
-    await usuario.press(await screen.findByRole('button', { name: /^Cancelar convite/ }))
-    await waitFor(() =>
-      expect(pedidosPara(servidor, 'POST', `${BASE}/convites/c1/revogar`)).toHaveLength(1),
-    )
-    await waitFor(() =>
-      expect(mostrarToast).toHaveBeenCalledWith({
-        texto: 'Convite cancelado. O link deixou de funcionar.',
-      }),
-    )
   })
 })

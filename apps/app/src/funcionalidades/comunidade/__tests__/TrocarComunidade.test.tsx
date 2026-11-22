@@ -54,4 +54,19 @@ describe('trocar de comunidade (3.7.9)', () => {
     await fireEvent.press(await screen.findByRole('button', { name: 'Fechar' }))
     expect(router.back).toHaveBeenCalled()
   })
+
+  test('a folha também entra em outra, cria e sai da atual (a linha "Comunidades" do Perfil abre esta folha, D70)', async () => {
+    await renderizarTela(<TelaTrocarComunidade />, {
+      rotas: { 'GET /api/v1/eu': () => ({ status: 200, corpo: euComDuas() }) },
+    })
+    await fireEvent.press(
+      await screen.findByRole('button', { name: /^Entrar em outra comunidade/ }),
+    )
+    expect(router.push).toHaveBeenLastCalledWith('/comece-por-aqui')
+    await fireEvent.press(screen.getByRole('button', { name: /^Criar comunidade/ }))
+    expect(router.push).toHaveBeenLastCalledWith('/criar-comunidade')
+    // Sair da atual: destrutivo, com a consequência escrita para o leitor de tela.
+    await screen.findByRole('radio', { name: /Comunidade ativa agora/ })
+    expect(await screen.findByRole('button', { name: /^Sair de Jovens/ })).toBeOnTheScreen()
+  })
 })

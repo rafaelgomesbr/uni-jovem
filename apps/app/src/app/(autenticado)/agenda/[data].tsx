@@ -1,1 +1,1 @@
-export { TelaTimelineDoDia as default } from '@/funcionalidades/agenda/TelaTimelineDoDia'
+export { RedirecionarParaODia as default } from '@/funcionalidades/agenda/RedirecionarParaODia'

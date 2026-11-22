@@ -9,6 +9,7 @@ import type {
   PedidoDeOracao,
 } from '@/servicos/contratoDosModulos'
 
+import { chaveDoMural } from '../comunidade/consultas'
 import { naComunidade, textoDeConsulta } from '../eventos/consultas'
 
 /**
@@ -54,7 +55,12 @@ function useMutacaoDeOracao<V, R>(comunidadeId: string, executar: (v: V) => Prom
   return useMutation({
     mutationFn: executar,
     gcTime: 0,
-    onSettled: () => consultas.invalidateQueries({ queryKey: CHAVES.oracao(comunidadeId) }),
+    // O mural conta os pedidos novos: criar, orar ou excluir mexe no número.
+    onSettled: () =>
+      Promise.all([
+        consultas.invalidateQueries({ queryKey: CHAVES.oracao(comunidadeId) }),
+        consultas.invalidateQueries({ queryKey: chaveDoMural(comunidadeId) }),
+      ]),
   })
 }
 

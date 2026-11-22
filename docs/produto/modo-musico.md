@@ -4,6 +4,8 @@ Proposta de produto escrita em 21/11/2026, a partir do pedido do dono: "O app po
 
 **Estado em 21/11/2026:** a **fatia 1 foi construída** (decisão D61 em [DECISOES.md](../DECISOES.md), migração 0027), com as respostas padrão às perguntas 1 a 3 da seção 10: só organizador e administrador editam o repertório, todo membro lê a cifra e não há músico convidado sem conta. A seção 9 diz o que a fatia 1 entregou e o que ficou para as fatias seguintes. O resto deste documento continua sendo o desenho: o que não é da fatia 1 segue como proposta, sem construção nem decisão, e a pergunta 4 (sinal de internet) decide se a fatia 2 sobe de prioridade.
 
+**Estado em 22/11/2026:** a **fatia 2 foi construída** (Modo palco e uso sem internet; decisão D71, direção visual A) e, da fatia 3, só o bloco da banda na tela do repertório. O desenho de telas das seções 6.3 a 6.6 está no app: Meu repertório, leitor de cifra, Modo palco, Repertório do encontro e Banda. A seção 9 diz o que cada fatia entregou e o que ficou pendente.
+
 ## 1. Resumo e para quem é
 
 - O regente (ou ministro de louvor) monta o **repertório do encontro**: quais músicas, em que ordem, em que tom, e quem toca o quê.
@@ -335,12 +337,24 @@ Ordem pelo que prova o valor mais cedo. Esforço: pequena (poucos dias), média 
 
 ### Fatia 2: Modo palco e uso sem internet
 
+> **Entregue em 22/11/2026 (D71), sem migração e sem rota nova no servidor** (usa o pacote da D66). Só no app nativo: na web nada fica guardado, e o cartão diz isso. O que foi entregue está logo abaixo da lista do que a fatia muda.
+
 - **Ganha:** a cifra funciona sem sinal e em tela escura de palco.
 - **Muda:** Modo palco completo (seção 6.6); repertório e cifras entram no pacote offline e no cofre cifrado; "Deixar pronto sem internet" em Meu repertório; tamanho de fonte lembrado.
 - **Esforço:** média.
 - **Depende de:** fatia 1 e do offline atual (que só existe no app nativo, não na web). Se o sinal da igreja for ruim, esta fatia sobe para antes do uso real (pergunta 4).
 
+**O que a fatia 2 entregou (22/11/2026):**
+
+- **Modo palco** (abre pelo botão "Palco" da cifra ou pelo "Modo palco" do Meu repertório, que já abre a primeira música): tela cheia escura, sem barra de abas, tela sempre acesa (`expo-keep-awake`, que já estava instalado), título, tom e capotraste, letra de 24 a 56 pt (o tamanho fica lembrado neste aparelho), acordes em negrito sobre a sílaba, rolagem por botão (uma página por toque) além do dedo, Tom − e Tom +, A− e A+, Anterior e Próxima, "Sair do palco" com um toque e a posição ("2 de 4"). Respeita Reduzir movimento (a rolagem por botão não anima) e o teto de 1,3 da fonte do sistema.
+- **Uso sem internet:** "Deixar pronto sem internet" baixa o pacote do repertório (`GET /eventos/:eventoId/repertorio/pacote`) para a tabela `repertorios` da mesma partição cifrada do pacote do encontro. A segunda chamada manda a versão que o aparelho tem e recebe "inalterado": a cifra não trafega de novo. A tela diz "Pronto para tocar sem internet" e "Baixado em 22/11 às 14:32. Vale até 29/11.". Meu repertório, a cifra e o Modo palco abrem da cópia quando não há rede.
+- **Baixar sozinho:** ao abrir o app, ao voltar ao primeiro plano e ao recuperar a rede, se o encontro está a até 3 dias, a pessoa tem parte (convocação não recusada) e há Wi-Fi, o repertório baixa sem ninguém pedir (no máximo a cada 10 minutos por comunidade). Em dados móveis fica só o botão.
+- **Validade e limpeza:** a cópia vence com a partição (D23, renovada a cada contato com o servidor), sai 36 h depois do início do encontro, sai quando o servidor responde 403 ou 404 (saiu do louvor, encontro voltou a rascunho) e sai com a partição ao sair da comunidade ou da conta. A letra e a cifra nunca vão a log (há teste que espia o console).
+- **Ficou de fora:** conferência no aparelho (cofre cifrado, tela acesa, iOS e Android), PDF e áudio, rolagem automática pelo andamento e o tamanho da letra "por pessoa" além do aparelho (é por aparelho, no armazenamento local).
+
 ### Fatia 3: histórico, materiais, tom por vocalista, ensaio e cópia
+
+> **Parcial em 22/11/2026 (D71):** entrou o bloco "Banda" na tela do Repertório do encontro (as funções do louvor com quem aceitou, "Falta: bateria" e "Banda completa") e a Biblioteca ganhou os estados de tela inteira. **Pendente:** o histórico "tocada há 2 semanas" (a API não traz a última vez que a música foi tocada: sai de `repertorio_itens` dos encontros realizados e pede uma rota nova), as abas Materiais e Histórico, tom por vocalista, a categoria Ensaio e "Copiar de outro encontro".
 
 - **Ganha:** não repetir música demais, vários links por música, o tom certo de cada voz, ensaio com o mesmo repertório.
 - **Muda:** abas Materiais e Histórico na Música; categoria "Ensaio de louvor"; "Copiar de outro encontro"; tom por vocalista.

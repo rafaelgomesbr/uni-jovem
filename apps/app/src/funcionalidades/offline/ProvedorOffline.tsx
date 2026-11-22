@@ -7,6 +7,7 @@
  * Aqui ficam só a fase da sincronização e os gatilhos: abrir o app, voltar ao
  * primeiro plano, recuperar a rede e o botão "Sincronizar agora".
  */
+import NetInfo from '@react-native-community/netinfo'
 import { onlineManager, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createContext,
@@ -24,6 +25,7 @@ import { CHAVES } from '@/estado/clienteDeConsulta'
 import { useSessao } from '@/estado/sessao'
 import { api, type ClienteDaApi } from '@/servicos/api'
 import type { DetalheDaComunidade } from '@/servicos/contrato'
+import type { EncontroDoMeuRepertorio } from '@/servicos/contratoDoRepertorio'
 import { ErroLocal, mensagemDoErro, SemConexao } from '@/servicos/erros'
 
 import { ligarLimpezaAoSair } from './aoEncerrar'
@@ -31,6 +33,7 @@ import { depositoPadrao } from './deposito'
 import { guardarDescarte, type MotivoDoDescarte } from './descartadas'
 import { descartarOperacao, refazerOperacao, registrarAcao, type ResultadoDoRegistro } from './fila'
 import { MENSAGEM_DA_WEB, MENSAGEM_SEM_PREPARO } from './mensagens'
+import { baixarRepertorio, encontroEstaPerto, type ResultadoDoDownload } from './repertorioOffline'
 import {
   AcessoRevogado,
   caminhoDoPacote,
@@ -45,7 +48,9 @@ import type {
   PacoteGuardado,
   PacoteOffline,
   Particao,
+  RepertorioGuardado,
   ResumoDoPacote,
+  ResumoDoRepertorioGuardado,
 } from './tipos'
 
 // Sair da conta apaga as partições deste aparelho (registrado uma vez, na carga do módulo).
@@ -72,9 +77,16 @@ export interface Offline {
   rejeitadas: number
   conflitos: number
   pacotes: ResumoDoPacote[]
+  /** Repertórios guardados para tocar sem internet (só o resumo: a cifra fica no banco cifrado). */
+  repertorios: ResumoDoRepertorioGuardado[]
   /** Prefixo das consultas locais (já leva conta e comunidade). */
   chaveLocal: readonly string[]
   lerPacote(eventoId: string): Promise<PacoteGuardado | null>
+  lerRepertorio(eventoId: string): Promise<RepertorioGuardado | null>
+  lerRepertorios(): Promise<RepertorioGuardado[]>
+  /** Baixa (ou confere a versão de) o repertório do encontro para tocar sem internet. */
+  baixarRepertorio(eventoId: string): Promise<ResultadoDoDownload>
+  removerRepertorio(eventoId: string): Promise<void>
   sincronizarAgora(): Promise<void>
   prepararEvento(eventoId: string): Promise<void>
   removerPacote(eventoId: string): Promise<void>
@@ -113,8 +125,13 @@ const INDISPONIVEL: Omit<Offline, 'online'> = {
   rejeitadas: 0,
   conflitos: 0,
   pacotes: [],
+  repertorios: [],
   chaveLocal: ['offline', '', ''],
   lerPacote: async () => null,
+  lerRepertorio: async () => null,
+  lerRepertorios: async () => [],
+  baixarRepertorio: semModoOffline,
+  removerRepertorio: async () => undefined,
   sincronizarAgora: async () => undefined,
   prepararEvento: semModoOffline,
   removerPacote: async () => undefined,
@@ -131,6 +148,7 @@ interface Resumo {
   meta: MetaDaParticao
   operacoes: OperacaoNaFila[]
   pacotes: ResumoDoPacote[]
+  repertorios: ResumoDoRepertorioGuardado[]
 }
 
 interface Props {
@@ -162,8 +180,13 @@ export function ProvedorOffline({ children, deposito = depositoPadrao, cliente =
     queryFn: async (): Promise<Resumo | null> => {
       const p = await deposito.abrir(contaId!, comunidadeId!)
       if (!p) return null
-      const [meta, operacoes, pacotes] = await Promise.all([p.meta(), p.operacoes(), p.pacotes()])
-      return { meta, operacoes, pacotes }
+      const [meta, operacoes, pacotes, repertorios] = await Promise.all([
+        p.meta(),
+        p.operacoes(),
+        p.pacotes(),
+        p.resumoDosRepertorios(),
+      ])
+      return { meta, operacoes, pacotes, repertorios }
     },
     enabled: ativa,
     networkMode: 'always',
@@ -178,7 +201,10 @@ export function ProvedorOffline({ children, deposito = depositoPadrao, cliente =
     return deposito.abrir(contaId!, comunidadeId!)
   }
 
-  async function garantirParticao(vinculoId: string | null): Promise<Particao> {
+  async function garantirParticao(
+    vinculoId: string | null,
+    { semVinculo = false }: { semVinculo?: boolean } = {},
+  ): Promise<Particao> {
     if (!deposito.disponivel) throw new ErroLocal(deposito.motivoIndisponivel ?? MENSAGEM_DA_WEB)
     if (!contaId || !comunidadeId) throw new ErroLocal('Escolha uma comunidade primeiro.')
     const existente = await deposito.abrir(contaId, comunidadeId)
@@ -188,11 +214,46 @@ export function ProvedorOffline({ children, deposito = depositoPadrao, cliente =
       }
       return existente
     }
-    if (!vinculoId) throw new ErroLocal(MENSAGEM_SEM_PREPARO)
+    // O repertório para tocar não leva fila de ações: pode criar a partição sem o vínculo.
+    if (!vinculoId && !semVinculo) throw new ErroLocal(MENSAGEM_SEM_PREPARO)
     const dias =
       consultas.getQueryData<DetalheDaComunidade>(CHAVES.comunidade(comunidadeId))
         ?.validadeOfflineDias ?? VALIDADE_PADRAO_DIAS
     return deposito.criar({ contaId, comunidadeId, vinculoId, validadeDias: dias })
+  }
+
+  // Última tentativa de baixar o repertório sozinho, por comunidade (não repete a cada volta ao
+  // primeiro plano).
+  const ultimaBaixaSozinha = useRef<{ comunidade: string; em: number } | null>(null)
+
+  /**
+   * Baixa sozinho o repertório do próximo encontro em que a pessoa toca, quando ele está perto
+   * e há Wi-Fi (D71). Nunca em dados móveis: o botão "Deixar pronto sem internet" cobre esse caso.
+   */
+  async function baixarRepertorioSozinho(): Promise<void> {
+    if (!ativa || !contaId || !comunidadeId || !onlineManager.isOnline()) return
+    const ultima = ultimaBaixaSozinha.current
+    if (ultima?.comunidade === comunidadeId && Date.now() - ultima.em < 10 * 60_000) return
+    ultimaBaixaSozinha.current = { comunidade: comunidadeId, em: Date.now() }
+    try {
+      const rede = await NetInfo.fetch()
+      if (rede.type !== 'wifi' && rede.type !== 'ethernet') return
+      const { encontros } = await cliente.get<{ encontros: EncontroDoMeuRepertorio[] }>(
+        `/api/v1/c/${comunidadeId}/meu-repertorio`,
+      )
+      const perto = encontros.filter(
+        (e) =>
+          encontroEstaPerto(e.evento.inicio) &&
+          e.convocacoes.some((c) => c.estado !== 'recusada') &&
+          e.itens.length > 0,
+      )
+      if (!perto.length) return
+      const p = await garantirParticao(null, { semVinculo: true })
+      for (const e of perto) await baixarRepertorio(p, cliente, e.evento.id)
+      await invalidarLocais()
+    } catch {
+      // Em segundo plano, falha não incomoda: o botão manual continua lá.
+    }
   }
 
   /** Apaga a partição; o que não foi enviado vai para a tela (só em memória). */
@@ -278,6 +339,15 @@ export function ProvedorOffline({ children, deposito = depositoPadrao, cliente =
     if (contaId) void aoEntrar()
   }, [contaId])
 
+  // Com a comunidade à vista (ao abrir o app ou ao trocar de comunidade), vê se há repertório
+  // do encontro perto para baixar sozinho no Wi-Fi.
+  const aoTerComunidade = useEffectEvent(() => {
+    void baixarRepertorioSozinho()
+  })
+  useEffect(() => {
+    if (contaId && comunidadeId) aoTerComunidade()
+  }, [contaId, comunidadeId])
+
   // A lista de comunidades mudou (saiu de uma, foi removida): confere as partições.
   const conferirComunidades = useEffectEvent(async () => {
     if (!contaId) return
@@ -297,9 +367,10 @@ export function ProvedorOffline({ children, deposito = depositoPadrao, cliente =
   const aoVoltar = useEffectEvent(async () => {
     await apagarVencidas()
     await sincronizarTudo()
+    await baixarRepertorioSozinho()
   })
   const aoReconectar = useEffectEvent(() => {
-    void sincronizarTudo()
+    void sincronizarTudo().then(baixarRepertorioSozinho)
   })
   useEffect(() => {
     const assinatura = AppState.addEventListener('change', (e) => {
@@ -331,10 +402,35 @@ export function ProvedorOffline({ children, deposito = depositoPadrao, cliente =
     rejeitadas: operacoes.filter((o) => o.estado === 'rejeitada').length,
     conflitos: operacoes.filter((o) => o.estado === 'conflito').length,
     pacotes: dados?.pacotes ?? [],
+    repertorios: dados?.repertorios ?? [],
     chaveLocal,
     async lerPacote(eventoId) {
       const p = await particaoAtiva()
       return p ? p.lerPacote(eventoId) : null
+    },
+    async lerRepertorio(eventoId) {
+      const p = await particaoAtiva()
+      return p ? p.lerRepertorio(eventoId) : null
+    },
+    async lerRepertorios() {
+      const p = await particaoAtiva()
+      return p ? p.repertorios() : []
+    },
+    async baixarRepertorio(eventoId) {
+      if (!deposito.disponivel) {
+        throw new ErroLocal(deposito.motivoIndisponivel ?? MENSAGEM_DA_WEB)
+      }
+      if (!contaId || !comunidadeId) throw new ErroLocal('Escolha uma comunidade primeiro.')
+      const p = await garantirParticao(null, { semVinculo: true })
+      try {
+        return await baixarRepertorio(p, cliente, eventoId)
+      } finally {
+        await invalidarLocais()
+      }
+    },
+    async removerRepertorio(eventoId) {
+      await (await particaoAtiva())?.removerRepertorio(eventoId)
+      await invalidarLocais()
     },
     sincronizarAgora: sincronizarTudo,
     async prepararEvento(eventoId) {
@@ -406,6 +502,32 @@ export function usePacoteDoEvento(eventoId: string | null) {
     queryKey: [...offline.chaveLocal, 'pacote', eventoId ?? ''],
     queryFn: () => offline.lerPacote(eventoId!),
     enabled: offline.temParticao && !!eventoId,
+    networkMode: 'always',
+    staleTime: Infinity,
+    retry: false,
+  })
+}
+
+/** Repertório do encontro guardado neste aparelho (ou `null`): é o que abre sem internet. */
+export function useRepertorioGuardado(eventoId: string | null) {
+  const offline = useOffline()
+  return useQuery({
+    queryKey: [...offline.chaveLocal, 'repertorio', eventoId ?? ''],
+    queryFn: () => offline.lerRepertorio(eventoId!),
+    enabled: offline.temParticao && !!eventoId,
+    networkMode: 'always',
+    staleTime: Infinity,
+    retry: false,
+  })
+}
+
+/** Todos os repertórios guardados (com a cifra), para o Meu repertório sem internet. */
+export function useRepertoriosGuardados() {
+  const offline = useOffline()
+  return useQuery({
+    queryKey: [...offline.chaveLocal, 'repertorios'],
+    queryFn: () => offline.lerRepertorios(),
+    enabled: offline.temParticao,
     networkMode: 'always',
     staleTime: Infinity,
     retry: false,

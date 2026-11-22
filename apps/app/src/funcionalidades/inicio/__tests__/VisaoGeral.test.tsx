@@ -3,6 +3,7 @@ import { versiculoDoDia } from '@uj/conteudo'
 import { router } from 'expo-router'
 
 import { INICIO } from '@/testes/fixturas'
+import { momentoDeTeste } from '@/testes/momento'
 import { BASE, pedidosPara, renderizarTela } from '@/testes/telas'
 
 import {
@@ -30,6 +31,8 @@ const INICIO_VAZIO = {
   minhasEscalas: [],
   minhasTarefas: [],
   substituicoesAbertas: 0,
+  // Sem encontro marcado: o cartão do momento é o vazio; o resumo e o versículo são o que se testa aqui.
+  momento: momentoDeTeste({ evento: null, estado: null, minutosParaInicio: null }),
 }
 
 /** Uma tarefa aberta no encontro e1: é para lá que "Concluir tarefas" leva. */
@@ -214,9 +217,12 @@ describe('Seu resumo (acordeão)', () => {
     expect(screen.getByRole('button', { name: RESUMO_ABERTO })).toBeExpanded()
 
     await usuario.press(
-      screen.getByRole('button', { name: 'Responder 2 convocações. Abrir Escalas' }),
+      screen.getByRole('button', { name: 'Responder 2 convocações. Abrir Agenda, só o que é meu' }),
     )
-    expect(router.push).toHaveBeenLastCalledWith('/escalas')
+    expect(router.push).toHaveBeenLastCalledWith({
+      pathname: '/agenda',
+      params: { vista: 'lista', filtro: 'meu' },
+    })
 
     await usuario.press(
       screen.getByRole('button', { name: 'Concluir 3 tarefas. Abrir o encontro' }),
@@ -226,10 +232,11 @@ describe('Seu resumo (acordeão)', () => {
       params: { eventoId: 'e1' },
     })
 
-    await usuario.press(
-      screen.getByRole('button', { name: 'Ver 1 pedido de substituição. Abrir Escalas' }),
-    )
-    expect(router.push).toHaveBeenLastCalledWith('/escalas')
+    await usuario.press(screen.getByRole('button', { name: 'Ver 1 pedido de ajuda. Abrir Agenda' }))
+    expect(router.push).toHaveBeenLastCalledWith({
+      pathname: '/agenda',
+      params: { vista: 'lista' },
+    })
   })
 
   test('o título conta exatamente as linhas listadas', async () => {
@@ -257,10 +264,10 @@ describe('Seu resumo (acordeão)', () => {
       }),
     )
     expect(
-      screen.getByRole('button', { name: 'Responder 1 convocação. Abrir Escalas' }),
+      screen.getByRole('button', { name: 'Responder 1 convocação. Abrir Agenda, só o que é meu' }),
     ).toBeOnTheScreen()
     expect(screen.queryByText(/Concluir/)).toBeNull()
-    expect(screen.queryByText(/substituição/)).toBeNull()
+    expect(screen.queryByText(/substituição|escala/i)).toBeNull()
     expect(screen.queryByText(/\b0\b/)).toBeNull()
   })
 
@@ -306,7 +313,7 @@ describe('Seu resumo (acordeão)', () => {
     })
 
     expect(await screen.findByText('Não deu para carregar o seu resumo')).toBeOnTheScreen()
-    expect(screen.getByText('Nenhum encontro marcado')).toBeOnTheScreen()
+    expect(screen.getByText('Ainda não há encontro marcado.')).toBeOnTheScreen()
     await userEvent.setup().press(screen.getByRole('button', { name: 'Tentar de novo' }))
     expect(await screen.findByRole('button', { name: RESUMO_FECHADO })).toBeOnTheScreen()
     expect(pedidosPara(servidor, 'GET', `${BASE}/visao-geral`)).toHaveLength(2)
@@ -374,13 +381,22 @@ describe('Início de quem organiza (D62, Q1): o mesmo do membro, sem seletor', (
     await usuario.press(await screen.findByRole('button', { name: RESUMO_FECHADO }))
 
     await usuario.press(
-      await screen.findByRole('button', { name: 'Ver 3 convocações sem resposta. Abrir Escalas' }),
+      await screen.findByRole('button', {
+        name: 'Ver 3 convocações sem resposta. Abrir o encontro',
+      }),
     )
-    expect(router.push).toHaveBeenLastCalledWith('/escalas')
+    // Quem organiza resolve no encontro que tem o problema: a aba Convocados.
+    expect(router.push).toHaveBeenLastCalledWith({
+      pathname: '/evento/[eventoId]',
+      params: { eventoId: 'e1', aba: 'convocados' },
+    })
     await usuario.press(
-      screen.getByRole('button', { name: 'Ver 1 convocação recusada. Abrir Escalas' }),
+      screen.getByRole('button', { name: 'Ver 1 convocação recusada. Abrir o encontro' }),
     )
-    expect(router.push).toHaveBeenLastCalledWith('/escalas')
+    expect(router.push).toHaveBeenLastCalledWith({
+      pathname: '/evento/[eventoId]',
+      params: { eventoId: 'e1', aba: 'convocados' },
+    })
     await usuario.press(
       screen.getByRole('button', { name: 'Ver 2 pedidos de entrada. Abrir Comunidade' }),
     )
@@ -479,11 +495,13 @@ describe('Início de quem organiza (D62, Q1): o mesmo do membro, sem seletor', (
       await screen.findByText('Não deu para carregar a visão da organização'),
     ).toBeOnTheScreen()
     expect(
-      screen.getByRole('button', { name: 'Responder 2 convocações. Abrir Escalas' }),
+      screen.getByRole('button', { name: 'Responder 2 convocações. Abrir Agenda, só o que é meu' }),
     ).toBeOnTheScreen()
     await usuario.press(screen.getByRole('button', { name: 'Tentar de novo' }))
     expect(
-      await screen.findByRole('button', { name: 'Ver 3 convocações sem resposta. Abrir Escalas' }),
+      await screen.findByRole('button', {
+        name: 'Ver 3 convocações sem resposta. Abrir o encontro',
+      }),
     ).toBeOnTheScreen()
   })
 
@@ -494,7 +512,7 @@ describe('Início de quem organiza (D62, Q1): o mesmo do membro, sem seletor', (
     })
     await userEvent.setup().press(await screen.findByRole('button', { name: RESUMO_FECHADO }))
     expect(
-      screen.getByRole('button', { name: 'Responder 2 convocações. Abrir Escalas' }),
+      screen.getByRole('button', { name: 'Responder 2 convocações. Abrir Agenda, só o que é meu' }),
     ).toBeOnTheScreen()
     expect(screen.queryByText('Para você')).toBeNull()
     expect(screen.queryByText('Da organização')).toBeNull()

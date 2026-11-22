@@ -10,10 +10,11 @@ import { useTokenDoFragmento } from '@/utilidades/fragmento'
 import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
-import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
+import { Cartao } from '@/ui/Cartao'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { EstadoVazio } from '@/ui/EstadoVazio'
 import { Tela } from '@/ui/Tela'
+import { Texto } from '@/ui/Texto'
 
 import { problemaDaSenha } from './politicaDeSenha'
 import { RegrasDaSenha } from './RegrasDaSenha'
@@ -54,11 +55,17 @@ export function TelaRedefinirSenha() {
   if (redefinir.isSuccess) {
     return (
       <Tela pilha aurora={1} semVoltar titulo="Criar uma senha nova">
-        <CartaoDeDestaque
+        <Cartao
+          variante="momento"
+          pose="pleno"
+          etiqueta="Tudo certo"
           titulo="Senha alterada"
-          descricao={redefinir.data?.mensagem ?? 'Entre com a senha nova.'}
           acoes={<Botao titulo="Ir para entrar" aoPressionar={() => router.replace('/entrar')} />}
-        />
+        >
+          <Texto variante="corpo" cor="textoSuave">
+            {redefinir.data?.mensagem ?? 'Entre com a senha nova.'}
+          </Texto>
+        </Cartao>
       </Tela>
     )
   }

@@ -5,11 +5,11 @@ import { useSessao } from '@/estado/sessao'
 import type { FiltroDeOracao, FiltroDeRespondidos } from '@/servicos/contratoDosModulos'
 import { Botao } from '@/ui/Botao'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
-import { EstadoVazio } from '@/ui/EstadoVazio'
 import { ErroDaTela } from '@/ui/Falha'
 import { LinhaDePilulas, PilulasDeFiltro } from '@/ui/PilulasDeFiltro'
 import { Tela } from '@/ui/Tela'
 
+import { VazioComSol } from '../comunidade/VazioComSol'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { CartaoDoPedido } from './CartaoDoPedido'
 import { usePedidosDeOracao } from './consultas'
@@ -28,16 +28,15 @@ export function TelaOracao() {
   return (
     <Tela
       pilha
-      titulo="Oração"
+      titulo="Pedidos de oração"
       descricao="Cada pedido mostra quem vê."
       {...(comunidadeAtiva
         ? {
             acoes: (
               <Botao
-                titulo="Novo pedido"
-                icone="adicionar"
+                titulo="Pedir oração"
+                icone="oracao"
                 variante="secundario"
-                rotuloAcessivel="Novo pedido de oração"
                 aoPressionar={novoPedido}
               />
             ),
@@ -124,11 +123,15 @@ function ListaDeOracao({ comunidadeId }: { comunidadeId: string }) {
           aoTentarDeNovo={() => void pedidos.refetch()}
         />
       ) : pedidos.data.length === 0 ? (
-        <EstadoVazio
-          icone="oracao"
-          titulo={respondidos === 'somente' ? 'Nenhum pedido respondido' : 'Nenhum pedido por aqui'}
-          descricao="Compartilhe um pedido. Ele começa visível só para você, e você decide se a equipe de oração ou a comunidade pode ler."
-          acao={{ titulo: 'Novo pedido de oração', icone: 'adicionar', aoPressionar: novoPedido }}
+        <VazioComSol
+          titulo={respondidos === 'somente' ? 'Nenhum pedido respondido.' : 'Nenhum pedido ainda.'}
+          descricao={
+            respondidos === 'somente'
+              ? 'Quando um pedido for marcado como respondido, ele aparece aqui.'
+              : 'Quem pedir oração aparece aqui. Você pode ser o primeiro: o pedido começa visível só para você.'
+          }
+          acao={{ titulo: 'Pedir oração', icone: 'oracao', aoPressionar: novoPedido }}
+          pose="escondido"
         />
       ) : (
         pedidos.data.map((p) => (

@@ -10,6 +10,7 @@ import { Aviso } from '@/ui/Aviso'
 import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
+import { Cartao } from '@/ui/Cartao'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { EstadoVazio } from '@/ui/EstadoVazio'
 import { AvisoDeFalha } from '@/ui/Falha'
@@ -112,9 +113,12 @@ export function TelaDenunciarComunidade() {
         </BarraDeAcao>
       }
     >
-      <Texto variante="corpo">
-        {`Sua denúncia vai para a equipe do ${NOME_DO_APP}, não para a comunidade. Ninguém da comunidade fica sabendo quem denunciou.`}
-      </Texto>
+      {/* Em cartão: texto nu sob o brilho coral do topo não tem o contraste provado (fundação, regra 12). */}
+      <Cartao>
+        <Texto variante="corpo">
+          {`Sua denúncia vai para a equipe do ${NOME_DO_APP}, não para a comunidade. Ninguém da comunidade fica sabendo quem denunciou.`}
+        </Texto>
+      </Cartao>
       <ListaDeOpcoes rotulo="Motivo" opcoes={MOTIVOS} valor={motivo} aoMudar={setMotivo} />
       <CartaoDeVidro opaco intervalo={ESPACO.e8}>
         <Campo

@@ -254,7 +254,7 @@ function EditarEvento({
       const ok = await confirmar({
         titulo: 'Recriar as próximas ocorrências?',
         mensagem: erro.mensagem,
-        confirmar: 'Recriar e perder as escalas',
+        confirmar: 'Recriar e perder as convocações',
         destrutivo: true,
       })
       if (ok) salvarSerie.mutate({ dados, confirmarRecriacao: true })
@@ -361,6 +361,7 @@ function EditarEvento({
         mudar={mudar}
         erros={erros}
         refs={refs}
+        simples
         visiveis={{ data: !daSerie, inscricoes: !daSerie, prazoEEspera: !daSerie }}
         {...(inicial.serieId
           ? {

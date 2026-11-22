@@ -13,7 +13,7 @@ export function TelaEvento() {
   const params = useLocalSearchParams<{ eventoId: string; aba?: string }>()
   const eventoId = parametro(params.eventoId)
   // Só a parte dos Convocados abre por link interno (o Início: "Ver quem falta responder").
-  const abaInicial = parametro(params.aba) === 'convocados' ? 'equipe' : undefined
+  const abaInicial = parametro(params.aba) === 'convocados' ? 'convocados' : undefined
   if (!comunidadeAtiva || !eventoId) {
     return (
       <Tela pilha>

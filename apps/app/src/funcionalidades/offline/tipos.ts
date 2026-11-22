@@ -9,6 +9,7 @@ import type {
   RetratoAoVivo,
   TipoDeChecklist,
 } from '@/servicos/contratoDosEventos'
+import type { PacoteDoRepertorio } from '@/servicos/contratoV3'
 import type { StatusDoEvento } from '@uj/dominio'
 
 /** As únicas operações que o servidor aceita offline. Oração nunca está aqui. */
@@ -205,6 +206,29 @@ export interface ResumoDoPacote {
   validoAte: string
 }
 
+/**
+ * Repertório do encontro guardado para tocar sem internet (modo músico, fatia 2). Vive na mesma
+ * partição cifrada do pacote do encontro e sai junto com ela. Traz a cifra: nunca vai a log.
+ */
+export interface RepertorioGuardado {
+  eventoId: string
+  pacote: PacoteDoRepertorio
+  baixadoEm: string
+  validoAte: string
+}
+
+/** O que a tela precisa para dizer "Pronto para tocar sem internet", sem carregar a cifra. */
+export interface ResumoDoRepertorioGuardado {
+  eventoId: string
+  versao: string
+  titulo: string
+  inicio: string
+  fuso: string
+  musicas: number
+  baixadoEm: string
+  validoAte: string
+}
+
 // ------------------------------------------------------------ partições
 
 export interface MetaDaParticao {
@@ -246,6 +270,14 @@ export interface Particao {
   lerPacote(eventoId: string): Promise<PacoteGuardado | null>
   pacotes(): Promise<ResumoDoPacote[]>
   removerPacote(eventoId: string): Promise<void>
+  /** Guarda (ou troca) o repertório do encontro. A versão vem junto, para só baixar de novo se mudar. */
+  gravarRepertorio(pacote: PacoteDoRepertorio, baixadoEm: string): Promise<void>
+  lerRepertorio(eventoId: string): Promise<RepertorioGuardado | null>
+  /** Todos os repertórios guardados, com a cifra (para o Meu repertório sem internet). */
+  repertorios(): Promise<RepertorioGuardado[]>
+  /** Só o resumo de cada um, sem a cifra. */
+  resumoDosRepertorios(): Promise<ResumoDoRepertorioGuardado[]>
+  removerRepertorio(eventoId: string): Promise<void>
 }
 
 export interface ParticaoVencida {

@@ -30,7 +30,7 @@ export function TelaNovaSugestao() {
   const { comunidadeAtiva } = useSessao()
   if (!comunidadeAtiva) {
     return (
-      <Tela pilha titulo="Nova sugestão">
+      <Tela pilha titulo="Sugerir uma ideia">
         <SemComunidade oQue="a nova sugestão" />
       </Tela>
     )
@@ -70,7 +70,7 @@ function Formulario({ comunidadeId }: { comunidadeId: string }) {
   return (
     <Tela
       pilha
-      titulo="Nova sugestão"
+      titulo="Sugerir uma ideia"
       barraDeAcao={
         <BarraDeAcao>
           <Botao

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { StyleSheet } from 'react-native'
 
 import { BASE, pedidosPara, renderizarTela } from '@/testes/telas'
@@ -32,7 +32,10 @@ const PRESENCA = {
 }
 
 describe('relatórios', () => {
-  beforeEach(() => jest.clearAllMocks())
+  beforeEach(() => {
+    jest.clearAllMocks()
+    ;(useLocalSearchParams as jest.Mock).mockReturnValue({})
+  })
 
   test('membro não vê relatórios: nem na aba Comunidade, nem a tela busca dados', async () => {
     const { servidor } = await renderizarTela(<TelaRelatorios />, { papel: 'membro' })
@@ -40,16 +43,80 @@ describe('relatórios', () => {
     expect(servidor.pedidos.filter((p) => p.url.includes('/relatorios/'))).toHaveLength(0)
   })
 
-  test('a aba Comunidade lista Relatórios só para organizador para cima (D57)', async () => {
-    await renderizarTela(<TelaComunidade />, { papel: 'membro' })
-    expect(await screen.findByRole('button', { name: /^Pedidos de oração[.]/ })).toBeOnTheScreen()
+  test('o mural lista Relatórios só dentro da Organização, dobrada, para organizador para cima (D70)', async () => {
+    const mural = (organizacao: unknown) => () => ({
+      status: 200,
+      corpo: {
+        avisos: { total: 0, destaque: null },
+        oracao: { novos: 0 },
+        pessoas: { total: 3 },
+        organizacao,
+      },
+    })
+    const membro = await renderizarTela(<TelaComunidade />, {
+      papel: 'membro',
+      rotas: { [`GET ${BASE}/mural`]: mural(null) },
+    })
+    expect(await screen.findByRole('button', { name: /^Pedidos de oração/ })).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: /^Organização/ })).toBeNull()
     expect(screen.queryByRole('button', { name: /^Relatórios[.]/ })).toBeNull()
-  })
+    await membro.unmount()
 
-  test('organizador vê Relatórios na aba Comunidade e abre a tela', async () => {
-    await renderizarTela(<TelaComunidade />, { papel: 'organizador' })
+    await renderizarTela(<TelaComunidade />, {
+      papel: 'organizador',
+      rotas: { [`GET ${BASE}/mural`]: mural({ pedidosDeEntrada: 0 }) },
+    })
+    // Dobrada: o organizador abre a Organização e então chega aos Relatórios.
+    expect(screen.queryByRole('button', { name: /^Relatórios[.]/ })).toBeNull()
+    await fireEvent.press(await screen.findByRole('button', { name: /^Organização/ }))
     await fireEvent.press(await screen.findByRole('button', { name: /^Relatórios[.]/ }))
     expect(router.push).toHaveBeenCalledWith('/relatorios')
+  })
+
+  test('a palavra "escala" saiu: o relatório de convocações e o rótulo de exportar', async () => {
+    ;(useLocalSearchParams as jest.Mock).mockReturnValue({ tipo: 'escalas' })
+    await renderizarTela(<TelaRelatorios />, {
+      papel: 'organizador',
+      rotas: {
+        [`GET ${BASE}/relatorios/escalas`]: () => ({
+          status: 200,
+          corpo: {
+            periodo: PRESENCA.periodo,
+            totais: {
+              escalas: 8,
+              cumpridas: 6,
+              recusadas: 1,
+              semResposta: 1,
+              substituicoesPedidas: 2,
+              substituicoesAssumidas: 1,
+            },
+            porPessoa: [{ vinculoId: 'v1', nome: 'Bruno Lima', escalas: 3, cumpridas: 2 }],
+          },
+        }),
+      },
+    })
+    expect(await screen.findByLabelText('convocações: 8')).toBeOnTheScreen()
+    expect(screen.getByText('Convocações por pessoa')).toBeOnTheScreen()
+    expect(screen.getByRole('radio', { name: 'Convocações' })).toBeChecked()
+    expect(screen.queryByText(/escalas?\b/i)).toBeNull()
+  })
+
+  test('carregando mostra o esqueleto; erro tem texto humano e "Tentar de novo"', async () => {
+    let chamadas = 0
+    await renderizarTela(<TelaRelatorios />, {
+      papel: 'organizador',
+      rotas: {
+        [`GET ${BASE}/relatorios/presenca`]: () => {
+          chamadas += 1
+          return chamadas === 1
+            ? { status: 500, corpo: { codigo: 'erro_interno', mensagem: 'falha' } }
+            : { status: 200, corpo: PRESENCA }
+        },
+      },
+    })
+    expect(await screen.findByText('Não deu para calcular o relatório')).toBeOnTheScreen()
+    await fireEvent.press(screen.getByRole('button', { name: 'Tentar de novo' }))
+    expect(await screen.findByLabelText('presenças: 30')).toBeOnTheScreen()
   })
 
   test('presença: números e gráfico com o valor escrito ao lado', async () => {
@@ -67,10 +134,11 @@ describe('relatórios', () => {
     expect(pedido.url).toMatch(/de=\d{4}-\d{2}-\d{2}&ate=\d{4}-\d{2}-\d{2}/)
   })
 
-  test('os números do relatório usam algarismos tabulares (3.7.5)', async () => {
+  test('os números do relatório são grandes (40) e usam algarismos tabulares (D70)', async () => {
     await render(<Numero rotulo="presenças" valor={1234} />)
     const estilo = StyleSheet.flatten(screen.getByTestId('numero-do-relatorio').props.style)
     expect(estilo.fontVariant).toEqual(['tabular-nums'])
+    expect(estilo.fontSize).toBeGreaterThanOrEqual(40)
   })
 
   test('rótulo do período agrupado', () => {

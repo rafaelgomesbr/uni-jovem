@@ -40,7 +40,7 @@ const ESCALA: Etapa = {
   id: 'escala',
   titulo: 'Convocações',
   texto:
-    'Quando a organização convocar você, aceite ou avise que não pode ir na aba Escalas. Já aceitou e surgiu um imprevisto? Peça substituição: outra pessoa assume.',
+    'Quando a organização convocar você, aceite ou avise que não pode ir, no Início ou na Agenda. Já aceitou e surgiu um imprevisto? Toque em "Preciso de alguém no meu lugar": outra pessoa assume.',
   demo: 'escala',
 }
 
@@ -80,7 +80,7 @@ const CHECKIN: Etapa = {
   id: 'checkin',
   titulo: 'Presença',
   texto:
-    'Na entrada, leia o QR Code da inscrição ou busque pelo nome e toque em "Marcar presença". Marcar de novo não duplica.',
+    'Na entrada, leia o QR Code da inscrição ou busque pelo nome e toque na linha de quem chegou. Tocar de novo desfaz.',
   demo: 'checkin',
 }
 

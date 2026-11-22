@@ -1,11 +1,10 @@
 import { simbolosDeAcidente, type LinhaDaCifra } from '@uj/dominio'
+import { ESPACO, TIPO } from '@uj/tokens'
 import { View } from 'react-native'
 
 import { Texto } from '@/ui/Texto'
 
-/** Tamanhos da letra, em pontos, do menor ao maior. O padrão é grande: a cifra se lê de longe. */
-export const TAMANHOS_DA_LETRA = [14, 16, 18, 20, 24, 28, 32] as const
-export const TAMANHO_PADRAO_DA_LETRA = 20
+export { TAMANHO_PADRAO_DA_LETRA, TAMANHOS_DA_LETRA } from './useAjustesDaCifra'
 
 /** Os acordes de uma linha, para o leitor de tela ("Acordes: G, D"). */
 function acordesDaLinha(linha: Extract<LinhaDaCifra, { tipo: 'texto' }>): string[] {
@@ -13,21 +12,26 @@ function acordesDaLinha(linha: Extract<LinhaDaCifra, { tipo: 'texto' }>): string
 }
 
 /**
- * A cifra desenhada: cada acorde fica ACIMA da sílaba em que muda, em negrito
- * (nunca só em cor), e as seções (Verso, Refrão) têm rótulo em texto. Cada
- * linha é um bloco para o leitor de tela: a letra e depois os acordes.
- * A cor vem do tema em vigor: dentro do painel escuro de leitura, é a paleta
- * escura, com contraste AA.
+ * A cifra desenhada: cada acorde fica ACIMA da sílaba em que muda, em negrito (nunca só em cor),
+ * e as seções (Verso, Refrão) têm rótulo em texto. Cada linha é um bloco para o leitor de tela: a
+ * letra e depois os acordes. A cor vem do tema em vigor: dentro do painel escuro de leitura e do
+ * Modo palco é a paleta escura, com contraste AA (acorde `#FFB199` sobre `#07061A`: 11,43).
+ *
+ * `tetoDaEscala` limita quanto a fonte do sistema ainda aumenta a letra: no Modo palco a pessoa já
+ * escolhe o tamanho, e dobrar por cima disso tira a linha da tela.
  */
 export function CifraNaTela({
   linhas,
-  tamanho = TAMANHO_PADRAO_DA_LETRA,
+  tamanho = 20,
+  tetoDaEscala,
 }: {
   linhas: readonly LinhaDaCifra[]
   tamanho?: number
+  tetoDaEscala?: number
 }) {
   const altura = Math.round(tamanho * 1.45)
   const tamanhoDoAcorde = Math.round(tamanho * 0.9)
+  const teto = tetoDaEscala === undefined ? {} : { maxFontSizeMultiplier: tetoDaEscala }
   return (
     <View accessibilityLabel="Cifra" style={{ gap: 0 }}>
       {linhas.map((linha, i) => {
@@ -40,7 +44,14 @@ export function CifraNaTela({
               key={i}
               variante="sobrancelha"
               peso="forte"
-              style={{ marginTop: 6, marginBottom: 2 }}
+              {...teto}
+              style={{
+                marginTop: ESPACO.e8,
+                marginBottom: ESPACO.e4,
+                ...(tamanho >= 32
+                  ? { fontSize: TIPO.rotulo.tamanho, lineHeight: TIPO.rotulo.altura }
+                  : {}),
+              }}
             >
               {linha.texto}
             </Texto>
@@ -63,13 +74,18 @@ export function CifraNaTela({
                     variante="leitura"
                     cor="destaque"
                     peso="forte"
+                    {...teto}
                     style={{ fontSize: tamanhoDoAcorde, lineHeight: altura }}
                   >
-                    {t.acorde ? `${simbolosDeAcidente(t.acorde)} ` : ' '}
+                    {t.acorde ? `${simbolosDeAcidente(t.acorde)} ` : ' '}
                   </Texto>
                 ) : null}
-                <Texto variante="leitura" style={{ fontSize: tamanho, lineHeight: altura }}>
-                  {t.letra === '' ? ' ' : t.letra}
+                <Texto
+                  variante="leitura"
+                  {...teto}
+                  style={{ fontSize: tamanho, lineHeight: altura }}
+                >
+                  {t.letra === '' ? ' ' : t.letra}
                 </Texto>
               </View>
             ))}

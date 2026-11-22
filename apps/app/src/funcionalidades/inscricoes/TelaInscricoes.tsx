@@ -7,28 +7,31 @@ import { useSessao } from '@/estado/sessao'
 import type { Inscricao } from '@/servicos/contratoDosEventos'
 import { Aviso } from '@/ui/Aviso'
 import { BarraDeAcao } from '@/ui/BarraDeAcao'
+import { BarraDeProgresso } from '@/ui/BarraDeProgresso'
 import { Botao } from '@/ui/Botao'
-import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { Cartao } from '@/ui/Cartao'
 import { Chip } from '@/ui/Chip'
-import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
-import { EstadoVazio } from '@/ui/EstadoVazio'
+import { Esqueleto, LinhaDeEsqueleto } from '@/ui/Esqueleto'
 import { AvisoDeFalha, ErroDaTela } from '@/ui/Falha'
 import { MenuDeAcoes } from '@/ui/FolhaNaTela'
 import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
+import { voltarOu } from '@/ui/navegacao'
 import { Numeros } from '@/ui/Numeros'
 import { PilulasDeFiltro } from '@/ui/PilulasDeFiltro'
+import { EntradaEmCascata } from '@/ui/primitivasDeMovimento'
 import { Tela } from '@/ui/Tela'
+import { Texto } from '@/ui/Texto'
 import { mostrarToast } from '@/ui/Toast'
 import { confirmar } from '@/utilidades/confirmar'
 import { parametro } from '@/utilidades/parametros'
-import { voltarOu } from '@/ui/navegacao'
 
 import { usePode } from '../comunidade/permissoes'
 import { useEvento } from '../eventos/consultas'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { useCancelarInscricao, useInscricoes } from './consultas'
 import { LinkPublico } from './LinkPublico'
-import { NOME_DO_ESTADO_DA_INSCRICAO, TOM_DO_ESTADO_DA_INSCRICAO } from './nomes'
+import { NOME_DO_ESTADO_DA_INSCRICAO } from './nomes'
+import { VazioComSol } from './VazioComSol'
 
 export type FiltroDeInscricao = 'todas' | 'confirmada' | 'espera' | 'cancelada' | 'presentes'
 
@@ -38,7 +41,7 @@ export function filtrarInscricoes(lista: readonly Inscricao[], filtro: FiltroDeI
   return lista.filter((i) => i.estado === filtro)
 }
 
-/** Rota `/evento/[eventoId]/inscricoes`: contagens, a lista interna e o link público. */
+/** Rota `/evento/[eventoId]/inscricoes`: vagas, espera, a lista interna e o link público. */
 export function TelaInscricoes() {
   const { comunidadeAtiva } = useSessao()
   const eventoId = parametro(useLocalSearchParams<{ eventoId: string }>().eventoId)
@@ -62,6 +65,11 @@ export function TelaInscricoes() {
   return <Inscricoes comunidadeId={comunidadeAtiva.id} eventoId={eventoId} />
 }
 
+/**
+ * Inscrições no visual A (D71): o cartão de vagas com o número grande ("12 de 60 vagas"), a barra
+ * e a lista de espera; os filtros; e a lista em linhas de 56 pt com a situação em chip (texto e
+ * ícone, nunca só cor). Quem organiza abre as opções de uma inscrição com um toque.
+ */
 function Inscricoes({ comunidadeId, eventoId }: { comunidadeId: string; eventoId: string }) {
   const pode = usePode()
   const evento = useEvento(comunidadeId, eventoId)
@@ -109,29 +117,28 @@ function Inscricoes({ comunidadeId, eventoId }: { comunidadeId: string; eventoId
     >
       {lista.isPending ? (
         <Esqueleto rotulo="Carregando as inscrições">
-          <CartaoDeEsqueleto />
-          <CartaoDeEsqueleto titulo />
+          <LinhaDeEsqueleto altura={88} />
+          <LinhaDeEsqueleto altura={56} />
+          <LinhaDeEsqueleto altura={56} />
+          <LinhaDeEsqueleto altura={56} />
         </Esqueleto>
       ) : lista.error ? (
         <ErroDaTela
           erro={lista.error}
-          titulo="As inscrições não abriram"
+          titulo="Não deu para carregar as inscrições."
           aoTentarDeNovo={() => void lista.refetch()}
         />
       ) : (
         <>
-          <CartaoDeVidro sobrancelha="Visão geral">
-            <Numeros
-              itens={[
-                {
-                  numero: lista.data.contagem.confirmadas,
-                  rotulo: e?.capacidade ? `confirmadas de ${e.capacidade} vagas` : 'confirmadas',
-                },
-                { numero: lista.data.contagem.espera, rotulo: 'na lista de espera' },
-                { numero: lista.data.contagem.presentes, rotulo: 'presentes' },
-              ]}
+          <EntradaEmCascata ordem={1}>
+            <Vagas
+              confirmadas={lista.data.contagem.confirmadas}
+              espera={lista.data.contagem.espera}
+              presentes={lista.data.contagem.presentes}
+              capacidade={e?.capacidade ?? null}
+              listaDeEspera={e?.listaDeEspera ?? false}
             />
-          </CartaoDeVidro>
+          </EntradaEmCascata>
           <PilulasDeFiltro
             rotulo="Mostrar"
             selecionadas={[filtro]}
@@ -155,6 +162,7 @@ function Inscricoes({ comunidadeId, eventoId }: { comunidadeId: string; eventoId
             aoMostrarTodas={() => setFiltro('todas')}
             aoEscolher={gerencia ? setEscolhida : null}
             publica={e?.visibilidade === 'publica'}
+            idPublico={e?.idPublico ?? null}
           />
         </>
       )}
@@ -183,11 +191,85 @@ function Inscricoes({ comunidadeId, eventoId }: { comunidadeId: string; eventoId
   )
 }
 
+/**
+ * O cartão das vagas: "12 de 60 vagas" em número grande e a barra. Sem limite de vagas, só a
+ * contagem. A lista de espera e os presentes ficam em números ao lado, lidos de uma vez.
+ */
+function Vagas({
+  confirmadas,
+  espera,
+  presentes,
+  capacidade,
+  listaDeEspera,
+}: {
+  confirmadas: number
+  espera: number
+  presentes: number
+  capacidade: number | null
+  listaDeEspera: boolean
+}) {
+  const cheio = capacidade !== null && confirmadas >= capacidade
+  const falado =
+    capacidade !== null
+      ? `${confirmadas} de ${capacidade} vagas preenchidas`
+      : `${confirmadas} ${confirmadas === 1 ? 'inscrição confirmada' : 'inscrições confirmadas'}`
+  return (
+    <Cartao
+      sobrancelha="Vagas"
+      extra={cheio ? <Chip situacao="aguardando" texto="Esgotadas" /> : undefined}
+    >
+      <View accessible accessibilityLabel={falado} style={{ gap: ESPACO.e8 }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'baseline',
+            flexWrap: 'wrap',
+            columnGap: ESPACO.e8,
+          }}
+        >
+          <Texto variante="contador" accessibilityRole="text">
+            {String(confirmadas)}
+          </Texto>
+          <Texto variante="tituloItem" accessibilityRole="text">
+            {capacidade !== null
+              ? `de ${capacidade} vagas`
+              : confirmadas === 1
+                ? 'confirmada'
+                : 'confirmadas'}
+          </Texto>
+        </View>
+        {capacidade !== null ? (
+          <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            <BarraDeProgresso
+              fracao={capacidade ? confirmadas / capacidade : 0}
+              rotulo={`Vagas preenchidas: ${confirmadas} de ${capacidade}`}
+              cor="primaria"
+              trilho="tonal"
+            />
+          </View>
+        ) : null}
+      </View>
+      <Numeros
+        itens={[
+          { numero: espera, rotulo: 'na lista de espera' },
+          { numero: presentes, rotulo: 'presentes' },
+        ]}
+      />
+      {cheio && !listaDeEspera ? (
+        <Texto variante="legenda" cor="textoSuave">
+          As vagas acabaram e o encontro não tem lista de espera.
+        </Texto>
+      ) : null}
+    </Cartao>
+  )
+}
+
 function ListaFiltrada({
   inscricoes,
   vazioTotal,
   aoEscolher,
   publica,
+  idPublico,
   aoMostrarTodas,
 }: {
   inscricoes: Inscricao[]
@@ -195,33 +277,38 @@ function ListaFiltrada({
   aoMostrarTodas: () => void
   aoEscolher: ((i: Inscricao) => void) | null
   publica: boolean
+  idPublico: string | null
 }) {
   if (inscricoes.length === 0) {
-    return (
-      <EstadoVazio
-        icone="inscricoes"
-        titulo={vazioTotal ? 'Ninguém se inscreveu ainda' : 'Ninguém nesta situação'}
+    return vazioTotal ? (
+      <VazioComSol
+        titulo="Ninguém se inscreveu ainda."
         descricao={
-          vazioTotal
-            ? publica
-              ? 'Compartilhe o link da página pública, logo abaixo, para receber inscrições.'
-              : 'Membros se inscrevem pelo app, na página do encontro.'
-            : 'Escolha outra opção em Mostrar.'
+          publica && idPublico
+            ? 'Compartilhe o link da página pública, logo abaixo, para receber inscrições.'
+            : 'Membros se inscrevem pelo app, na página do encontro.'
         }
-        acao={
-          vazioTotal
-            ? {
-                titulo: 'Voltar para o encontro',
-                variante: 'secundario',
-                aoPressionar: () => voltarOu('/agenda'),
-              }
-            : { titulo: 'Mostrar todas', variante: 'secundario', aoPressionar: aoMostrarTodas }
-        }
+        acao={{ titulo: 'Voltar para o encontro', aoPressionar: () => voltarOu('/agenda') }}
       />
+    ) : (
+      <Cartao>
+        <Texto variante="tituloItem">Ninguém nesta situação.</Texto>
+        <Texto variante="corpo" cor="textoSuave">
+          Escolha outra opção em Mostrar.
+        </Texto>
+        <View style={{ flexDirection: 'row' }}>
+          <Botao
+            titulo="Mostrar todas"
+            variante="secundario"
+            tamanho="medio"
+            aoPressionar={aoMostrarTodas}
+          />
+        </View>
+      </Cartao>
     )
   }
   return (
-    <CartaoDeVidro lista>
+    <Cartao lista>
       <Lista>
         {inscricoes.map((i) => {
           const contato = [i.telefone, i.email].filter(Boolean).join(' · ')
@@ -237,10 +324,14 @@ function ListaFiltrada({
               extra={
                 <View style={{ alignItems: 'flex-end', gap: ESPACO.e4 }}>
                   <Chip
+                    {...(i.estado === 'confirmada'
+                      ? { situacao: 'aceitou' as const }
+                      : i.estado === 'espera'
+                        ? { situacao: 'aguardando' as const }
+                        : { tom: 'neutro' as const })}
                     texto={NOME_DO_ESTADO_DA_INSCRICAO[i.estado]}
-                    tom={TOM_DO_ESTADO_DA_INSCRICAO[i.estado]}
                   />
-                  {i.presente ? <Chip texto="Presente" tom="sucesso" icone="check" /> : null}
+                  {i.presente ? <Chip situacao="aceitou" texto="Presente" /> : null}
                 </View>
               }
               {...(podeCancelar
@@ -254,6 +345,6 @@ function ListaFiltrada({
           )
         })}
       </Lista>
-    </CartaoDeVidro>
+    </Cartao>
   )
 }

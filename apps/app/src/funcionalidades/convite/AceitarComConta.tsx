@@ -10,7 +10,6 @@ import { ehErroDaApi, mensagemDoErro } from '@/servicos/erros'
 import { Aviso } from '@/ui/Aviso'
 import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
-import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { EstadoVazio } from '@/ui/EstadoVazio'
 import { focar, type NoDeView } from '@/ui/foco'
@@ -23,6 +22,7 @@ import {
   motivoDoConsentimento,
   PerguntaDeIdade,
 } from './Consentimentos'
+import { BoasVindas } from '../entrada/TelaBoasVindas'
 import { descartarConviteEmEspera } from './conviteEmEspera'
 
 interface Props {
@@ -96,15 +96,8 @@ export function AceitarComConta({ token, comunidade, papel, cartaoDoConvite }: P
   })
 
   if (aceitar.isSuccess) {
-    return (
-      <Tela pilha aurora={1} titulo="Pronto">
-        <CartaoDeDestaque
-          titulo={comunidade}
-          descricao={`Agora você participa de ${comunidade} como ${papel}.`}
-          acoes={<Botao titulo="Ir para o Início" aoPressionar={() => router.replace('/')} />}
-        />
-      </Tela>
-    )
+    // Entrou: o degrau antes do Início, com "Ligar os avisos" (UX v3, fluxo j).
+    return <BoasVindas comunidade={comunidade} />
   }
 
   if (ehErroDaApi(aceitar.error, JA_PARTICIPA)) {

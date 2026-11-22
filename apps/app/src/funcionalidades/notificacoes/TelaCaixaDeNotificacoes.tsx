@@ -1,71 +1,44 @@
-import { RITMO } from '@uj/tokens'
+import { ESPACO, RITMO } from '@uj/tokens'
 import { router } from 'expo-router'
 import { useMemo } from 'react'
 import { FlatList, View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
-import { formatarData } from '@/utilidades/formatos'
+import { Aviso } from '@/ui/Aviso'
 import { Botao, BotaoIcone } from '@/ui/Botao'
+import { Cartao } from '@/ui/Cartao'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
-import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
-import { EstadoVazio } from '@/ui/EstadoVazio'
+import { CartaoDeEsqueleto, Esqueleto, LinhaDeEsqueleto } from '@/ui/Esqueleto'
+import { Chip } from '@/ui/Chip'
 import { AvisoDeFalha, ErroDaTela } from '@/ui/Falha'
 import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
-import { PontoDeNovo } from '@/ui/MarcasDeNovidade'
 import { Secao } from '@/ui/Secao'
+import { Sol } from '@/ui/Sol'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { mostrarToast } from '@/ui/Toast'
 
 import {
   ICONE_DO_TIPO,
+  agruparPorLeitura,
   destinoDaNotificacao,
+  resumoPorTipo,
   rotaDoDestino,
+  tempoRelativo,
   textoDeNaoLidas,
   useCaixaDeNotificacoes,
   useMarcarComoLida,
   useMarcarTodasComoLidas,
   useNaoLidas,
+  useQuebraDoSino,
   type NotificacaoDaCaixa,
 } from './caixa'
 
 const abrirPreferencias = () => router.push('/notificacoes')
 
-interface GrupoDoDia {
-  chave: string
-  rotulo: string
-  itens: NotificacaoDaCaixa[]
-}
-
-function chaveDoDia(d: Date): string {
-  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
-}
-
-/** Agrupa por dia no fuso do aparelho: "Hoje", "Ontem" e depois a data absoluta. */
-export function agruparPorDia(itens: readonly NotificacaoDaCaixa[], agora = new Date()) {
-  const hoje = chaveDoDia(agora)
-  const ontem = chaveDoDia(new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() - 1))
-  const grupos: GrupoDoDia[] = []
-  for (const n of itens) {
-    const chave = chaveDoDia(new Date(n.criadoEm))
-    const ultimo = grupos.at(-1)
-    if (ultimo?.chave === chave) {
-      ultimo.itens.push(n)
-    } else {
-      const rotulo = chave === hoje ? 'Hoje' : chave === ontem ? 'Ontem' : formatarData(n.criadoEm)
-      grupos.push({ chave, rotulo, itens: [n] })
-    }
-  }
-  return grupos
-}
-
 /** Termina com ponto, para o leitor de tela pausar entre as partes. */
 function frase(texto: string): string {
   return /[.!?]$/.test(texto.trim()) ? texto.trim() : `${texto.trim()}.`
-}
-
-function horaDe(iso: string): string {
-  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 }
 
 /**
@@ -100,11 +73,12 @@ function useAbrirNotificacao() {
 }
 
 /**
- * Rota `/caixa-de-notificacoes` (D42): o que aconteceu nas comunidades da
- * pessoa, da mais nova para a mais antiga, por dia. Rolagem infinita de 20 em
- * 20, com o botão "Mostrar mais antigas" no fim para quem não rola. Não lida
- * tem ponto e a palavra "Nova" no leitor de tela; o atalho de ajustes abre as
- * preferências (tela que já existia).
+ * Rota `/caixa-de-notificacoes` (D42, D68): o sino. O que aconteceu nas comunidades da pessoa,
+ * em dois grupos, "Novas" e "Antes", cada linha com o título real do aviso ou do encontro (o
+ * `assunto` da D66) e a contagem por tipo no alto ("4 avisos novos", "1 convocação nova").
+ * Tocar abre o destino (a convocação abre o encontro, o aviso abre o aviso) e marca como lida.
+ * Rolagem infinita de 20 em 20, com "Mostrar mais antigas" para quem não rola. Não lida tem a
+ * palavra "Nova" (cor nunca é o único sinal). Os ajustes abrem pelo ícone do cabeçalho.
  */
 export function TelaCaixaDeNotificacoes() {
   return (
@@ -116,7 +90,7 @@ export function TelaCaixaDeNotificacoes() {
       acoes={
         <BotaoIcone
           icone="ajustes"
-          rotulo="Preferências de notificação"
+          rotulo="Quando o app me avisa"
           aoPressionar={abrirPreferencias}
         />
       }
@@ -129,19 +103,36 @@ export function TelaCaixaDeNotificacoes() {
 function ConteudoDaCaixa() {
   const caixa = useCaixaDeNotificacoes()
   const { data: naoLidas = 0 } = useNaoLidas()
+  const quebra = useQuebraDoSino()
   const marcarTodas = useMarcarTodasComoLidas()
   const abrir = useAbrirNotificacao()
   const { comunidades } = useSessao()
   const variasComunidades = comunidades.length > 1
 
   const itens = useMemo(() => caixa.data?.pages.flatMap((p) => p.notificacoes) ?? [], [caixa.data])
-  const grupos = useMemo(() => agruparPorDia(itens), [itens])
+  const grupos = useMemo(() => {
+    const { novas, antes } = agruparPorLeitura(itens)
+    return [
+      ...(novas.length ? [{ chave: 'novas', rotulo: 'Novas', itens: novas }] : []),
+      ...(antes.length ? [{ chave: 'antes', rotulo: 'Antes', itens: antes }] : []),
+    ]
+  }, [itens])
 
+  if (caixa.isPending && caixa.fetchStatus === 'paused') {
+    return (
+      <Aviso tipo="alerta" titulo="Sem internet">
+        As notificações voltam quando a internet voltar.
+      </Aviso>
+    )
+  }
   if (caixa.isPending) {
     return (
       <Esqueleto rotulo="Carregando as notificações">
-        <CartaoDeEsqueleto />
-        <CartaoDeEsqueleto />
+        <View style={{ gap: ESPACO.e12 }}>
+          <LinhaDeEsqueleto altura={72} />
+          <LinhaDeEsqueleto altura={72} />
+          <LinhaDeEsqueleto altura={72} />
+        </View>
       </Esqueleto>
     )
   }
@@ -149,28 +140,29 @@ function ConteudoDaCaixa() {
     return (
       <ErroDaTela
         erro={caixa.error}
-        oQue="as notificações"
+        titulo="Não deu para carregar as notificações."
         aoTentarDeNovo={() => void caixa.refetch()}
       />
     )
   }
   if (itens.length === 0) {
     return (
-      <EstadoVazio
-        icone="sino"
-        titulo="Nada por aqui ainda"
-        descricao="Quando sair uma convocação, um aviso ou uma mudança num encontro, ela aparece aqui."
-        acao={{
-          titulo: 'Preferências de notificação',
-          icone: 'ajustes',
-          variante: 'secundario',
-          aoPressionar: abrirPreferencias,
-        }}
-      />
+      <Cartao>
+        <View style={{ alignItems: 'center', gap: ESPACO.e12 }}>
+          <Sol pose="escondido" lado={88} />
+          <Texto variante="tituloItem" style={{ textAlign: 'center' }}>
+            Nenhuma novidade.
+          </Texto>
+          <Texto variante="corpo" cor="textoSuave" style={{ textAlign: 'center' }}>
+            Avisos, convocações e lembretes aparecem aqui.
+          </Texto>
+        </View>
+      </Cartao>
     )
   }
 
   const temNaoLidas = naoLidas > 0 || itens.some((n) => !n.lida)
+  const porTipo = resumoPorTipo(quebra.data)
   const carregarMais = () => {
     if (caixa.hasNextPage && !caixa.isFetchingNextPage && !caixa.isFetchNextPageError) {
       void caixa.fetchNextPage()
@@ -178,10 +170,20 @@ function ConteudoDaCaixa() {
   }
 
   const cabecalho = temNaoLidas ? (
-    <View style={{ gap: RITMO.entreSecoes, alignItems: 'flex-start' }}>
+    <View style={{ gap: ESPACO.e12, alignItems: 'flex-start' }}>
       <Texto variante="corpo" cor="textoSuave">
         {naoLidas > 0 ? `Você tem ${textoDeNaoLidas(naoLidas)}.` : 'Há notificações não lidas.'}
       </Texto>
+      {porTipo.length > 0 ? (
+        <View
+          testID="contagem-por-tipo"
+          style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}
+        >
+          {porTipo.map((t) => (
+            <Chip key={t.chave} tom="quente" texto={t.texto} />
+          ))}
+        </View>
+      ) : null}
       <Botao
         titulo="Marcar todas como lidas"
         variante="secundario"
@@ -269,25 +271,27 @@ function LinhaDaNotificacao({
   mostrarComunidade: boolean
   aoPressionar: () => void
 }) {
-  const hora = horaDe(n.criadoEm)
-  const descricao = mostrarComunidade ? `${n.comunidade.nome}. ${n.texto}` : n.texto
+  const quando = tempoRelativo(n.criadoEm)
+  // Dentro do app vale o título real (o `assunto`); sem ele, o texto genérico da notificação.
+  const conteudo = n.assunto ?? n.texto
+  const descricao = mostrarComunidade ? `${n.comunidade.nome}. ${conteudo}` : conteudo
   return (
     <LinhaDeLista
       icone={ICONE_DO_TIPO[n.tipo] ?? 'sino'}
       titulo={n.titulo}
       descricao={descricao}
       linhasDaDescricao={3}
-      valor={hora}
-      extra={n.lida ? undefined : <PontoDeNovo />}
+      valor={quando}
+      extra={n.lida ? undefined : <Chip tom="quente" texto="Nova" />}
       rotuloAcessivel={[
         n.lida ? null : 'Nova.',
         frase(n.titulo),
-        frase(n.texto),
-        `${n.comunidade.nome}, às ${hora}.`,
+        frase(conteudo),
+        `${n.comunidade.nome}, ${quando}.`,
       ]
         .filter(Boolean)
         .join(' ')}
-      dica={n.destino ? 'Abre e marca como lida.' : 'Marca como lida.'}
+      dica={n.destino || n.eventoId ? 'Abre e marca como lida.' : 'Marca como lida.'}
       aoPressionar={aoPressionar}
     />
   )

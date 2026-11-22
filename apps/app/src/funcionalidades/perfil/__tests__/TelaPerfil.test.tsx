@@ -1,7 +1,9 @@
-import { fireEvent, screen } from '@testing-library/react-native'
+import { act, fireEvent, screen, userEvent, waitFor } from '@testing-library/react-native'
 import { router } from 'expo-router'
 
-import { BASE, COMUNIDADE, renderizarTela, respostaEu } from '@/testes/telas'
+import { BASE, COMUNIDADE, pedidosPara, renderizarTela, respostaEu } from '@/testes/telas'
+import { reiniciarAcordeoesDaSessao } from '@/ui/Acordeao'
+import { mostrarToast } from '@/ui/Toast'
 
 import { TelaPerfil } from '../TelaPerfil'
 
@@ -15,6 +17,10 @@ jest.mock('expo-router', () => ({
   },
   useLocalSearchParams: jest.fn(() => ({})),
   usePreventRemove: jest.fn(() => jest.fn()),
+}))
+jest.mock('@/ui/Toast', () => ({
+  ...jest.requireActual('@/ui/Toast'),
+  mostrarToast: jest.fn(),
 }))
 
 function euComoCriador() {
@@ -39,94 +45,123 @@ const DETALHE = () => ({
   },
 })
 
-/** Os módulos da comunidade que saíram do Perfil (D57): agora na aba Comunidade. */
-const QUE_SAIRAM = [
+/** Os módulos da comunidade moram na aba Comunidade, nunca no Perfil (D57). */
+const DA_COMUNIDADE = [
   'Avisos',
   'Oração',
   'Pedidos de oração',
   'Sugestões',
-  'Conteúdos',
+  'Biblioteca',
   'Relatórios',
   'Locais',
   'Modelos',
   'Denúncias',
 ]
 
-describe('Perfil só com a conta (D57)', () => {
-  beforeEach(() => jest.clearAllMocks())
+beforeEach(() => {
+  jest.clearAllMocks()
+  reiniciarAcordeoesDaSessao()
+})
 
-  test('a conta em cima e nenhum módulo da comunidade, nem para o admin', async () => {
+describe('Perfil: o cartão da pessoa e cinco linhas (D70)', () => {
+  test('o cartão mostra a pessoa, a função e a comunidade, e abre Editar perfil', async () => {
     await renderizarTela(<TelaPerfil />, { papel: 'admin' })
-    expect(await screen.findByRole('button', { name: /^Editar perfil/ })).toBeOnTheScreen()
-    for (const nome of [
-      'Ajustes de notificação',
-      'Segurança',
-      'Versículo do dia',
-      'Privacidade e dados',
-      'Ajuda e sobre',
-    ]) {
-      expect(screen.getByRole('button', { name: new RegExp(`^${nome}`) })).toBeOnTheScreen()
+    const cartao = await screen.findByRole('button', {
+      name: 'Editar perfil. Ana Souza, Administrador · Jovens Centro',
+    })
+    expect(screen.getByText('Administrador · Jovens Centro')).toBeOnTheScreen()
+    expect(screen.getByText('ana@exemplo.com')).toBeOnTheScreen()
+    await userEvent.setup().press(cartao)
+    expect(router.push).toHaveBeenLastCalledWith('/editar-perfil')
+    // Uma porta só para os dados: nada de "Editar dados", nada de avatar solto no cartão.
+    expect(screen.queryByText('Editar dados')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Trocar avatar' })).toBeNull()
+  })
+
+  test('as cinco linhas, cada uma para o seu destino, e nenhum módulo da comunidade', async () => {
+    await renderizarTela(<TelaPerfil />, { papel: 'admin' })
+    const usuario = userEvent.setup()
+    for (const [nome, destino] of [
+      ['Ajustes de notificação', '/notificacoes'],
+      ['Segurança', '/conta/seguranca'],
+      ['Privacidade e dados', '/privacidade'],
+      ['Comunidades', '/trocar-comunidade'],
+      ['Ajuda', '/ajuda'],
+    ] as const) {
+      await usuario.press(await screen.findByRole('button', { name: new RegExp(`^${nome}`) }))
+      expect(router.push).toHaveBeenLastCalledWith(destino)
     }
-    for (const nome of QUE_SAIRAM) {
+    for (const nome of DA_COMUNIDADE) {
       expect(screen.queryByRole('button', { name: new RegExp(`^${nome}[.]`) })).toBeNull()
     }
-    // As escalas viraram aba; "Pendências" agora se chama "Uso sem internet".
+    // A palavra "escala" saiu da interface, e "Pendências" já era "Uso sem internet".
     expect(screen.queryByRole('button', { name: /^Minhas escalas/ })).toBeNull()
-    expect(screen.queryByText(/Pendências/)).toBeNull()
+    expect(screen.queryByText(/Ajuda e sobre/)).toBeNull()
     // Só o Criador vê a Plataforma.
     expect(screen.queryByRole('button', { name: /^Plataforma do Criador/ })).toBeNull()
   })
 
-  test('"Mais opções" no fim: bloqueadas, uso sem internet, outra comunidade, criar e denunciar', async () => {
-    await renderizarTela(<TelaPerfil />, {
-      papel: 'membro',
-      rotas: { [`GET ${BASE}`]: DETALHE },
+  test('"Comunidades" diz onde a pessoa está e abre a folha de trocar, entrar, criar e sair', async () => {
+    await renderizarTela(<TelaPerfil />, { papel: 'membro' })
+    expect(
+      await screen.findByRole('button', {
+        name: 'Comunidades. Agora em Jovens Centro. Trocar, entrar, criar ou sair',
+      }),
+    ).toBeOnTheScreen()
+    expect(screen.getByText('Jovens Centro · trocar, entrar, criar, sair')).toBeOnTheScreen()
+  })
+
+  test('sem duplicações: entrar, criar e sair de comunidade não aparecem aqui (moram na folha)', async () => {
+    await renderizarTela(<TelaPerfil />, { papel: 'membro', rotas: { [`GET ${BASE}`]: DETALHE } })
+    await userEvent.setup().press(await screen.findByRole('button', { name: /^Mais opções/ }))
+    expect(screen.queryByRole('button', { name: /^Entrar em outra comunidade/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Criar comunidade/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Sair de Jovens/ })).toBeNull()
+    expect(screen.getAllByRole('button', { name: /^Segurança/ })).toHaveLength(1)
+  })
+})
+
+describe('"Mais opções" dobrado', () => {
+  test('fechado esconde o resto; aberto leva a versículo, bloqueadas, uso sem internet e denunciar', async () => {
+    await renderizarTela(<TelaPerfil />, { papel: 'membro', rotas: { [`GET ${BASE}`]: DETALHE } })
+    const usuario = userEvent.setup()
+    const mais = await screen.findByRole('button', {
+      name: 'Mais opções. Recolhido, toque para ver.',
     })
-    expect(await screen.findByText('Mais opções')).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: /^Pessoas bloqueadas/ })).toBeNull()
+    await usuario.press(mais)
     for (const [nome, destino] of [
+      ['Versículo do dia', '/versiculo'],
       ['Pessoas bloqueadas', '/bloqueados'],
       ['Uso sem internet', '/pendencias'],
-      ['Entrar em outra comunidade', '/comece-por-aqui'],
-      ['Criar comunidade', '/criar-comunidade'],
     ] as const) {
-      await fireEvent.press(screen.getByRole('button', { name: new RegExp(`^${nome}`) }))
+      await usuario.press(await screen.findByRole('button', { name: new RegExp(`^${nome}`) }))
       expect(router.push).toHaveBeenLastCalledWith(destino)
     }
-    await fireEvent.press(await screen.findByRole('button', { name: /^Denunciar comunidade/ }))
+    await usuario.press(await screen.findByRole('button', { name: /^Denunciar comunidade/ }))
     expect(router.push).toHaveBeenLastCalledWith({
       pathname: '/denunciar-comunidade',
       params: { idPublico: 'publico-123', nome: 'Jovens Centro' },
     })
   })
+})
 
-  test('o Criador vê a Plataforma do Criador (só aqui) e cria pela Plataforma', async () => {
+describe('Plataforma, só do Criador', () => {
+  test('o Criador vê a Plataforma do Criador, e criar comunidade vai pela folha', async () => {
     await renderizarTela(<TelaPerfil />, { rotas: { 'GET /api/v1/eu': euComoCriador() } })
     await fireEvent.press(await screen.findByRole('button', { name: /^Plataforma do Criador/ }))
     expect(router.push).toHaveBeenLastCalledWith('/plataforma')
-    await fireEvent.press(screen.getByRole('button', { name: 'Criar comunidade' }))
-    expect(router.push).toHaveBeenLastCalledWith('/plataforma/nova')
+    expect(screen.queryByRole('button', { name: 'Criar comunidade' })).toBeNull()
   })
+})
 
-  test('"Ajustes de notificação" abre as preferências', async () => {
-    await renderizarTela(<TelaPerfil />, { papel: 'membro' })
-    await fireEvent.press(await screen.findByRole('button', { name: /^Ajustes de notificação/ }))
-    expect(router.push).toHaveBeenLastCalledWith('/notificacoes')
-  })
+describe('Segurança: o alerta "Desligado" é de quem administra', () => {
+  const semDoisFatores = (papel: 'membro' | 'organizador' | 'admin') => () => {
+    const base = respostaEu(papel)
+    return { status: 200, corpo: { ...base, conta: { ...base.conta, doisFatores: false } } }
+  }
 
-  test('"Editar perfil" é o único caminho para os dados: o cartão não repete "Editar dados" (D62)', async () => {
-    await renderizarTela(<TelaPerfil />, { papel: 'membro' })
-    await screen.findByRole('button', { name: /^Editar perfil/ })
-    expect(screen.queryByRole('button', { name: 'Editar dados' })).toBeNull()
-    expect(screen.queryByText('Editar dados')).toBeNull()
-    // O avatar continua tocável, com rótulo.
-    expect(screen.getByRole('button', { name: 'Trocar avatar' })).toBeOnTheScreen()
-  })
-
-  test('o chip âmbar "Desligado" da Segurança é só de quem administra', async () => {
-    const semDoisFatores = (papel: 'membro' | 'organizador' | 'admin') => () => {
-      const base = respostaEu(papel)
-      return { status: 200, corpo: { ...base, conta: { ...base.conta, doisFatores: false } } }
-    }
+  test('membro não vê o chip; administrador vê, com texto', async () => {
     const membro = await renderizarTela(<TelaPerfil />, {
       papel: 'membro',
       rotas: { 'GET /api/v1/eu': semDoisFatores('membro') },
@@ -156,5 +191,40 @@ describe('Perfil só com a conta (D57)', () => {
       },
     })
     expect(await screen.findByText('Ligado')).toBeOnTheScreen()
+  })
+})
+
+describe('Sair: um segundo toque no próprio botão, sem diálogo', () => {
+  afterEach(() => jest.useRealTimers())
+
+  test('o primeiro toque só arma ("Toque de novo para sair"); o segundo sai e avisa', async () => {
+    const { servidor } = await renderizarTela(<TelaPerfil />, {
+      papel: 'membro',
+      rotas: { 'POST /api/auth/sair': () => ({ status: 200, corpo: { ok: true } }) },
+    })
+    await fireEvent.press(await screen.findByRole('button', { name: 'Sair' }))
+    const armado = await screen.findByRole('button', { name: 'Toque de novo para sair' })
+    expect(pedidosPara(servidor, 'POST', '/api/auth/sair')).toHaveLength(0)
+
+    await fireEvent.press(armado)
+    await waitFor(() => expect(pedidosPara(servidor, 'POST', '/api/auth/sair')).toHaveLength(1))
+    await waitFor(() =>
+      expect(mostrarToast).toHaveBeenCalledWith({
+        texto: 'Você saiu. Seus dados neste aparelho foram apagados.',
+      }),
+    )
+  })
+
+  test('sem o segundo toque, volta a "Sair" depois de 4 segundos', async () => {
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] })
+    const { servidor } = await renderizarTela(<TelaPerfil />, { papel: 'membro' })
+    await fireEvent.press(await screen.findByRole('button', { name: 'Sair' }))
+    expect(await screen.findByRole('button', { name: 'Toque de novo para sair' })).toBeOnTheScreen()
+    await act(async () => {
+      jest.advanceTimersByTime(4100)
+    })
+    expect(await screen.findByRole('button', { name: 'Sair' })).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: 'Toque de novo para sair' })).toBeNull()
+    expect(pedidosPara(servidor, 'POST', '/api/auth/sair')).toHaveLength(0)
   })
 })

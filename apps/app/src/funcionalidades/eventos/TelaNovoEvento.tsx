@@ -52,8 +52,16 @@ import {
   type RascunhoDoEvento,
 } from './formulario'
 
-/** Parâmetro da folha "Nova programação" para escolher um modelo antes. */
+/** Parâmetro da folha "Novo encontro" para escolher um modelo antes. */
 const ESCOLHER_MODELO = 'escolher'
+
+/**
+ * Sem modelo, categoria e duração são obrigatórias, mas ficam em "Mais opções" (D69: o formulário
+ * curto é título, data, hora e local). Os padrões deixam o caminho curto de pé; o modelo escolhido
+ * troca os dois pelos dele.
+ */
+const CATEGORIA_PADRAO = 'Encontro'
+const DURACAO_PADRAO = '60'
 
 /** Rota `/evento/novo?modelo=...`: criar evento avulso ou série, do zero ou de modelo. */
 export function TelaNovoEvento() {
@@ -115,7 +123,14 @@ function NovoEvento({
   const [modelo, setModelo] = useState(modeloInicial === ESCOLHER_MODELO ? '' : modeloInicial)
   const [rascunhoInicial] = useState<RascunhoDoEvento>(() => {
     const r = rascunhoVazio()
-    if (modeloInicial !== 'sabado_padrao') return { ...r, data: dataInicial ?? '' }
+    if (modeloInicial !== 'sabado_padrao') {
+      return {
+        ...r,
+        data: dataInicial ?? '',
+        categoria: CATEGORIA_PADRAO,
+        duracao: DURACAO_PADRAO,
+      }
+    }
     // Sábado padrão: já sugere o próximo sábado às 16h (tudo editável).
     return {
       ...r,
@@ -151,12 +166,21 @@ function NovoEvento({
     setModelo(valor)
     const m =
       embutidos.find((x) => x.chave === valor) ?? daComunidade.find((x) => x.id === valor) ?? null
-    if (!m) return
-    setRascunho((r) => ({
-      ...r,
-      titulo: r.titulo || m.nome,
-      categoria: r.categoria || m.categoria,
-    }))
+    setRascunho((r) =>
+      m
+        ? {
+            ...r,
+            titulo: r.titulo || m.nome,
+            categoria: !r.categoria || r.categoria === CATEGORIA_PADRAO ? m.categoria : r.categoria,
+            // Com modelo, a duração em branco é a soma das etapas dele.
+            duracao: r.duracao === DURACAO_PADRAO ? '' : r.duracao,
+          }
+        : {
+            ...r,
+            categoria: r.categoria || CATEGORIA_PADRAO,
+            duracao: r.duracao || DURACAO_PADRAO,
+          },
+    )
   }
 
   const salvar = useMutation({
@@ -329,31 +353,36 @@ function NovoEvento({
         mudar={mudar}
         erros={erros}
         refs={refs}
+        simples
+        abrirOpcoes={!!erroDoFim}
         visiveis={{ data: true, inscricoes: true, prazoEEspera: !ehSerie }}
+        extraNasOpcoes={
+          <>
+            <Secao titulo="Repetição">
+              <CartaoDeVidro opaco intervalo={ESPACO.e16}>
+                <EditorDeRegra
+                  regra={regra}
+                  aoMudar={setRegra}
+                  primeira={primeira}
+                  hora={rascunho.hora || null}
+                  erroDoFim={erroDoFim}
+                />
+              </CartaoDeVidro>
+            </Secao>
+            {ehSerie ? (
+              <Aviso tipo="info" titulo="Encontros que se repetem">
+                Cada data vira um encontro próprio, que você pode editar sozinho depois. Prazo e
+                lista de espera valem por data e são ajustados em cada uma.
+              </Aviso>
+            ) : null}
+          </>
+        }
         {...(etapasDoModelo
           ? {
               ajudaDaDuracao: `Em branco, usa a soma das etapas do modelo (${formatarDuracao(duracaoTotal(etapasDoModelo))}).`,
             }
           : {})}
       />
-
-      <Secao titulo="Repetir">
-        <CartaoDeVidro opaco intervalo={ESPACO.e16}>
-          <EditorDeRegra
-            regra={regra}
-            aoMudar={setRegra}
-            primeira={primeira}
-            hora={rascunho.hora || null}
-            erroDoFim={erroDoFim}
-          />
-        </CartaoDeVidro>
-      </Secao>
-      {ehSerie ? (
-        <Aviso tipo="info" titulo="Encontros que se repetem">
-          Cada data vira um encontro próprio, que você pode editar sozinho depois. Prazo e lista de
-          espera valem por data e são ajustados em cada uma.
-        </Aviso>
-      ) : null}
     </Tela>
   )
 }

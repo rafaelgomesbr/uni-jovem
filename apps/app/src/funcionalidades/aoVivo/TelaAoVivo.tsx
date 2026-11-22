@@ -1,28 +1,30 @@
-import { ALTURA, BORDA, ESPACO, TIPO } from '@uj/tokens'
+import { useMutation } from '@tanstack/react-query'
+import { ALTURA, ESPACO, TIPO, type PoseDoSol } from '@uj/tokens'
 import { useKeepAwake } from 'expo-keep-awake'
-import { useLocalSearchParams } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { useEffect, useState, type ReactNode } from 'react'
 import { useWindowDimensions, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useSessao } from '@/estado/sessao'
 import type { ComandoDoAoVivo, EtapaAoVivo, RetratoAoVivo } from '@/servicos/contratoDosEventos'
-import { ehErroDaApi, SemConexao } from '@/servicos/erros'
+import { ehErroDaApi, mensagemDoErro, SemConexao } from '@/servicos/erros'
 import { Aviso } from '@/ui/Aviso'
 import { BarraDeProgresso } from '@/ui/BarraDeProgresso'
 import { Botao, BotaoIcone } from '@/ui/Botao'
-import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
-import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { Cartao } from '@/ui/Cartao'
 import { Chip } from '@/ui/Chip'
-import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
+import { Esqueleto, EsqueletoDoMomento, LinhaDeEsqueleto } from '@/ui/Esqueleto'
 import { AvisoDeFalha, ErroDaTela } from '@/ui/Falha'
 import { MenuDeAcoes } from '@/ui/FolhaNaTela'
 import { Icone } from '@/ui/Icone'
 import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
+import { EntradaEmCascata } from '@/ui/primitivasDeMovimento'
 import { Secao } from '@/ui/Secao'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { registrarRodape } from '@/ui/Toast'
+import { mostrarDesfazer } from '@/ui/ToastComDesfazer'
 import { sombra, useTema } from '@/ui/tema'
 import { useAnunciar } from '@/ui/useAnunciar'
 import { Vidro } from '@/ui/Vidro'
@@ -38,8 +40,9 @@ import { parametro } from '@/utilidades/parametros'
 
 import { useFusoDaComunidade } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
+import { VazioComSol } from '../inscricoes/VazioComSol'
 import { SemComunidade } from '../navegacao/SemComunidade'
-import { useEstaOnline } from '../offline/ProvedorOffline'
+import { useEstaOnline, useOffline } from '../offline/ProvedorOffline'
 import { useAoVivoLocal } from '../offline/useAoVivoLocal'
 import {
   calcularTempo,
@@ -50,7 +53,7 @@ import {
 } from './tempo'
 import { useAgora, useAoVivo } from './useAoVivo'
 
-/** Controles do ao vivo: 56 de altura, porque a tela é usada sob pressão (3.5.1). */
+/** Controles do ao vivo: 56 de altura, porque a tela é usada sob pressão. */
 const ALTURA_DO_CONTROLE = ALTURA.controleAlto
 
 /** Rota `/evento/[eventoId]/ao-vivo`. */
@@ -86,15 +89,18 @@ export function AoVivo({ comunidadeId, eventoId }: { comunidadeId: string; event
         }}
         enviando={local.enviando}
         erro={local.erro}
+        eventoId={eventoId}
       />
     )
   }
+  if (semRede) return <SemPacote eventoId={eventoId} />
   if (retrato.isPending) {
     return (
       <Tela pilha aurora={0} titulo="Ao vivo">
         <Esqueleto rotulo="Carregando o andamento">
-          <CartaoDeEsqueleto titulo />
-          <CartaoDeEsqueleto />
+          <EsqueletoDoMomento />
+          <LinhaDeEsqueleto altura={56} />
+          <LinhaDeEsqueleto altura={56} />
         </Esqueleto>
       </Tela>
     )
@@ -104,7 +110,7 @@ export function AoVivo({ comunidadeId, eventoId }: { comunidadeId: string; event
       <Tela pilha aurora={0} titulo="Ao vivo">
         <ErroDaTela
           erro={retrato.error}
-          titulo="O andamento não abriu"
+          titulo="Não deu para conectar."
           aoTentarDeNovo={() => void retrato.refetch()}
         />
       </Tela>
@@ -121,13 +127,58 @@ export function AoVivo({ comunidadeId, eventoId }: { comunidadeId: string; event
           ? comandar.error
           : null
       }
+      eventoId={eventoId}
     />
   )
 }
 
+/** Sem internet e sem o encontro baixado: não há andamento para mostrar nem para conduzir. */
+function SemPacote({ eventoId }: { eventoId: string }) {
+  const offline = useOffline()
+  const baixar = useMutation({
+    mutationFn: () => offline.prepararEvento(eventoId),
+    networkMode: 'always',
+  })
+  return (
+    <Tela
+      pilha
+      aurora={0}
+      titulo="Ao vivo"
+      acoes={<Chip situacao="aguardando" texto="Sem conexão" icone="semConexao" />}
+    >
+      <VazioComSol
+        titulo="Sem internet e sem o encontro no aparelho."
+        descricao="Para conduzir sem internet, baixe o encontro antes. Faça isso com Wi-Fi."
+        acao={{
+          titulo: baixar.isPending ? 'Baixando...' : 'Baixar o encontro',
+          icone: 'baixar',
+          aoPressionar: () => {
+            if (offline.online && offline.disponivel) baixar.mutate()
+          },
+        }}
+      />
+      {!offline.online ? (
+        <Texto variante="legenda" cor="textoSuave">
+          Baixar exige conexão com a internet.
+        </Texto>
+      ) : null}
+      {!offline.disponivel ? (
+        <Aviso tipo="info" titulo="Só no app do celular">
+          {offline.motivoIndisponivel ?? 'Nada fica guardado neste aparelho.'}
+        </Aviso>
+      ) : null}
+      {baixar.error ? (
+        <Aviso tipo="erro" titulo="Não deu certo" anunciar>
+          {mensagemDoErro(baixar.error)}
+        </Aviso>
+      ) : null}
+    </Tela>
+  )
+}
+
 /**
- * Tela acesa enquanto alguém conduz ou acompanha (a tela ao vivo fica parada
- * na mão ou no púlpito). Sai do ar sozinho ao encerrar ou ao fechar a tela.
+ * Tela acesa enquanto alguém conduz ou acompanha (a tela ao vivo fica parada na mão ou no
+ * púlpito). Sai do ar sozinho ao encerrar ou ao fechar a tela.
  */
 function ManterTelaAcesa() {
   useKeepAwake('uj-ao-vivo')
@@ -142,26 +193,38 @@ interface PropsDoPainel {
   comandar: (comando: ComandoDoAoVivo, forcar?: boolean) => void
   enviando: ComandoDoAoVivo | null
   erro: unknown
+  eventoId: string
 }
 
 const CHIP_DA_CONEXAO = {
-  ao_vivo: { texto: 'Conectado', tom: 'sucesso' },
-  reconectando: { texto: 'Reconectando', tom: 'alerta' },
-  so_neste_aparelho: { texto: 'Só neste aparelho', tom: 'alerta' },
+  ao_vivo: { texto: 'Conectado', tom: 'sucesso', icone: 'check' },
+  reconectando: { texto: 'Reconectando', tom: 'alerta', icone: 'sincronizar' },
+  so_neste_aparelho: { texto: 'Sem conexão', tom: 'alerta', icone: 'semConexao' },
 } as const
 
+const POSE_POR_SITUACAO: Readonly<Record<RetratoAoVivo['situacao'], PoseDoSol>> = {
+  nao_iniciado: 'escondido',
+  em_andamento: 'radiante',
+  pausado: 'pleno',
+  encerrado: 'poente',
+}
+
 /**
- * Ao vivo (3.5.1 e quadro 09): fundo chapado (sem Aurora), cartões opacos, a
- * etapa atual no cartão de destaque com os dois cronômetros, "A SEGUIR", o
- * atraso acumulado, o progresso e todas as etapas. Quem conduz tem a barra
- * de controle de 56. O cronômetro não é região viva (seria lido a cada
+ * Ao vivo no visual A (D71): fundo chapado (sem Aurora, a tela é de condução), o cartão da etapa
+ * de agora com o tempo que resta em número enorme e o sol radiante, o atraso acumulado, o que vem
+ * depois e o roteiro. Quem conduz tem os botões com texto: "Voltar", o primário que NOMEIA a
+ * próxima etapa ("Próxima etapa: Oração intercessora") e "Pausar". "Encerrar o ao vivo" não pede
+ * confirmação: mostra o resultado e dá 10 s para desfazer, porque avisa quem acompanha. Quem só
+ * acompanha vê a mesma tela, sem botões. O cronômetro não é região viva (seria lido a cada
  * segundo); a troca de etapa, sim, é anunciada.
  */
-function Painel({ r, conexao, comandar, enviando, erro }: PropsDoPainel) {
+function Painel({ r, conexao, comandar, enviando, erro, eventoId }: PropsDoPainel) {
   const pode = usePode()
   const fuso = useFusoDaComunidade()
   const agora = useAgora()
   const [menu, setMenu] = useState(false)
+  // "Encerrar" aparece feito na hora; o envio só sai depois dos 10 s do Desfazer.
+  const [encerrando, setEncerrando] = useState(false)
   // Relógio do aparelho corrigido pelo do servidor (o que vale é o andamento compartilhado).
   const desvioMs = r.recebidoEm === undefined ? 0 : Date.parse(r.agora) - r.recebidoEm
   const t = calcularTempo(r, agora + desvioMs)
@@ -169,35 +232,36 @@ function Painel({ r, conexao, comandar, enviando, erro }: PropsDoPainel) {
   const local = conexao === 'so_neste_aparelho'
   const outroConduz = !local && r.condutor !== null && !r.souCondutor
   const controles = CONTROLES_POR_SITUACAO[r.situacao]
+  const encerrado = r.situacao === 'encerrado' || (encerrando && !erro)
 
   // Avisa o leitor de tela quando a etapa muda (o resto da tela não é lido sozinho).
   const tituloAtual = t.atual?.titulo
   useAnunciar(
-    tituloAtual
-      ? `Agora: ${tituloAtual}`
-      : r.situacao === 'encerrado'
-        ? 'Encontro encerrado'
-        : null,
+    tituloAtual && !encerrado ? `Agora: ${tituloAtual}` : encerrado ? 'Encontro encerrado' : null,
   )
   // Perder e recuperar a conexão muda o que a tela mostra: o leitor de tela fica sabendo.
   useAnunciar(
     conexao === 'ao_vivo'
       ? 'Conexão de volta. Atualizando em tempo real.'
       : local
-        ? 'Sem conexão. Mostrando o andamento guardado neste aparelho.'
+        ? 'Sem conexão. Você pode continuar. As mudanças vão quando a internet voltar.'
         : 'Sem conexão. Tentando de novo.',
     { soMudancas: true },
   )
 
-  async function executar(controle: ControleDoAoVivo) {
+  function encerrar() {
+    setEncerrando(true)
+    mostrarDesfazer({
+      texto: 'Encerrando o ao vivo para quem acompanha.',
+      aoDesfazer: () => setEncerrando(false),
+      aoConfirmar: () => comandar('encerrar'),
+    })
+  }
+
+  function executar(controle: ControleDoAoVivo) {
     if (controle === 'encerrar') {
-      const ok = await confirmar({
-        titulo: 'Encerrar o ao vivo?',
-        mensagem: 'O andamento termina para todos que estão acompanhando.',
-        confirmar: 'Encerrar',
-        destrutivo: true,
-      })
-      if (!ok) return
+      encerrar()
+      return
     }
     comandar(controle)
   }
@@ -229,7 +293,6 @@ function Painel({ r, conexao, comandar, enviando, erro }: PropsDoPainel) {
         ? motivoDaRecusa(r, c)
         : 'Disponível com o encontro em andamento.'
 
-  const encerrado = r.situacao === 'encerrado'
   const acoesDoMenu = conduz
     ? [
         !local &&
@@ -249,13 +312,15 @@ function Painel({ r, conexao, comandar, enviando, erro }: PropsDoPainel) {
             icone: 'sair' as const,
             aoPressionar: () => void liberar(),
           },
-        controles.includes('encerrar') && {
-          titulo: 'Encerrar o ao vivo',
-          icone: 'encerrar' as const,
-          destrutiva: true,
-          motivo: recusa('encerrar'),
-          aoPressionar: () => void executar('encerrar'),
-        },
+        controles.includes('encerrar') &&
+          !encerrado && {
+            titulo: 'Encerrar o ao vivo',
+            icone: 'encerrar' as const,
+            destrutiva: true,
+            descricao: 'Avisa quem acompanha. Você tem 10 segundos para desfazer.',
+            motivo: outroConduz ? recusa('encerrar') : null,
+            aoPressionar: () => executar('encerrar'),
+          },
       ]
     : []
   const temMenu = acoesDoMenu.some(Boolean)
@@ -263,7 +328,7 @@ function Painel({ r, conexao, comandar, enviando, erro }: PropsDoPainel) {
   const chip = CHIP_DA_CONEXAO[conexao]
   const cabecalho = (
     <>
-      <Chip texto={chip.texto} tom={chip.tom} ponto />
+      <Chip texto={chip.texto} tom={chip.tom} icone={chip.icone} />
       {temMenu ? (
         <BotaoIcone
           icone="maisAcoes"
@@ -276,8 +341,10 @@ function Painel({ r, conexao, comandar, enviando, erro }: PropsDoPainel) {
     </>
   )
 
+  const ultima = t.indiceAtual === t.total - 1
+  const nomeDaProxima = t.proxima?.titulo
   const barra =
-    !conduz || encerrado ? null : outroConduz ? (
+    !conduz || encerrado || r.etapas.length === 0 ? null : outroConduz ? (
       <BarraDeControle>
         <View style={{ flex: 1 }}>
           <Texto variante="corpo">
@@ -293,54 +360,57 @@ function Painel({ r, conexao, comandar, enviando, erro }: PropsDoPainel) {
       </BarraDeControle>
     ) : (
       <BarraDeControle>
-        {/* Rótulo escrito embaixo do símbolo: "|◁" sozinho parecia "voltar de tela" (U-20). */}
-        {r.situacao !== 'nao_iniciado' ? (
-          <BotaoIcone
-            icone="etapaAnterior"
-            rotulo="Voltar etapa"
-            texto="Voltar etapa"
-            disposicao="embaixo"
-            lado={ALTURA_DO_CONTROLE}
-            desabilitado={recusa('voltar') !== null || enviando !== null}
-            dica={recusa('voltar') ?? 'Volta para a etapa anterior.'}
-            aoPressionar={() => void executar('voltar')}
+        <View style={{ flexDirection: 'row', alignItems: 'stretch', gap: ESPACO.e8 }}>
+          {r.situacao === 'em_andamento' ? (
+            <Botao
+              titulo="Voltar"
+              icone="etapaAnterior"
+              variante="secundario"
+              tamanho="alto"
+              rotuloAcessivel="Voltar uma etapa"
+              desabilitado={recusa('voltar') !== null || enviando !== null}
+              {...(recusa('voltar') ? { dica: recusa('voltar')! } : {})}
+              aoPressionar={() => executar('voltar')}
+            />
+          ) : null}
+          <BotaoDoControle
+            titulo={
+              r.situacao === 'nao_iniciado'
+                ? 'Iniciar o encontro'
+                : r.situacao === 'pausado'
+                  ? 'Retomar'
+                  : ultima
+                    ? 'Encerrar o ao vivo'
+                    : `Próxima etapa: ${nomeDaProxima ?? ''}`
+            }
+            controle={
+              r.situacao === 'nao_iniciado'
+                ? 'iniciar'
+                : r.situacao === 'pausado'
+                  ? 'retomar'
+                  : 'avancar'
+            }
+            recusa={recusa}
+            enviando={enviando}
+            executar={(c) => executar(c === 'avancar' && ultima ? 'encerrar' : c)}
           />
-        ) : null}
-        <BotaoDoControle
-          titulo={
-            r.situacao === 'nao_iniciado'
-              ? 'Iniciar'
-              : r.situacao === 'pausado'
-                ? 'Retomar'
-                : t.indiceAtual === t.total - 1
-                  ? 'Concluir a última etapa'
-                  : 'Avançar etapa'
-          }
-          controle={
-            r.situacao === 'nao_iniciado'
-              ? 'iniciar'
-              : r.situacao === 'pausado'
-                ? 'retomar'
-                : 'avancar'
-          }
-          recusa={recusa}
-          enviando={enviando}
-          executar={(c) => void executar(c)}
-        />
+        </View>
         {r.situacao === 'em_andamento' ? (
-          <BotaoIcone
-            icone="pausar"
-            rotulo="Pausar"
-            texto="Pausar"
-            disposicao="embaixo"
-            lado={ALTURA_DO_CONTROLE}
-            desabilitado={recusa('pausar') !== null || enviando !== null}
-            dica={recusa('pausar') ?? 'Para o relógio da etapa.'}
-            aoPressionar={() => void executar('pausar')}
-          />
+          <View style={{ alignItems: 'center' }}>
+            <Botao
+              titulo="Pausar"
+              icone="pausar"
+              variante="terciario"
+              desabilitado={recusa('pausar') !== null || enviando !== null}
+              {...(recusa('pausar') ? { dica: recusa('pausar')! } : {})}
+              aoPressionar={() => executar('pausar')}
+            />
+          </View>
         ) : null}
       </BarraDeControle>
     )
+
+  const roteiroVazio = r.etapas.length === 0
 
   return (
     <Tela
@@ -353,49 +423,98 @@ function Painel({ r, conexao, comandar, enviando, erro }: PropsDoPainel) {
       {!encerrado ? <ManterTelaAcesa /> : null}
 
       {local ? (
-        <Aviso tipo="alerta" titulo="Sem conexão: só neste aparelho">
+        <Aviso tipo="alerta" titulo="Sem internet">
           {conduz
-            ? 'Os comandos ficam guardados aqui e vão como proposta quando a internet voltar. Se outra pessoa avançou no servidor, você vê as duas linhas do tempo em Perfil, Uso sem internet, e escolhe qual vale.'
+            ? 'Você pode continuar. As mudanças vão quando a internet voltar.'
             : 'Este é o andamento da última sincronização. Ele volta a se atualizar quando a internet voltar.'}
         </Aviso>
       ) : null}
       {erro ? <AvisoDeFalha erro={erro} titulo="O comando não foi" /> : null}
 
-      <EtapaAtual r={r} t={t} fuso={fuso} />
+      {roteiroVazio ? (
+        <VazioComSol
+          titulo="Este encontro não tem roteiro."
+          descricao="Monte o roteiro para conduzir etapa por etapa."
+          {...(pode('etapa', 'gerenciar')
+            ? {
+                acao: {
+                  titulo: 'Montar o roteiro',
+                  aoPressionar: () =>
+                    router.push({ pathname: '/evento/[eventoId]', params: { eventoId } }),
+                },
+              }
+            : {})}
+        />
+      ) : (
+        <>
+          <EntradaEmCascata ordem={1}>
+            <EtapaAtual r={r} t={t} fuso={fuso} encerrado={encerrado} />
+          </EntradaEmCascata>
 
-      {t.proxima ? (
-        <CartaoDeVidro sobrancelha="A seguir" opaco comecaComTitulo titulo={t.proxima.titulo}>
-          <Texto variante="meta" cor="textoSuave">
-            {`${formatarDuracao(t.proxima.duracaoMin)} · das ${formatarHora(t.proxima.inicioPrevisto, fuso)} às ${formatarHora(t.proxima.fimPrevisto, fuso)}`}
-          </Texto>
-        </CartaoDeVidro>
-      ) : null}
+          {r.situacao !== 'nao_iniciado' && !encerrado ? (
+            <LinhaDoAtraso atrasoMin={t.atrasoMin} final={false} />
+          ) : null}
+          {encerrado && r.situacao === 'encerrado' ? (
+            <LinhaDoAtraso atrasoMin={t.atrasoMin} final />
+          ) : null}
 
-      {r.situacao !== 'nao_iniciado' ? (
-        <LinhaDoAtraso atrasoMin={t.atrasoMin} final={encerrado} />
-      ) : null}
+          {t.proxima && !encerrado ? (
+            <EntradaEmCascata ordem={2}>
+              <Cartao sobrancelha="A seguir" comecaComTitulo titulo={t.proxima.titulo}>
+                <Texto variante="meta" cor="textoSuave">
+                  {`${formatarDuracao(t.proxima.duracaoMin)} · das ${formatarHora(t.proxima.inicioPrevisto, fuso)} às ${formatarHora(t.proxima.fimPrevisto, fuso)}`}
+                </Texto>
+              </Cartao>
+            </EntradaEmCascata>
+          ) : null}
 
-      <View style={{ gap: ESPACO.e8 }}>
-        <Trilho fracao={t.total ? t.concluidas / t.total : 0} />
-        <Texto variante="meta" cor="textoSuave" tabular>
-          {`${t.concluidas} de ${t.total} etapas concluídas`}
-        </Texto>
-      </View>
+          <View style={{ gap: ESPACO.e8 }}>
+            <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+              <BarraDeProgresso
+                fracao={t.total ? t.concluidas / t.total : 0}
+                rotulo="Progresso das etapas"
+                cor="primaria"
+                trilho="tonal"
+              />
+            </View>
+            <Texto variante="meta" cor="textoSuave" tabular>
+              {`${t.concluidas} de ${t.total} etapas concluídas`}
+            </Texto>
+          </View>
 
-      <Secao titulo="Todas as etapas">
-        <CartaoDeVidro lista opaco>
-          <Lista>
-            {r.etapas.map((e, i) => (
-              <LinhaDaEtapaAoVivo key={e.id} etapa={e} posicao={i} etapas={r.etapas} fuso={fuso} />
-            ))}
-          </Lista>
-        </CartaoDeVidro>
-      </Secao>
+          <EntradaEmCascata ordem={3}>
+            <Secao titulo="Todas as etapas">
+              <Cartao lista>
+                <Lista>
+                  {r.etapas.map((e, i) => (
+                    <LinhaDaEtapaAoVivo
+                      key={e.id}
+                      etapa={e}
+                      posicao={i}
+                      etapas={r.etapas}
+                      fuso={fuso}
+                    />
+                  ))}
+                </Lista>
+              </Cartao>
+            </Secao>
+          </EntradaEmCascata>
+        </>
+      )}
 
-      {!conduz ? (
+      {!conduz && !roteiroVazio ? (
         <Texto variante="corpo" cor="textoSuave">
           Você está acompanhando. Quem conduz o andamento é a organização.
         </Texto>
+      ) : null}
+
+      {conduz && encerrado && pode('evento', 'criar') ? (
+        <Botao
+          titulo="Marcar o próximo sábado"
+          tamanho="grande"
+          larguraTotal
+          aoPressionar={() => router.push('/evento/novo')}
+        />
       ) : null}
 
       <MenuDeAcoes
@@ -409,117 +528,108 @@ function Painel({ r, conexao, comandar, enviando, erro }: PropsDoPainel) {
 }
 
 /**
- * A etapa atual no cartão de destaque (quadro 09): "AGORA · ETAPA 2 DE 7",
- * o título em `display` e os cronômetros empilhados, cada um com o rótulo à
- * esquerda e o valor em 64/68 à direita. Com fonte grande, o rótulo vai
- * acima do valor. O estouro tem "+", o chip "Atrasado" e o texto.
+ * A etapa de agora no cartão do momento: a etiqueta ("AGORA", "AINDA NÃO COMEÇOU", "PAUSADO",
+ * "ENCERRADO"), o nome da etapa, o tempo que resta em número enorme e o sol da pose certa. Passou
+ * do previsto, o número leva "+" e o chip "Passou N min" (ícone e texto, nunca só cor).
  */
 function EtapaAtual({
   r,
   t,
   fuso,
+  encerrado,
 }: {
   r: RetratoAoVivo
   t: ReturnType<typeof calcularTempo>
   fuso: string
+  encerrado: boolean
 }) {
+  if (encerrado || r.situacao === 'encerrado') {
+    return (
+      <Cartao
+        variante="momento"
+        pose={POSE_POR_SITUACAO.encerrado}
+        etiqueta="Encerrado"
+        titulo="Encontro encerrado."
+        meta={`${t.concluidas} de ${t.total} etapas concluídas`}
+      />
+    )
+  }
   if (r.situacao === 'nao_iniciado') {
     return (
-      <CartaoDeDestaque sobrancelha="Ainda não começou">
-        <Texto variante="display" nivel={2} style={{ marginTop: ESPACO.e8 }}>
-          {`Previsto para ${formatarHora(r.evento.inicio, fuso)}`}
-        </Texto>
-        {t.atrasoParaComecarMin > 0 ? (
-          <Texto variante="meta" cor="textoSuave" style={{ marginTop: ESPACO.e12 }}>
-            {`${t.atrasoParaComecarMin} min além do horário previsto`}
-          </Texto>
-        ) : null}
-      </CartaoDeDestaque>
+      <Cartao
+        variante="momento"
+        pose={POSE_POR_SITUACAO.nao_iniciado}
+        etiqueta="Ainda não começou"
+        titulo={`Previsto: ${formatarHora(r.evento.inicio, fuso)}`}
+        {...(t.atrasoParaComecarMin > 0
+          ? { meta: `${t.atrasoParaComecarMin} min além do horário previsto` }
+          : {})}
+      />
     )
   }
-  if (r.situacao === 'encerrado' || !t.atual) {
-    return (
-      <CartaoDeDestaque sobrancelha="Encerrado">
-        <Texto variante="display" nivel={2} style={{ marginTop: ESPACO.e8 }}>
-          Encontro encerrado
-        </Texto>
-      </CartaoDeDestaque>
-    )
-  }
+  if (!t.atual) return null
   const estourou = t.restanteMs !== null && t.restanteMs < 0
+  const restanteMin =
+    t.restanteMs === null ? 0 : Math.max(0, Math.round(Math.abs(t.restanteMs) / 60_000))
+  const chip = estourou ? (
+    <Chip situacao="aguardando" texto={`Passou ${Math.max(1, restanteMin)} min`} icone="relogio" />
+  ) : (
+    <Chip
+      tom="neutro"
+      icone="relogio"
+      texto={restanteMin < 1 ? 'Resta menos de 1 min' : `Restam ${restanteMin} min`}
+    />
+  )
+  const falado = estourou
+    ? `Atrasado. Passou ${falarCronometro(-(t.restanteMs ?? 0))} do previsto. Tempo decorrido: ${falarCronometro(t.decorridoMs)}.`
+    : `Faltam ${falarCronometro(t.restanteMs ?? 0)}. Tempo decorrido: ${falarCronometro(t.decorridoMs)}.`
   return (
-    <CartaoDeDestaque
-      sobrancelha={`${r.situacao === 'pausado' ? 'Pausado' : 'Agora'} · etapa ${t.indiceAtual + 1} de ${t.total}`}
+    <Cartao
+      variante="momento"
+      pose={POSE_POR_SITUACAO[r.situacao]}
+      aoVivo={r.situacao === 'em_andamento'}
+      etiqueta={r.situacao === 'pausado' ? 'Pausado' : 'Agora'}
+      titulo={t.atual.titulo}
+      meta={`Etapa ${t.indiceAtual + 1} de ${t.total} · até ${formatarHora(t.atual.fimPrevisto, fuso)}`}
     >
-      <Texto variante="display" nivel={2} style={{ marginTop: ESPACO.e8 }}>
-        {t.atual.titulo}
-      </Texto>
-      <View style={{ marginTop: ESPACO.e16 }}>
-        <Cronometro
-          rotulo="Decorrido"
-          valor={formatarCronometro(t.decorridoMs)}
-          falado={`Tempo decorrido: ${falarCronometro(t.decorridoMs)}`}
-        />
-        <Cronometro
-          rotulo={estourou ? 'Além do previsto' : 'Restante'}
-          valor={`${estourou ? '+' : ''}${formatarCronometro(Math.abs(t.restanteMs ?? 0))}`}
-          falado={
-            estourou
-              ? `Atrasado. Passou ${falarCronometro(-(t.restanteMs ?? 0))} do previsto`
-              : `Faltam ${falarCronometro(t.restanteMs ?? 0)}`
-          }
-          chip={estourou ? <Chip texto="Atrasado" tom="alerta" /> : null}
-          separado
-        />
-      </View>
-      <Texto variante="meta" cor="textoSuave" style={{ marginTop: ESPACO.e12 }}>
-        {`Previsto ${formatarDuracao(t.atual.duracaoMin)}, das ${formatarHora(t.atual.inicioPrevisto, fuso)} às ${formatarHora(t.atual.fimPrevisto, fuso)}`}
-      </Texto>
-    </CartaoDeDestaque>
+      <Cronometro
+        valor={`${estourou ? '+' : ''}${formatarCronometro(Math.abs(t.restanteMs ?? 0))}`}
+        falado={falado}
+        rotulo={estourou ? 'Além do previsto' : 'Restante'}
+        decorrido={`${formatarCronometro(t.decorridoMs)} de ${formatarDuracao(t.atual.duracaoMin)}`}
+      />
+      {chip}
+      {r.condutor ? (
+        <Texto variante="meta" cor="textoSuave">
+          {r.souCondutor ? 'Você conduz agora.' : `Quem conduz: ${r.condutor.nome}`}
+        </Texto>
+      ) : null}
+    </Cartao>
   )
 }
 
+/** O tempo que resta, enorme (papel `cronômetro` 64/68, teto 1,4), e o decorrido em letra pequena. */
 function Cronometro({
-  rotulo,
   valor,
   falado,
-  chip,
-  separado = false,
+  rotulo,
+  decorrido,
 }: {
-  rotulo: string
   valor: string
   falado: string
-  chip?: ReactNode
-  separado?: boolean
+  rotulo: string
+  decorrido: string
 }) {
-  const { cores } = useTema()
-  const { fontScale } = useWindowDimensions()
-  // Com fonte grande, o valor (teto de 1,4) não cabe ao lado do rótulo: empilha.
-  const empilhar = fontScale >= 1.35
   return (
-    <View
-      accessible
-      accessibilityLabel={falado}
-      style={{
-        minHeight: TIPO.cronometro.altura,
-        flexDirection: empilhar ? 'column' : 'row',
-        alignItems: empilhar ? 'flex-start' : 'center',
-        justifyContent: 'space-between',
-        gap: empilhar ? ESPACO.e4 : ESPACO.e12,
-        borderTopWidth: separado ? BORDA.fina : 0,
-        borderTopColor: cores.separador,
-        paddingVertical: empilhar ? ESPACO.e8 : 0,
-      }}
-    >
-      <View style={{ gap: ESPACO.e4, alignItems: 'flex-start', flexShrink: 1 }}>
-        <Texto variante="sobrancelha" cor="textoSuave" accessibilityRole="text">
-          {rotulo}
-        </Texto>
-        {chip}
-      </View>
-      {/* Papel `cronometro` (64/68, teto 1,4): o número já é enorme e não pode sair da tela. */}
+    <View accessible accessibilityLabel={falado} style={{ minHeight: TIPO.cronometro.altura }}>
+      <Texto variante="sobrancelha" cor="textoSuave" accessibilityRole="text">
+        {rotulo}
+      </Texto>
       <Texto variante="cronometro" accessibilityRole="text" adjustsFontSizeToFit numberOfLines={1}>
         {valor}
+      </Texto>
+      <Texto variante="meta" cor="textoSuave" tabular accessibilityRole="text">
+        {decorrido}
       </Texto>
     </View>
   )
@@ -528,6 +638,7 @@ function Cronometro({
 /** "Atraso acumulado: 4 min de atraso" (alerta) ou "No horário" (sucesso), com ícone. */
 function LinhaDoAtraso({ atrasoMin, final }: { atrasoMin: number | null; final: boolean }) {
   const { cores } = useTema()
+  const { fontScale } = useWindowDimensions()
   if (atrasoMin === null) return null
   const atrasado = atrasoMin > 0
   const texto = atrasado
@@ -537,7 +648,11 @@ function LinhaDoAtraso({ atrasoMin, final }: { atrasoMin: number | null; final: 
       : `Adiantado: ${-atrasoMin} min`
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}>
-      <Icone nome="relogio" cor={atrasado ? cores.alerta : cores.sucesso} tamanho={18} />
+      <Icone
+        nome="relogio"
+        cor={atrasado ? cores.alerta : cores.sucesso}
+        tamanho={fontScale >= 1.35 ? 22 : 18}
+      />
       <Texto
         variante="corpo"
         peso="forte"
@@ -546,23 +661,6 @@ function LinhaDoAtraso({ atrasoMin, final }: { atrasoMin: number | null; final: 
       >
         {texto}
       </Texto>
-    </View>
-  )
-}
-
-/**
- * Barra de progresso de 6 (quadro 09), em `primaria`. Fica oculta para o
- * leitor de tela: a legenda logo abaixo diz o mesmo em texto.
- */
-function Trilho({ fracao }: { fracao: number }) {
-  return (
-    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <BarraDeProgresso
-        fracao={fracao}
-        rotulo="Progresso das etapas"
-        cor="primaria"
-        trilho="tonal"
-      />
     </View>
   )
 }
@@ -611,15 +709,15 @@ function LinhaDaEtapaAoVivo({
       {...(e.situacao === 'concluida'
         ? { extra: <Icone nome="check" cor={cores.sucesso} tamanho={18} peso="forte" /> }
         : e.situacao === 'atual'
-          ? { extra: <Chip texto="Agora" tom="neutro" /> }
+          ? { extra: <Chip tom="quente" texto="Agora" /> }
           : {})}
     />
   )
 }
 
 /**
- * Barra de controle fixa (quadro 09): o vidro da barra de ação, com botões
- * de 56. Diz ao toast onde termina, para ele aparecer acima dela.
+ * Barra de controle fixa: o vidro da barra de ação, com botões de 56. Diz ao toast onde termina,
+ * para ele aparecer acima dela (e acima do Desfazer do encerramento).
  */
 function BarraDeControle({ children }: { children: ReactNode }) {
   const { elevacao } = useTema()
@@ -631,9 +729,7 @@ function BarraDeControle({ children }: { children: ReactNode }) {
     <Vidro borda="cima" style={sombra(elevacao.flutuante)}>
       <View
         style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: ESPACO.e8,
+          gap: ESPACO.e4,
           paddingTop: ESPACO.e12,
           paddingHorizontal: ESPACO.e20,
           paddingBottom: margens.bottom + ESPACO.e12,
@@ -645,7 +741,7 @@ function BarraDeControle({ children }: { children: ReactNode }) {
   )
 }
 
-/** O primário da barra de controle: o botão alto (56) com `flex: 1`. */
+/** O primário da barra de controle: o botão alto (56) com `flex: 1`; o texto pode ir a duas linhas. */
 function BotaoDoControle({
   titulo,
   controle,

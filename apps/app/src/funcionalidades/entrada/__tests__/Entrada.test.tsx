@@ -5,8 +5,8 @@ import { Alert } from 'react-native'
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { pedidosPara, renderizarTela, respostaEu } from '@/testes/telas'
 
-import { TelaInicio } from '../../inicio/TelaInicio'
 import { lerCodigoDaComunidade } from '../consultas'
+import { TelaComecePorAqui } from '../TelaComecePorAqui'
 import { TelaComunidadeEncontrada } from '../TelaComunidadeEncontrada'
 import { TelaDenunciarComunidade } from '../TelaDenunciarComunidade'
 import { TelaProcurarComunidade } from '../TelaProcurarComunidade'
@@ -48,6 +48,34 @@ const ENCONTRADA = {
   modoEntrada: 'codigo_com_aprovacao',
 }
 
+const PREVIA = {
+  comunidade: {
+    nome: 'Jovens da Vila',
+    cor: '#15803D',
+    temLogo: false,
+    pessoas: 15,
+    modoEntrada: 'codigo_direto',
+    proximoEncontro: {
+      titulo: 'Sábado Jovem',
+      inicio: '2026-11-28T19:00:00.000Z',
+      fuso: 'America/Sao_Paulo',
+    },
+  },
+}
+
+/** A prévia pública do código (D66): o servidor falso responde com a comunidade de teste. */
+const COM_PREVIA = { 'POST /api/auth/codigo/previa': () => ({ status: 200, corpo: PREVIA }) }
+
+const NAO_ENCONTRADO = {
+  'POST /api/auth/codigo/previa': () => ({
+    status: 404,
+    corpo: {
+      erro: 'nao_encontrado',
+      mensagem: 'Não encontramos esta comunidade. Confira o código com quem passou para você.',
+    },
+  }),
+}
+
 describe('lerCodigoDaComunidade', () => {
   test('aceita o código com espaço, minúsculas e o link /entrar/<codigo>', () => {
     expect(lerCodigoDaComunidade('abcd 2345')).toBe('ABCD2345')
@@ -62,9 +90,33 @@ describe('Comece por aqui (conta sem comunidade)', () => {
   beforeEach(() => jest.clearAllMocks())
   afterEach(() => jest.restoreAllMocks())
 
-  test('três caminhos grandes com texto, o versículo e os próprios pedidos', async () => {
+  test('UMA pergunta e UMA ação grande; as outras saídas são links de texto', async () => {
+    await renderizarTela(<TelaComecePorAqui />, {
+      rotas: {
+        'GET /api/v1/eu': semComunidade(),
+        'GET /api/v1/eu/pedidos': () => ({ status: 200, corpo: { pedidos: [] } }),
+      },
+    })
+
+    expect(await screen.findByText('Você recebeu um código ou um link?')).toBeOnTheScreen()
+    expect(
+      screen.getByText('Com ele você entra no seu grupo em poucos segundos.'),
+    ).toBeOnTheScreen()
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Tenho um código' }))
+    expect(router.push).toHaveBeenCalledWith('/tenho-um-codigo')
+    await fireEvent.press(screen.getByRole('button', { name: 'Procurar minha comunidade' }))
+    expect(router.push).toHaveBeenCalledWith('/procurar-comunidade')
+    await fireEvent.press(screen.getByRole('button', { name: 'Criar uma comunidade' }))
+    expect(router.push).toHaveBeenCalledWith('/criar-comunidade')
+    // Não há mais os três cartões iguais; o versículo do dia continua por último.
+    expect(screen.queryByText('Tenho um código ou convite')).toBeNull()
+    expect(screen.getByRole('button', { name: /^Versículo do dia, / })).toBeOnTheScreen()
+  })
+
+  test('os próprios pedidos de entrada aparecem antes, com a situação em texto', async () => {
     jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, b) => b?.at(-1)?.onPress?.())
-    const { servidor } = await renderizarTela(<TelaInicio />, {
+    const { servidor } = await renderizarTela(<TelaComecePorAqui />, {
       rotas: {
         'GET /api/v1/eu': semComunidade(),
         'GET /api/v1/eu/pedidos': () => ({
@@ -92,19 +144,6 @@ describe('Comece por aqui (conta sem comunidade)', () => {
       },
     })
 
-    expect(await screen.findByText('Comece por aqui')).toBeOnTheScreen()
-    expect(screen.getByText('Tenho um código ou convite')).toBeOnTheScreen()
-    expect(screen.getByText('Procurar minha comunidade')).toBeOnTheScreen()
-    expect(screen.getByText('Criar uma comunidade')).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: /^Versículo do dia, / })).toBeOnTheScreen()
-
-    await fireEvent.press(screen.getByRole('button', { name: 'Usar código ou convite' }))
-    expect(router.push).toHaveBeenCalledWith('/tenho-um-codigo')
-    await fireEvent.press(screen.getByRole('button', { name: 'Procurar comunidade' }))
-    expect(router.push).toHaveBeenCalledWith('/procurar-comunidade')
-    await fireEvent.press(screen.getByRole('button', { name: 'Criar comunidade' }))
-    expect(router.push).toHaveBeenCalledWith('/criar-comunidade')
-
     // Situação em texto (chip), nunca só cor; a recusa diz quando pedir de novo.
     expect(await screen.findByText('Pendente')).toBeOnTheScreen()
     expect(screen.getByText('Não aprovado')).toBeOnTheScreen()
@@ -130,22 +169,98 @@ describe('Tenho um código', () => {
       rotas: { 'GET /api/v1/eu': semComunidade() },
     })
     await fireEvent.changeText(await screen.findByLabelText('Código ou link'), 'xyz')
-    await fireEvent.press(screen.getByRole('checkbox', { name: FE }))
     await fireEvent.press(screen.getByRole('button', { name: 'Entrar na comunidade' }))
     expect(await screen.findByText(/Não reconhecemos esse código/)).toBeOnTheScreen()
     expect(pedidosPara(servidor, 'POST', '/api/v1/entrada')).toHaveLength(0)
+    // Código incompleto não consulta a prévia (limite por IP).
+    expect(pedidosPara(servidor, 'POST', '/api/auth/codigo/previa')).toHaveLength(0)
   })
 
-  test('código vindo do link (D58): preenche o campo, não envia sozinho e mantém o consentimento', async () => {
+  test('com o código completo mostra "Você foi convidado para ..." ANTES de pedir qualquer coisa', async () => {
+    const { servidor } = await renderizarTela(<TelaTenhoUmCodigo />, {
+      rotas: { 'GET /api/v1/eu': semComunidade(), ...COM_PREVIA },
+    })
+    const campo = await screen.findByLabelText('Código ou link')
+    // Digitando, a prévia só roda quando o código fecha as 8 letras e números.
+    for (const parcial of ['A', 'ABCD', 'ABCD 234']) await fireEvent.changeText(campo, parcial)
+    expect(pedidosPara(servidor, 'POST', '/api/auth/codigo/previa')).toHaveLength(0)
+    await fireEvent.changeText(campo, 'abcd 2345')
+
+    expect(await screen.findByText('Você foi convidado para Jovens da Vila')).toBeOnTheScreen()
+    expect(screen.getByText('15 pessoas')).toBeOnTheScreen()
+    expect(screen.getByText('Sábado Jovem')).toBeOnTheScreen()
+    expect(pedidosPara(servidor, 'POST', '/api/auth/codigo/previa')).toHaveLength(1)
+    expect(pedidosPara(servidor, 'POST', '/api/auth/codigo/previa')[0]?.corpo).toEqual({
+      codigo: 'ABCD2345',
+    })
+    // O botão passa a dizer em qual comunidade vai entrar; nada foi enviado ainda.
+    expect(screen.getByRole('button', { name: 'Entrar em Jovens da Vila' })).toBeOnTheScreen()
+    expect(pedidosPara(servidor, 'POST', '/api/v1/entrada')).toHaveLength(0)
+    // A prévia não pede nem mostra nenhum dado pessoal.
+    expect(screen.queryByText(/@|\+55/)).toBeNull()
+  })
+
+  test('o mesmo código não consulta a prévia de novo', async () => {
+    const { servidor } = await renderizarTela(<TelaTenhoUmCodigo />, {
+      rotas: { 'GET /api/v1/eu': semComunidade(), ...COM_PREVIA },
+    })
+    const campo = await screen.findByLabelText('Código ou link')
+    await fireEvent.changeText(campo, 'ABCD2345')
+    await screen.findByText('Você foi convidado para Jovens da Vila')
+    await fireEvent.changeText(campo, 'ABCD23')
+    await fireEvent.changeText(campo, 'ABCD2345')
+    await screen.findByText('Você foi convidado para Jovens da Vila')
+    expect(pedidosPara(servidor, 'POST', '/api/auth/codigo/previa')).toHaveLength(1)
+  })
+
+  test('código que não entra (404 igual): mensagem humana, saída "Como conseguir um convite" e sem envio', async () => {
+    const { servidor } = await renderizarTela(<TelaTenhoUmCodigo />, {
+      rotas: { 'GET /api/v1/eu': semComunidade(), ...NAO_ENCONTRADO },
+    })
+    await fireEvent.changeText(await screen.findByLabelText('Código ou link'), 'ABCD2345')
+    expect(
+      await screen.findByText(
+        'Código não encontrado. Confira as letras e os números, ou peça outro à liderança.',
+      ),
+    ).toBeOnTheScreen()
+    // Sem o consentimento nem o botão ativo: não há o que enviar.
+    expect(screen.queryByText('Sobre a sua fé')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Entrar na comunidade' })).toBeDisabled()
+    expect(screen.getByText('Confira o código acima.')).toBeOnTheScreen()
+    await fireEvent.press(screen.getByRole('button', { name: 'Como conseguir um convite' }))
+    expect(router.push).toHaveBeenCalledWith('/como-conseguir-convite')
+    expect(pedidosPara(servidor, 'POST', '/api/v1/entrada')).toHaveLength(0)
+  })
+
+  test('limite de consultas (429): avisa que a prévia está em pausa, mas deixa entrar com o código', async () => {
+    await renderizarTela(<TelaTenhoUmCodigo />, {
+      rotas: {
+        'GET /api/v1/eu': semComunidade(),
+        'POST /api/auth/codigo/previa': () => ({
+          status: 429,
+          corpo: { erro: 'muitas_tentativas', mensagem: 'Muitas tentativas.' },
+        }),
+      },
+    })
+    await fireEvent.changeText(await screen.findByLabelText('Código ou link'), 'ABCD2345')
+    expect(await screen.findByText('A prévia está em pausa')).toBeOnTheScreen()
+    expect(screen.getByText('Sobre a sua fé')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Entrar na comunidade' })).toBeDisabled()
+    await fireEvent.press(screen.getByRole('checkbox', { name: FE }))
+    expect(screen.getByRole('button', { name: 'Entrar na comunidade' })).toBeEnabled()
+  })
+
+  test('código vindo do link (D58): preenche o campo, mostra a prévia, não envia sozinho e mantém o consentimento', async () => {
     jest.mocked(useLocalSearchParams).mockReturnValue({ codigo: 'XPHVYHFS' })
     const { servidor } = await renderizarTela(<TelaTenhoUmCodigo />, {
-      rotas: { 'GET /api/v1/eu': semComunidade() },
+      rotas: { 'GET /api/v1/eu': semComunidade(), ...COM_PREVIA },
     })
     const campo = await screen.findByLabelText('Código ou link')
     expect(campo.props.value).toBe('XPHVYHFS')
     expect(screen.getByText(/Código do link: XPHV YHFS/)).toBeOnTheScreen()
+    expect(await screen.findByText('Você foi convidado para Jovens da Vila')).toBeOnTheScreen()
     // Nada foi enviado, e o botão segue exigindo o consentimento sobre a fé.
-    expect(screen.getByRole('button', { name: 'Entrar na comunidade' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Entrar em Jovens da Vila' })).toBeDisabled()
     expect(pedidosPara(servidor, 'POST', '/api/v1/entrada')).toHaveLength(0)
   })
 
@@ -158,20 +273,43 @@ describe('Tenho um código', () => {
     expect(campo.props.value).toBe('')
     expect(screen.getByText(/O código deste link não parece certo/)).toBeOnTheScreen()
     expect(pedidosPara(servidor, 'POST', '/api/v1/entrada')).toHaveLength(0)
+    expect(pedidosPara(servidor, 'POST', '/api/auth/codigo/previa')).toHaveLength(0)
   })
 
   test('sem o consentimento sobre a fé (TC-03.v4), o botão fica desabilitado com o motivo', async () => {
-    await renderizarTela(<TelaTenhoUmCodigo />, { rotas: { 'GET /api/v1/eu': semComunidade() } })
+    await renderizarTela(<TelaTenhoUmCodigo />, {
+      rotas: { 'GET /api/v1/eu': semComunidade(), ...COM_PREVIA },
+    })
     await fireEvent.changeText(await screen.findByLabelText('Código ou link'), 'ABCD2345')
-    expect(screen.getByText('Sobre a sua fé')).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Entrar na comunidade' })).toBeDisabled()
+    expect(await screen.findByText('Sobre a sua fé')).toBeOnTheScreen()
+    // O nome da comunidade da prévia entra no texto do consentimento, palavra por palavra.
+    expect(
+      await screen.findByText(/Pedir para entrar ou participar da Jovens da Vila no /),
+    ).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Entrar em Jovens da Vila' })).toBeDisabled()
     expect(screen.getByText(/Sem essa concordância não conseguimos incluir você/)).toBeOnTheScreen()
   })
 
-  test('código com entrada direta: entra, a comunidade vira a ativa e o app vai ao Início', async () => {
+  test('a mensagem para a liderança fica atrás de um link, com o aviso do pedido sempre visível', async () => {
+    await renderizarTela(<TelaTenhoUmCodigo />, {
+      rotas: { 'GET /api/v1/eu': semComunidade(), ...COM_PREVIA },
+    })
+    await fireEvent.changeText(await screen.findByLabelText('Código ou link'), 'ABCD2345')
+    await screen.findByText('Sobre a sua fé')
+    expect(screen.queryByLabelText('Mensagem para a liderança (opcional)')).toBeNull()
+    expect(screen.getByText(/Você verá só se o pedido está "Pendente"/)).toBeOnTheScreen()
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Adicionar mensagem para a liderança' }),
+    )
+    expect(screen.getByLabelText('Mensagem para a liderança (opcional)')).toBeOnTheScreen()
+    expect(screen.getByText(/A liderança da Jovens da Vila vai ver seu nome/)).toBeOnTheScreen()
+  })
+
+  test('código com entrada direta: entra, a comunidade vira a ativa e o app vai às boas-vindas', async () => {
     const { servidor } = await renderizarTela(<TelaTenhoUmCodigo />, {
       rotas: {
         'GET /api/v1/eu': semComunidade(),
+        ...COM_PREVIA,
         'POST /api/v1/entrada': () => ({
           status: 200,
           corpo: { resultado: 'membro', comunidade: { id: NOVA, nome: 'Jovens da Vila' } },
@@ -179,9 +317,14 @@ describe('Tenho um código', () => {
       },
     })
     await fireEvent.changeText(await screen.findByLabelText('Código ou link'), 'abcd 2345')
-    await fireEvent.press(screen.getByRole('checkbox', { name: FE }))
-    await fireEvent.press(screen.getByRole('button', { name: 'Entrar na comunidade' }))
-    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/'))
+    await fireEvent.press(await screen.findByRole('checkbox', { name: FE }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Entrar em Jovens da Vila' }))
+    await waitFor(() =>
+      expect(router.replace).toHaveBeenCalledWith({
+        pathname: '/boas-vindas',
+        params: { comunidade: 'Jovens da Vila' },
+      }),
+    )
     expect(pedidosPara(servidor, 'POST', '/api/v1/entrada')[0]?.corpo).toEqual({
       codigo: 'ABCD2345',
       consentimentoFe: true,
@@ -193,6 +336,7 @@ describe('Tenho um código', () => {
     const { servidor } = await renderizarTela(<TelaTenhoUmCodigo />, {
       rotas: {
         'GET /api/v1/eu': semComunidade('16_17'),
+        ...COM_PREVIA,
         'POST /api/v1/entrada': () => ({
           status: 200,
           corpo: { resultado: 'pedido_pendente', comunidade: { nome: 'Jovens da Vila' } },
@@ -200,17 +344,21 @@ describe('Tenho um código', () => {
       },
     })
     await fireEvent.changeText(await screen.findByLabelText('Código ou link'), 'ABCD2345')
+    await fireEvent.press(
+      await screen.findByRole('button', { name: 'Adicionar mensagem para a liderança' }),
+    )
     await fireEvent.changeText(
       screen.getByLabelText('Mensagem para a liderança (opcional)'),
       'Sou a Marta',
     )
     await fireEvent.press(screen.getByRole('checkbox', { name: FE }))
     const responsavel = screen.getByRole('checkbox', { name: /^Meu pai, minha mãe/ })
-    expect(screen.getByRole('button', { name: 'Entrar na comunidade' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Entrar em Jovens da Vila' })).toBeDisabled()
     await fireEvent.press(responsavel)
-    await fireEvent.press(screen.getByRole('button', { name: 'Entrar na comunidade' }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Entrar em Jovens da Vila' }))
     // Pedido pendente: a confirmação na tela, sem sair dela.
     expect(await screen.findByText('Pedido enviado')).toBeOnTheScreen()
+    expect(screen.getByText(/A liderança de Jovens da Vila vai avaliar/)).toBeOnTheScreen()
     expect(pedidosPara(servidor, 'POST', '/api/v1/entrada')[0]?.corpo).toEqual({
       codigo: 'ABCD2345',
       consentimentoFe: true,
@@ -224,6 +372,7 @@ describe('Tenho um código', () => {
     const { servidor } = await renderizarTela(<TelaTenhoUmCodigo />, {
       rotas: {
         'GET /api/v1/eu': semComunidade(),
+        ...COM_PREVIA,
         'POST /api/v1/entrada': () =>
           ++tentativa === 1
             ? {
@@ -240,10 +389,10 @@ describe('Tenho um código', () => {
       },
     })
     await fireEvent.changeText(await screen.findByLabelText('Código ou link'), 'ABCD2345')
-    await fireEvent.press(screen.getByRole('checkbox', { name: FE }))
-    await fireEvent.press(screen.getByRole('button', { name: 'Entrar na comunidade' }))
+    await fireEvent.press(await screen.findByRole('checkbox', { name: FE }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Entrar em Jovens da Vila' }))
     await fireEvent.press(await screen.findByRole('radio', { name: 'Tenho 18 anos ou mais.' }))
-    await fireEvent.press(screen.getByRole('button', { name: 'Entrar na comunidade' }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Entrar em Jovens da Vila' }))
     await waitFor(() => expect(pedidosPara(servidor, 'POST', '/api/v1/entrada')).toHaveLength(2))
     expect(pedidosPara(servidor, 'POST', '/api/v1/entrada')[1]?.corpo).toMatchObject({
       faixaEtaria: '18_mais',

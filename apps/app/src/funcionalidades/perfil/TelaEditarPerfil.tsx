@@ -30,7 +30,7 @@ export function TelaEditarPerfil() {
   const { conta } = useSessao()
   if (!conta)
     return (
-      <Tela pilha titulo="Dados pessoais">
+      <Tela pilha titulo="Editar perfil">
         {null}
       </Tela>
     )
@@ -76,7 +76,7 @@ export function DadosDaConta({ conta }: { conta: Conta }) {
   return (
     <Tela
       pilha
-      titulo="Dados pessoais"
+      titulo="Editar perfil"
       barraDeAcao={
         <BarraDeAcao>
           <Botao

@@ -9,6 +9,8 @@ import {
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
+import { chamadasV3 } from '@/servicos/contratoV3'
+import { ErroDaApi } from '@/servicos/erros'
 import type {
   ComunidadeEncontrada,
   MeuPedidoDeEntrada,
@@ -135,6 +137,37 @@ export function usePedirParaEntrar(idPublico: string) {
     gcTime: 0,
   })
 }
+
+/**
+ * Prévia pública do código (D66): o nome, a cor, quantas pessoas e o próximo encontro público da
+ * comunidade, antes de a pessoa dar qualquer dado. Só roda com o código completo (8 letras e
+ * números), uma vez por código: a API limita por IP (20 a cada 15 min), então nada de consultar a
+ * cada tecla nem de repetir depois de erro. 404 é sempre o mesmo para tudo que não entra (sem
+ * enumeração): a tela não diferencia "não existe" de "não entra por código".
+ */
+export function usePreviaDoCodigo(codigo: string | null) {
+  return useQuery({
+    queryKey: ['previa-do-codigo', codigo],
+    queryFn: () => chamadasV3.previaDoCodigo(codigo ?? ''),
+    enabled: codigo !== null,
+    retry: false,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  })
+}
+
+/** Como a tela trata o erro da prévia: não existe, limite de consultas ou outra falha. */
+export function tipoDoErroDaPrevia(erro: unknown): 'nao_encontrado' | 'limite' | 'falha' {
+  if (erro instanceof ErroDaApi) {
+    if (erro.status === 404) return 'nao_encontrado'
+    if (erro.status === 429) return 'limite'
+  }
+  return 'falha'
+}
+
+export const CODIGO_NAO_ENCONTRADO =
+  'Código não encontrado. Confira as letras e os números, ou peça outro à liderança.'
 
 /** Logotipo de uma comunidade achada na busca (público só para quem escolheu aparecer). */
 export function caminhoDoLogotipoPublico(idPublico: string): string {

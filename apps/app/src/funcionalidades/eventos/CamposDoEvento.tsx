@@ -1,9 +1,10 @@
 import { CATEGORIAS_SUGERIDAS } from '@uj/dominio'
-import { ESPACO } from '@uj/tokens'
-import { useRef, useState, type ComponentRef, type RefObject } from 'react'
+import { ESPACO, RITMO } from '@uj/tokens'
+import { useRef, useState, type ComponentRef, type ReactNode, type RefObject } from 'react'
 import { type TextInput, View } from 'react-native'
 
 import type { Local, TipoDeLocal } from '@/servicos/contratoDosEventos'
+import { Aparecer } from '@/ui/Aparecer'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
 import { CampoDeData, CampoDeHora } from '@/ui/CampoDeMomento'
@@ -81,6 +82,16 @@ interface Props {
   refs?: RefsDosCampos
   /** Ocorrência de série editada como série: leva à tela da série para mudar o dia. */
   aoAbrirSerie?: () => void
+  /**
+   * Formulário curto (D69): só título, data, hora e local à vista; o resto (categoria,
+   * descrição, duração, quem vê, vagas, informações úteis e o `extraNasOpcoes`) fica dobrado em
+   * "Mais opções", que abre sozinho quando um campo escondido tem erro.
+   */
+  simples?: boolean
+  /** O que mais entra em "Mais opções" (a repetição, no novo encontro). */
+  extraNasOpcoes?: ReactNode
+  /** Abre "Mais opções" por um erro que mora fora dos campos (o fim da repetição). */
+  abrirOpcoes?: boolean
 }
 
 function descreverLocal(l: Pick<Local, 'tipo' | 'endereco'>): string {
@@ -102,242 +113,315 @@ export function CamposDoEvento({
   ajudaDaDuracao,
   refs,
   aoAbrirSerie,
+  simples = false,
+  extraNasOpcoes,
+  abrirOpcoes = false,
 }: Props) {
+  const [opcoesAbertas, setOpcoesAbertas] = useState(false)
   const sugestoes = CATEGORIAS_SUGERIDAS.slice(0, 8)
   const comVagas = !!r.capacidade.trim()
   const erroDeQuando = !!(erros.data || erros.hora)
   const erroDoPrazo = !!(erros.inscricaoData || erros.inscricaoHora)
 
+  // O que cada bloco mostra é o mesmo nos dois modos; só muda onde ele fica.
+  const blocoDoTitulo = (
+    <Campo
+      ref={refs?.titulo}
+      rotulo="Título"
+      value={r.titulo}
+      onChangeText={(v) => mudar('titulo', v)}
+      erro={erros.titulo ?? null}
+      exemplo="Sábado Jovem"
+      maxLength={120}
+    />
+  )
+  const blocoDaData = visiveis.data ? (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: ESPACO.e12 }}>
+      <View style={{ flex: 1.4 }}>
+        <CampoDeData
+          rotulo="Data"
+          valor={r.data || null}
+          aoMudar={(v) => mudar('data', v)}
+          erro={erros.data ?? null}
+          reservarApoio={erroDeQuando}
+        />
+      </View>
+      <View style={{ flex: 1 }}>
+        <CampoDeHora
+          rotulo="Hora"
+          valor={r.hora || null}
+          aoMudar={(v) => mudar('hora', v)}
+          erro={erros.hora ?? null}
+          reservarApoio={erroDeQuando}
+        />
+      </View>
+    </View>
+  ) : (
+    <>
+      <View style={{ gap: ESPACO.e4, alignItems: 'flex-start' }}>
+        <Texto variante="corpo" cor="textoSuave">
+          O dia de cada data vem da regra da repetição. Para mudar o dia da semana, use a repetição.
+        </Texto>
+        {aoAbrirSerie ? (
+          <Botao
+            titulo="Abrir a repetição"
+            variante="terciario"
+            alinhado
+            aoPressionar={aoAbrirSerie}
+          />
+        ) : null}
+      </View>
+      <CampoDeHora
+        rotulo="Hora"
+        valor={r.hora || null}
+        aoMudar={(v) => mudar('hora', v)}
+        erro={erros.hora ?? null}
+      />
+    </>
+  )
+  const blocoDaCategoria = (
+    <View style={{ gap: ESPACO.e8 }}>
+      <Campo
+        ref={refs?.categoria}
+        rotulo="Categoria"
+        value={r.categoria}
+        onChangeText={(v) => mudar('categoria', v)}
+        erro={erros.categoria ?? null}
+        maxLength={60}
+      />
+      <PilulasDeFiltro
+        rotulo="Sugestões de categoria"
+        sangrar={false}
+        pilulas={sugestoes.map((c) => ({ valor: c, rotulo: c }))}
+        selecionadas={sugestoes.filter((c) => c === r.categoria.trim())}
+        aoMudar={(v) => {
+          if (v[0]) mudar('categoria', v[0])
+        }}
+      />
+    </View>
+  )
+  const blocoDaDescricao = (
+    <Campo
+      rotulo="Descrição"
+      opcional
+      value={r.descricao}
+      onChangeText={(v) => mudar('descricao', v)}
+      exemplo="Louvor, estudo da lição e um lanche no fim."
+      multiline
+      maxLength={5000}
+      mostrarContador
+    />
+  )
+  const blocoDaDuracao = (
+    <View style={{ gap: ESPACO.e8 }}>
+      <Campo
+        ref={refs?.duracao}
+        rotulo="Duração"
+        value={r.duracao}
+        onChangeText={(v) => mudar('duracao', v.replace(/\D/g, ''))}
+        erro={erros.duracao ?? null}
+        {...(ajudaDaDuracao ? { ajuda: ajudaDaDuracao } : {})}
+        sufixo="min"
+        keyboardType="number-pad"
+        maxLength={4}
+      />
+      <PilulasDeFiltro
+        rotulo="Durações comuns"
+        sangrar={false}
+        pilulas={DURACOES.map((d) => ({ valor: d, rotulo: `${d} min` }))}
+        selecionadas={DURACOES.filter((d) => d === r.duracao.trim())}
+        aoMudar={(v) => {
+          if (v[0]) mudar('duracao', v[0])
+        }}
+      />
+    </View>
+  )
+  const blocoDoLocal = (
+    <ListaDeLocais comunidadeId={comunidadeId} rascunho={r} mudar={mudar} erros={erros} />
+  )
+  const blocoDasInscricoes = visiveis.inscricoes ? (
+    <>
+      <Secao titulo="Quem vê e inscrições">
+        <CartaoDeVidro opaco intervalo={ESPACO.e16}>
+          <View style={{ gap: ESPACO.e8 }}>
+            <Segmentos
+              rotulo="Quem vê"
+              valor={r.visibilidade}
+              aoMudar={(v) => mudar('visibilidade', v)}
+              segmentos={(['interna', 'publica'] as const).map((v) => ({
+                valor: v,
+                rotulo: NOME_DA_VISIBILIDADE[v],
+              }))}
+            />
+            <Texto variante="legenda" cor="textoSuave">
+              {DESCRICAO_DA_VISIBILIDADE[r.visibilidade]}
+            </Texto>
+          </View>
+          <View style={{ flexDirection: 'row', gap: ESPACO.e12 }}>
+            <View style={{ flex: 1 }}>
+              <Campo
+                ref={refs?.capacidade}
+                rotulo="Vagas"
+                opcional
+                value={r.capacidade}
+                onChangeText={(v) => mudar('capacidade', v.replace(/\D/g, ''))}
+                erro={erros.capacidade ?? null}
+                exemplo="30"
+                keyboardType="number-pad"
+                maxLength={6}
+              />
+            </View>
+            <View style={{ flex: 1 }} />
+          </View>
+          {visiveis.prazoEEspera ? (
+            <>
+              <Interruptor
+                rotulo="Lista de espera"
+                descricao={
+                  !comVagas
+                    ? 'Defina as vagas primeiro'
+                    : r.listaDeEspera
+                      ? 'Ligada: quando as vagas acabam, a fila sobe sozinha'
+                      : 'Desligada'
+                }
+                ligado={r.listaDeEspera && comVagas}
+                desabilitado={!comVagas}
+                aoMudar={(v) => mudar('listaDeEspera', v)}
+              />
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: ESPACO.e12 }}>
+                <View style={{ flex: 1.4 }}>
+                  <CampoDeData
+                    rotulo="Inscrições até"
+                    opcional
+                    valor={r.inscricaoData || null}
+                    aoMudar={(v) => mudar('inscricaoData', v)}
+                    erro={erros.inscricaoData ?? null}
+                    reservarApoio={erroDoPrazo}
+                    {...(r.data ? { maximo: r.data } : {})}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <CampoDeHora
+                    rotulo="Hora do prazo"
+                    opcional
+                    valor={r.inscricaoHora || null}
+                    aoMudar={(v) => mudar('inscricaoHora', v)}
+                    erro={erros.inscricaoHora ?? null}
+                    reservarApoio={erroDoPrazo}
+                  />
+                </View>
+              </View>
+              {r.inscricaoData || r.inscricaoHora ? (
+                <Botao
+                  titulo="Tirar o prazo"
+                  variante="terciario"
+                  alinhado
+                  dica="As inscrições ficam abertas até o início."
+                  aoPressionar={() => {
+                    mudar('inscricaoData', '')
+                    mudar('inscricaoHora', '')
+                  }}
+                />
+              ) : (
+                <Texto variante="legenda" cor="textoSuave">
+                  Sem prazo, as inscrições ficam abertas até o início.
+                </Texto>
+              )}
+            </>
+          ) : null}
+        </CartaoDeVidro>
+      </Secao>
+
+      <Secao titulo="Informações úteis">
+        <CartaoDeVidro opaco>
+          <Campo
+            rotulo="Para quem vai"
+            opcional
+            value={r.informacoesUteis}
+            onChangeText={(v) => mudar('informacoesUteis', v)}
+            exemplo="Traga a Bíblia e um agasalho."
+            ajuda="Aparece também na página pública."
+            multiline
+            maxLength={5000}
+          />
+        </CartaoDeVidro>
+      </Secao>
+    </>
+  ) : null
+
+  if (simples) {
+    // Um erro em campo escondido abre "Mais opções" sozinho: o campo com erro nunca fica fora da vista.
+    const erroEscondido = !!(
+      erros.categoria ||
+      erros.duracao ||
+      erros.capacidade ||
+      erros.inscricaoData ||
+      erros.inscricaoHora
+    )
+    const aberto = opcoesAbertas || erroEscondido || abrirOpcoes
+    return (
+      <>
+        <Secao titulo="O essencial">
+          <CartaoDeVidro opaco intervalo={ESPACO.e16}>
+            {blocoDoTitulo}
+            {blocoDaData}
+          </CartaoDeVidro>
+        </Secao>
+        <Secao titulo="Onde">{blocoDoLocal}</Secao>
+        <View style={{ gap: ESPACO.e12 }}>
+          <View style={{ alignItems: 'flex-start' }}>
+            <Botao
+              titulo="Mais opções"
+              icone={aberto ? 'fechar' : 'abrirLista'}
+              variante="terciario"
+              alinhado
+              marcado={aberto}
+              dica="Categoria, descrição, duração, quem vê, vagas e repetição."
+              aoPressionar={() => setOpcoesAbertas((a) => !a)}
+            />
+          </View>
+          {aberto ? (
+            <Aparecer style={{ gap: RITMO.entreSecoes }}>
+              <Secao titulo="O que é">
+                <CartaoDeVidro opaco intervalo={ESPACO.e16}>
+                  {blocoDaCategoria}
+                  {blocoDaDescricao}
+                </CartaoDeVidro>
+              </Secao>
+              <Secao titulo="Duração">
+                <CartaoDeVidro opaco intervalo={ESPACO.e16}>
+                  {blocoDaDuracao}
+                </CartaoDeVidro>
+              </Secao>
+              {blocoDasInscricoes}
+              {extraNasOpcoes}
+            </Aparecer>
+          ) : null}
+        </View>
+      </>
+    )
+  }
+
   return (
     <>
       <Secao titulo="O que é">
         <CartaoDeVidro opaco intervalo={ESPACO.e16}>
-          <Campo
-            ref={refs?.titulo}
-            rotulo="Título"
-            value={r.titulo}
-            onChangeText={(v) => mudar('titulo', v)}
-            erro={erros.titulo ?? null}
-            exemplo="Sábado Jovem"
-            maxLength={120}
-          />
-          <View style={{ gap: ESPACO.e8 }}>
-            <Campo
-              ref={refs?.categoria}
-              rotulo="Categoria"
-              value={r.categoria}
-              onChangeText={(v) => mudar('categoria', v)}
-              erro={erros.categoria ?? null}
-              maxLength={60}
-            />
-            <PilulasDeFiltro
-              rotulo="Sugestões de categoria"
-              sangrar={false}
-              pilulas={sugestoes.map((c) => ({ valor: c, rotulo: c }))}
-              selecionadas={sugestoes.filter((c) => c === r.categoria.trim())}
-              aoMudar={(v) => {
-                if (v[0]) mudar('categoria', v[0])
-              }}
-            />
-          </View>
-          <Campo
-            rotulo="Descrição"
-            opcional
-            value={r.descricao}
-            onChangeText={(v) => mudar('descricao', v)}
-            exemplo="Louvor, estudo da lição e um lanche no fim."
-            multiline
-            maxLength={5000}
-            mostrarContador
-          />
+          {blocoDoTitulo}
+          {blocoDaCategoria}
+          {blocoDaDescricao}
         </CartaoDeVidro>
       </Secao>
 
       <Secao titulo="Quando">
         <CartaoDeVidro opaco intervalo={ESPACO.e16}>
-          {visiveis.data ? (
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: ESPACO.e12 }}>
-              <View style={{ flex: 1.4 }}>
-                <CampoDeData
-                  rotulo="Data"
-                  valor={r.data || null}
-                  aoMudar={(v) => mudar('data', v)}
-                  erro={erros.data ?? null}
-                  reservarApoio={erroDeQuando}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <CampoDeHora
-                  rotulo="Hora"
-                  valor={r.hora || null}
-                  aoMudar={(v) => mudar('hora', v)}
-                  erro={erros.hora ?? null}
-                  reservarApoio={erroDeQuando}
-                />
-              </View>
-            </View>
-          ) : (
-            <>
-              <View style={{ gap: ESPACO.e4, alignItems: 'flex-start' }}>
-                <Texto variante="corpo" cor="textoSuave">
-                  O dia de cada data vem da regra da repetição. Para mudar o dia da semana, use a
-                  repetição.
-                </Texto>
-                {aoAbrirSerie ? (
-                  <Botao
-                    titulo="Abrir a repetição"
-                    variante="terciario"
-                    alinhado
-                    aoPressionar={aoAbrirSerie}
-                  />
-                ) : null}
-              </View>
-              <CampoDeHora
-                rotulo="Hora"
-                valor={r.hora || null}
-                aoMudar={(v) => mudar('hora', v)}
-                erro={erros.hora ?? null}
-              />
-            </>
-          )}
-          <View style={{ gap: ESPACO.e8 }}>
-            <Campo
-              ref={refs?.duracao}
-              rotulo="Duração"
-              value={r.duracao}
-              onChangeText={(v) => mudar('duracao', v.replace(/\D/g, ''))}
-              erro={erros.duracao ?? null}
-              {...(ajudaDaDuracao ? { ajuda: ajudaDaDuracao } : {})}
-              sufixo="min"
-              keyboardType="number-pad"
-              maxLength={4}
-            />
-            <PilulasDeFiltro
-              rotulo="Durações comuns"
-              sangrar={false}
-              pilulas={DURACOES.map((d) => ({ valor: d, rotulo: `${d} min` }))}
-              selecionadas={DURACOES.filter((d) => d === r.duracao.trim())}
-              aoMudar={(v) => {
-                if (v[0]) mudar('duracao', v[0])
-              }}
-            />
-          </View>
+          {blocoDaData}
+          {blocoDaDuracao}
         </CartaoDeVidro>
       </Secao>
 
-      <Secao titulo="Onde">
-        <ListaDeLocais comunidadeId={comunidadeId} rascunho={r} mudar={mudar} erros={erros} />
-      </Secao>
+      <Secao titulo="Onde">{blocoDoLocal}</Secao>
 
-      {visiveis.inscricoes ? (
-        <>
-          <Secao titulo="Quem vê e inscrições">
-            <CartaoDeVidro opaco intervalo={ESPACO.e16}>
-              <View style={{ gap: ESPACO.e8 }}>
-                <Segmentos
-                  rotulo="Quem vê"
-                  valor={r.visibilidade}
-                  aoMudar={(v) => mudar('visibilidade', v)}
-                  segmentos={(['interna', 'publica'] as const).map((v) => ({
-                    valor: v,
-                    rotulo: NOME_DA_VISIBILIDADE[v],
-                  }))}
-                />
-                <Texto variante="legenda" cor="textoSuave">
-                  {DESCRICAO_DA_VISIBILIDADE[r.visibilidade]}
-                </Texto>
-              </View>
-              <View style={{ flexDirection: 'row', gap: ESPACO.e12 }}>
-                <View style={{ flex: 1 }}>
-                  <Campo
-                    ref={refs?.capacidade}
-                    rotulo="Vagas"
-                    opcional
-                    value={r.capacidade}
-                    onChangeText={(v) => mudar('capacidade', v.replace(/\D/g, ''))}
-                    erro={erros.capacidade ?? null}
-                    exemplo="30"
-                    keyboardType="number-pad"
-                    maxLength={6}
-                  />
-                </View>
-                <View style={{ flex: 1 }} />
-              </View>
-              {visiveis.prazoEEspera ? (
-                <>
-                  <Interruptor
-                    rotulo="Lista de espera"
-                    descricao={
-                      !comVagas
-                        ? 'Defina as vagas primeiro'
-                        : r.listaDeEspera
-                          ? 'Ligada: quando as vagas acabam, a fila sobe sozinha'
-                          : 'Desligada'
-                    }
-                    ligado={r.listaDeEspera && comVagas}
-                    desabilitado={!comVagas}
-                    aoMudar={(v) => mudar('listaDeEspera', v)}
-                  />
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: ESPACO.e12 }}>
-                    <View style={{ flex: 1.4 }}>
-                      <CampoDeData
-                        rotulo="Inscrições até"
-                        opcional
-                        valor={r.inscricaoData || null}
-                        aoMudar={(v) => mudar('inscricaoData', v)}
-                        erro={erros.inscricaoData ?? null}
-                        reservarApoio={erroDoPrazo}
-                        {...(r.data ? { maximo: r.data } : {})}
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <CampoDeHora
-                        rotulo="Hora do prazo"
-                        opcional
-                        valor={r.inscricaoHora || null}
-                        aoMudar={(v) => mudar('inscricaoHora', v)}
-                        erro={erros.inscricaoHora ?? null}
-                        reservarApoio={erroDoPrazo}
-                      />
-                    </View>
-                  </View>
-                  {r.inscricaoData || r.inscricaoHora ? (
-                    <Botao
-                      titulo="Tirar o prazo"
-                      variante="terciario"
-                      alinhado
-                      dica="As inscrições ficam abertas até o início."
-                      aoPressionar={() => {
-                        mudar('inscricaoData', '')
-                        mudar('inscricaoHora', '')
-                      }}
-                    />
-                  ) : (
-                    <Texto variante="legenda" cor="textoSuave">
-                      Sem prazo, as inscrições ficam abertas até o início.
-                    </Texto>
-                  )}
-                </>
-              ) : null}
-            </CartaoDeVidro>
-          </Secao>
-
-          <Secao titulo="Informações úteis">
-            <CartaoDeVidro opaco>
-              <Campo
-                rotulo="Para quem vai"
-                opcional
-                value={r.informacoesUteis}
-                onChangeText={(v) => mudar('informacoesUteis', v)}
-                exemplo="Traga a Bíblia e um agasalho."
-                ajuda="Aparece também na página pública."
-                multiline
-                maxLength={5000}
-              />
-            </CartaoDeVidro>
-          </Secao>
-        </>
-      ) : null}
+      {blocoDasInscricoes}
     </>
   )
 }

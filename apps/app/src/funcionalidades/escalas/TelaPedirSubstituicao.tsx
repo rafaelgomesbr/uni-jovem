@@ -20,20 +20,20 @@ import { mostrarToast } from '@/ui/Toast'
 import { useFusoDaComunidade, useMeuVinculo } from '../comunidade/consultas'
 import { SeletorDePessoa } from '../comunidade/SeletorDePessoa'
 import { naComunidade } from '../eventos/consultas'
+import { dataCurtaDoEncontro, nomeDaParte } from '../agenda/semanas'
 import { SemComunidade } from '../navegacao/SemComunidade'
-import { quandoDaEscala } from './CartaoDaEscala'
 import { useInvalidarEscalas, useMinhasEscalas } from './consultas'
 
 type Para = 'aberta' | 'pessoa'
 
-/** Rota `/escalas/substituicao/[atribuicaoId]`: para qualquer pessoa da comunidade ou para uma só. */
+/** Rota `/escalas/substituicao/[atribuicaoId]`: "Preciso de alguém no meu lugar" (D69). */
 export function TelaPedirSubstituicao() {
   const { comunidadeAtiva } = useSessao()
   const atribuicaoId = parametro(useLocalSearchParams<{ atribuicaoId: string }>().atribuicaoId)
   if (!comunidadeAtiva || !atribuicaoId) {
     return (
-      <Tela pilha modal titulo="Pedir substituição">
-        <SemComunidade oQue="as suas escalas" />
+      <Tela pilha modal titulo="Preciso de alguém no meu lugar">
+        <SemComunidade oQue="a sua parte" />
       </Tela>
     )
   }
@@ -41,11 +41,11 @@ export function TelaPedirSubstituicao() {
 }
 
 /**
- * Pedir substituição (3.4.5): a escala em questão, a lista de opções
- * "Qualquer pessoa da comunidade" ou "Uma pessoa específica" (com a busca da
- * pessoa), o motivo opcional e a barra de ação com o primário "Pedir
- * substituição". Depois de enviar, um toast diz que deu certo e quem foi
- * avisado: voltar calado deixava a pessoa sem saber se o pedido saiu (U-12).
+ * "Preciso de alguém no meu lugar" (D69, seção 3.4): a parte em questão, as duas opções
+ * ("Qualquer pessoa da comunidade" ou "Escolher uma pessoa", com a busca), o motivo opcional e
+ * "Enviar pedido". Só existe depois de aceitar. Depois de enviar, o toast diz que a pessoa
+ * continua na parte até alguém assumir: voltar calado deixava a pessoa sem saber se o pedido
+ * saiu (U-12).
  */
 function PedirSubstituicao({
   comunidadeId,
@@ -73,13 +73,10 @@ function PedirSubstituicao({
       }),
     onSuccess: async () => {
       mostrarToast({
-        texto:
-          para === 'pessoa'
-            ? 'Pedido de substituição enviado. Avisamos a pessoa escolhida.'
-            : 'Pedido de substituição enviado. Avisamos a equipe.',
+        texto: 'Pedido enviado. Você continua na sua parte até alguém assumir.',
       })
       await invalidar()
-      voltarOu('/escalas')
+      voltarOu('/agenda')
     },
     onError: trava.soltar,
   })
@@ -97,12 +94,12 @@ function PedirSubstituicao({
     <Tela
       pilha
       modal
-      titulo="Pedir substituição"
-      descricao="Você continua na escala até alguém assumir. Quem assume fica registrado no seu lugar."
+      titulo="Preciso de alguém no meu lugar"
+      descricao="Você continua na sua parte até alguém assumir. Quem assumir fica no seu lugar."
       barraDeAcao={
         <BarraDeAcao>
           <Botao
-            titulo="Pedir substituição"
+            titulo="Enviar pedido"
             tamanho="grande"
             carregando={pedir.isPending}
             aoPressionar={enviar}
@@ -111,10 +108,11 @@ function PedirSubstituicao({
       }
     >
       {escala ? (
-        <CartaoDeVidro sobrancelha={quandoDaEscala(escala.eventoInicio, fuso)} comecaComTitulo>
-          <Texto variante="tituloItem">
-            {escala.etapaTitulo ? `${escala.etapaTitulo} · ${escala.funcao}` : escala.funcao}
-          </Texto>
+        <CartaoDeVidro
+          sobrancelha={`${dataCurtaDoEncontro(escala.eventoInicio, fuso)}`}
+          comecaComTitulo
+        >
+          <Texto variante="tituloItem">{nomeDaParte(escala)}</Texto>
           <Texto variante="meta" cor="textoSuave">
             {escala.eventoTitulo}
           </Texto>
@@ -135,7 +133,7 @@ function PedirSubstituicao({
           },
           {
             valor: 'pessoa',
-            rotulo: 'Uma pessoa específica',
+            rotulo: 'Escolher uma pessoa',
             descricao: 'Só a pessoa escolhida pode assumir.',
           },
         ]}

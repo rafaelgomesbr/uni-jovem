@@ -12,6 +12,7 @@ import { Avatar } from '@/ui/Avatar'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Chip } from '@/ui/Chip'
 import { EstadoVazio } from '@/ui/EstadoVazio'
+import { AvisoDeFalha } from '@/ui/Falha'
 import { Folha } from '@/ui/Folha'
 import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
 import { Radio } from '@/ui/ListaDeOpcoes'
@@ -22,6 +23,7 @@ import { voltarOu } from '@/ui/navegacao'
 
 import { logoDaComunidade } from '../perfil/imagens'
 import { CHIP_DO_ESTADO_DA_COMUNIDADE, NOME_DO_ESTADO_DA_COMUNIDADE } from './nomes'
+import { useSairDaComunidade } from './sairDaComunidade'
 
 /** Fecha a folha: volta para quem abriu ou, aberta por link, para o Início. */
 function fechar() {
@@ -32,12 +34,14 @@ function fechar() {
  * Folha "Trocar de comunidade" (3.7.9): lista de opções com o avatar de 40
  * (logotipo ou iniciais na cor) no lugar do rádio, que fica à direita; o anel
  * do avatar e o rádio marcado mostram a atual. O toque troca, fecha a folha e
- * confirma com o toast "Agora em ...".
+ * confirma com o toast "Agora em ...". Entrar em outra, criar e sair da atual também moram
+ * aqui (D70): a linha "Comunidades" do Perfil abre esta folha.
  */
 export function TelaTrocarComunidade() {
   const { comunidades, comunidadeAtiva, trocarComunidade, conta } = useSessao()
   const consultas = useQueryClient()
   const { cores } = useTema()
+  const sair = useSairDaComunidade(comunidadeAtiva)
 
   async function escolher(c: ComunidadeDoVinculo) {
     const jaEra = c.id === comunidadeAtiva?.id
@@ -102,6 +106,19 @@ export function TelaTrocarComunidade() {
             />
           </Lista>
         </CartaoDeVidro>
+        {sair.erro ? <AvisoDeFalha erro={sair.erro} titulo="Você continua na comunidade" /> : null}
+        {comunidadeAtiva ? (
+          <CartaoDeVidro lista opaco>
+            <LinhaDeLista
+              icone="sair"
+              titulo={`Sair de ${comunidadeAtiva.nome}`}
+              {...(sair.saindo ? { descricao: 'Saindo da comunidade' } : {})}
+              destrutivo
+              dica="Apaga só o seu vínculo com esta comunidade. Sua conta continua existindo."
+              {...(sair.saindo ? {} : { aoPressionar: () => void sair.pedirParaSair() })}
+            />
+          </CartaoDeVidro>
+        ) : null}
       </Folha>
     </View>
   )

@@ -3,6 +3,7 @@ import { router } from 'expo-router'
 import type { VisaoGeralDaComunidade } from '@/servicos/contratoDosEventos'
 import type { NomeDoIcone } from '@/ui/Icone'
 
+import { DESTINO_DE_ESCALAS } from '../navegacao/Redirecionamentos'
 import { plural } from './LinhaDeNumero'
 
 /** Uma linha do resumo: o verbo do que o toque faz e para onde ele leva. */
@@ -24,13 +25,25 @@ export interface LinhaDoResumo {
 export function linhasDaOrganizacao(d: VisaoGeralDaComunidade): LinhaDoResumo[] {
   const linhas: LinhaDoResumo[] = []
   const { semResposta, recusadas } = d.convocacoes
+  // Quem organiza resolve no encontro que tem o problema (a aba Convocados); sem ele, na Agenda.
+  const encontroComProblema = (
+    d.proximosEncontros.find((e) => e.semResposta > 0) ??
+    d.proximosEncontros.find((e) => e.recusadas > 0)
+  )?.id
+  const verConvocados = () =>
+    encontroComProblema
+      ? router.push({
+          pathname: '/evento/[eventoId]',
+          params: { eventoId: encontroComProblema, aba: 'convocados' },
+        })
+      : router.push(DESTINO_DE_ESCALAS)
   if (semResposta > 0) {
     linhas.push({
       chave: 'sem-resposta',
-      icone: 'abaEscalas',
+      icone: 'agenda',
       titulo: `Ver ${plural(semResposta, 'convocação sem resposta', 'convocações sem resposta')}`,
-      destino: 'Escalas',
-      aoPressionar: () => router.push('/escalas'),
+      destino: encontroComProblema ? 'o encontro' : 'Agenda',
+      aoPressionar: verConvocados,
     })
   }
   if (recusadas > 0) {
@@ -38,8 +51,8 @@ export function linhasDaOrganizacao(d: VisaoGeralDaComunidade): LinhaDoResumo[] 
       chave: 'recusadas',
       icone: 'cancelar',
       titulo: `Ver ${plural(recusadas, 'convocação recusada', 'convocações recusadas')}`,
-      destino: 'Escalas',
-      aoPressionar: () => router.push('/escalas'),
+      destino: encontroComProblema ? 'o encontro' : 'Agenda',
+      aoPressionar: verConvocados,
     })
   }
   if (d.pedidosDeEntrada > 0) {

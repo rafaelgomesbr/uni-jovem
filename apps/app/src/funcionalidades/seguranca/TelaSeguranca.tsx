@@ -13,7 +13,7 @@ import { confirmar } from '@/utilidades/confirmar'
 import { Aviso } from '@/ui/Aviso'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
-import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
+import { Cartao } from '@/ui/Cartao'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Chip } from '@/ui/Chip'
 import { Esqueleto, LinhasDeEsqueleto } from '@/ui/Esqueleto'
@@ -37,7 +37,7 @@ const CHAVE_PROVEDORES = ['eu', 'provedores'] as const
 
 /**
  * Perfil, Segurança (3.6.5): Face ID deste aparelho (interruptor), contas do
- * Google e da Apple conectadas, o código extra ao entrar (cartão de destaque
+ * Google e da Apple conectadas, o código extra ao entrar (cartão do momento
  * "RECOMENDADO" quando desligado) e aparelhos conectados. "Código extra ao
  * entrar", não "duas etapas": etapa já é parte da programação no app (U-08).
  * O nome técnico aparece uma vez, entre parênteses, para quem o conhece.
@@ -52,10 +52,11 @@ export function TelaSeguranca() {
       descricao={`Como você entra no ${NOME_DO_APP} e onde a sua conta está aberta.`}
     >
       {conta.doisFatores ? null : (
-        <CartaoDeDestaque
-          sobrancelha="Recomendado"
+        <Cartao
+          variante="momento"
+          semSol
+          etiqueta="Recomendado"
           titulo="Ligue o código extra ao entrar"
-          descricao="Além da senha, um código do app autenticador passa a ser pedido ao entrar (verificação em duas etapas). Recomendado para quem administra uma comunidade."
           acoes={
             <Botao
               titulo="Ligar"
@@ -64,7 +65,12 @@ export function TelaSeguranca() {
               aoPressionar={() => router.push('/ativar-2fa')}
             />
           }
-        />
+        >
+          <Texto variante="corpo" cor="textoSuave">
+            Além da senha, um código do app autenticador passa a ser pedido ao entrar (verificação
+            em duas etapas). Recomendado para quem administra uma comunidade.
+          </Texto>
+        </Cartao>
       )}
       <SecaoBiometria />
       <SecaoContasConectadas />

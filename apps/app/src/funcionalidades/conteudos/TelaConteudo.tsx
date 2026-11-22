@@ -16,8 +16,9 @@ import { CaixaDeMarcar } from '@/ui/CaixaDeMarcar'
 import { Campo } from '@/ui/Campo'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Chip } from '@/ui/Chip'
-import { CartaoDeEsqueleto, Esqueleto, LinhasDeEsqueleto } from '@/ui/Esqueleto'
+import { Esqueleto, LinhaDeEsqueleto, LinhasDeEsqueleto } from '@/ui/Esqueleto'
 import { EstadoVazio } from '@/ui/EstadoVazio'
+import { ErroDaTela } from '@/ui/Falha'
 import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
 import { Secao } from '@/ui/Secao'
 import { Tela } from '@/ui/Tela'
@@ -58,19 +59,19 @@ export function TelaConteudo({ novo = false }: { novo?: boolean }) {
   const { comunidadeAtiva } = useSessao()
   if (!comunidadeAtiva) {
     return (
-      <Tela pilha titulo="Conteúdo">
-        <SemComunidade oQue="o conteúdo" />
+      <Tela pilha titulo="Biblioteca">
+        <SemComunidade oQue="a biblioteca" />
       </Tela>
     )
   }
   if (!ehTipoDeConteudo(tipo)) {
     return (
-      <Tela pilha titulo="Conteúdo">
+      <Tela pilha titulo="Biblioteca">
         <EstadoVazio
           icone="erro"
-          titulo="Conteúdo não encontrado"
-          descricao="Volte para a lista de conteúdos e escolha de novo."
-          acao={{ titulo: 'Ver conteúdos', aoPressionar: () => router.replace('/conteudos') }}
+          titulo="Não encontramos isto"
+          descricao="Pode ter sido removido. Volte para a Biblioteca e escolha de novo."
+          acao={{ titulo: 'Ver a Biblioteca', aoPressionar: () => router.replace('/conteudos') }}
         />
       </Tela>
     )
@@ -79,7 +80,7 @@ export function TelaConteudo({ novo = false }: { novo?: boolean }) {
   if (novo) return <Novo comunidadeId={comunidadeAtiva.id} def={def} />
   if (!itemId)
     return (
-      <Tela pilha titulo="Conteúdo">
+      <Tela pilha titulo="Biblioteca">
         {null}
       </Tela>
     )
@@ -259,7 +260,9 @@ function Item({
     return (
       <Tela pilha titulo={def.plural}>
         <Esqueleto rotulo={`Carregando ${def.artigo} ${def.singular}`}>
-          <CartaoDeEsqueleto titulo />
+          <LinhaDeEsqueleto altura={88} />
+          <LinhaDeEsqueleto altura={56} />
+          <LinhaDeEsqueleto altura={56} />
         </Esqueleto>
       </Tela>
     )
@@ -267,11 +270,10 @@ function Item({
   if (item.error) {
     return (
       <Tela pilha titulo={def.plural}>
-        <EstadoVazio
-          icone={item.error instanceof SemConexao ? 'semConexao' : 'erro'}
+        <ErroDaTela
+          erro={item.error}
           titulo={`Não deu para abrir ${def.artigo} ${def.singular}`}
-          descricao={mensagemDoErro(item.error)}
-          acao={{ titulo: 'Tentar de novo', aoPressionar: () => void item.refetch() }}
+          aoTentarDeNovo={() => void item.refetch()}
         />
       </Tela>
     )

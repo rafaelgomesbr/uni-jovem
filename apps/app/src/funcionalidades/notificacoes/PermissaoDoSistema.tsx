@@ -15,9 +15,9 @@ import { pedirPermissaoEmContexto, usePermissaoDoSistema } from './permissao'
 
 /** TC-09.v1: explicação antes do diálogo do sistema. */
 export const EXPLICACAO_DAS_NOTIFICACOES = [
-  'Avisamos quando você for escalado, quando um encontro mudar ou for cancelado, quando pedirem substituição e quando sair um aviso da sua comunidade. Com o versículo do dia ligado, ele chega no horário que você escolher.',
+  'Avisamos quando você for convocado, quando um encontro mudar ou for cancelado, quando pedirem ajuda e quando sair um aviso da sua comunidade. Com o versículo do dia ligado, ele chega no horário que você escolher.',
   'Na tela bloqueada, assuntos pessoais aparecem com texto genérico. Pedidos de oração nunca viram notificação.',
-  'Você escolhe os tipos e as comunidades em Perfil, Ajustes de notificação.',
+  'Você escolhe os tipos e as comunidades em Perfil, Notificações, Quando o app me avisa.',
 ]
 
 /**
@@ -38,7 +38,7 @@ export function PermissaoDoSistema({ ligadoNoApp }: { ligadoNoApp: boolean }) {
   if (!NOTIFICACOES_DISPONIVEIS || estado === 'indisponivel') {
     return (
       <Aviso tipo="info" titulo="Sem notificações aqui">
-        Na web não há notificações. Avisos, escalas e o versículo do dia aparecem no Início; no
+        Na web não há notificações. Avisos, convocações e o versículo do dia aparecem no Início; no
         celular, o app avisa você.
       </Aviso>
     )

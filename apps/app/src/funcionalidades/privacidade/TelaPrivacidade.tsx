@@ -81,6 +81,17 @@ export function TelaPrivacidade() {
         ) : null}
       </CartaoDeVidro>
 
+      <Secao titulo="Convivência">
+        <CartaoDeVidro lista>
+          <LinhaDeLista
+            icone="pessoas"
+            titulo="Pessoas bloqueadas"
+            descricao="Veja quem você bloqueou e desbloqueie quando quiser."
+            aoPressionar={() => router.push('/bloqueados')}
+          />
+        </CartaoDeVidro>
+      </Secao>
+
       <Secao titulo="Documentos">
         <CartaoDeVidro lista>
           <Lista>

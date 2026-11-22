@@ -42,7 +42,7 @@ function permitido() {
   })
 }
 
-describe('notificações', () => {
+describe('notificações, "Quando o app me avisa" (D68)', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     reiniciarPermissaoParaTestes()
@@ -73,11 +73,13 @@ describe('notificações', () => {
 
     expect(await screen.findByText('Permitidas no sistema')).toBeOnTheScreen()
     expect(await screen.findByRole('switch', { name: 'Receber de Jovens Centro' })).toBeChecked()
-    expect(screen.getByRole('switch', { name: 'Eventos' })).toBeChecked()
-    const escalas = screen.getByRole('switch', { name: 'Escalas' })
-    expect(escalas).not.toBeChecked()
+    expect(screen.getByRole('switch', { name: 'Encontros' })).toBeChecked()
+    // A palavra "escala" saiu da interface (D68): o tipo da API é `escalas`, a pessoa lê "Convocações".
+    const convocacoes = screen.getByRole('switch', { name: 'Convocações' })
+    expect(convocacoes).not.toBeChecked()
+    expect(screen.queryByRole('switch', { name: 'Escalas' })).toBeNull()
 
-    await fireEvent.press(escalas)
+    await fireEvent.press(convocacoes)
     await waitFor(() =>
       expect(pedidosPara(servidor, 'PUT', `${BASE}/notificacoes/preferencias`)[0]?.corpo).toEqual({
         tipos: { escalas: true },
@@ -100,7 +102,7 @@ describe('notificações', () => {
     expect(
       await screen.findByRole('switch', { name: 'Receber de Jovens Centro' }),
     ).not.toBeChecked()
-    const eventos = screen.getByRole('switch', { name: 'Eventos' })
+    const eventos = screen.getByRole('switch', { name: 'Encontros' })
     expect(eventos).toBeDisabled()
     expect(eventos).not.toBeChecked()
     expect(screen.getAllByText('Ligue "Receber de Jovens Centro" para escolher.')).toHaveLength(2)
@@ -122,5 +124,29 @@ describe('notificações', () => {
       await screen.findByRole('button', { name: 'Versículo do dia. Ligado, às 07:00' }),
     )
     expect(router.push).toHaveBeenCalledWith('/versiculo')
+  })
+
+  test('os nomes dos tipos são os da pessoa: Encontros, Convocações, Pedidos de ajuda', async () => {
+    await renderizarTela(<TelaNotificacoes />, {
+      papel: 'membro',
+      rotas: {
+        'GET /api/v1/eu/notificacoes': () => ({ status: 200, corpo: CONTA }),
+        [`GET ${BASE}/notificacoes/preferencias`]: () => ({
+          status: 200,
+          corpo: {
+            todas: true,
+            tipos: [
+              { tipo: 'eventos', ativo: true },
+              { tipo: 'escalas', ativo: true },
+              { tipo: 'substituicoes', ativo: true },
+            ],
+          },
+        }),
+      },
+    })
+    expect(await screen.findByRole('switch', { name: 'Encontros' })).toBeOnTheScreen()
+    expect(screen.getByRole('switch', { name: 'Convocações' })).toBeOnTheScreen()
+    expect(screen.getByRole('switch', { name: 'Pedidos de ajuda' })).toBeOnTheScreen()
+    expect(screen.queryByText(/substituição|escala/i)).toBeNull()
   })
 })

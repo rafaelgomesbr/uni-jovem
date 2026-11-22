@@ -121,7 +121,8 @@ export function CadastroPorConvite({
       await sessao.abrirSessao(resposta)
       anunciar('Conta criada.')
     },
-    onSuccess: () => router.replace('/'),
+    // Conta criada e já dentro da comunidade: o degrau de boas-vindas vem antes do Início.
+    onSuccess: () => router.replace({ pathname: '/boas-vindas', params: { comunidade } }),
     onError: (erro) => {
       // Os erros que nascem na tela de e-mail e senha voltam para ela.
       if (ehErroDaApi(erro, 'senha_fraca')) {

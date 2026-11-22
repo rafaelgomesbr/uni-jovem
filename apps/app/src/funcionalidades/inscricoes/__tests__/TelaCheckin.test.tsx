@@ -1,14 +1,11 @@
 import { act, fireEvent, screen, userEvent, waitFor } from '@testing-library/react-native'
-import { useCameraPermissions } from 'expo-camera'
-import { useLocalSearchParams } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 
-import { EVENTO_ID } from '@/testes/fixturas'
+import { EVENTO_ID, eventoDeTeste } from '@/testes/fixturas'
 import { BASE, pedidosPara, PESSOAS, renderizarTela } from '@/testes/telas'
 import { mostrarToast } from '@/ui/Toast'
 
 import { TelaCheckin } from '../TelaCheckin'
-import { TelaInscricoes } from '../TelaInscricoes'
-import { TelaLerQr } from '../TelaLerQr'
 
 jest.mock('expo-router', () => ({
   router: {
@@ -28,11 +25,12 @@ jest.mock('@/ui/Toast', () => ({
   mostrarToast: jest.fn(),
 }))
 
-beforeEach(() => jest.mocked(mostrarToast).mockClear())
+beforeEach(() => jest.clearAllMocks())
 
 const CAMINHO = `${BASE}/eventos/${EVENTO_ID}`
 const INSCRICAO_DANI = '66666666-6666-4666-8666-000000000001'
 const INSCRICAO_BRUNO = '66666666-6666-4666-8666-000000000002'
+const [ANA, BRUNO, CARLA] = PESSOAS
 
 const LISTA = {
   inscritos: [
@@ -47,7 +45,7 @@ const LISTA = {
     },
     {
       inscricaoId: INSCRICAO_BRUNO,
-      vinculoId: PESSOAS[1]!.vinculoId,
+      vinculoId: BRUNO!.vinculoId,
       nome: 'Bruno Lima',
       telefone: null,
       codigo: '0123456789',
@@ -71,16 +69,29 @@ const PRESENCAS = {
       origem: 'manual',
       ocorridaEm: '2026-11-21T18:55:00.000Z',
       inscricaoId: INSCRICAO_BRUNO,
-      vinculoId: PESSOAS[1]!.vinculoId,
+      vinculoId: BRUNO!.vinculoId,
       nome: 'Bruno Lima',
     },
   ],
 }
 
+/** Ana e Carla aceitaram a convocação do louvor; Bruno também (e já chegou). */
+const EVENTO = eventoDeTeste({
+  atribuicoes: [ANA!, BRUNO!, CARLA!].map((p, i) => ({
+    id: `atr-${i}`,
+    etapaId: null,
+    vinculoId: p.vinculoId,
+    funcao: 'Louvor',
+    estado: 'confirmada' as const,
+    nome: p.nome,
+  })),
+})
+
 function montar(rotas = {}) {
-  ;(useLocalSearchParams as jest.Mock).mockReturnValue({ eventoId: EVENTO_ID })
+  jest.mocked(useLocalSearchParams).mockReturnValue({ eventoId: EVENTO_ID })
   return renderizarTela(<TelaCheckin />, {
     rotas: {
+      [`GET ${CAMINHO}`]: () => ({ status: 200, corpo: EVENTO }),
       [`GET ${CAMINHO}/checkin`]: () => ({ status: 200, corpo: LISTA }),
       [`GET ${CAMINHO}/presencas`]: () => ({ status: 200, corpo: PRESENCAS }),
       ...rotas,
@@ -88,45 +99,65 @@ function montar(rotas = {}) {
   })
 }
 
-describe('check-in sem câmera', () => {
-  test('contador em texto: presentes de inscritos', async () => {
-    await montar()
-    expect(await screen.findByLabelText('1 presente de 2 inscritos')).toBeOnTheScreen()
-    // Campo e botão de 48 na mesma linha: o código e o "Marcar".
-    expect(screen.getByLabelText('Código de entrada')).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Marcar presença pelo código' })).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Ler QR' })).toBeOnTheScreen()
-  })
+const linha = (nome: string) => screen.getByRole('checkbox', { name: new RegExp(`^${nome}\\.`) })
 
-  test('a linha inteira é o alvo: "Chegou" no desenho do botão, sem "Membro sem inscrição" repetido (D62)', async () => {
+describe('check-in: feito para quem está em pé', () => {
+  test('contador grande "1 de 4 presentes", com a barra e o QR à mão', async () => {
     await montar()
-    // O membro sem inscrição não ganha texto repetido: só a exceção (quem se inscreveu) é dita.
+    expect(await screen.findByLabelText('1 de 4 presentes')).toBeOnTheScreen()
     expect(
-      await screen.findByRole('button', { name: 'Chegou: Carla Dias. Marcar presença' }),
+      screen.getByRole('progressbar', { name: 'Progresso do check-in: 1 de 4', hidden: true }),
     ).toBeOnTheScreen()
-    expect(screen.queryByText('Membro sem inscrição')).toBeNull()
-    expect(screen.getAllByText('Chegou').length).toBeGreaterThan(0)
-    // Quem está presente mostra o chip "Presente", com marca e texto, no lugar do "Chegou".
-    expect(screen.getByText('Presente')).toBeOnTheScreen()
-    expect(screen.queryByRole('button', { name: /^Chegou: Bruno Lima/ })).toBeNull()
-    // Inscrito ganha a palavra curta "Inscrito".
-    expect(screen.getAllByText('Inscrito').length).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: 'Ler QR' })).toBeOnTheScreen()
+    await userEvent.setup().press(screen.getByRole('button', { name: 'Ler QR' }))
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/evento/[eventoId]/ler-qr',
+      params: { eventoId: EVENTO_ID },
+    })
   })
 
-  test('busca pelo nome e marca a presença da inscrição, com chave de idempotência', async () => {
+  test('dois grupos: convocados e inscritos primeiro; só a exceção é escrita', async () => {
+    await montar()
+    expect(await screen.findByText('Convocados e inscritos (4)')).toBeOnTheScreen()
+    // Todos aceitaram a convocação ou se inscreveram: ninguém sobra em "Outras pessoas".
+    expect(screen.queryByText(/^Outras pessoas/)).toBeNull()
+    // "Membro sem inscrição" não se repete; o que aparece é a exceção.
+    expect(screen.queryByText('Membro sem inscrição')).toBeNull()
+    expect(screen.getAllByText('Convocado').length).toBeGreaterThan(0)
+    expect(screen.getByText('Inscrito · +55 11 9****-1234')).toBeOnTheScreen()
+    // Quem já chegou mostra "Presente" em texto e ícone, nunca só cor.
+    expect(screen.getByText('Presente')).toBeOnTheScreen()
+    expect(screen.getAllByText('Chegou')).toHaveLength(3)
+  })
+
+  test('membros sem convocação nem inscrição ficam em "Outras pessoas"', async () => {
+    await montar({
+      [`GET ${CAMINHO}`]: () => ({ status: 200, corpo: eventoDeTeste({ atribuicoes: [] }) }),
+    })
+    expect(await screen.findByText('Convocados e inscritos (2)')).toBeOnTheScreen()
+    expect(screen.getByText('Outras pessoas (2)')).toBeOnTheScreen()
+  })
+
+  test('a linha inteira é o alvo: um toque marca e a linha já mostra "Presente"', async () => {
+    let responder!: () => void
     const { servidor } = await montar({
-      [`POST ${CAMINHO}/presencas`]: () => ({
-        status: 200,
-        corpo: { id: 'pres-dani', jaRegistrada: false },
-      }),
+      [`POST ${CAMINHO}/presencas`]: () =>
+        new Promise((resolver) => {
+          responder = () =>
+            resolver({ status: 200, corpo: { id: 'pres-dani', jaRegistrada: false } })
+        }),
       [`DELETE ${CAMINHO}/presencas/pres-dani`]: () => ({ status: 200, corpo: { ok: true } }),
     })
+    const usuario = userEvent.setup()
 
-    await fireEvent.changeText(await screen.findByLabelText('Buscar pelo nome'), 'dani')
-    expect(screen.queryByText('Carla Dias')).toBeNull()
-    await userEvent
-      .setup()
-      .press(screen.getByRole('button', { name: 'Chegou: Daniela Prado. Marcar presença' }))
+    await usuario.press(await screen.findByRole('checkbox', { name: /^Daniela Prado\./ }))
+
+    // Otimista: o contador e a linha mudam antes de o servidor responder.
+    expect(await screen.findByLabelText('2 de 4 presentes')).toBeOnTheScreen()
+    expect(
+      screen.getByRole('checkbox', { name: /^Daniela Prado\..*Presente/, checked: true }),
+    ).toBeOnTheScreen()
+    await act(async () => responder())
 
     await waitFor(() =>
       expect(pedidosPara(servidor, 'POST', `${CAMINHO}/presencas`)[0]?.corpo).toMatchObject({
@@ -140,7 +171,7 @@ describe('check-in sem câmera', () => {
         expect.objectContaining({ texto: 'Presença de Daniela Prado registrada.' }),
       ),
     )
-    // O "Desfazer" do toast apaga a presença que acabou de ser criada.
+    // O Desfazer do toast apaga a presença que acabou de ser criada.
     const pedido = jest.mocked(mostrarToast).mock.calls[0]?.[0]
     await act(async () => pedido?.acao?.aoPressionar())
     await waitFor(() =>
@@ -148,7 +179,61 @@ describe('check-in sem câmera', () => {
     )
   })
 
-  test('membro sem inscrição aparece uma vez só e é marcado pelo vínculo', async () => {
+  test('tocar de novo num presente desmarca, sem diálogo, e o toast oferece Desfazer', async () => {
+    const { servidor } = await montar({
+      [`DELETE ${CAMINHO}/presencas/pres-bruno`]: () => ({ status: 200, corpo: { ok: true } }),
+      [`POST ${CAMINHO}/presencas`]: () => ({
+        status: 200,
+        corpo: { id: 'pres-bruno-2', jaRegistrada: false },
+      }),
+    })
+    const usuario = userEvent.setup()
+
+    await usuario.press(await screen.findByRole('checkbox', { name: /^Bruno Lima\..*Presente/ }))
+
+    await waitFor(() =>
+      expect(pedidosPara(servidor, 'DELETE', `${CAMINHO}/presencas/pres-bruno`)).toHaveLength(1),
+    )
+    await waitFor(() =>
+      expect(mostrarToast).toHaveBeenCalledWith(
+        expect.objectContaining({ texto: 'Presença de Bruno Lima desfeita.' }),
+      ),
+    )
+    // Desfazer o desmarcar marca de novo.
+    const pedido = jest.mocked(mostrarToast).mock.calls[0]?.[0]
+    await act(async () => pedido?.acao?.aoPressionar())
+    await waitFor(() =>
+      expect(pedidosPara(servidor, 'POST', `${CAMINHO}/presencas`)[0]?.corpo).toMatchObject({
+        inscricaoId: INSCRICAO_BRUNO,
+      }),
+    )
+  })
+
+  test('erro ao marcar: a linha volta ao que era, com o motivo e "Tentar de novo"', async () => {
+    await montar({
+      [`POST ${CAMINHO}/presencas`]: () => ({
+        status: 500,
+        corpo: { erro: 'x', mensagem: 'Falhou.' },
+      }),
+    })
+    await userEvent.setup().press(await screen.findByRole('checkbox', { name: /^Daniela Prado\./ }))
+
+    await waitFor(() =>
+      expect(mostrarToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          texto: 'Não deu para marcar Daniela Prado. Toque para tentar de novo.',
+          tipo: 'erro',
+          acao: expect.objectContaining({ titulo: 'Tentar de novo' }),
+        }),
+      ),
+    )
+    expect(await screen.findByLabelText('1 de 4 presentes')).toBeOnTheScreen()
+    expect(
+      screen.getByRole('checkbox', { name: /^Daniela Prado\..*Ainda não chegou/, checked: false }),
+    ).toBeOnTheScreen()
+  })
+
+  test('membro sem inscrição é marcado pelo vínculo e aparece uma vez só', async () => {
     const { servidor } = await montar({
       [`POST ${CAMINHO}/presencas`]: () => ({
         status: 200,
@@ -157,136 +242,183 @@ describe('check-in sem câmera', () => {
     })
     // Bruno é membro e inscrito: não aparece duplicado.
     expect(await screen.findAllByText('Bruno Lima')).toHaveLength(1)
-    await userEvent
-      .setup()
-      .press(screen.getByRole('button', { name: 'Chegou: Carla Dias. Marcar presença' }))
+    await userEvent.setup().press(linha('Carla Dias'))
     await waitFor(() =>
       expect(pedidosPara(servidor, 'POST', `${CAMINHO}/presencas`)[0]?.corpo).toMatchObject({
-        vinculoId: PESSOAS[2]!.vinculoId,
+        vinculoId: CARLA!.vinculoId,
       }),
     )
   })
 
-  test('desfazer presença apaga o registro certo', async () => {
+  test('busca pelo nome, sem acento nem caixa, e o teclado só abre ao tocar no campo', async () => {
+    await montar()
+    await fireEvent.changeText(await screen.findByLabelText('Buscar pelo nome'), 'DANI')
+    expect(screen.getByText('Daniela Prado')).toBeOnTheScreen()
+    expect(screen.queryByText('Carla Dias')).toBeNull()
+
+    await fireEvent.changeText(screen.getByLabelText('Buscar pelo nome'), 'zzz')
+    expect(screen.getByText('Ninguém com esse nome.')).toBeOnTheScreen()
+    await userEvent.setup().press(screen.getByRole('button', { name: 'Mostrar todos' }))
+    expect(await screen.findByText('Carla Dias')).toBeOnTheScreen()
+  })
+})
+
+describe('Marcar todos que aceitaram', () => {
+  test('um toque marca quem aceitou e ainda não chegou, com Desfazer para o grupo todo', async () => {
+    const criadas = ['pres-ana', 'pres-carla']
+    let n = 0
     const { servidor } = await montar({
-      [`DELETE ${CAMINHO}/presencas/pres-bruno`]: () => ({ status: 200, corpo: { ok: true } }),
+      [`POST ${CAMINHO}/presencas`]: () => ({
+        status: 200,
+        corpo: { id: criadas[n++], jaRegistrada: false },
+      }),
+      [`DELETE ${CAMINHO}/presencas/pres-ana`]: () => ({ status: 200, corpo: { ok: true } }),
+      [`DELETE ${CAMINHO}/presencas/pres-carla`]: () => ({ status: 200, corpo: { ok: true } }),
     })
 
-    const usuario = userEvent.setup()
-    // Tocar numa pessoa presente abre a folha com "Desfazer presença".
-    await usuario.press(await screen.findByRole('button', { name: /^Bruno Lima\..*Presente/ }))
-    await usuario.press(await screen.findByRole('button', { name: 'Desfazer presença' }))
+    await userEvent
+      .setup()
+      .press(await screen.findByRole('button', { name: 'Marcar todos que aceitaram' }))
 
+    // Só Ana e Carla: Bruno já estava presente.
     await waitFor(() =>
-      expect(pedidosPara(servidor, 'DELETE', `${CAMINHO}/presencas/pres-bruno`)).toHaveLength(1),
+      expect(pedidosPara(servidor, 'POST', `${CAMINHO}/presencas`).map((p) => p.corpo)).toEqual([
+        expect.objectContaining({ vinculoId: ANA!.vinculoId }),
+        expect.objectContaining({ vinculoId: CARLA!.vinculoId }),
+      ]),
+    )
+    await waitFor(() =>
+      expect(mostrarToast).toHaveBeenCalledWith(
+        expect.objectContaining({ texto: '2 presenças marcadas.' }),
+      ),
+    )
+    const pedido = jest
+      .mocked(mostrarToast)
+      .mock.calls.find((c) => c[0].texto === '2 presenças marcadas.')?.[0]
+    await act(async () => pedido?.acao?.aoPressionar())
+    await waitFor(() =>
+      expect(servidor.pedidos.filter((p) => p.metodo === 'DELETE')).toHaveLength(2),
     )
   })
 
-  test('código digitado com formato errado não vai à rede', async () => {
+  test('sem ninguém que falte: o botão fica desligado e diz por quê', async () => {
+    await montar({
+      [`GET ${CAMINHO}`]: () => ({ status: 200, corpo: eventoDeTeste({ atribuicoes: [] }) }),
+    })
+    const botao = await screen.findByRole('button', { name: 'Marcar todos que aceitaram' })
+    expect(botao).toBeDisabled()
+    expect(screen.getByText('Ninguém aceitou a convocação ainda.')).toBeOnTheScreen()
+  })
+})
+
+describe('Mais: código de entrada e quem chegou sem inscrição', () => {
+  test('código com formato errado não vai à rede', async () => {
     const { servidor } = await montar()
+    const usuario = userEvent.setup()
+    await usuario.press(await screen.findByRole('button', { name: 'Mais opções do check-in' }))
+    await usuario.press(await screen.findByRole('button', { name: /^Pelo código de entrada/ }))
+
     await fireEvent.changeText(await screen.findByLabelText('Código de entrada'), 'XYZ')
-    await userEvent
-      .setup()
-      .press(screen.getByRole('button', { name: 'Marcar presença pelo código' }))
+    await usuario.press(screen.getByRole('button', { name: 'Marcar presença pelo código' }))
     expect(await screen.findByText('O código tem 10 letras (A a F) e números.')).toBeOnTheScreen()
     expect(pedidosPara(servidor, 'POST', `${CAMINHO}/presencas`)).toHaveLength(0)
   })
-})
 
-describe('lista de inscrições', () => {
-  test('contagens e estados em texto, não só em cor', async () => {
-    ;(useLocalSearchParams as jest.Mock).mockReturnValue({ eventoId: EVENTO_ID })
-    await renderizarTela(<TelaInscricoes />, {
-      rotas: {
-        [`GET ${CAMINHO}`]: () => ({ status: 404, corpo: { erro: 'x', mensagem: 'x' } }),
-        [`GET ${CAMINHO}/inscricoes`]: () => ({
-          status: 200,
-          corpo: {
-            contagem: { confirmadas: 1, espera: 1, presentes: 1 },
-            inscricoes: [
-              {
-                id: 'i1',
-                origem: 'publica',
-                nome: 'Daniela Prado',
-                telefone: '+5511912341234',
-                email: null,
-                estado: 'confirmada',
-                codigoCheckin: 'ABCDEF1234',
-                criadoEm: '2026-11-15T10:00:00.000Z',
-                promovidaEm: null,
-                presente: true,
-              },
-              {
-                id: 'i2',
-                origem: 'membro',
-                nome: 'Carla Dias',
-                telefone: null,
-                email: null,
-                estado: 'espera',
-                codigoCheckin: '0000000000',
-                criadoEm: '2026-11-15T11:00:00.000Z',
-                promovidaEm: null,
-                presente: false,
-              },
-            ],
-          },
-        }),
-      },
+  test('código certo marca a presença do dono do código', async () => {
+    const { servidor } = await montar({
+      [`POST ${CAMINHO}/presencas`]: () => ({
+        status: 200,
+        corpo: { id: 'p-codigo', jaRegistrada: false },
+      }),
     })
-
-    expect(await screen.findByLabelText('1 na lista de espera')).toBeOnTheScreen()
-    expect(screen.getByText('Lista de espera')).toBeOnTheScreen()
-    expect(screen.getByText('Presente')).toBeOnTheScreen()
-    await userEvent.setup().press(screen.getByRole('radio', { name: 'Espera' }))
-    expect(screen.queryByText('Daniela Prado')).toBeNull()
-    expect(screen.getByText('Carla Dias')).toBeOnTheScreen()
-  })
-})
-
-describe('check-in por QR', () => {
-  test('o código lido pela câmera registra a presença com origem "qr"', async () => {
-    ;(useLocalSearchParams as jest.Mock).mockReturnValue({ eventoId: EVENTO_ID })
-    const { servidor } = await renderizarTela(<TelaLerQr />, {
-      rotas: {
-        [`GET ${CAMINHO}/checkin`]: () => ({ status: 200, corpo: LISTA }),
-        [`POST ${CAMINHO}/presencas`]: () => ({
-          status: 200,
-          corpo: { id: 'pres-dani', jaRegistrada: false },
-        }),
-      },
-    })
-
-    await screen.findByLabelText('Visor da câmera. Aponte para o QR de entrada.')
-    // A câmera simulada repassa as props; o teste faz o papel do leitor nativo.
-    const camera = screen.getByTestId('camera')
-    await act(async () => {
-      ;(camera.props as { onBarcodeScanned: (r: { data: string }) => void }).onBarcodeScanned({
-        data: 'abcdef1234',
-      })
-    })
+    const usuario = userEvent.setup()
+    await usuario.press(await screen.findByRole('button', { name: 'Mais opções do check-in' }))
+    await usuario.press(await screen.findByRole('button', { name: /^Pelo código de entrada/ }))
+    await fireEvent.changeText(await screen.findByLabelText('Código de entrada'), 'abcdef1234')
+    await usuario.press(screen.getByRole('button', { name: 'Marcar presença pelo código' }))
 
     await waitFor(() =>
       expect(pedidosPara(servidor, 'POST', `${CAMINHO}/presencas`)[0]?.corpo).toMatchObject({
-        origem: 'qr',
         codigo: 'ABCDEF1234',
       }),
     )
     await waitFor(() =>
-      expect(mostrarToast).toHaveBeenCalledWith({ texto: 'Presença de Daniela Prado registrada.' }),
+      expect(mostrarToast).toHaveBeenCalledWith(
+        expect.objectContaining({ texto: 'Presença de Daniela Prado registrada.' }),
+      ),
     )
-    // O caminho sem câmera continua a um toque.
-    expect(screen.getByRole('button', { name: 'Buscar pelo nome, sem câmera' })).toBeOnTheScreen()
   })
 
-  test('sem permissão da câmera: explica e oferece a busca por nome', async () => {
-    ;(useLocalSearchParams as jest.Mock).mockReturnValue({ eventoId: EVENTO_ID })
-    const negada = { granted: false, canAskAgain: false, status: 'denied', expires: 'never' }
-    ;(useCameraPermissions as jest.Mock).mockReturnValueOnce([negada, jest.fn()])
-    ;(useCameraPermissions as jest.Mock).mockReturnValue([negada, jest.fn()])
-    await renderizarTela(<TelaLerQr />, {
-      rotas: { [`GET ${CAMINHO}/checkin`]: () => ({ status: 200, corpo: LISTA }) },
+  test('chegou sem inscrição: só o nome', async () => {
+    const { servidor } = await montar({
+      [`POST ${CAMINHO}/presencas`]: () => ({
+        status: 200,
+        corpo: { id: 'p-avulso', jaRegistrada: false },
+      }),
     })
-    expect(await screen.findByRole('button', { name: 'Abrir os ajustes' })).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Buscar pelo nome, sem câmera' })).toBeOnTheScreen()
+    const usuario = userEvent.setup()
+    await usuario.press(await screen.findByRole('button', { name: 'Mais opções do check-in' }))
+    await usuario.press(await screen.findByRole('button', { name: /^Chegou sem inscrição/ }))
+
+    await usuario.press(
+      await screen.findByRole('button', { name: 'Registrar presença sem inscrição' }),
+    )
+    expect(await screen.findByText('Escreva o nome de quem chegou.')).toBeOnTheScreen()
+    await fireEvent.changeText(screen.getByLabelText('Nome de quem chegou'), 'Visitante Souza')
+    await usuario.press(screen.getByRole('button', { name: 'Registrar presença sem inscrição' }))
+    await waitFor(() =>
+      expect(pedidosPara(servidor, 'POST', `${CAMINHO}/presencas`)[0]?.corpo).toMatchObject({
+        nomeAvulso: 'Visitante Souza',
+      }),
+    )
+  })
+
+  test('"Ver as inscrições" leva à lista de inscrições do encontro', async () => {
+    await montar()
+    const usuario = userEvent.setup()
+    await usuario.press(await screen.findByRole('button', { name: 'Mais opções do check-in' }))
+    await usuario.press(await screen.findByRole('button', { name: /^Ver as inscrições/ }))
+    // A folha fecha primeiro; só depois a tela abre.
+    await waitFor(() =>
+      expect(router.push).toHaveBeenCalledWith({
+        pathname: '/evento/[eventoId]/inscricoes',
+        params: { eventoId: EVENTO_ID },
+      }),
+    )
+  })
+})
+
+describe('os três estados do check-in', () => {
+  test('carregando: contador "-- de --" e as linhas de esqueleto', async () => {
+    await montar({ [`GET ${CAMINHO}/checkin`]: () => new Promise<never>(() => {}) })
+    expect(await screen.findByLabelText('Carregando a lista de entrada')).toBeOnTheScreen()
+    expect(screen.getByLabelText('Carregando')).toBeOnTheScreen()
+  })
+
+  test('erro: texto humano e "Tentar de novo" que recarrega', async () => {
+    let tentativas = 0
+    await montar({
+      [`GET ${CAMINHO}/checkin`]: () =>
+        ++tentativas === 1
+          ? { status: 500, corpo: { erro: 'x', mensagem: 'Falhou.' } }
+          : { status: 200, corpo: LISTA },
+    })
+    expect(await screen.findByText('Não deu para carregar quem foi convocado.')).toBeOnTheScreen()
+    await userEvent.setup().press(screen.getByRole('button', { name: 'Tentar de novo' }))
+    expect(await screen.findByLabelText('1 de 4 presentes')).toBeOnTheScreen()
+  })
+
+  test('vazio: explica e oferece ler o QR', async () => {
+    await montar({
+      [`GET ${CAMINHO}/checkin`]: () => ({
+        status: 200,
+        corpo: { inscritos: [], membros: [], geradoEm: LISTA.geradoEm },
+      }),
+      [`GET ${CAMINHO}/presencas`]: () => ({ status: 200, corpo: { total: 0, presencas: [] } }),
+    })
+    expect(await screen.findByText('Ninguém convocado ou inscrito.')).toBeOnTheScreen()
+    expect(screen.getByText('Procure pelo nome ou leia o QR de quem chegou.')).toBeOnTheScreen()
+    // Sem pessoas, não há "Marcar todos" para oferecer.
+    expect(screen.queryByRole('button', { name: 'Marcar todos que aceitaram' })).toBeNull()
   })
 })

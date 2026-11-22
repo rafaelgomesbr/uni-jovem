@@ -34,6 +34,16 @@ export function dataCompleta(inicio: string, fuso: string): string {
   return `${dia}, ${d} de ${MESES[mes - 1] ?? ''}.`
 }
 
+/** "Sáb., 28 de nov.": o dia da semana abreviado e a data (o formato do cartão do momento, D68). */
+export function dataCurta(inicio: string, fuso: string): string {
+  const nome = new Intl.DateTimeFormat('pt-BR', { weekday: 'short', timeZone: fuso }).format(
+    new Date(inicio),
+  )
+  const dia = nome.charAt(0).toLocaleUpperCase('pt-BR') + nome.slice(1)
+  const [, mes, d] = numeros(dataDoInstante(inicio, fuso))
+  return `${dia.endsWith('.') ? dia : `${dia}.`}, ${d} de ${MESES[mes - 1] ?? ''}.`
+}
+
 /** "16:00 às 17:00". */
 export function faixaDeHorario(inicio: string, duracaoMin: number, fuso: string): string {
   const fim = new Date(new Date(inicio).getTime() + duracaoMin * 60_000).toISOString()

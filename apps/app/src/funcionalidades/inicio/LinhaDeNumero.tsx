@@ -12,7 +12,7 @@ interface Props {
   icone: NomeDoIcone
   /** O que o toque faz, começando pelo verbo ("Responder 2 convocações"). */
   titulo: string
-  /** Aonde o toque leva, para o leitor de tela ("Escalas"). */
+  /** Aonde o toque leva, para o leitor de tela ("Agenda"). */
   destino: string
   aoPressionar: () => void
 }
@@ -20,7 +20,7 @@ interface Props {
 /**
  * Uma linha do "Seu resumo" (D62): o verbo do que o toque faz e o destino.
  * Nunca é linha morta: se não leva a lugar nenhum, não entra no resumo. O
- * leitor de tela ouve tudo de uma vez ("Responder 2 convocações. Abrir Escalas").
+ * leitor de tela ouve tudo de uma vez ("Responder 2 convocações. Abrir Agenda").
  */
 export function LinhaDeNumero({ icone, titulo, destino, aoPressionar }: Props): ReactElement {
   return (

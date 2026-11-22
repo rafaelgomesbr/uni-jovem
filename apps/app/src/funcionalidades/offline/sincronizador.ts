@@ -3,6 +3,7 @@ import type { DetalheDaComunidade } from '@/servicos/contrato'
 import { ErroDaApi } from '@/servicos/erros'
 
 import { enviarFila, type ResumoDoEnvio } from './fila'
+import { atualizarRepertorios } from './repertorioOffline'
 import type { PacoteOffline, Particao, RespostaDasMudancas } from './tipos'
 
 /**
@@ -39,6 +40,8 @@ export interface ResumoDaSincronizacao extends ResumoDoEnvio {
   mudancas: number
   recomecou: boolean
   pacotesAtualizados: number
+  /** Repertórios para tocar sem internet cuja versão mudou e foram baixados de novo. */
+  repertoriosAtualizados: number
   validoAte: string
 }
 
@@ -127,6 +130,9 @@ export async function sincronizarParticao(
     }
   }
 
+  // O repertório para tocar sem internet segue a mesma rodada: só baixa a cifra se a versão mudou.
+  const repertoriosAtualizados = await atualizarRepertorios(particao, cliente, agora)
+
   const restantes = await particao.pacotes()
   const momento = agora()
   const validoAte = new Date(momento.getTime() + detalhe.validadeOfflineDias * DIA_MS).toISOString()
@@ -137,5 +143,5 @@ export async function sincronizarParticao(
     ultimaSincronizacao: momento.toISOString(),
     cursor: restantes.length ? cursor : null,
   })
-  return { ...envio, mudancas, recomecou, pacotesAtualizados, validoAte }
+  return { ...envio, mudancas, recomecou, pacotesAtualizados, repertoriosAtualizados, validoAte }
 }

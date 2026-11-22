@@ -84,9 +84,14 @@ describe('novo pedido: publicar como anônimo', () => {
 
     await fireEvent.changeText(screen.getByLabelText('Seu pedido'), 'Pela minha ansiedade')
     await fireEvent.press(screen.getByRole('button', { name: 'Publicar pedido' }))
+    // O resumo da folha diz "Anônimo" e o botão tem o verbo (o diálogo nativo não é mais usado).
+    expect(
+      await screen.findByText(/^Vai aparecer como Anônimo para \d+ pessoas\.$/),
+    ).toBeOnTheScreen()
+    await fireEvent.press(await screen.findByRole('button', { name: 'Publicar como Anônimo' }))
 
     await waitFor(() => expect(pedidosPara(servidor, 'POST', `${BASE}/oracao`)).toHaveLength(1))
-    expect(dialogo).toHaveBeenCalled()
+    expect(dialogo).not.toHaveBeenCalled()
     expect(pedidosPara(servidor, 'POST', `${BASE}/oracao`)[0]!.corpo).toEqual({
       texto: 'Pela minha ansiedade',
       visibilidade: 'comunidade',
@@ -126,9 +131,9 @@ describe('novo pedido: publicar como anônimo', () => {
     expect(screen.getByRole('button', { name: 'Entenda como é guardado' })).toBeOnTheScreen()
   })
 
-  test('anônimo para a comunidade: a confirmação lembra que o nome não aparece', async () => {
-    const dialogo = responderDialogos(false)
-    await renderizarTela(<TelaNovoPedido />, {
+  test('anônimo para a comunidade: o resumo diz "Anônimo" e o botão tem o verbo; Voltar não envia', async () => {
+    responderDialogos(false)
+    const { servidor } = await renderizarTela(<TelaNovoPedido />, {
       papel: 'membro',
       rotas: { [`POST ${BASE}/oracao`]: () => ({ status: 200, corpo: { id: 'p1' } }) },
     })
@@ -136,8 +141,10 @@ describe('novo pedido: publicar como anônimo', () => {
     await fireEvent.press(screen.getByRole('switch', { name: 'Publicar como anônimo' }))
     await fireEvent.changeText(screen.getByLabelText('Seu pedido'), 'Pela minha família')
     await fireEvent.press(screen.getByRole('button', { name: 'Publicar pedido' }))
-    await waitFor(() => expect(dialogo).toHaveBeenCalled())
-    expect(dialogo.mock.calls[0]![1]).toMatch(/Seu nome não aparece: o pedido sai como "Anônimo"\./)
+    expect(await screen.findByText('Vai aparecer como Anônimo para 2 pessoas.')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Publicar como Anônimo' })).toBeOnTheScreen()
+    await fireEvent.press(screen.getAllByRole('button', { name: 'Voltar' }).at(-1)!)
+    expect(pedidosPara(servidor, 'POST', `${BASE}/oracao`)).toHaveLength(0)
   })
 })
 

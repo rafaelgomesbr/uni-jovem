@@ -1,1 +1,1 @@
-export { RedirecionarParaALista as default } from '@/funcionalidades/agenda/RedirecionarParaALista'
+export { RedirecionarParaAAgenda as default } from '@/funcionalidades/navegacao/Redirecionamentos'

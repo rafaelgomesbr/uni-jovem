@@ -16,12 +16,12 @@ import { Campo } from '@/ui/Campo'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Chip } from '@/ui/Chip'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
-import { EstadoVazio } from '@/ui/EstadoVazio'
 import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
 import { Segmentos } from '@/ui/Segmentos'
 import { Texto } from '@/ui/Texto'
 
 import { usePode } from '../comunidade/permissoes'
+import { VazioComSol } from '../entrada/VazioComSol'
 import { naComunidade } from '../eventos/consultas'
 import { TelaDaComunidade } from '../navegacao/TelaDaComunidade'
 import { NOME_DO_MOTIVO } from './BotaoDenunciar'
@@ -87,18 +87,16 @@ function Fila({ comunidadeId }: { comunidadeId: string }) {
       ) : lista.error ? (
         <AvisoDeFalha erro={lista.error} aoTentarDeNovo={() => void lista.refetch()} />
       ) : lista.data.length === 0 ? (
-        <CartaoDeVidro>
-          <EstadoVazio
-            icone="denuncia"
-            titulo={estado === 'aberta' ? 'Nenhuma denúncia aberta' : 'Nada por aqui'}
-            descricao="Quando alguém denunciar um aviso, uma sugestão ou um pedido de oração público, aparece aqui."
-            acao={{
-              titulo: 'Ver os avisos',
-              icone: 'aviso',
-              aoPressionar: () => router.push('/avisos'),
-            }}
-          />
-        </CartaoDeVidro>
+        <VazioComSol
+          pose={estado === 'aberta' ? 'pleno' : 'escondido'}
+          titulo={estado === 'aberta' ? 'Nenhuma denúncia aberta' : 'Nada por aqui'}
+          descricao="Quando alguém denunciar um aviso, uma sugestão ou um pedido de oração público, aparece aqui."
+          acao={{
+            titulo: 'Ver os avisos',
+            variante: 'secundario',
+            aoPressionar: () => router.push('/avisos'),
+          }}
+        />
       ) : (
         lista.data.map((d) => <ItemDaFila key={d.id} comunidadeId={comunidadeId} denuncia={d} />)
       )}

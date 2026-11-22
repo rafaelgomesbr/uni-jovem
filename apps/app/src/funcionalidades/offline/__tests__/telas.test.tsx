@@ -234,10 +234,14 @@ describe('sem conexão', () => {
       </ProvedorOffline>,
       { rotas },
     )
-    expect(await screen.findByText('Sem conexão: lista deste aparelho')).toBeOnTheScreen()
+    expect(
+      await screen.findByText(/As presenças ficam guardadas e vão quando voltar/),
+    ).toBeOnTheScreen()
     const usuario = userEvent.setup()
-    await usuario.press(screen.getByRole('button', { name: 'Chegou: Davi Rocha. Marcar presença' }))
-    expect(await screen.findByText(/Presença de Davi Rocha anotada neste aparelho/)).toBeTruthy()
+    await usuario.press(screen.getByRole('checkbox', { name: /^Davi Rocha./ }))
+    // O contador e a linha dizem que a presença está esperando a internet.
+    expect(await screen.findByText('(1 esperando internet)')).toBeTruthy()
+    expect(screen.getByRole('checkbox', { name: /^Davi Rocha..*Esperando internet/ })).toBeTruthy()
 
     const p = await deposito.abrir(CONTA, COMUNIDADE)
     const fila = await p!.operacoes()

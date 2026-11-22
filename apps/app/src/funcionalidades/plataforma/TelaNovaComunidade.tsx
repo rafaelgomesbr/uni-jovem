@@ -13,7 +13,7 @@ import { Aviso } from '@/ui/Aviso'
 import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao, ParDeBotoes } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
-import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
+import { Cartao } from '@/ui/Cartao'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { EstadoVazio } from '@/ui/EstadoVazio'
 import { AvisoDeFalha } from '@/ui/Falha'
@@ -98,7 +98,7 @@ export function TelaNovaComunidade() {
           descricao="Só o Criador da plataforma cria comunidades. Para entrar numa, use o convite que você recebeu."
           acao={{
             titulo: 'Entrar com um convite',
-            aoPressionar: () => router.replace('/entrar-com-convite'),
+            aoPressionar: () => router.replace('/tenho-um-codigo'),
           }}
         />
       </Tela>
@@ -321,10 +321,11 @@ function EntrarNaNova({
   if (entrou) {
     return (
       <Tela pilha titulo={`Bem-vindo a ${pedido.nome}`} refDoTitulo={refDoTitulo}>
-        <CartaoDeDestaque
-          sobrancelha="Próximo passo"
+        <Cartao
+          variante="momento"
+          pose="pleno"
+          etiqueta="Próximo passo"
           titulo="Chame a sua equipe"
-          descricao={`Você é o administrador de ${pedido.nome}, que já está aberta no app. Convide a liderança para começar.`}
           acoes={
             <ParDeBotoes>
               <Botao
@@ -338,7 +339,11 @@ function EntrarNaNova({
               />
             </ParDeBotoes>
           }
-        />
+        >
+          <Texto variante="corpo" cor="textoSuave">
+            {`Você é o administrador de ${pedido.nome}, que já está aberta no app. Convide a liderança para começar.`}
+          </Texto>
+        </Cartao>
         {gravarFuso.isPending ? (
           <Texto variante="legenda" cor="textoSuave" accessibilityLiveRegion="polite">
             Gravando o fuso horário
@@ -359,10 +364,11 @@ function EntrarNaNova({
       comunidade={pedido.nome}
       papel="Administrador"
       cartaoDoConvite={
-        <CartaoDeDestaque
-          sobrancelha="Comunidade criada"
+        <Cartao
+          variante="momento"
+          pose="nascendo"
+          etiqueta="Comunidade criada"
           titulo="Agora, entre nela"
-          descricao={`${pedido.nome} foi criada. Confirme a sua entrada como administrador para ela abrir no app. Prefere entrar depois? Guarde o link: vale 7 dias, só funciona com a sua conta e não aparece de novo.`}
           acoes={
             <View style={{ alignItems: 'flex-start' }}>
               <Botao
@@ -382,7 +388,11 @@ function EntrarNaNova({
               />
             </View>
           }
-        />
+        >
+          <Texto variante="corpo" cor="textoSuave">
+            {`${pedido.nome} foi criada. Confirme a sua entrada como administrador para ela abrir no app. Prefere entrar depois? Guarde o link: vale 7 dias, só funciona com a sua conta e não aparece de novo.`}
+          </Texto>
+        </Cartao>
       }
     />
   )

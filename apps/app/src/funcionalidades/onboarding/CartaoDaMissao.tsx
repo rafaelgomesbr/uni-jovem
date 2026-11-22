@@ -36,7 +36,7 @@ export function CartaoDaMissao() {
           <Botao
             titulo="Agora não"
             variante="terciario"
-            dica="Fica em Perfil, Ajuda e sobre, para quando quiser."
+            dica="Fica em Perfil, Ajuda, para quando quiser."
             aoPressionar={() => salvar({ ...progresso, estado: 'pulado' })}
           />
         </ParDeBotoes>

@@ -8,13 +8,13 @@ import { Campo, CampoDeBusca } from '@/ui/Campo'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Chip } from '@/ui/Chip'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
-import { EstadoVazio } from '@/ui/EstadoVazio'
 import { ErroDaTela } from '@/ui/Falha'
 import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 
 import { logoDaEncontrada, MINIMO_DA_BUSCA, useBuscaDeComunidades } from './consultas'
+import { VazioComSol } from './VazioComSol'
 
 /** Selo "Verificada": ícone e texto, nunca só a cor. */
 export function SeloVerificada() {
@@ -125,8 +125,8 @@ function Resultados({
   }
   if (busca.data.length === 0) {
     return (
-      <EstadoVazio
-        icone="buscar"
+      <VazioComSol
+        anunciar
         titulo="Nenhuma comunidade com esse nome"
         descricao="Confira a grafia ou tire a cidade. Algumas comunidades preferem não aparecer na busca: peça o código para a liderança."
         acao={{

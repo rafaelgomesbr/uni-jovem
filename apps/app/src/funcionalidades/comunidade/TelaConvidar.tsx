@@ -3,12 +3,14 @@ import { ehPapel, NOME_DO_PAPEL, PAPEIS, podeConcederPapel, type Papel } from '@
 import { ESPACO } from '@uj/tokens'
 import { useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
+import { View } from 'react-native'
 
 import { NOME_DO_APP } from '@/constantes'
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
 import type { ComunidadeDoVinculo, ConviteCriado } from '@/servicos/contrato'
+import { Acordeao } from '@/ui/Acordeao'
 import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
@@ -71,10 +73,11 @@ export function TelaConvidar() {
 }
 
 /**
- * Convidar (3.6.2): "PAPEL" em lista de opções com a descrição de cada
- * papel, "VALIDADE" em segmentos, "PARA QUEM (OPCIONAL)" com o e-mail e o
- * interruptor de envio, e o primário "Criar convite" na barra. O resultado é
- * o cartão de destaque com o link, Copiar e Compartilhar.
+ * Convidar (D70, UX 3.6.2): UM botão, "Convidar para Jovens Esperança", com o padrão que
+ * serve a quase todo mundo (entra como Membro, o link vale 7 dias, serve a quem abrir
+ * primeiro). Função, validade e e-mail ficam em "Mais opções", fechado, e a frase de
+ * resumo abaixo do botão diz o que está valendo (nada escondido muda o convite sem aviso).
+ * O resultado é o cartão com o link, Copiar e Compartilhar.
  */
 function FormularioDeConvite({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
   const consultas = useQueryClient()
@@ -158,14 +161,14 @@ function FormularioDeConvite({ comunidade }: { comunidade: ComunidadeDoVinculo }
     <Tela
       pilha
       titulo="Convidar"
-      descricao="O link vale para uma pessoa, que entra com o papel escolhido."
+      descricao={`Um link para uma pessoa entrar em ${comunidade.nome}.`}
       refDoTitulo={tituloRef}
       barraDeAcao={
         <BarraDeAcao>
           <Botao
-            titulo="Criar convite"
+            titulo={`Convidar para ${comunidade.nome}`}
             tamanho="grande"
-            rotuloAcessivel={`Criar convite de ${NOME_DO_PAPEL[papel].toLowerCase()} para ${comunidade.nome}`}
+            icone="convidar"
             carregando={criar.isPending}
             aoPressionar={enviar}
           />
@@ -173,53 +176,74 @@ function FormularioDeConvite({ comunidade }: { comunidade: ComunidadeDoVinculo }
       }
     >
       {criar.error ? <AvisoDeFalha erro={criar.error} titulo="O convite não foi criado" /> : null}
-      <ListaDeOpcoes
-        rotulo="Papel"
-        valor={papel}
-        aoMudar={setPapel}
-        opcoes={concedidos.map((p) => ({
-          valor: p,
-          rotulo: NOME_DO_PAPEL[p],
-          descricao: DESCRICAO_DO_PAPEL[p],
-        }))}
-      />
-      <Secao titulo="Validade" rodape="O máximo são 7 dias.">
-        <Segmentos
-          rotulo="Validade do link"
-          segmentos={VALIDADES}
-          valor={validade}
-          aoMudar={setValidade}
-        />
-      </Secao>
-      <Secao titulo="Para quem (opcional)">
-        <CartaoDeVidro opaco intervalo={ESPACO.e8}>
-          <Campo
-            rotulo="E-mail"
-            opcional
-            ajuda="Com e-mail, o convite fica preso a ele: só essa pessoa consegue usar."
-            value={email}
-            onChangeText={setEmail}
-            erro={erroDoEmail}
-            keyboardType="email-address"
-            inputMode="email"
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoComplete="off"
+      <Texto variante="corpo" cor="textoSuave">
+        {resumoDoConvite(papel, validade, emailLimpo)}
+      </Texto>
+      <Acordeao
+        chave="convidar-mais-opcoes"
+        rotuloRecolhido="Mais opções: função, validade e e-mail. Recolhido, toque para ver."
+        rotuloAberto="Mais opções: função, validade e e-mail. Aberto, toque para recolher."
+        cabecalho={() => <Texto variante="tituloItem">Mais opções</Texto>}
+      >
+        <View style={{ gap: ESPACO.e16 }}>
+          <ListaDeOpcoes
+            rotulo="Papel"
+            valor={papel}
+            aoMudar={setPapel}
+            opcoes={concedidos.map((p) => ({
+              valor: p,
+              rotulo: NOME_DO_PAPEL[p],
+              descricao: DESCRICAO_DO_PAPEL[p],
+            }))}
           />
-          {emailLimpo ? (
-            <Interruptor
-              rotulo="Enviar também por e-mail"
-              descricao={enviarPorEmail ? 'Ligado: o link vai também para o e-mail' : 'Desligado'}
-              ligado={enviarPorEmail}
-              aoMudar={setEnviarPorEmail}
+          <Secao titulo="Validade" rodape="O máximo são 7 dias.">
+            <Segmentos
+              rotulo="Validade do link"
+              segmentos={VALIDADES}
+              valor={validade}
+              aoMudar={setValidade}
             />
-          ) : (
-            <Texto variante="legenda" cor="textoSuave">
-              Sem e-mail, vale para quem abrir o link primeiro.
-            </Texto>
-          )}
-        </CartaoDeVidro>
-      </Secao>
+          </Secao>
+          <Secao titulo="Para quem (opcional)">
+            <CartaoDeVidro opaco intervalo={ESPACO.e8}>
+              <Campo
+                rotulo="E-mail"
+                opcional
+                ajuda="Com e-mail, o convite fica preso a ele: só essa pessoa consegue usar."
+                value={email}
+                onChangeText={setEmail}
+                erro={erroDoEmail}
+                keyboardType="email-address"
+                inputMode="email"
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="off"
+              />
+              {emailLimpo ? (
+                <Interruptor
+                  rotulo="Enviar também por e-mail"
+                  descricao={
+                    enviarPorEmail ? 'Ligado: o link vai também para o e-mail' : 'Desligado'
+                  }
+                  ligado={enviarPorEmail}
+                  aoMudar={setEnviarPorEmail}
+                />
+              ) : (
+                <Texto variante="legenda" cor="textoSuave">
+                  Sem e-mail, vale para quem abrir o link primeiro.
+                </Texto>
+              )}
+            </CartaoDeVidro>
+          </Secao>
+        </View>
+      </Acordeao>
     </Tela>
   )
+}
+
+/** O que o botão vai criar, em uma frase: "Entra como Membro. O link vale 7 dias, para quem abrir primeiro." */
+export function resumoDoConvite(papel: Papel, validade: Validade, email: string): string {
+  const dias = validade === '1' ? '1 dia' : `${validade} dias`
+  const para = email ? `só para ${email}` : 'para quem abrir primeiro'
+  return `Entra como ${NOME_DO_PAPEL[papel]}. O link vale ${dias}, ${para}.`
 }

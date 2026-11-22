@@ -1,5 +1,6 @@
 import * as SQLite from 'expo-sqlite'
 
+import type { PacoteDoRepertorio } from '@/servicos/contratoV3'
 import { ErroLocal } from '@/servicos/erros'
 
 import {
@@ -23,7 +24,9 @@ import type {
   Particao,
   ParticaoVencida,
   RegistroDaParticao,
+  RepertorioGuardado,
   ResumoDoPacote,
+  ResumoDoRepertorioGuardado,
 } from './tipos'
 
 /**
@@ -54,6 +57,13 @@ create table if not exists operacoes (
 );
 create table if not exists pacotes (
   evento_id text primary key,
+  conteudo text not null,
+  baixado_em text not null,
+  valido_ate text not null
+);
+create table if not exists repertorios (
+  evento_id text primary key,
+  versao text not null,
   conteudo text not null,
   baixado_em text not null,
   valido_ate text not null
@@ -274,6 +284,67 @@ class ParticaoSqlite implements Particao {
   async removerPacote(eventoId: string): Promise<void> {
     await this.db.runAsync('delete from pacotes where evento_id = ?', [eventoId])
   }
+
+  async gravarRepertorio(pacote: PacoteDoRepertorio, baixadoEm: string): Promise<void> {
+    const limpo = semOracao(pacote)
+    await this.db.runAsync(
+      `insert into repertorios (evento_id, versao, conteudo, baixado_em, valido_ate)
+       values (?, ?, ?, ?, ?)
+       on conflict(evento_id) do update set versao = excluded.versao,
+         conteudo = excluded.conteudo, baixado_em = excluded.baixado_em,
+         valido_ate = excluded.valido_ate`,
+      [limpo.evento.id, limpo.versao, JSON.stringify(limpo), baixadoEm, limpo.validoAte],
+    )
+  }
+
+  async lerRepertorio(eventoId: string): Promise<RepertorioGuardado | null> {
+    const l = await this.db.getFirstAsync<LinhaDoRepertorio>(
+      'select evento_id, versao, conteudo, baixado_em, valido_ate from repertorios where evento_id = ?',
+      [eventoId],
+    )
+    return l ? paraRepertorio(l) : null
+  }
+
+  async repertorios(): Promise<RepertorioGuardado[]> {
+    const linhas = await this.db.getAllAsync<LinhaDoRepertorio>(
+      'select evento_id, versao, conteudo, baixado_em, valido_ate from repertorios',
+    )
+    return linhas
+      .map(paraRepertorio)
+      .filter((r): r is RepertorioGuardado => r !== null)
+      .sort((a, b) => a.pacote.evento.inicio.localeCompare(b.pacote.evento.inicio))
+  }
+
+  async resumoDosRepertorios(): Promise<ResumoDoRepertorioGuardado[]> {
+    return (await this.repertorios()).map((r) => ({
+      eventoId: r.eventoId,
+      versao: r.pacote.versao,
+      titulo: r.pacote.evento.titulo,
+      inicio: r.pacote.evento.inicio,
+      fuso: r.pacote.evento.fuso,
+      musicas: r.pacote.itens.length,
+      baixadoEm: r.baixadoEm,
+      validoAte: r.validoAte,
+    }))
+  }
+
+  async removerRepertorio(eventoId: string): Promise<void> {
+    await this.db.runAsync('delete from repertorios where evento_id = ?', [eventoId])
+  }
+}
+
+interface LinhaDoRepertorio {
+  evento_id: string
+  versao: string
+  conteudo: string
+  baixado_em: string
+  valido_ate: string
+}
+
+function paraRepertorio(l: LinhaDoRepertorio): RepertorioGuardado | null {
+  const pacote = lerJson<PacoteDoRepertorio | null>(l.conteudo, null)
+  if (!pacote) return null
+  return { eventoId: l.evento_id, pacote, baixadoEm: l.baixado_em, validoAte: l.valido_ate }
 }
 
 export function criarDeposito(): DepositoLocal {

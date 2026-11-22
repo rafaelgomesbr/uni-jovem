@@ -1,11 +1,20 @@
-import { screen, userEvent, waitFor } from '@testing-library/react-native'
+/**
+ * D69: o Encontro. Para o membro, UMA página ("Sua parte" no alto, quando e onde, roteiro enxuto,
+ * quem serve, inscrição). Para a organização, três abas (Resumo, Roteiro, Convocados), o menu
+ * "Mais" em grupos e o botão principal do momento na barra (publicar com Desfazer, lembrar, check-in,
+ * ao vivo, marcar o próximo sábado).
+ */
+import { act, screen, userEvent, waitFor } from '@testing-library/react-native'
 import { router } from 'expo-router'
+import { Share } from 'react-native'
 
-import { ETAPAS, EVENTO_ID, eventoDeTeste } from '@/testes/fixturas'
-import { confirmar } from '@/utilidades/confirmar'
+import { ETAPAS, EVENTO_ID, eventoDeTeste, minutos } from '@/testes/fixturas'
 import { BASE, COMUNIDADE, MEU_VINCULO, PESSOAS, pedidosPara, renderizarTela } from '@/testes/telas'
-import { mostrarToast } from '@/ui/Toast'
+import { confirmar } from '@/utilidades/confirmar'
+import { HospedeiroDeToast, mostrarToast } from '@/ui/Toast'
+import { confirmarAgora, desfazerAgora } from '@/ui/ToastComDesfazer'
 
+import { reiniciarRespostas } from '../../escalas/respostasOtimistas'
 import { DetalheDoEvento } from '../DetalheDoEvento'
 
 jest.mock('expo-router', () => ({
@@ -29,19 +38,78 @@ jest.mock('@/ui/Toast', () => ({
 const CAMINHO = `${BASE}/eventos/${EVENTO_ID}`
 
 function montar(papel: 'organizador' | 'membro', rotasExtras = {}, evento = eventoDeTeste()) {
-  return renderizarTela(<DetalheDoEvento comunidadeId={COMUNIDADE} eventoId={EVENTO_ID} />, {
-    papel,
-    rotas: {
-      [`GET ${CAMINHO}`]: () => ({ status: 200, corpo: evento }),
-      ...rotasExtras,
+  return renderizarTela(
+    <>
+      <DetalheDoEvento comunidadeId={COMUNIDADE} eventoId={EVENTO_ID} />
+      <HospedeiroDeToast />
+    </>,
+    {
+      papel,
+      rotas: {
+        [`GET ${CAMINHO}`]: () => ({ status: 200, corpo: evento }),
+        [`GET ${CAMINHO}/inscricoes`]: () => ({
+          status: 200,
+          corpo: { contagem: { confirmadas: 12, espera: 0, presentes: 0 }, inscricoes: [] },
+        }),
+        [`GET ${BASE}/minhas-escalas`]: () => ({ status: 200, corpo: { escalas: [] } }),
+        ...rotasExtras,
+      },
     },
-  })
+  )
 }
 
-describe('detalhe do evento', () => {
-  beforeEach(() => jest.clearAllMocks())
+const MINHA_PARTE = {
+  id: 'atr-eu',
+  etapaId: ETAPAS[1],
+  vinculoId: MEU_VINCULO,
+  funcao: 'violão',
+  estado: 'pendente' as const,
+  nome: 'Ana Souza',
+}
 
-  test('etapas com hora prevista e quem cuida, lidas por inteiro pelo leitor de tela', async () => {
+describe('Encontro: a organização', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    reiniciarRespostas()
+  })
+  afterEach(async () => {
+    await act(async () => desfazerAgora())
+  })
+
+  test('três abas no lugar de quatro: Resumo, Roteiro e Convocados', async () => {
+    await montar('organizador')
+    expect(await screen.findByRole('radio', { name: 'Resumo' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Roteiro' })).toBeOnTheScreen()
+    expect(screen.getByRole('radio', { name: 'Convocados' })).toBeOnTheScreen()
+    expect(screen.queryByRole('radio', { name: 'Visão geral' })).toBeNull()
+    expect(screen.queryByRole('radio', { name: 'Preparação' })).toBeNull()
+  })
+
+  test('Resumo: quando e onde, a linha dos Convocados, as inscrições e a Preparação dobrada', async () => {
+    const usuario = userEvent.setup()
+    await montar('organizador')
+    expect(await screen.findByText('Quando e onde')).toBeOnTheScreen()
+    expect(screen.getByText('Local a definir')).toBeOnTheScreen()
+    // "1 de 1 responderam": Bruno aceitou. Todos responderam, e a linha leva aos Convocados.
+    expect(screen.getByText(/^1 de 1 responderam\. Todos responderam\./)).toBeOnTheScreen()
+    expect(await screen.findByText('Inscrições: 12 de 20')).toBeOnTheScreen()
+    // A Preparação é uma linha fechada com o resumo; abrir mostra as tarefas.
+    expect(screen.getByText('2 tarefas')).toBeOnTheScreen()
+    expect(screen.queryByText('Testar o som')).toBeNull()
+    await usuario.press(screen.getByRole('button', { name: /^Preparação/ }))
+    expect(await screen.findByRole('checkbox', { name: 'Testar o som' })).toBeOnTheScreen()
+  })
+
+  test('Resumo: "Como chegar" não aparece sem endereço; tocar em Convocados abre a aba', async () => {
+    const usuario = userEvent.setup()
+    await montar('organizador')
+    await screen.findByText('Quando e onde')
+    expect(screen.queryByRole('button', { name: /^Como chegar/ })).toBeNull()
+    await usuario.press(screen.getByRole('button', { name: /^Convocados\./ }))
+    expect(await screen.findByRole('radio', { name: 'Convocados' })).toBeChecked()
+  })
+
+  test('Roteiro: etapas com hora e quem cuida, lidas por inteiro pelo leitor de tela', async () => {
     await montar('organizador')
     await userEvent.setup().press(await screen.findByRole('radio', { name: 'Roteiro' }))
     expect(
@@ -52,21 +120,16 @@ describe('detalhe do evento', () => {
     expect(screen.getByText('Total 30 min de 30 min previstos')).toBeOnTheScreen()
   })
 
-  test('organizador reordena por botão: "Descer Boas-vindas" manda a ordem nova', async () => {
+  test('Roteiro: reordena por botão ("Descer Boas-vindas" manda a ordem nova)', async () => {
     const { servidor } = await montar('organizador', {
       [`PUT ${CAMINHO}/etapas/ordem`]: () => ({ status: 200, corpo: { ok: true } }),
     })
     const usuario = userEvent.setup()
-
     await usuario.press(await screen.findByRole('radio', { name: 'Roteiro' }))
     // Fora da edição, a ordem não se mexe por engano; "Editar etapas" mostra Subir e Descer.
     expect(screen.queryByRole('button', { name: 'Descer Boas-vindas' })).toBeNull()
     await usuario.press(screen.getByRole('button', { name: 'Editar etapas' }))
-
-    const descer = await screen.findByRole('button', { name: 'Descer Boas-vindas' })
-    expect(screen.getByRole('button', { name: 'Subir Boas-vindas' })).toBeDisabled()
-    await usuario.press(descer)
-
+    await usuario.press(await screen.findByRole('button', { name: 'Descer Boas-vindas' }))
     await waitFor(() =>
       expect(pedidosPara(servidor, 'PUT', `${CAMINHO}/etapas/ordem`)[0]?.corpo).toEqual({
         ids: [ETAPAS[1], ETAPAS[0], ETAPAS[2]],
@@ -74,296 +137,353 @@ describe('detalhe do evento', () => {
     )
   })
 
-  test('as ações ficam na barra e na folha "Mais ações": 2 botões visíveis', async () => {
-    await montar('organizador')
-    const usuario = userEvent.setup()
+  test('roteiro vazio diz "O roteiro ainda não foi montado." e a organização pode adicionar', async () => {
+    await montar('organizador', {}, eventoDeTeste({ etapas: [], atribuicoes: [] }))
+    await userEvent.setup().press(await screen.findByRole('radio', { name: 'Roteiro' }))
+    expect(await screen.findByText('O roteiro ainda não foi montado.')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Adicionar etapa' })).toBeOnTheScreen()
+  })
 
-    // Publicado e fora do dia: o primário é Editar, ao lado do "Mais", com o texto à vista.
+  test('publicado e longe, sem ninguém para lembrar: o primário é Editar e o "Mais" tem grupos', async () => {
+    const usuario = userEvent.setup()
+    await montar('organizador')
     expect(await screen.findByRole('button', { name: 'Editar' })).toBeOnTheScreen()
     expect(screen.getByText('Mais')).toBeOnTheScreen()
-    // Fora do dia, o check-in não ocupa a barra.
-    expect(screen.queryByRole('button', { name: 'Check-in de presença' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Cancelar encontro' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Duplicar' })).toBeNull()
-
     await usuario.press(screen.getByRole('button', { name: 'Mais ações' }))
-    expect(await screen.findByRole('button', { name: /^Duplicar/ })).toBeOnTheScreen()
-    // D57: o menu separa o que organiza do que fica neste aparelho.
-    expect(screen.getByRole('header', { name: 'Organizar' })).toBeOnTheScreen()
-    await usuario.press(screen.getByRole('button', { name: 'Cancelar encontro' }))
+    expect(await screen.findByRole('button', { name: /^Copiar este encontro/ })).toBeOnTheScreen()
+    expect(screen.getByRole('header', { name: 'Encontro' })).toBeOnTheScreen()
+    expect(screen.getByRole('header', { name: 'Cuidado' })).toBeOnTheScreen()
+    // "Duplicar" e "Série" saíram do vocabulário.
+    expect(screen.queryByRole('button', { name: /^Duplicar/ })).toBeNull()
+    await usuario.press(screen.getByRole('button', { name: /^Cancelar ou adiar/ }))
     await waitFor(() =>
       expect(router.push).toHaveBeenCalledWith({
         pathname: '/evento/[eventoId]/status',
-        params: { eventoId: EVENTO_ID, acao: 'cancelar' },
+        params: { eventoId: EVENTO_ID, acao: 'adiar' },
       }),
     )
   })
 
-  test('rascunho: o primário é Publicar; a organização vê Convocados e as notas internas', async () => {
-    await montar('organizador', {}, eventoDeTeste({ status: 'rascunho' }))
+  test('"Copiar este encontro" leva à conferência do "Igual ao último sábado"', async () => {
     const usuario = userEvent.setup()
-    expect(await screen.findByRole('button', { name: 'Publicar' })).toBeOnTheScreen()
-    expect(screen.getByText('Rascunho')).toBeOnTheScreen()
-
-    await usuario.press(screen.getByRole('radio', { name: 'Convocados' }))
-    expect(await screen.findByText('Bruno Lima')).toBeOnTheScreen()
-    // No rascunho, o aviso fixo diz que ninguém recebe nada antes de publicar.
-    expect(
-      screen.getByText('Rascunho: ninguém recebe a convocação até você publicar.'),
-    ).toBeOnTheScreen()
-    expect(screen.getByText('1 convocado: 1 aceitou')).toBeOnTheScreen()
-    expect(screen.getByText('Aceitou')).toBeOnTheScreen()
-    expect(screen.getAllByRole('button', { name: /^Convocar pessoa/ }).length).toBeGreaterThan(0)
-    await usuario.press(screen.getByRole('radio', { name: 'Preparação' }))
-    expect(await screen.findByText('Notas internas')).toBeOnTheScreen()
+    await montar('organizador')
+    await usuario.press(await screen.findByRole('button', { name: 'Mais ações' }))
+    await usuario.press(await screen.findByRole('button', { name: /^Copiar este encontro/ }))
+    await waitFor(() =>
+      expect(router.push).toHaveBeenCalledWith({
+        pathname: '/evento/igual-ao-ultimo',
+        params: { origem: EVENTO_ID },
+      }),
+    )
   })
 
-  test('"Convocar pessoa" abre a folha ali mesmo; quem já está na etapa vem desabilitado', async () => {
-    const { servidor } = await montar(
-      'organizador',
-      {
-        [`POST ${CAMINHO}/atribuicoes`]: () => ({
-          status: 200,
-          corpo: { id: 'atr-nova', estado: 'pendente' },
+  describe('publicar', () => {
+    const RASCUNHO = () => eventoDeTeste({ status: 'rascunho' })
+
+    test('o primário diz quem será avisado; publicar mostra o Desfazer e só avisa aos 10 s', async () => {
+      const usuario = userEvent.setup()
+      const { servidor } = await montar(
+        'organizador',
+        { [`POST ${CAMINHO}/status`]: () => ({ status: 200, corpo: { ok: true } }) },
+        RASCUNHO(),
+      )
+      await usuario.press(await screen.findByRole('button', { name: 'Publicar e avisar 1 pessoa' }))
+      expect(await screen.findByText('Publicando e avisando 1 pessoa.')).toBeOnTheScreen()
+      // O botão já mostra "Publicado" e nada foi enviado: o aviso espera o Desfazer.
+      expect(screen.getByRole('button', { name: 'Publicado' })).toBeDisabled()
+      expect(pedidosPara(servidor, 'POST', `${CAMINHO}/status`)).toHaveLength(0)
+      // Sem "tem certeza?": nenhum diálogo.
+      expect(confirmar).not.toHaveBeenCalled()
+      await act(async () => confirmarAgora())
+      await waitFor(() =>
+        expect(pedidosPara(servidor, 'POST', `${CAMINHO}/status`)[0]?.corpo).toEqual({
+          status: 'publicado',
         }),
-      },
-      eventoDeTeste({ status: 'rascunho' }),
-    )
-    const usuario = userEvent.setup()
-    await usuario.press(await screen.findByRole('radio', { name: 'Convocados' }))
-    await usuario.press(screen.getByRole('button', { name: /^Convocar pessoa: .*Louvor$/ }))
-    // Sem a tela intermediária: a folha abre na própria seção.
-    expect(router.push).not.toHaveBeenCalled()
-    const bruno = await screen.findByRole('radio', { name: 'Bruno Lima' })
-    expect(bruno).toBeDisabled()
-    expect(screen.getByText('Já convocado')).toBeOnTheScreen()
-
-    // Etapa do Louvor (D61): a função sai da lista padrão da banda e é preciso escolher uma.
-    await usuario.press(screen.getByRole('radio', { name: 'Carla Dias' }))
-    await usuario.press(screen.getByRole('button', { name: 'Convocar' }))
-    expect(await screen.findByText('Escolha a função na banda.')).toBeOnTheScreen()
-    await usuario.press(screen.getByRole('radio', { name: 'Violão' }))
-    await usuario.press(screen.getByRole('button', { name: 'Convocar' }))
-    await waitFor(() =>
-      expect(pedidosPara(servidor, 'POST', `${CAMINHO}/atribuicoes`)[0]?.corpo).toEqual({
-        vinculoId: PESSOAS[2]!.vinculoId,
-        etapaId: ETAPAS[1],
-        funcao: 'Violão',
-      }),
-    )
-    // Rascunho: o toast não promete um aviso que ainda não saiu.
-    await waitFor(() =>
-      expect(mostrarToast).toHaveBeenCalledWith({
-        texto: 'Salvo. A pessoa recebe a convocação quando você publicar.',
-      }),
-    )
-  })
-
-  test('publicado: convocar avisa de verdade, e o toast diz isso', async () => {
-    await montar('organizador', {
-      [`POST ${CAMINHO}/atribuicoes`]: () => ({
-        status: 200,
-        corpo: { id: 'atr-nova', estado: 'pendente' },
-      }),
+      )
+      await waitFor(() =>
+        expect(mostrarToast).toHaveBeenCalledWith({ texto: 'Publicado. 1 pessoa avisada.' }),
+      )
     })
-    const usuario = userEvent.setup()
-    await usuario.press(await screen.findByRole('radio', { name: 'Convocados' }))
-    expect(screen.queryByText(/^Rascunho: ninguém recebe/)).toBeNull()
-    await usuario.press(
-      screen.getByRole('button', { name: 'Convocar pessoa: para o encontro inteiro' }),
-    )
-    await usuario.press(await screen.findByRole('radio', { name: 'Carla Dias' }))
-    await usuario.press(screen.getByRole('button', { name: 'Convocar' }))
-    await waitFor(() =>
-      expect(mostrarToast).toHaveBeenCalledWith({
-        texto: 'Convocação enviada. A resposta aparece aqui.',
-      }),
-    )
-  })
 
-  test('a folha de convocar fala em palavras de gente (D62): Quem conduz, Quem ajuda, Outra função', async () => {
-    const quinze = Array.from({ length: 15 }, (_, i) => ({
-      vinculoId: `22222222-2222-4222-8222-0000000001${String(i).padStart(2, '0')}`,
-      contaId: `conta-${i + 10}`,
-      nome: `Pessoa ${String(i + 1).padStart(2, '0')}`,
-      papel: 'membro',
-      estado: 'ativo',
-      designacoes: [],
-      email: null,
-      whatsapp: null,
-      criador: false,
-      desde: '2026-01-01T00:00:00.000Z',
-    }))
-    await montar(
-      'organizador',
-      { [`GET ${BASE}/membros`]: () => ({ status: 200, corpo: { membros: quinze } }) },
-      eventoDeTeste({ atribuicoes: [] }),
-    )
-    const usuario = userEvent.setup()
-    await usuario.press(await screen.findByRole('radio', { name: 'Convocados' }))
-    await usuario.press(screen.getByRole('button', { name: 'Convocar pessoa' }))
-
-    expect(await screen.findByRole('radio', { name: 'Quem ajuda' })).toBeChecked()
-    expect(screen.getByRole('radio', { name: 'Quem conduz' })).toBeOnTheScreen()
-    expect(screen.getByRole('radio', { name: 'Outra função' })).toBeOnTheScreen()
-    expect(screen.queryByRole('radio', { name: 'Responsável' })).toBeNull()
-    expect(screen.queryByRole('radio', { name: 'Integrante' })).toBeNull()
-
-    // Busca com rótulo simples, sem "(pessoa)" repetido, e todos os 15 de uma vez, sem "Mostrando 8 de 15".
-    expect(screen.getByLabelText('Buscar pelo nome')).toBeOnTheScreen()
-    expect(screen.queryByLabelText(/^Buscar pessoa/)).toBeNull()
-    expect(await screen.findByRole('radio', { name: 'Pessoa 15' })).toBeOnTheScreen()
-    expect(screen.getAllByRole('radio', { name: /^Pessoa \d\d$/ })).toHaveLength(15)
-    expect(screen.queryByText(/Mostrando/)).toBeNull()
-  })
-
-  test('ninguém convocado: o estado vazio convida a convocar e abre a folha', async () => {
-    await montar('organizador', {}, eventoDeTeste({ atribuicoes: [] }))
-    const usuario = userEvent.setup()
-    await usuario.press(await screen.findByRole('radio', { name: 'Convocados' }))
-    expect(screen.getByText('Ninguém convocado ainda')).toBeOnTheScreen()
-    expect(screen.getByText('Convoque quem vai servir neste encontro.')).toBeOnTheScreen()
-    await usuario.press(screen.getByRole('button', { name: 'Convocar pessoa' }))
-    expect(await screen.findByRole('radio', { name: 'Bruno Lima' })).toBeEnabled()
-  })
-
-  test('tocar na pessoa convocada oferece "Tirar da convocação", com confirmação', async () => {
-    const { servidor } = await montar('organizador', {
-      [`DELETE ${CAMINHO}/atribuicoes/atr-1`]: () => ({ status: 200, corpo: { ok: true } }),
+    test('Desfazer: o encontro segue rascunho e nada é enviado', async () => {
+      const usuario = userEvent.setup()
+      const { servidor } = await montar('organizador', {}, RASCUNHO())
+      await usuario.press(await screen.findByRole('button', { name: 'Publicar e avisar 1 pessoa' }))
+      await usuario.press(await screen.findByRole('button', { name: 'Desfazer' }))
+      expect(
+        await screen.findByRole('button', { name: 'Publicar e avisar 1 pessoa' }),
+      ).toBeEnabled()
+      expect(pedidosPara(servidor, 'POST', `${CAMINHO}/status`)).toHaveLength(0)
     })
-    const usuario = userEvent.setup()
-    await usuario.press(await screen.findByRole('radio', { name: 'Convocados' }))
-    await usuario.press(
-      screen.getByRole('button', { name: 'Bruno Lima, responsável. Convocação: Aceitou' }),
-    )
-    await usuario.press(await screen.findByRole('button', { name: /^Tirar da convocação/ }))
-    await waitFor(() =>
-      expect(pedidosPara(servidor, 'DELETE', `${CAMINHO}/atribuicoes/atr-1`)).toHaveLength(1),
-    )
-    expect(jest.mocked(confirmar).mock.calls[0]![0]).toMatchObject({
-      titulo: 'Tirar Bruno Lima da convocação?',
-      confirmar: 'Tirar da convocação',
+
+    test('sem ninguém convocado o botão é só "Publicar"', async () => {
+      await montar('organizador', {}, eventoDeTeste({ status: 'rascunho', atribuicoes: [] }))
+      expect(await screen.findByRole('button', { name: 'Publicar' })).toBeOnTheScreen()
+    })
+
+    test('data no passado: é a única pergunta que resta, antes do Desfazer', async () => {
+      const ontem = new Date(Date.now() - 86_400_000).toISOString()
+      const { servidor } = await montar(
+        'organizador',
+        { [`POST ${CAMINHO}/status`]: () => ({ status: 200, corpo: { ok: true } }) },
+        eventoDeTeste({ status: 'rascunho', inicio: ontem }),
+      )
+      await userEvent
+        .setup()
+        .press(await screen.findByRole('button', { name: 'Publicar e avisar 1 pessoa' }))
+      await waitFor(() =>
+        expect(confirmar).toHaveBeenCalledWith(
+          expect.objectContaining({
+            titulo: 'Esta data já passou',
+            confirmar: 'Publicar mesmo assim',
+          }),
+        ),
+      )
+      await act(async () => confirmarAgora())
+      await waitFor(() =>
+        expect(pedidosPara(servidor, 'POST', `${CAMINHO}/status`)[0]?.corpo).toEqual({
+          status: 'publicado',
+        }),
+      )
     })
   })
 
-  test('membro não vê controles de organização nem notas, e não marca tarefa alheia', async () => {
+  describe('o botão principal muda com a hora', () => {
+    test('quem não respondeu: "Lembrar o 1", com Desfazer, e depois "Lembrete enviado"', async () => {
+      const usuario = userEvent.setup()
+      const { servidor } = await montar(
+        'organizador',
+        {
+          [`POST ${CAMINHO}/lembrar-pendentes`]: () => ({
+            status: 200,
+            corpo: { pendentes: 1, lembradas: 1, jaLembradas: 0 },
+          }),
+        },
+        eventoDeTeste({
+          atribuicoes: [
+            {
+              id: 'atr-9',
+              etapaId: ETAPAS[1],
+              vinculoId: PESSOAS[2]!.vinculoId,
+              funcao: 'bateria',
+              estado: 'pendente',
+              nome: 'Carla Dias',
+            },
+          ],
+        }),
+      )
+      await usuario.press(await screen.findByRole('button', { name: 'Lembrar o 1' }))
+      expect(
+        await screen.findByText('Lembrando 1 pessoa que ainda não respondeu.'),
+      ).toBeOnTheScreen()
+      expect(screen.getByRole('button', { name: 'Enviando em 10 s' })).toBeDisabled()
+      expect(pedidosPara(servidor, 'POST', `${CAMINHO}/lembrar-pendentes`)).toHaveLength(0)
+      await act(async () => confirmarAgora())
+      await waitFor(() =>
+        expect(pedidosPara(servidor, 'POST', `${CAMINHO}/lembrar-pendentes`)).toHaveLength(1),
+      )
+      expect(await screen.findByRole('button', { name: 'Lembrete enviado' })).toBeOnTheScreen()
+    })
+
+    test('a véspera: "Ver convocados" abre a aba', async () => {
+      const amanha = new Date(Date.now() + 26 * 3_600_000).toISOString()
+      await montar('organizador', {}, eventoDeTeste({ inicio: amanha }))
+      await userEvent.setup().press(await screen.findByRole('button', { name: 'Ver convocados' }))
+      expect(await screen.findByRole('radio', { name: 'Convocados' })).toBeChecked()
+    })
+
+    test('até 2 h antes: "Fazer check-in" é o primário e "Abrir ao vivo" o secundário', async () => {
+      const daqui1h = new Date(Date.now() + 3_600_000).toISOString()
+      await montar('organizador', {}, eventoDeTeste({ inicio: daqui1h }))
+      const usuario = userEvent.setup()
+      await usuario.press(await screen.findByRole('button', { name: 'Fazer check-in' }))
+      expect(router.push).toHaveBeenCalledWith({
+        pathname: '/evento/[eventoId]/checkin',
+        params: { eventoId: EVENTO_ID },
+      })
+      expect(screen.getByRole('button', { name: 'Abrir ao vivo' })).toBeOnTheScreen()
+      // Dentro do período do check-in, a linha também está no Resumo.
+      expect(screen.getByRole('button', { name: /^Check-in\. Marque/ })).toBeOnTheScreen()
+    })
+
+    test('acontecendo: "Conduzir ao vivo" é o primário e o check-in fica ao lado', async () => {
+      const agora = new Date(Date.now() - 60_000).toISOString()
+      await montar('organizador', {}, eventoDeTeste({ inicio: agora }))
+      await userEvent.setup().press(await screen.findByRole('button', { name: 'Conduzir ao vivo' }))
+      expect(router.push).toHaveBeenCalledWith({
+        pathname: '/evento/[eventoId]/ao-vivo',
+        params: { eventoId: EVENTO_ID },
+      })
+      expect(screen.getByRole('button', { name: 'Check-in' })).toBeOnTheScreen()
+    })
+
+    test('terminou: "Marcar o próximo sábado" leva à conferência', async () => {
+      const ontem = new Date(Date.now() - 86_400_000).toISOString()
+      await montar('organizador', {}, eventoDeTeste({ inicio: ontem }))
+      await userEvent
+        .setup()
+        .press(await screen.findByRole('button', { name: 'Marcar o próximo sábado' }))
+      expect(router.push).toHaveBeenCalledWith('/evento/igual-ao-ultimo')
+    })
+  })
+})
+
+describe('Encontro: o membro', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    reiniciarRespostas()
+  })
+  afterEach(async () => {
+    await act(async () => desfazerAgora())
+  })
+
+  test('uma página só, sem abas, barra de ação nem controles de organização', async () => {
     await montar('membro')
-    const usuario = userEvent.setup()
-    await screen.findByRole('radio', { name: 'Visão geral' })
-    // Membro: sem barra de ação, sem "Convocados", sem a lista de inscrições e sem check-in.
-    expect(screen.queryByRole('button', { name: 'Mais ações' })).toBeNull()
+    expect(await screen.findByText('Quando e onde')).toBeOnTheScreen()
+    expect(screen.getByText('Roteiro')).toBeOnTheScreen()
+    expect(screen.getByText('Boas-vindas')).toBeOnTheScreen()
+    expect(screen.queryByRole('radio', { name: 'Resumo' })).toBeNull()
     expect(screen.queryByRole('radio', { name: 'Convocados' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Mais ações' })).toBeNull()
     expect(screen.queryByRole('button', { name: /^Inscrições/ })).toBeNull()
     expect(screen.queryByRole('button', { name: /^Check-in/ })).toBeNull()
-
-    await usuario.press(screen.getByRole('radio', { name: 'Roteiro' }))
     expect(screen.queryByRole('button', { name: 'Editar etapas' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Descer Boas-vindas' })).toBeNull()
+    // Sem parte, "Sua parte" nem existe.
+    expect(screen.queryByText('Sua parte')).toBeNull()
+  })
 
-    await usuario.press(screen.getByRole('radio', { name: 'Preparação' }))
-    expect(screen.queryByText('Notas internas')).toBeNull()
-    // A própria tarefa pode ser concluída; a de outra pessoa fica desabilitada, com o motivo.
+  test('a Preparação aparece na página, com a tarefa própria habilitada e a alheia com o motivo', async () => {
+    await montar('membro')
     expect(await screen.findByRole('checkbox', { name: 'Testar o som' })).toBeEnabled()
     expect(screen.getByRole('checkbox', { name: 'Comprar o lanche' })).toBeDisabled()
+    expect(screen.queryByText('Notas internas')).toBeNull()
   })
 
-  test('no dia: "Check-in" na barra, ao lado de "Abrir ao vivo", e fora do "Mais"', async () => {
-    // Começou há um minuto: é hoje em qualquer fuso, e o ao vivo já pode abrir.
-    const agora = new Date(Date.now() - 60_000).toISOString()
-    await montar('organizador', {}, eventoDeTeste({ inicio: agora }))
+  test('roteiro enxuto: três linhas e "Ver tudo, 7 etapas"', async () => {
+    const sete = Array.from({ length: 7 }, (_, i) => ({
+      id: `44444444-4444-4444-8444-0000000001${i}0`,
+      ordem: i,
+      titulo: `Etapa ${i + 1}`,
+      descricao: null,
+      duracaoMin: 5,
+      versao: 1,
+      inicioPrevisto: minutos(i * 5),
+      fimPrevisto: minutos(i * 5 + 5),
+    }))
     const usuario = userEvent.setup()
-
-    expect(await screen.findByRole('button', { name: 'Abrir ao vivo' })).toBeOnTheScreen()
-    await usuario.press(screen.getByRole('button', { name: 'Check-in de presença' }))
-    expect(router.push).toHaveBeenCalledWith({
-      pathname: '/evento/[eventoId]/checkin',
-      params: { eventoId: EVENTO_ID },
-    })
-    // Na barra e na linha da Visão geral; nada mais pede gesto ou menu.
-    expect(screen.getAllByRole('button', { name: /^Check-in de presença/ })).toHaveLength(2)
+    await montar('membro', {}, eventoDeTeste({ etapas: sete, atribuicoes: [] }))
+    expect(await screen.findByText('Etapa 3')).toBeOnTheScreen()
+    expect(screen.queryByText('Etapa 4')).toBeNull()
+    await usuario.press(screen.getByRole('button', { name: 'Ver tudo, 7 etapas' }))
+    expect(await screen.findByText('Etapa 7')).toBeOnTheScreen()
   })
 
-  test('Visão geral: a linha "Check-in" abre a presença, em qualquer dia', async () => {
-    await montar('organizador')
-    await userEvent
-      .setup()
-      .press(await screen.findByRole('button', { name: /^Check-in de presença\. Marque/ }))
-    expect(router.push).toHaveBeenCalledWith({
-      pathname: '/evento/[eventoId]/checkin',
-      params: { eventoId: EVENTO_ID },
-    })
+  test('sem roteiro: "O roteiro ainda não foi montado."', async () => {
+    await montar('membro', {}, eventoDeTeste({ etapas: [], atribuicoes: [] }))
+    expect(await screen.findByText('O roteiro ainda não foi montado.')).toBeOnTheScreen()
   })
 
-  test('rascunho com data no passado: publicar avisa antes', async () => {
-    const ontem = new Date(Date.now() - 86_400_000).toISOString()
+  test('"Sua parte" pendente: Aceitar e Não posso ir ali mesmo; aceitar tem Desfazer e só envia ao fim', async () => {
+    const usuario = userEvent.setup()
     const { servidor } = await montar(
-      'organizador',
-      { [`POST ${CAMINHO}/status`]: () => ({ status: 200, corpo: { ok: true } }) },
-      eventoDeTeste({ status: 'rascunho', inicio: ontem }),
+      'membro',
+      { [`POST ${BASE}/atribuicoes/atr-eu/confirmar`]: () => ({ status: 200, corpo: {} }) },
+      eventoDeTeste({ atribuicoes: [MINHA_PARTE] }),
     )
-    await userEvent.setup().press(await screen.findByRole('button', { name: 'Publicar' }))
+    expect(await screen.findByText('Sua parte')).toBeOnTheScreen()
+    expect(screen.getByText('Louvor · Violão')).toBeOnTheScreen()
+    expect(screen.getByText('Aguardando sua resposta')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Não posso ir: Louvor · Violão' })).toBeOnTheScreen()
+    // "Preciso de alguém no meu lugar" só existe depois de aceitar.
+    expect(screen.queryByRole('button', { name: /^Preciso de alguém/ })).toBeNull()
+
+    await usuario.press(screen.getByRole('button', { name: 'Aceitar: Louvor · Violão' }))
+    expect(await screen.findByText(/^Você está no Louvor, /)).toBeOnTheScreen()
+    // Feito na tela: "Confirmado", e agora sim "Preciso de alguém no meu lugar".
+    expect(screen.getByText('Confirmado')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Preciso de alguém no meu lugar' })).toBeOnTheScreen()
+    expect(pedidosPara(servidor, 'POST', `${BASE}/atribuicoes/atr-eu/confirmar`)).toHaveLength(0)
+    await act(async () => confirmarAgora())
     await waitFor(() =>
-      expect(confirmar).toHaveBeenCalledWith(
-        expect.objectContaining({
-          titulo: 'Esta data já passou',
-          confirmar: 'Publicar mesmo assim',
-        }),
-      ),
-    )
-    await waitFor(() =>
-      expect(pedidosPara(servidor, 'POST', `${CAMINHO}/status`)[0]?.corpo).toEqual({
-        status: 'publicado',
-      }),
+      expect(pedidosPara(servidor, 'POST', `${BASE}/atribuicoes/atr-eu/confirmar`)).toHaveLength(1),
     )
   })
 
-  test('membro se inscreve e vê o código de entrada', async () => {
+  test('"Não posso ir" sem diálogo e com Desfazer', async () => {
+    const usuario = userEvent.setup()
+    const { servidor } = await montar('membro', {}, eventoDeTeste({ atribuicoes: [MINHA_PARTE] }))
+    await usuario.press(
+      await screen.findByRole('button', { name: 'Não posso ir: Louvor · Violão' }),
+    )
+    expect(await screen.findByText('Você avisou que não pode ir.')).toBeOnTheScreen()
+    expect(confirmar).not.toHaveBeenCalled()
+    await usuario.press(screen.getByRole('button', { name: 'Desfazer' }))
+    expect(await screen.findByText('Aguardando sua resposta')).toBeOnTheScreen()
+    expect(pedidosPara(servidor, 'POST', `${BASE}/atribuicoes/atr-eu/recusar`)).toHaveLength(0)
+  })
+
+  test('aceita e do louvor: "Abrir o repertório" e "Preciso de alguém no meu lugar" abrem o que dizem', async () => {
+    const usuario = userEvent.setup()
+    await montar(
+      'membro',
+      {},
+      eventoDeTeste({ atribuicoes: [{ ...MINHA_PARTE, estado: 'confirmada' }] }),
+    )
+    await usuario.press(await screen.findByRole('button', { name: 'Abrir o repertório' }))
+    expect(router.push).toHaveBeenCalledWith('/meu-repertorio')
+    await usuario.press(screen.getByRole('button', { name: 'Preciso de alguém no meu lugar' }))
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/escalas/substituicao/[atribuicaoId]',
+      params: { atribuicaoId: 'atr-eu' },
+    })
+  })
+
+  test('quem serve: os avatares e "Ver todos" com a função de cada um', async () => {
+    const usuario = userEvent.setup()
+    await montar('membro')
+    expect(await screen.findByText('Quem serve (1)')).toBeOnTheScreen()
+    await usuario.press(screen.getByRole('button', { name: 'Ver todos' }))
+    expect(await screen.findByText('Bruno Lima')).toBeOnTheScreen()
+    expect(screen.getByText('responsável')).toBeOnTheScreen()
+  })
+
+  test('se inscreve e vê o código de entrada', async () => {
     const { servidor } = await montar('membro', {
       [`POST ${CAMINHO}/inscricoes/eu`]: () => ({
         status: 200,
         corpo: { inscricaoId: 'insc-1', estado: 'confirmada', codigoCheckin: 'A1B2C3D4E5' },
       }),
     })
-
     await userEvent.setup().press(await screen.findByRole('button', { name: 'Inscrever-me' }))
-
     expect(await screen.findByText('A1B2C 3D4E5')).toBeOnTheScreen()
     expect(screen.getByText('Sua inscrição: Confirmada')).toBeOnTheScreen()
-    expect(screen.getByRole('image', { name: /QR do seu código de entrada/ })).toBeOnTheScreen()
     expect(pedidosPara(servidor, 'POST', `${CAMINHO}/inscricoes/eu`)).toHaveLength(1)
   })
 
-  test('escalado e inscrito: um só destaque (a participação); a entrada vira cartão comum', async () => {
-    await montar(
-      'membro',
-      {},
-      eventoDeTeste({
-        atribuicoes: [
-          {
-            id: 'atr-eu',
-            etapaId: ETAPAS[1],
-            vinculoId: MEU_VINCULO,
-            funcao: 'violão',
-            estado: 'pendente',
-            nome: 'Ana Souza',
-          },
-        ],
-      }),
-    )
-    expect(await screen.findByText('Sua participação')).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Aceitar: Violão em Louvor' })).toBeOnTheScreen()
-    // Pendente: "Aceitar" e "Não posso ir"; "Pedir substituição" só depois de aceitar (D62).
-    expect(
-      screen.getByRole('button', {
-        name: 'Não posso ir: avisar a organização sobre Violão em Louvor',
-      }),
-    ).toBeOnTheScreen()
-    expect(screen.queryByRole('button', { name: /^Pedir substituição/ })).toBeNull()
-    // A inscrição continua a um toque, mas fora do cartão de destaque.
-    expect(screen.getByRole('button', { name: 'Inscrever-me' })).toBeOnTheScreen()
+  test('"Compartilhar" no topo manda o dia, a hora e o link público', async () => {
+    const compartilhar = jest
+      .spyOn(Share, 'share')
+      .mockResolvedValue({ action: 'sharedAction', activityType: undefined })
+    await montar('membro')
+    await userEvent.setup().press(await screen.findByRole('button', { name: 'Compartilhar' }))
+    await waitFor(() => expect(compartilhar).toHaveBeenCalled())
+    const mensagem = compartilhar.mock.calls[0]![0].message as string
+    expect(mensagem).toMatch(/^Sábado com a juventude, /)
+    expect(mensagem).toMatch(/16:00/)
+    compartilhar.mockRestore()
   })
 
-  test('encontro de outra comunidade (404) mostra "não encontrado" com ação', async () => {
+  test('encontro cancelado: o motivo aparece com a palavra', async () => {
+    await montar('membro', {}, eventoDeTeste({ status: 'cancelado', motivoStatus: 'Chuva forte' }))
+    expect(await screen.findByText('Encontro cancelado')).toBeOnTheScreen()
+    expect(screen.getByText('Motivo: Chuva forte')).toBeOnTheScreen()
+  })
+})
+
+describe('Encontro: estados', () => {
+  beforeEach(() => jest.clearAllMocks())
+
+  test('404 (de outra comunidade ou removido): a mesma frase, com "Tentar de novo" e "Voltar para a Agenda"', async () => {
     await renderizarTela(<DetalheDoEvento comunidadeId={COMUNIDADE} eventoId={EVENTO_ID} />, {
       rotas: {
         [`GET ${CAMINHO}`]: () => ({
@@ -372,7 +492,9 @@ describe('detalhe do evento', () => {
         }),
       },
     })
-    expect(await screen.findByText('Encontro não encontrado')).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Voltar para a agenda' })).toBeOnTheScreen()
+    expect(await screen.findByText('Não deu para abrir este encontro.')).toBeOnTheScreen()
+    expect(screen.getByText('Pode ter sido removido ou você está sem internet.')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Voltar para a Agenda' })).toBeOnTheScreen()
   })
 })

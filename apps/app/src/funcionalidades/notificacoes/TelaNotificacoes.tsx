@@ -1,4 +1,4 @@
-import { NOME_DO_TIPO_DE_NOTIFICACAO, type TipoDeNotificacao } from '@uj/dominio'
+import type { TipoDeNotificacao } from '@uj/dominio'
 import { router } from 'expo-router'
 import { useState } from 'react'
 
@@ -20,18 +20,32 @@ import {
 } from './consultas'
 import { PermissaoDoSistema } from './PermissaoDoSistema'
 
+/**
+ * Os nomes dos tipos como a pessoa os diz (D68): "escala" e "substituição" saíram da interface.
+ * A chave do tipo (`escalas`, `substituicoes`) é da API e não muda.
+ */
+export const NOME_DO_TIPO_NA_TELA: Readonly<Record<TipoDeNotificacao, string>> = {
+  eventos: 'Encontros',
+  escalas: 'Convocações',
+  inscricoes: 'Inscrições',
+  tarefas: 'Tarefas',
+  substituicoes: 'Pedidos de ajuda',
+  alteracoes_importantes: 'Cancelamentos e adiamentos',
+  avisos: 'Avisos',
+}
+
 const DESCRICAO_DO_TIPO: Readonly<Record<TipoDeNotificacao, string>> = {
   eventos: 'Encontro novo ou publicado.',
   escalas: 'Quando convocarem você e, para quem organiza, quando alguém não puder ir.',
   inscricoes: 'Sua inscrição confirmada ou saindo da lista de espera.',
   tarefas: 'Tarefas que forem suas.',
-  substituicoes: 'Pedidos de substituição que você pode assumir.',
+  substituicoes: 'Pedidos de ajuda que você pode assumir.',
   alteracoes_importantes: 'Encontro cancelado ou adiado.',
   avisos: 'Aviso novo da organização.',
 }
 
 /**
- * Rota `/notificacoes` (3.6.6): "NESTE APARELHO" (a permissão do sistema),
+ * Rota `/notificacoes`, "Quando o app me avisa" (3.6.6, D68): "NESTE APARELHO" (a permissão do sistema),
  * "POR COMUNIDADE" (pílulas com os nomes, quando há mais de uma, e o cartão
  * de interruptores: o principal primeiro e um por tipo) e "VERSÍCULO" (o
  * horário e o atalho para a tela dele).
@@ -49,7 +63,7 @@ export function TelaNotificacoes() {
   const versiculo = conta.data?.versiculo
 
   return (
-    <Tela pilha titulo="Ajustes de notificação">
+    <Tela pilha titulo="Quando o app me avisa">
       <Secao titulo="Neste aparelho">
         <PermissaoDoSistema ligadoNoApp />
       </Secao>
@@ -156,7 +170,7 @@ function PreferenciasDaComunidade({ comunidadeId, nome }: { comunidadeId: string
           {tipos.map((t) => (
             <Interruptor
               key={t.tipo}
-              rotulo={NOME_DO_TIPO_DE_NOTIFICACAO[t.tipo]}
+              rotulo={NOME_DO_TIPO_NA_TELA[t.tipo]}
               descricao={todas ? DESCRICAO_DO_TIPO[t.tipo] : `Ligue "${principal}" para escolher.`}
               ligado={todas && t.ativo}
               desabilitado={!todas || salvar.isPending}

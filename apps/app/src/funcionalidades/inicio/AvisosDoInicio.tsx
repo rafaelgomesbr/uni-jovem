@@ -1,16 +1,15 @@
 import { router } from 'expo-router'
 
 import type { AvisoDoInicio } from '@/servicos/contratoDosModulos'
-import { formatarData } from '@/utilidades/formatos'
-import { Botao } from '@/ui/Botao'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
-import { Chip } from '@/ui/Chip'
-import { Texto } from '@/ui/Texto'
+import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
+import { formatarData } from '@/utilidades/formatos'
 
 /**
- * Aviso no Início (3.2.1): só quando há aviso, um cartão com o primeiro (a
- * API manda os fixados primeiro): título em `tituloItem`, 2 linhas de texto e
- * o terciário "Ver todos". O fixado tem o chip "Fixado" com alfinete.
+ * O aviso do Início em UMA linha de 56 pt (3.1 do UX, D68): "Aviso fixado: Ensaio às 15h" com o
+ * alfinete e a seta. A API manda os fixados primeiro; sem fixado, a linha diz "Aviso: ..." com o
+ * mais recente. Toque abre o aviso. O texto do aviso não entra aqui (está a um toque), e a lista
+ * de todos os avisos mora na Comunidade.
  */
 export function AvisosDoInicio({
   avisos,
@@ -28,28 +27,18 @@ export function AvisosDoInicio({
     .filter(Boolean)
     .join(', ')
   return (
-    <CartaoDeVidro
-      sobrancelha="Aviso"
-      comecaComTitulo
-      {...(aviso.fixado ? { extra: <Chip texto="Fixado" tom="quente" icone="fixar" /> } : {})}
-      aoPressionar={() =>
-        router.push({ pathname: '/avisos/[avisoId]', params: { avisoId: aviso.id } })
-      }
-      rotuloAcessivel={`${aviso.titulo}. ${detalhe}`}
-      acoes={
-        <Botao
-          titulo={avisos.length > 1 ? `Ver todos (${avisos.length})` : 'Ver todos'}
-          variante="terciario"
-          alinhado
-          rotuloAcessivel="Ver todos os avisos"
-          aoPressionar={() => router.push('/avisos')}
+    <CartaoDeVidro lista>
+      <Lista>
+        <LinhaDeLista
+          icone="fixar"
+          titulo={`${aviso.fixado ? 'Aviso fixado' : 'Aviso'}: ${aviso.titulo}`}
+          rotuloAcessivel={`${aviso.titulo}. ${detalhe}`}
+          dica="Abre o aviso."
+          aoPressionar={() =>
+            router.push({ pathname: '/avisos/[avisoId]', params: { avisoId: aviso.id } })
+          }
         />
-      }
-    >
-      <Texto variante="tituloItem">{aviso.titulo}</Texto>
-      <Texto variante="corpo" numberOfLines={2}>
-        {aviso.texto}
-      </Texto>
+      </Lista>
     </CartaoDeVidro>
   )
 }

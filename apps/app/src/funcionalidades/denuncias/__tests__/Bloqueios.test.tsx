@@ -128,7 +128,7 @@ describe('bloquear esta pessoa (junto do Denunciar)', () => {
 })
 
 describe('tela Pessoas bloqueadas', () => {
-  test('lista nome e data de quem eu bloqueei e desbloqueia com confirmação', async () => {
+  test('lista nome e data de quem eu bloqueei e desbloqueia sem diálogo, com Desfazer', async () => {
     let lista = [
       {
         id: 'b1',
@@ -159,21 +159,13 @@ describe('tela Pessoas bloqueadas', () => {
     expect(screen.getByText('Bloqueio em 15/11/2026')).toBeOnTheScreen()
     expect(screen.getByText('Pessoas bloqueadas')).toBeOnTheScreen()
 
+    // Desfazer em vez de "tem certeza?": um toque desbloqueia, sem diálogo, e o toast oferece "Desfazer".
     const desbloquear = screen.getByRole('button', { name: 'Desbloquear Bruno Lima' })
-    jest.mocked(confirmar).mockResolvedValueOnce(false)
-    await fireEvent.press(desbloquear)
-    await waitFor(() => expect(confirmar).toHaveBeenCalledTimes(1))
-    expect(jest.mocked(confirmar).mock.calls[0]![0]).toMatchObject({
-      titulo: 'Desbloquear Bruno Lima?',
-      confirmar: 'Desbloquear',
-    })
-    expect(pedidosPara(servidor, 'DELETE', `${BASE}/bloqueios/b1`)).toHaveLength(0)
-
-    jest.mocked(confirmar).mockResolvedValueOnce(true)
     await fireEvent.press(desbloquear)
     await waitFor(() =>
       expect(pedidosPara(servidor, 'DELETE', `${BASE}/bloqueios/b1`)).toHaveLength(1),
     )
+    expect(confirmar).not.toHaveBeenCalled()
     expect(await screen.findByText('Bloqueio de Bruno Lima desfeito.')).toBeOnTheScreen()
     // A lista é relida: vazia, com o caminho para bloquear explicado e uma ação.
     expect(await screen.findByText('Ninguém bloqueado')).toBeOnTheScreen()

@@ -31,6 +31,9 @@ export const ROTAS_SEM_BARRA_FLUTUANTE: ReadonlySet<string> = new Set([
   'plataforma/nova',
   // Condução ao vivo.
   'evento/[eventoId]/ao-vivo',
+  // Check-in: a lista de pessoas usa a tela inteira (o protótipo aprovado não tem barra).
+  'evento/[eventoId]/checkin',
+  'evento/igual-ao-ultimo',
   // Leitura da cifra (D61): a letra grande ocupa a tela, sem a barra no caminho.
   'meu-repertorio/[eventoId]/[itemId]',
 ])

@@ -1,18 +1,18 @@
 import { ESPACO } from '@uj/tokens'
 import { router } from 'expo-router'
-import type { ReactElement } from 'react'
+import { useEffect, useState, type ReactElement } from 'react'
 import { View } from 'react-native'
 
 import { Acordeao } from '@/ui/Acordeao'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { AvisoDeFalha } from '@/ui/Falha'
-import { Icone } from '@/ui/Icone'
 import { Lista, RECUO_DA_LISTA, SubtituloDaLista } from '@/ui/LinhaDeLista'
+import { Sol } from '@/ui/Sol'
 import { Texto } from '@/ui/Texto'
-import { useTema } from '@/ui/tema'
 
 import { usePode } from '../comunidade/permissoes'
+import { DESTINO_DE_ESCALAS } from '../navegacao/Redirecionamentos'
 import { LinhaDeNumero, plural } from './LinhaDeNumero'
 import { useMinhaVisaoGeral, useVisaoGeralDaComunidade } from './visaoGeral'
 import {
@@ -29,27 +29,31 @@ export function tituloDoResumo(quantidade: number): string {
 
 interface Props {
   comunidadeId: string
-  /** Pedidos de substituição que a pessoa pode assumir (vêm do `/inicio`). */
+  /** Pedidos de ajuda (substituição) que a pessoa pode assumir (vêm do `/inicio`). */
   substituicoesAbertas: number
   /** O encontro da primeira tarefa aberta: é para onde "Concluir tarefas" leva. */
   eventoDaTarefa: string | null
+  /**
+   * O resumo disse "Tudo em dia": pede o encanto 4 (o sol de 30 pt sobe até o horizonte da
+   * linha). Devolve `true` se a regra "uma vez por conta" deixou acontecer.
+   */
+  aoTudoEmDia?: () => Promise<boolean>
 }
 
 /**
- * "Seu resumo" no Início (D62): um acordeão FECHADO por padrão, cujo título
- * diz o que espera a pessoa ("Tudo em dia", "1 coisa esperando você", "3 coisas
- * esperando você"). Aberto, só as linhas com valor, cada uma com o verbo e o
- * destino. Quem organiza vê dois grupos, "Para você" e "Da organização", e a
- * linha fixa "Ver os números e relatórios" (D59, Q1). Sem nada a fazer, "Tudo
- * em dia" é só um aviso, sem seta. Os números de presença, de inscrição e de
- * oração, e as convocações já aceitas, não entram: ninguém age sobre eles.
- * Se os números não carregam, o resto do Início segue e este bloco pede para
- * tentar de novo.
+ * "Seu resumo" no Início (D62, D68): um acordeão FECHADO por padrão, cujo título diz o que
+ * espera a pessoa ("Tudo em dia", "1 coisa esperando você", "3 coisas esperando você"). Aberto,
+ * só as linhas com valor, cada uma com o verbo e o destino. Quem organiza vê dois grupos, "Para
+ * você" e "Da organização", e a linha fixa "Ver os números e relatórios" (D59, Q1). Sem nada a
+ * fazer, "Tudo em dia" é só um aviso, sem seta, com o sol no lugar. Os números de presença, de
+ * inscrição e de oração, e as convocações já aceitas, não entram: ninguém age sobre eles. Se os
+ * números não carregam, o resto do Início segue e este bloco pede para tentar de novo.
  */
 export function MinhaVisaoGeral({
   comunidadeId,
   substituicoesAbertas,
   eventoDaTarefa,
+  aoTudoEmDia,
 }: Props): ReactElement | null {
   const pode = usePode()
   const organiza = pode('relatorio', 'ler')
@@ -83,10 +87,10 @@ export function MinhaVisaoGeral({
   if (d.convocacoesParaResponder > 0) {
     paraVoce.push({
       chave: 'responder',
-      icone: 'abaEscalas',
+      icone: 'agenda',
       titulo: `Responder ${plural(d.convocacoesParaResponder, 'convocação', 'convocações')}`,
-      destino: 'Escalas',
-      aoPressionar: () => router.push('/escalas'),
+      destino: 'Agenda, só o que é meu',
+      aoPressionar: () => router.push(DESTINO_DE_ESCALAS),
     })
   }
   if (d.tarefasAbertas > 0) {
@@ -105,9 +109,9 @@ export function MinhaVisaoGeral({
     paraVoce.push({
       chave: 'substituicoes',
       icone: 'trocar',
-      titulo: `Ver ${plural(substituicoesAbertas, 'pedido de substituição', 'pedidos de substituição')}`,
-      destino: 'Escalas',
-      aoPressionar: () => router.push('/escalas'),
+      titulo: `Ver ${plural(substituicoesAbertas, 'pedido de ajuda', 'pedidos de ajuda')}`,
+      destino: 'Agenda',
+      aoPressionar: () => router.push({ pathname: '/agenda', params: { vista: 'lista' } }),
     })
   }
 
@@ -118,7 +122,9 @@ export function MinhaVisaoGeral({
   const titulo = tituloDoResumo(quantidade)
 
   // Nada a fazer e nada a abrir: só um recado, sem seta.
-  if (quantidade === 0 && !numeros) return <TudoEmDia />
+  if (quantidade === 0 && !numeros) {
+    return <TudoEmDia {...(aoTudoEmDia ? { aoTudoEmDia } : {})} />
+  }
 
   const linha = (l: LinhaDoResumo) => (
     <LinhaDeNumero
@@ -137,7 +143,12 @@ export function MinhaVisaoGeral({
         recuo={RECUO_DA_LISTA.texto}
         rotuloRecolhido={`Seu resumo: ${titulo}. Recolhido, toque para ver.`}
         rotuloAberto={`Seu resumo: ${titulo}. Aberto, toque para recolher.`}
-        cabecalho={() => <CabecalhoDoResumo titulo={titulo} />}
+        cabecalho={() => (
+          <CabecalhoDoResumo
+            titulo={titulo}
+            {...(quantidade === 0 && aoTudoEmDia ? { aoTudoEmDia } : {})}
+          />
+        )}
       >
         {organiza ? (
           <View>
@@ -167,22 +178,59 @@ export function MinhaVisaoGeral({
   )
 }
 
-function CabecalhoDoResumo({ titulo }: { titulo: string }) {
+/**
+ * O sol de 30 pt do "Tudo em dia". Na primeira vez da conta (encanto 4) ele nasce "antes do
+ * amanhecer" e sobe até o horizonte da linha; nas outras, já está no lugar.
+ */
+function SolDoTudoEmDia({ aoTudoEmDia }: { aoTudoEmDia?: () => Promise<boolean> }) {
+  const [subindo, setSubindo] = useState(false)
+  // O encanto é uma regra externa (uma vez por conta, no aparelho): pede ao montar.
+  useEffect(() => {
+    if (!aoTudoEmDia) return
+    let ativo = true
+    void aoTudoEmDia().then((pode) => {
+      if (ativo && pode) setSubindo(true)
+    })
+    return () => {
+      ativo = false
+    }
+  }, [aoTudoEmDia])
   return (
-    <View style={{ paddingVertical: ESPACO.e4 }}>
-      <Texto variante="sobrancelha" accessibilityRole="text">
-        Seu resumo
-      </Texto>
-      <Texto variante="tituloItem" accessibilityRole="text">
-        {titulo}
-      </Texto>
+    <Sol pose="pleno" lado={30} halo={false} {...(subindo ? { de: 'escondido' as const } : {})} />
+  )
+}
+
+function CabecalhoDoResumo({
+  titulo,
+  aoTudoEmDia,
+}: {
+  titulo: string
+  aoTudoEmDia?: () => Promise<boolean>
+}) {
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: ESPACO.e12,
+        paddingVertical: ESPACO.e4,
+      }}
+    >
+      <View style={{ flex: 1 }}>
+        <Texto variante="sobrancelha" accessibilityRole="text">
+          Seu resumo
+        </Texto>
+        <Texto variante="tituloItem" accessibilityRole="text">
+          {titulo}
+        </Texto>
+      </View>
+      {aoTudoEmDia ? <SolDoTudoEmDia aoTudoEmDia={aoTudoEmDia} /> : null}
     </View>
   )
 }
 
-/** Nada esperando a pessoa: o recado é só um aviso, sem seta e sem abrir. */
-function TudoEmDia() {
-  const { cores } = useTema()
+/** Nada esperando a pessoa: o recado é só um aviso, sem seta e sem abrir, com o sol no lugar. */
+function TudoEmDia({ aoTudoEmDia }: { aoTudoEmDia?: () => Promise<boolean> }) {
   return (
     <CartaoDeVidro>
       <View
@@ -198,7 +246,7 @@ function TudoEmDia() {
             {tituloDoResumo(0)}
           </Texto>
         </View>
-        <Icone nome="confirmado" cor={cores.sucesso} tamanho={22} />
+        <SolDoTudoEmDia {...(aoTudoEmDia ? { aoTudoEmDia } : {})} />
       </View>
     </CartaoDeVidro>
   )

@@ -11,13 +11,13 @@ import { abrirDocumento } from '../privacidade/TelaPrivacidade'
 import { versaoDoApp } from './TelaPerfil'
 
 /**
- * "Ajuda e sobre" (quadro 04): o mapa da missão, a tradução da Bíblia, o
+ * "Ajuda" (quadro 04 e D70): o mapa da missão, a tradução da Bíblia, o
  * suporte e os documentos (abrem no navegador, com `arrow.up.right`), os
  * primeiros passos e a versão do app.
  */
 export function TelaAjuda() {
   return (
-    <Tela pilha titulo="Ajuda e sobre">
+    <Tela pilha titulo="Ajuda">
       <CartaoDeVidro lista>
         <Lista>
           <LinhaDeLista
@@ -34,7 +34,7 @@ export function TelaAjuda() {
           />
           <LinhaDeLista
             icone="ajuda"
-            titulo="Suporte"
+            titulo="Falar com a gente"
             descricao="Dúvidas e problemas"
             externo
             aoPressionar={() => void abrirDocumento('/suporte')}

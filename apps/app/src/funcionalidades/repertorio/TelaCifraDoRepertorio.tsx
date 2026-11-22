@@ -2,30 +2,38 @@ import { router, useLocalSearchParams } from 'expo-router'
 
 import { useSessao } from '@/estado/sessao'
 import { BarraDeAcao } from '@/ui/BarraDeAcao'
-import { Botao, ParDeBotoes } from '@/ui/Botao'
-import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
+import { Botao, BotaoIcone, ParDeBotoes } from '@/ui/Botao'
+import { Chip } from '@/ui/Chip'
 import { EstadoVazio } from '@/ui/EstadoVazio'
 import { ErroDaTela } from '@/ui/Falha'
+import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
+import { voltarOu } from '@/ui/navegacao'
 import { Tela } from '@/ui/Tela'
 import { abrirLink } from '@/utilidades/compartilhar'
 import { parametro } from '@/utilidades/parametros'
+import { useState } from 'react'
 
 import { SemComunidade } from '../navegacao/SemComunidade'
-import { useMeuRepertorio } from './consultas'
 import { LeitorDeCifra } from './LeitorDeCifra'
+import { ModoPalco } from './ModoPalco'
+import { useAjustesDaCifra } from './useAjustesDaCifra'
+import { useEncontrosParaTocar, type EncontroParaTocar } from './useEncontrosParaTocar'
+
+const CAMINHO = '/meu-repertorio/[eventoId]/[itemId]' as const
 
 /**
- * Rota `/meu-repertorio/[eventoId]/[itemId]` (D61): a cifra de uma música do
- * Meu repertório, grande e no tom do dia, com anterior e próxima na barra de
- * baixo (botões, nunca só gesto). Os ajustes de tom, capotraste e letra valem só
- * nesta leitura. A cifra vem pela rede: o uso sem internet é a fatia 2.
+ * Rota `/meu-repertorio/[eventoId]/[itemId]` (D61, D71): a cifra de uma música do Meu repertório,
+ * grande e no tom do dia, com anterior e próxima por botão, e o Modo palco (`?palco=1` abre direto
+ * nele). Lê da rede ou, sem internet, da cópia guardada no aparelho: o músico não fica na mão.
+ * Os ajustes de tom, capotraste e letra valem só nesta leitura.
  */
 export function TelaCifraDoRepertorio() {
   const { comunidadeAtiva } = useSessao()
-  const params = useLocalSearchParams<{ eventoId: string; itemId: string }>()
+  const params = useLocalSearchParams<{ eventoId: string; itemId: string; palco?: string }>()
   const eventoId = parametro(params.eventoId)
   const itemId = parametro(params.itemId)
-  const meu = useMeuRepertorio(comunidadeAtiva?.id ?? null)
+  const abertoNoPalco = parametro(params.palco) === '1'
+  const situacao = useEncontrosParaTocar(comunidadeAtiva?.id ?? null)
 
   if (!comunidadeAtiva || !eventoId || !itemId) {
     return (
@@ -34,7 +42,7 @@ export function TelaCifraDoRepertorio() {
       </Tela>
     )
   }
-  if (meu.isPending) {
+  if (situacao.tipo === 'carregando') {
     return (
       <Tela pilha titulo="Cifra">
         <Esqueleto rotulo="Carregando a cifra">
@@ -44,21 +52,33 @@ export function TelaCifraDoRepertorio() {
       </Tela>
     )
   }
-  if (meu.error) {
+  if (situacao.tipo === 'erro') {
     return (
       <Tela pilha titulo="Cifra">
         <ErroDaTela
-          erro={meu.error}
+          erro={situacao.erro}
           titulo="A cifra não abriu"
-          aoTentarDeNovo={() => void meu.refetch()}
+          aoTentarDeNovo={situacao.tentarDeNovo}
         />
       </Tela>
     )
   }
-  const encontro = meu.data.find((e) => e.evento.id === eventoId)
+  if (situacao.tipo === 'sem_copia') {
+    return (
+      <Tela pilha titulo="Cifra">
+        <EstadoVazio
+          icone="semConexao"
+          titulo="Este repertório ainda não está no seu aparelho"
+          descricao="Conecte-se à internet para ver a cifra e baixar o repertório."
+          acao={{ titulo: 'Tentar de novo', aoPressionar: situacao.tentarDeNovo }}
+        />
+      </Tela>
+    )
+  }
+
+  const encontro = situacao.encontros.find((e) => e.evento.id === eventoId)
   const posicao = encontro ? encontro.itens.findIndex((i) => i.id === itemId) : -1
-  const item = encontro && posicao >= 0 ? encontro.itens[posicao] : undefined
-  if (!encontro || !item) {
+  if (!encontro || posicao < 0) {
     return (
       <Tela pilha titulo="Cifra">
         <EstadoVazio
@@ -73,21 +93,79 @@ export function TelaCifraDoRepertorio() {
       </Tela>
     )
   }
+  return (
+    <MusicaAberta
+      // Trocar de música recomeça o tom e o capotraste (valem só para a música aberta).
+      key={itemId}
+      encontro={encontro}
+      posicao={posicao}
+      abertoNoPalco={abertoNoPalco}
+    />
+  )
+}
 
+function MusicaAberta({
+  encontro,
+  posicao,
+  abertoNoPalco,
+}: {
+  encontro: EncontroParaTocar
+  posicao: number
+  abertoNoPalco: boolean
+}) {
+  const ajustes = useAjustesDaCifra()
+  const [palco, setPalco] = useState(abertoNoPalco)
+  const item = encontro.itens[posicao]!
   const total = encontro.itens.length
   const anterior = posicao > 0 ? encontro.itens[posicao - 1] : undefined
   const proxima = posicao < total - 1 ? encontro.itens[posicao + 1] : undefined
+
+  // No palco a troca de música mantém o palco aberto: o músico não volta à leitura entre as duas.
   const ir = (destino: string) =>
     router.replace({
-      pathname: '/meu-repertorio/[eventoId]/[itemId]',
-      params: { eventoId, itemId: destino },
+      pathname: CAMINHO,
+      params: {
+        eventoId: encontro.evento.id,
+        itemId: destino,
+        ...(palco ? { palco: '1' } : {}),
+      },
     })
+
+  if (palco) {
+    return (
+      <ModoPalco
+        titulo={item.titulo}
+        cifra={item.cifra}
+        tomOriginal={item.tomOriginal}
+        tomDoDia={item.tomDoDia}
+        posicao={posicao + 1}
+        total={total}
+        ajustes={ajustes}
+        aoSair={() => (abertoNoPalco ? voltarOu('/meu-repertorio') : setPalco(false))}
+        aoAnterior={anterior ? () => ir(anterior.id) : null}
+        aoProxima={proxima ? () => ir(proxima.id) : null}
+      />
+    )
+  }
 
   return (
     <Tela
       pilha
       titulo={item.titulo}
       descricao={`Música ${posicao + 1} de ${total} · ${encontro.evento.titulo}`}
+      {...(encontro.baixado
+        ? {
+            abaixoDoTitulo: <Chip situacao="aceitou" texto="Baixado para usar sem internet" />,
+          }
+        : {})}
+      acoes={
+        <BotaoIcone
+          icone="musica"
+          texto="Palco"
+          rotulo="Abrir o Modo palco"
+          aoPressionar={() => setPalco(true)}
+        />
+      }
       barraDeAcao={
         <BarraDeAcao>
           <ParDeBotoes>
@@ -111,10 +189,10 @@ export function TelaCifraDoRepertorio() {
       }
     >
       <LeitorDeCifra
-        key={item.id}
         cifra={item.cifra}
         tomOriginal={item.tomOriginal}
         tomDoDia={item.tomDoDia}
+        ajustes={ajustes}
       />
       {item.link ? (
         <Botao

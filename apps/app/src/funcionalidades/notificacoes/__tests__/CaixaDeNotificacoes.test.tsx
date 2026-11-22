@@ -3,9 +3,17 @@ import { router } from 'expo-router'
 
 import { COMUNIDADE, pedidosPara, renderizarTela } from '@/testes/telas'
 
-import { INTERVALO_DO_CONTADOR, type NotificacaoDaCaixa } from '../caixa'
+import {
+  INTERVALO_DO_CONTADOR,
+  agruparPorLeitura,
+  destinoDaNotificacao,
+  resumoPorTipo,
+  rotaDoDestino,
+  tempoRelativo,
+  type NotificacaoDaCaixa,
+} from '../caixa'
 import { SinoDeNotificacoes } from '../SinoDeNotificacoes'
-import { agruparPorDia, TelaCaixaDeNotificacoes } from '../TelaCaixaDeNotificacoes'
+import { TelaCaixaDeNotificacoes } from '../TelaCaixaDeNotificacoes'
 
 jest.mock('expo-router', () => ({
   router: {
@@ -22,14 +30,17 @@ jest.mock('expo-router', () => ({
 const CAIXA = '/api/v1/eu/notificacoes/caixa'
 const NAO_LIDAS = `GET ${CAIXA}/nao-lidas`
 
+/** Uma convocação, com o título real do encontro (`assunto`, D66) e o id dele. */
 function notificacao(i: number, parcial: Partial<NotificacaoDaCaixa> = {}): NotificacaoDaCaixa {
   return {
     id: `n-${String(i).padStart(3, '0')}`,
     tipo: 'escalas',
-    titulo: `Nova escala ${i}`,
-    texto: 'Você foi escalado para um evento. Abra o app para confirmar.',
+    titulo: `Nova convocação ${i}`,
+    texto: 'Você foi convocado para servir. Abra o app para responder.',
     comunidade: { id: COMUNIDADE, nome: 'Jovens Centro' },
     destino: { tela: 'escalas' },
+    assunto: 'Sábado Jovem',
+    eventoId: 'e1',
     lida: false,
     lidaEm: null,
     criadoEm: new Date(Date.now() - i * 60_000).toISOString(),
@@ -104,10 +115,165 @@ describe('sino de notificações', () => {
   })
 })
 
-describe('caixa de notificações', () => {
+describe('caixa de notificações (o sino, D68)', () => {
   beforeEach(() => jest.clearAllMocks())
 
-  test('lista paginada: não lidas com "Nova", mais antigas pelo cursor, sem repetir', async () => {
+  test('o título real (assunto) aparece na linha, em "Novas", com "Nova" escrito, e a contagem por tipo', async () => {
+    const aviso = notificacao(2, {
+      tipo: 'avisos',
+      titulo: 'Novo aviso em Jovens Centro',
+      texto: 'Toque para ler.',
+      assunto: 'Ensaio do louvor às 15h',
+      eventoId: null,
+      destino: { tela: 'aviso', avisoId: 'aviso-1' },
+    })
+    await renderizarTela(<TelaCaixaDeNotificacoes />, {
+      rotas: {
+        [NAO_LIDAS]: () => ({
+          status: 200,
+          corpo: { naoLidas: 2, avisos: 1, convocacoes: 1, pedidosDeEntrada: 0 },
+        }),
+        [`GET ${CAIXA}`]: () => ({
+          status: 200,
+          corpo: { notificacoes: [notificacao(1), aviso], proximoCursor: null },
+        }),
+      },
+    })
+
+    expect(await screen.findByText('Ensaio do louvor às 15h')).toBeOnTheScreen()
+    // O título real no lugar do texto genérico da notificação do sistema.
+    expect(screen.getByText('Sábado Jovem')).toBeOnTheScreen()
+    expect(screen.queryByText('Toque para ler.')).toBeNull()
+    expect(screen.getByText('Novas')).toBeOnTheScreen()
+    expect(screen.queryByText('Antes')).toBeNull()
+    expect(screen.getAllByText('Nova')).toHaveLength(2)
+    // A contagem por tipo, em palavras.
+    expect(await screen.findByText('1 aviso novo')).toBeOnTheScreen()
+    expect(screen.getByText('1 convocação nova')).toBeOnTheScreen()
+    expect(screen.getByText('Você tem 2 não lidas.')).toBeOnTheScreen()
+    expect(
+      screen.getByRole('button', {
+        name: /^Nova\. Novo aviso em Jovens Centro\. Ensaio do louvor às 15h\. Jovens Centro, há 2 min\.$/,
+      }),
+    ).toBeOnTheScreen()
+  })
+
+  test('"Novas" em cima e "Antes" embaixo; lidas não têm a marca "Nova"', async () => {
+    await renderizarTela(<TelaCaixaDeNotificacoes />, {
+      rotas: {
+        [NAO_LIDAS]: () => ({ status: 200, corpo: { naoLidas: 1 } }),
+        [`GET ${CAIXA}`]: () => ({
+          status: 200,
+          corpo: {
+            notificacoes: [notificacao(1, { lida: true }), notificacao(2)],
+            proximoCursor: null,
+          },
+        }),
+      },
+    })
+    await screen.findByText('Novas')
+    // A ordem da tela: "Novas" primeiro, "Antes" depois.
+    expect(screen.getAllByText(/^(Novas|Antes)$/).map((t) => t.props.children)).toEqual([
+      'Novas',
+      'Antes',
+    ])
+    expect(screen.getAllByText('Nova')).toHaveLength(1)
+    expect(
+      screen.getByRole('button', { name: /^Nova convocação 1\. Sábado Jovem\./ }),
+    ).toBeOnTheScreen()
+  })
+
+  test('sem assunto (pedido de entrada, aviso fora do ar): vale o texto genérico', async () => {
+    await renderizarTela(<TelaCaixaDeNotificacoes />, {
+      rotas: {
+        [NAO_LIDAS]: () => ({ status: 200, corpo: { naoLidas: 1 } }),
+        [`GET ${CAIXA}`]: () => ({
+          status: 200,
+          corpo: {
+            notificacoes: [
+              notificacao(1, {
+                tipo: 'pedido_de_entrada',
+                titulo: 'Pedido de entrada',
+                texto: 'Uma pessoa quer entrar em Jovens Centro.',
+                assunto: null,
+                eventoId: null,
+                destino: null,
+              }),
+            ],
+            proximoCursor: null,
+          },
+        }),
+      },
+    })
+    expect(await screen.findByText('Uma pessoa quer entrar em Jovens Centro.')).toBeOnTheScreen()
+  })
+
+  test('uma convocação abre o encontro (a linha "Sua parte"), marca como lida e baixa o contador', async () => {
+    let naoLidas = 1
+    const { servidor, consultas } = await renderizarTela(<TelaCaixaDeNotificacoes />, {
+      rotas: {
+        [NAO_LIDAS]: () => ({
+          status: 200,
+          corpo: { naoLidas, avisos: 0, convocacoes: naoLidas, pedidosDeEntrada: 0 },
+        }),
+        [`GET ${CAIXA}`]: () => ({
+          status: 200,
+          corpo: { notificacoes: [notificacao(1)], proximoCursor: null },
+        }),
+        [`POST ${CAIXA}/n-001/lida`]: () => {
+          naoLidas = 0
+          return { status: 200, corpo: { ok: true } }
+        },
+      },
+    })
+    await fireEvent.press(
+      await screen.findByRole('button', { name: /^Nova\. Nova convocação 1\./ }),
+    )
+    await waitFor(() =>
+      expect(router.push).toHaveBeenCalledWith({
+        pathname: '/evento/[eventoId]',
+        params: { eventoId: 'e1' },
+      }),
+    )
+    expect(pedidosPara(servidor, 'POST', `${CAIXA}/n-001/lida`)).toHaveLength(1)
+    await waitFor(() => expect(screen.queryByText('Nova')).toBeNull())
+    await waitFor(() =>
+      expect(consultas.getQueryData(['eu', 'caixa', 'nao-lidas'])).toMatchObject({ naoLidas: 0 }),
+    )
+  })
+
+  test('um aviso abre o aviso', async () => {
+    await renderizarTela(<TelaCaixaDeNotificacoes />, {
+      rotas: {
+        [NAO_LIDAS]: () => ({ status: 200, corpo: { naoLidas: 1 } }),
+        [`GET ${CAIXA}`]: () => ({
+          status: 200,
+          corpo: {
+            notificacoes: [
+              notificacao(1, {
+                tipo: 'avisos',
+                titulo: 'Novo aviso',
+                assunto: 'Ensaio do louvor às 15h',
+                eventoId: null,
+                destino: { tela: 'aviso', avisoId: 'aviso-1' },
+              }),
+            ],
+            proximoCursor: null,
+          },
+        }),
+        [`POST ${CAIXA}/n-001/lida`]: () => ({ status: 200, corpo: { ok: true } }),
+      },
+    })
+    await fireEvent.press(await screen.findByRole('button', { name: /^Nova\. Novo aviso\./ }))
+    await waitFor(() =>
+      expect(router.push).toHaveBeenCalledWith({
+        pathname: '/avisos/[avisoId]',
+        params: { avisoId: 'aviso-1' },
+      }),
+    )
+  })
+
+  test('lista paginada: mais antigas pelo cursor, sem repetir', async () => {
     const segunda = [notificacao(21, { lida: true, lidaEm: new Date().toISOString() })]
     const { servidor } = await renderizarTela(<TelaCaixaDeNotificacoes />, {
       rotas: {
@@ -118,25 +284,16 @@ describe('caixa de notificações', () => {
             : { status: 200, corpo: { notificacoes: vinte, proximoCursor: 'c+1' } },
       },
     })
-
-    expect(await screen.findByText('Nova escala 1')).toBeOnTheScreen()
-    expect(screen.getByText('Hoje')).toBeOnTheScreen()
-    expect(screen.getAllByTestId('ponto-de-nova', { includeHiddenElements: true })).toHaveLength(20)
-    expect(
-      screen.getByRole('button', { name: /^Nova\. Nova escala 1\. Você foi escalado/ }),
-    ).toBeOnTheScreen()
-    expect(screen.getByText('Você tem 20 não lidas.')).toBeOnTheScreen()
+    expect(await screen.findByText('Nova convocação 1')).toBeOnTheScreen()
+    expect(screen.getAllByText('Nova')).toHaveLength(20)
 
     // Rolar até o fim pede a próxima página com o cursor da anterior.
     await fireEvent(screen.getByTestId('lista-de-notificacoes'), 'onEndReached')
-    expect(await screen.findByText('Nova escala 21')).toBeOnTheScreen()
+    expect(await screen.findByText('Nova convocação 21')).toBeOnTheScreen()
+    expect(screen.getByText('Antes')).toBeOnTheScreen()
     const pedidos = pedidosPara(servidor, 'GET', CAIXA)
     expect(pedidos.map((p) => p.url.split('?')[1] ?? '')).toEqual(['', 'cursor=c%2B1'])
-    // A lida não tem "Nova" e não tem ponto.
-    expect(
-      screen.getByRole('button', { name: /^Nova escala 21\. Você foi escalado/ }),
-    ).toBeOnTheScreen()
-    expect(screen.getAllByTestId('ponto-de-nova', { includeHiddenElements: true })).toHaveLength(20)
+    expect(screen.getAllByText('Nova')).toHaveLength(20)
     expect(screen.getByText('As notificações ficam aqui por 30 dias.')).toBeOnTheScreen()
     expect(screen.queryByRole('button', { name: 'Mostrar mais antigas' })).toBeNull()
   })
@@ -161,44 +318,7 @@ describe('caixa de notificações', () => {
       },
     })
     await fireEvent.press(await screen.findByRole('button', { name: 'Mostrar mais antigas' }))
-    expect(await screen.findByText('Nova escala 30')).toBeOnTheScreen()
-  })
-
-  test('tocar marca como lida, baixa o contador e abre o destino', async () => {
-    const aviso = notificacao(1, {
-      tipo: 'avisos',
-      titulo: 'Novo aviso',
-      texto: 'Há um aviso novo na sua comunidade. Abra o app para ler.',
-      destino: { tela: 'aviso', avisoId: 'aviso-1' },
-    })
-    let naoLidas = 1
-    const { servidor, consultas } = await renderizarTela(<TelaCaixaDeNotificacoes />, {
-      rotas: {
-        [NAO_LIDAS]: () => ({ status: 200, corpo: { naoLidas } }),
-        [`GET ${CAIXA}`]: () => ({
-          status: 200,
-          corpo: { notificacoes: [aviso], proximoCursor: null },
-        }),
-        [`POST ${CAIXA}/n-001/lida`]: () => {
-          naoLidas = 0
-          return { status: 200, corpo: { ok: true } }
-        },
-      },
-    })
-    await fireEvent.press(await screen.findByRole('button', { name: /^Nova\. Novo aviso\./ }))
-    await waitFor(() =>
-      expect(router.push).toHaveBeenCalledWith({
-        pathname: '/avisos/[avisoId]',
-        params: { avisoId: 'aviso-1' },
-      }),
-    )
-    expect(pedidosPara(servidor, 'POST', `${CAIXA}/n-001/lida`)).toHaveLength(1)
-    await waitFor(() =>
-      expect(screen.queryByTestId('ponto-de-nova', { includeHiddenElements: true })).toBeNull(),
-    )
-    await waitFor(() =>
-      expect(consultas.getQueryData(['eu', 'caixa', 'nao-lidas'])).toEqual({ naoLidas: 0 }),
-    )
+    expect(await screen.findByText('Nova convocação 30')).toBeOnTheScreen()
   })
 
   test('alvo que não existe mais: marca como lida e não navega', async () => {
@@ -208,14 +328,14 @@ describe('caixa de notificações', () => {
         [`GET ${CAIXA}`]: () => ({
           status: 200,
           corpo: {
-            notificacoes: [notificacao(1, { tipo: 'eventos', destino: null })],
+            notificacoes: [notificacao(1, { tipo: 'eventos', destino: null, eventoId: null })],
             proximoCursor: null,
           },
         }),
         [`POST ${CAIXA}/n-001/lida`]: () => ({ status: 200, corpo: { ok: true } }),
       },
     })
-    await fireEvent.press(await screen.findByRole('button', { name: /^Nova\. Nova escala 1/ }))
+    await fireEvent.press(await screen.findByRole('button', { name: /^Nova\. Nova convocação 1/ }))
     await waitFor(() =>
       expect(pedidosPara(servidor, 'POST', `${CAIXA}/n-001/lida`)).toHaveLength(1),
     )
@@ -237,30 +357,35 @@ describe('caixa de notificações', () => {
         },
       },
     })
-    expect(
-      await screen.findAllByTestId('ponto-de-nova', { includeHiddenElements: true }),
-    ).toHaveLength(2)
+    expect(await screen.findAllByText('Nova')).toHaveLength(2)
     await fireEvent.press(screen.getByRole('button', { name: 'Marcar todas como lidas' }))
-    await waitFor(() =>
-      expect(screen.queryByTestId('ponto-de-nova', { includeHiddenElements: true })).toBeNull(),
-    )
+    await waitFor(() => expect(screen.queryByText('Nova')).toBeNull())
     expect(pedidosPara(servidor, 'POST', `${CAIXA}/lidas`)).toHaveLength(1)
     expect(screen.queryByRole('button', { name: 'Marcar todas como lidas' })).toBeNull()
   })
 
-  test('vazia: mensagem humana e atalho para as preferências', async () => {
+  test('vazia: "Nenhuma novidade." com o sol, sem botão', async () => {
     await renderizarTela(<TelaCaixaDeNotificacoes />, {
       rotas: {
         [NAO_LIDAS]: () => ({ status: 200, corpo: { naoLidas: 0 } }),
         [`GET ${CAIXA}`]: () => ({ status: 200, corpo: { notificacoes: [], proximoCursor: null } }),
       },
     })
-    expect(await screen.findByText('Nada por aqui ainda')).toBeOnTheScreen()
-    const atalhos = screen.getAllByRole('button', { name: 'Preferências de notificação' })
-    // O ícone de ajustes no cabeçalho e a ação do estado vazio.
-    expect(atalhos).toHaveLength(2)
-    await fireEvent.press(atalhos[1]!)
+    expect(await screen.findByText('Nenhuma novidade.')).toBeOnTheScreen()
+    expect(screen.getByText('Avisos, convocações e lembretes aparecem aqui.')).toBeOnTheScreen()
+    // Os ajustes abrem pelo ícone do cabeçalho.
+    await fireEvent.press(screen.getByRole('button', { name: 'Quando o app me avisa' }))
     expect(router.push).toHaveBeenCalledWith('/notificacoes')
+  })
+
+  test('carregando: o esqueleto tem rótulo para o leitor de tela', async () => {
+    await renderizarTela(<TelaCaixaDeNotificacoes />, {
+      rotas: {
+        [NAO_LIDAS]: () => ({ status: 200, corpo: { naoLidas: 0 } }),
+        [`GET ${CAIXA}`]: () => new Promise(() => undefined),
+      },
+    })
+    expect(await screen.findByLabelText('Carregando as notificações')).toBeOnTheScreen()
   })
 
   test('erro ao carregar: "Tentar de novo" busca outra vez', async () => {
@@ -278,29 +403,66 @@ describe('caixa de notificações', () => {
       },
     })
     const tentar = await screen.findByRole('button', { name: 'Tentar de novo' })
-    expect(screen.getByText('Não deu para carregar as notificações')).toBeOnTheScreen()
+    expect(screen.getByText('Não deu para carregar as notificações.')).toBeOnTheScreen()
     falhar = false
     await fireEvent.press(tentar)
-    expect(await screen.findByText('Nova escala 1')).toBeOnTheScreen()
+    expect(await screen.findByText('Nova convocação 1')).toBeOnTheScreen()
   })
 })
 
-describe('agrupar por dia', () => {
-  test('hoje, ontem e depois a data absoluta', () => {
-    const agora = new Date(2026, 10, 15, 10, 0)
-    const grupos = agruparPorDia(
-      [
-        notificacao(1, { criadoEm: new Date(2026, 10, 15, 9, 0).toISOString() }),
-        notificacao(2, { criadoEm: new Date(2026, 10, 14, 23, 0).toISOString() }),
-        notificacao(3, { criadoEm: new Date(2026, 10, 12, 8, 0).toISOString() }),
-        notificacao(4, { criadoEm: new Date(2026, 10, 12, 7, 0).toISOString() }),
-      ],
-      agora,
-    )
-    expect(grupos.map((g) => [g.rotulo, g.itens.length])).toEqual([
-      ['Hoje', 1],
-      ['Ontem', 1],
-      ['12/11/2026', 2],
+describe('regras da caixa', () => {
+  test('novas e antes: cada grupo na ordem que a API mandou', () => {
+    const { novas, antes } = agruparPorLeitura([
+      notificacao(1, { lida: true }),
+      notificacao(2),
+      notificacao(3, { lida: true }),
+      notificacao(4),
     ])
+    expect(novas.map((n) => n.id)).toEqual(['n-002', 'n-004'])
+    expect(antes.map((n) => n.id)).toEqual(['n-001', 'n-003'])
+  })
+
+  test('o tempo em palavras: agora, minutos, horas, dias e, passada uma semana, a data', () => {
+    const agora = new Date(2026, 10, 22, 12, 0)
+    const antes = (ms: number) => new Date(agora.getTime() - ms).toISOString()
+    expect(tempoRelativo(antes(20_000), agora)).toBe('agora')
+    expect(tempoRelativo(antes(5 * 60_000), agora)).toBe('há 5 min')
+    expect(tempoRelativo(antes(3 * 3_600_000), agora)).toBe('há 3 h')
+    expect(tempoRelativo(antes(86_400_000 + 3_600_000), agora)).toBe('há 1 dia')
+    expect(tempoRelativo(antes(3 * 86_400_000), agora)).toBe('há 3 dias')
+    expect(tempoRelativo(antes(10 * 86_400_000), agora)).toBe('12/11/2026')
+  })
+
+  test('a contagem por tipo: singular, plural, o que sobra e nenhum zero', () => {
+    expect(
+      resumoPorTipo({ naoLidas: 9, avisos: 4, convocacoes: 1, pedidosDeEntrada: 2 }).map(
+        (t) => t.texto,
+      ),
+    ).toEqual([
+      '4 avisos novos',
+      '1 convocação nova',
+      '2 pedidos de entrada novos',
+      '2 outras novas',
+    ])
+    expect(
+      resumoPorTipo({ naoLidas: 1, avisos: 1, convocacoes: 0, pedidosDeEntrada: 0 }).map(
+        (t) => t.texto,
+      ),
+    ).toEqual(['1 aviso novo'])
+    expect(resumoPorTipo({ naoLidas: 3 }).map((t) => t.texto)).toEqual(['3 outras novas'])
+    expect(resumoPorTipo(undefined)).toEqual([])
+  })
+
+  test('o destino: a convocação com encontro abre o encontro; sem ele, a Agenda "Só o que é meu"', () => {
+    expect(destinoDaNotificacao(notificacao(1))).toEqual({ tela: 'evento', eventoId: 'e1' })
+    const semEncontro = destinoDaNotificacao(notificacao(1, { eventoId: null }))
+    expect(rotaDoDestino(semEncontro)).toEqual({
+      pathname: '/agenda',
+      params: { vista: 'lista', filtro: 'meu' },
+    })
+    expect(rotaDoDestino({ tela: 'aviso', avisoId: 'x' })).toEqual({
+      pathname: '/avisos/[avisoId]',
+      params: { avisoId: 'x' },
+    })
   })
 })

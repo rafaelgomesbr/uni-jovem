@@ -99,7 +99,7 @@ export function propsDaBarraFlutuante(margemDeBaixo: number, escondida = false) 
   }
 }
 
-/** Fundo de vidro e os cinco gatilhos (filhos diretos da `TabList`). */
+/** Fundo de vidro e os quatro gatilhos (filhos diretos da `TabList`). */
 export function itensDaBarraFlutuante() {
   return [
     <FundoDaBarra key="vidro" />,

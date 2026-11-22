@@ -3,19 +3,20 @@ import { useState } from 'react'
 
 import { useSessao } from '@/estado/sessao'
 import type { TipoDeConteudo } from '@/servicos/contratoDosModulos'
-import { mensagemDoErro, SemConexao } from '@/servicos/erros'
 import { parametro } from '@/utilidades/parametros'
 import { BotaoIcone } from '@/ui/Botao'
 import { CampoDeBusca } from '@/ui/Campo'
-import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { Cartao } from '@/ui/Cartao'
 import { Chip } from '@/ui/Chip'
-import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
-import { EstadoVazio } from '@/ui/EstadoVazio'
+import { Esqueleto, LinhaDeEsqueleto } from '@/ui/Esqueleto'
+import { ErroDaTela } from '@/ui/Falha'
 import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
+import { EntradaEmCascata } from '@/ui/primitivasDeMovimento'
 import { Segmentos } from '@/ui/Segmentos'
 import { Tela } from '@/ui/Tela'
 
 import { usePode } from '../comunidade/permissoes'
+import { VazioComSol } from '../inscricoes/VazioComSol'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { useConteudos } from './consultas'
 import { ehTipoDeConteudo, estaArquivado, TIPOS_DE_CONTEUDO, type DefinicaoDoTipo } from './tipos'
@@ -29,9 +30,9 @@ const DE_PESSOA: Readonly<Record<TipoDeConteudo, boolean>> = {
 }
 
 /**
- * Rota `/conteudos?tipo=` (3.7.3): título com "+" (para quem gerencia),
- * segmentos do tipo (fica na URL para voltar ao mesmo lugar), busca e o
- * cartão lista.
+ * Rota `/conteudos?tipo=`, a Biblioteca (D71): título com "Nova" escrito (para quem gerencia),
+ * segmentos do tipo (fica na URL para voltar ao mesmo lugar), busca e o cartão lista. Músicas,
+ * músicos, palestrantes e dinâmicas da comunidade; a letra e a cifra ficam só dentro dela.
  */
 export function TelaConteudos() {
   const doParametro = parametro(useLocalSearchParams<{ tipo?: string }>().tipo)
@@ -44,10 +45,10 @@ export function TelaConteudos() {
   return (
     <Tela
       pilha
-      titulo="Conteúdos"
+      titulo="Biblioteca"
       descricao={
         gerencia
-          ? 'O repertório da comunidade: músicas e quem toca, músicos, palestrantes e dinâmicas.'
+          ? 'Músicas e cifras, músicos, palestrantes e dinâmicas da comunidade.'
           : 'Músicas, músicos, palestrantes e dinâmicas da comunidade.'
       }
       {...(comunidadeAtiva && gerencia
@@ -55,6 +56,7 @@ export function TelaConteudos() {
             acoes: (
               <BotaoIcone
                 icone="adicionar"
+                texto="Nova"
                 rotulo={`Adicionar ${def.singular}`}
                 circular
                 aoPressionar={novo}
@@ -83,7 +85,7 @@ export function TelaConteudos() {
           />
         </>
       ) : (
-        <SemComunidade oQue="os conteúdos" />
+        <SemComunidade oQue="a biblioteca" />
       )}
     </Tela>
   )
@@ -150,24 +152,25 @@ function ListaDoTipo({
   if (itens.isPending) {
     return (
       <Esqueleto rotulo={`Carregando ${def.plural.toLowerCase()}`}>
-        <CartaoDeEsqueleto />
+        <LinhaDeEsqueleto altura={56} />
+        <LinhaDeEsqueleto altura={56} />
+        <LinhaDeEsqueleto altura={56} />
+        <LinhaDeEsqueleto altura={56} />
       </Esqueleto>
     )
   }
   if (itens.error) {
     return (
-      <EstadoVazio
-        icone={itens.error instanceof SemConexao ? 'semConexao' : 'erro'}
+      <ErroDaTela
+        erro={itens.error}
         titulo={`Não deu para carregar ${def.artigo === 'a' ? 'as' : 'os'} ${def.plural.toLowerCase()}`}
-        descricao={mensagemDoErro(itens.error)}
-        acao={{ titulo: 'Tentar de novo', aoPressionar: () => void itens.refetch() }}
+        aoTentarDeNovo={() => void itens.refetch()}
       />
     )
   }
   if (itens.data.length === 0) {
     return (
-      <EstadoVazio
-        icone={def.icone}
+      <VazioComSol
         titulo={`Nenhum${def.artigo === 'a' ? 'a' : ''} ${def.singular} cadastrad${def.artigo}`}
         descricao={
           gerencia
@@ -177,7 +180,7 @@ function ListaDoTipo({
         acao={
           gerencia
             ? { titulo: `Adicionar ${def.singular}`, icone: 'adicionar', aoPressionar: aoAdicionar }
-            : { titulo: 'Voltar ao Início', aoPressionar: () => router.push('/') }
+            : undefined
         }
       />
     )
@@ -198,53 +201,50 @@ function ListaDoTipo({
         aoMudar={setBusca}
       />
       {visiveis.length === 0 ? (
-        <EstadoVazio
-          icone="buscar"
+        <VazioComSol
           titulo="Nada encontrado"
           descricao={`Nenhum${def.artigo === 'a' ? 'a' : ''} ${def.singular} com "${busca.trim()}". Confira a grafia ou limpe a busca.`}
-          acao={{
-            titulo: 'Limpar a busca',
-            variante: 'secundario',
-            aoPressionar: () => setBusca(''),
-          }}
+          acao={{ titulo: 'Limpar a busca', aoPressionar: () => setBusca('') }}
         />
       ) : (
-        <CartaoDeVidro lista>
-          <Lista>
-            {visiveis.map((registro) => {
-              const nome = String(registro[def.principal] ?? '')
-              const arquivado = estaArquivado(def, registro)
-              const descricao = descricaoDoItem(def, registro)
-              return (
-                <LinhaDeLista
-                  key={String(registro['id'])}
-                  {...(DE_PESSOA[def.tipo] ? { avatar: { nome } } : { icone: def.icone })}
-                  titulo={nome}
-                  descricao={descricao}
-                  rotuloAcessivel={[
-                    nome,
-                    descricao,
-                    arquivado ? def.arquivo.selo : null,
-                    def.tipo === 'musicas' && registro['temCifra'] === false ? 'Sem cifra' : null,
-                  ]
-                    .filter(Boolean)
-                    .join('. ')}
-                  {...(arquivado
-                    ? { extra: <Chip texto={def.arquivo.selo} tom="neutro" /> }
-                    : def.tipo === 'musicas' && registro['temCifra'] === false
-                      ? { extra: <Chip texto="Sem cifra" tom="neutro" /> }
-                      : {})}
-                  aoPressionar={() =>
-                    router.push({
-                      pathname: '/conteudos/[tipo]/[itemId]',
-                      params: { tipo: def.tipo, itemId: String(registro['id']) },
-                    })
-                  }
-                />
-              )
-            })}
-          </Lista>
-        </CartaoDeVidro>
+        <EntradaEmCascata ordem={1}>
+          <Cartao lista>
+            <Lista>
+              {visiveis.map((registro) => {
+                const nome = String(registro[def.principal] ?? '')
+                const arquivado = estaArquivado(def, registro)
+                const descricao = descricaoDoItem(def, registro)
+                return (
+                  <LinhaDeLista
+                    key={String(registro['id'])}
+                    {...(DE_PESSOA[def.tipo] ? { avatar: { nome } } : { icone: def.icone })}
+                    titulo={nome}
+                    descricao={descricao}
+                    rotuloAcessivel={[
+                      nome,
+                      descricao,
+                      arquivado ? def.arquivo.selo : null,
+                      def.tipo === 'musicas' && registro['temCifra'] === false ? 'Sem cifra' : null,
+                    ]
+                      .filter(Boolean)
+                      .join('. ')}
+                    {...(arquivado
+                      ? { extra: <Chip texto={def.arquivo.selo} tom="neutro" /> }
+                      : def.tipo === 'musicas' && registro['temCifra'] === false
+                        ? { extra: <Chip texto="Sem cifra" tom="neutro" /> }
+                        : {})}
+                    aoPressionar={() =>
+                      router.push({
+                        pathname: '/conteudos/[tipo]/[itemId]',
+                        params: { tipo: def.tipo, itemId: String(registro['id']) },
+                      })
+                    }
+                  />
+                )
+              })}
+            </Lista>
+          </Cartao>
+        </EntradaEmCascata>
       )}
     </>
   )

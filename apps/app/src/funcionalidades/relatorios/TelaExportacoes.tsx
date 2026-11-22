@@ -44,14 +44,14 @@ import { periodoDosUltimos, SeletorDePeriodo, type Periodo } from './SeletorDePe
 export const NOME_DA_EXPORTACAO: Readonly<Record<TipoDeExportacao, string>> = {
   presenca: 'Presença',
   inscricoes: 'Inscrições',
-  escalas: 'Escalas',
+  escalas: 'Convocações',
   membros: 'Membros',
 }
 
 const DESCRICAO: Readonly<Record<TipoDeExportacao, string>> = {
   presenca: 'Quem esteve em cada encontro do período.',
   inscricoes: 'Inscrições por encontro, com situação e presença.',
-  escalas: 'Quem foi escalado, a situação e as substituições.',
+  escalas: 'Quem foi convocado, a situação e as substituições.',
   membros: 'Pessoas da comunidade, papel e desde quando participam.',
 }
 

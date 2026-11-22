@@ -1,23 +1,19 @@
-import { DURACAO } from '@uj/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
-import { useEffect, useState } from 'react'
-import { Animated } from 'react-native'
+import { useState } from 'react'
 
 import { useSessao } from '@/estado/sessao'
 import { parametro } from '@/utilidades/parametros'
-import { usePreferenciasDeAcessibilidade } from '@/ui/acessibilidade'
-import { anunciar } from '@/ui/anunciar'
 import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
-import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
+import { Cartao } from '@/ui/Cartao'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Chip } from '@/ui/Chip'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
-import { Icone } from '@/ui/Icone'
 import { LinhaDeLista, Lista } from '@/ui/LinhaDeLista'
 import { Secao } from '@/ui/Secao'
 import { Tela } from '@/ui/Tela'
-import { useTema } from '@/ui/tema'
+import { Texto } from '@/ui/Texto'
+import { useAnunciar } from '@/ui/useAnunciar'
 import { voltarOu } from '@/ui/navegacao'
 
 import { DemonstracaoDaEtapa } from './Demonstracoes'
@@ -56,10 +52,11 @@ export function TelaMapaDaMissao() {
 }
 
 /**
- * Mapa da missão (3.7.7): Aurora total, "PASSO 2 DE 5" com a barra de
+ * Primeiros passos (3.7.7, direção A): Aurora total, "PASSO 2 DE 5" com a barra de
  * passos, o objetivo do passo em `tituloTela` e a explicação em `corpo`, a
- * demonstração num cartão de destaque com o chip "Exemplo" e "Pausar" e
- * "Próxima etapa" na barra de ação. "Pular" fica no cabeçalho.
+ * demonstração num cartão com o chip "Exemplo" e "Pausar" e "Próxima etapa" na
+ * barra de ação. "Pular" fica no cabeçalho. É para quem organiza (UX v3, D62), mas
+ * continua abrindo para todo papel por Perfil, Ajuda.
  */
 function Mapa({
   inicial,
@@ -138,7 +135,7 @@ function Mapa({
           titulo="Pular"
           variante="terciario"
           rotuloAcessivel="Pular os primeiros passos"
-          dica="Dá para rever quando quiser, em Perfil, Ajuda e sobre."
+          dica="Dá para rever quando quiser, em Perfil, Ajuda."
           aoPressionar={() => {
             salvar({ ...progresso, estado: 'pulado', etapa: 0 })
             voltarOu('/')
@@ -166,12 +163,13 @@ function Mapa({
       }
     >
       {etapa.demo ? (
-        <CartaoDeDestaque
-          meta="Não muda nada de verdade"
-          chip={<Chip texto="Exemplo" tom="neutro" />}
+        <CartaoDeVidro
+          opaco
+          sobrancelha="Não muda nada de verdade"
+          extra={<Chip texto="Exemplo" tom="neutro" />}
         >
           <DemonstracaoDaEtapa key={etapa.id} demo={etapa.demo} />
-        </CartaoDeDestaque>
+        </CartaoDeVidro>
       ) : null}
       {atual > 0 ? (
         <Botao
@@ -201,44 +199,22 @@ function Mapa({
 }
 
 /**
- * Celebração discreta (3.7.7): cartão de destaque com o ícone de brilhos de
- * 48 e "Tudo pronto", sem confete. Com "Reduzir movimento", aparece parada;
- * sem, entra com um leve aumento. O leitor de tela ouve a frase.
+ * Celebração discreta (direção A): o cartão do momento com o sol radiante, "Tudo pronto" e uma
+ * frase, sem confete nem pontos. O sol faz o papel dos brilhos de antes; com "Reduzir movimento"
+ * ele já aparece no lugar (a regra está dentro do `Sol`). O leitor de tela ouve a frase.
  */
 export function Celebracao() {
-  const { reduzirMovimento } = usePreferenciasDeAcessibilidade()
-  const [escala] = useState(() => new Animated.Value(reduzirMovimento ? 1 : 0.85))
-  useEffect(() => {
-    anunciar('Primeiros passos concluídos. Você já conhece o caminho.')
-    if (reduzirMovimento) {
-      escala.setValue(1)
-      return
-    }
-    const animacao = Animated.timing(escala, {
-      toValue: 1,
-      duration: DURACAO.aparecer,
-      useNativeDriver: true,
-    })
-    animacao.start()
-    return () => animacao.stop()
-  }, [reduzirMovimento, escala])
+  useAnunciar('Primeiros passos concluídos. Você já conhece o caminho.')
   return (
-    <CartaoDeDestaque
-      sobrancelha="Primeiros passos concluídos"
+    <Cartao
+      variante="momento"
+      pose="radiante"
+      etiqueta="Primeiros passos concluídos"
       titulo="Tudo pronto"
-      descricao="Você já conhece o caminho. Quando quiser rever, está em Perfil, Ajuda e sobre."
     >
-      <IconeDaCelebracao escala={escala} />
-    </CartaoDeDestaque>
-  )
-}
-
-/** Dentro do destaque, a cor vem da paleta inversa (por isso o tema é lido aqui). */
-function IconeDaCelebracao({ escala }: { escala: Animated.Value }) {
-  const { cores } = useTema()
-  return (
-    <Animated.View style={{ alignSelf: 'flex-start', transform: [{ scale: escala }] }}>
-      <Icone nome="celebrar" cor={cores.destaque} tamanho={48} />
-    </Animated.View>
+      <Texto variante="corpo" cor="textoSuave">
+        Você já conhece o caminho. Quando quiser rever, está em Perfil, Ajuda.
+      </Texto>
+    </Cartao>
   )
 }

@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { View } from 'react-native'
 
 import { Botao, ParDeBotoes } from '@/ui/Botao'
-import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
+import { Cartao } from '@/ui/Cartao'
 import { CodigoQR } from '@/ui/CodigoQR'
 import { Texto } from '@/ui/Texto'
 import { mostrarToast } from '@/ui/Toast'
@@ -71,7 +71,7 @@ export function LinkCompartilhavel({
   }
 
   return (
-    <CartaoDeDestaque
+    <Cartao
       sobrancelha="Convite criado"
       titulo={papel ?? titulo}
       acoes={
@@ -128,6 +128,6 @@ export function LinkCompartilhavel({
           </View>
         ) : null}
       </View>
-    </CartaoDeDestaque>
+    </Cartao>
   )
 }

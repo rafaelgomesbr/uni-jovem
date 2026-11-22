@@ -7,7 +7,7 @@ import { CabecalhoDaComunidade } from './CabecalhoDaComunidade'
 
 type PropsDaTelaDoApp = Omit<ComponentProps<typeof Tela>, 'topo' | 'topoCompacto' | 'pilha'> & {
   /**
-   * Botão com texto ao lado do título ("Nova", "Minhas escalas"). Com fonte
+   * Botão com texto ao lado do título ("Novo encontro"). Com fonte
    * grande, o título de 34 não divide a linha: o botão desce para baixo dele.
    */
   acaoComTexto?: ReactNode

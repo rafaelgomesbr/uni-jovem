@@ -46,7 +46,11 @@ describe('leitor de cifra (D61)', () => {
     expect(screen.getByRole('button', { name: 'Capotraste uma casa abaixo' })).toBeDisabled()
     await usuario.press(screen.getByRole('button', { name: 'Capotraste uma casa acima' }))
     await usuario.press(screen.getByRole('button', { name: 'Capotraste uma casa acima' }))
-    expect(screen.getByText('Tom A')).toBeOnTheScreen()
+    // No alto: o tom que soa e o capotraste; embaixo, o tom que se toca (soa em A, toque em G).
+    expect(screen.getByText('Tom A  ·  Capotraste 2')).toBeOnTheScreen()
+    expect(
+      screen.getByLabelText('Soa em A. Toque em G com o capotraste na 2ª casa.'),
+    ).toBeOnTheScreen()
     expect(screen.getByText('Toca-se em G (capotraste na 2ª casa)')).toBeOnTheScreen()
     expect(screen.getByLabelText(`${PRIMEIRA}. Acordes: G, D`)).toBeOnTheScreen()
     expect(screen.getByText('Capotraste: casa 2')).toBeOnTheScreen()

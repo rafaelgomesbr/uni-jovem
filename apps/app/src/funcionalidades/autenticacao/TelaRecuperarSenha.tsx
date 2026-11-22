@@ -6,10 +6,11 @@ import { api } from '@/servicos/api'
 import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
-import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
+import { Cartao } from '@/ui/Cartao'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { AvisoDeFalha } from '@/ui/Falha'
 import { Tela } from '@/ui/Tela'
+import { Texto } from '@/ui/Texto'
 import { parametro } from '@/utilidades/parametros'
 
 /**
@@ -44,9 +45,11 @@ export function TelaRecuperarSenha() {
   if (recuperar.data) {
     return (
       <Tela pilha aurora={1} titulo="Recuperar a senha">
-        <CartaoDeDestaque
+        <Cartao
+          variante="momento"
+          pose="nascendo"
+          etiqueta="Link enviado"
           titulo="Confira seu e-mail"
-          descricao={recuperar.data.mensagem}
           acoes={
             <Botao
               titulo="Voltar para entrar"
@@ -54,7 +57,11 @@ export function TelaRecuperarSenha() {
               aoPressionar={() => router.replace('/entrar')}
             />
           }
-        />
+        >
+          <Texto variante="corpo" cor="textoSuave">
+            {recuperar.data.mensagem}
+          </Texto>
+        </Cartao>
       </Tela>
     )
   }

@@ -5,7 +5,7 @@ import { View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
 import type { Aviso } from '@/servicos/contratoDosModulos'
-import { mensagemDoErro, SemConexao } from '@/servicos/erros'
+import { mensagemDoErro } from '@/servicos/erros'
 import { MenuDeAcoes } from '@/ui/FolhaNaTela'
 import { confirmar } from '@/utilidades/confirmar'
 import { formatarData } from '@/utilidades/formatos'
@@ -13,20 +13,28 @@ import { parametro } from '@/utilidades/parametros'
 import { Aviso as CaixaDeAviso } from '@/ui/Aviso'
 import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao, BotaoIcone } from '@/ui/Botao'
-import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { Cartao } from '@/ui/Cartao'
 import { Chip } from '@/ui/Chip'
-import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
-import { EstadoVazio } from '@/ui/EstadoVazio'
+import { BlocoDeEsqueleto, CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
+import { ErroDaTela } from '@/ui/Falha'
 import { useConfirmarDescarte, voltarOu } from '@/ui/navegacao'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { mostrarToast } from '@/ui/Toast'
+import { mostrarDesfazer } from '@/ui/ToastComDesfazer'
 
 import { useFusoDaComunidade } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
 import { BotaoDenunciar } from '../denuncias/BotaoDenunciar'
 import { SemComunidade } from '../navegacao/SemComunidade'
-import { useAviso, useEditarAviso, useExcluirAviso, usePublicacaoDoAviso } from './consultas'
+import {
+  rotuloDePublicar,
+  useAviso,
+  useEditarAviso,
+  useExcluirAviso,
+  usePessoasAAvisar,
+  usePublicacaoDoAviso,
+} from './consultas'
 import { CamposDoAviso, lerFormulario, valoresIniciais } from './TelaNovoAviso'
 
 /** Rota `/avisos/[avisoId]`. */
@@ -50,6 +58,7 @@ function Detalhe({ comunidadeId, avisoId }: { comunidadeId: string; avisoId: str
     return (
       <Tela pilha titulo="Aviso">
         <Esqueleto rotulo="Carregando o aviso">
+          <BlocoDeEsqueleto largura="40%" altura={14} />
           <CartaoDeEsqueleto titulo />
         </Esqueleto>
       </Tela>
@@ -58,11 +67,10 @@ function Detalhe({ comunidadeId, avisoId }: { comunidadeId: string; avisoId: str
   if (aviso.error) {
     return (
       <Tela pilha titulo="Aviso">
-        <EstadoVazio
-          icone={aviso.error instanceof SemConexao ? 'semConexao' : 'erro'}
+        <ErroDaTela
+          erro={aviso.error}
           titulo="Não deu para abrir o aviso"
-          descricao={mensagemDoErro(aviso.error)}
-          acao={{ titulo: 'Tentar de novo', aoPressionar: () => void aviso.refetch() }}
+          aoTentarDeNovo={() => void aviso.refetch()}
         />
       </Tela>
     )
@@ -111,11 +119,11 @@ function Leitura({ aviso: a, publica }: { aviso: Aviso; publica: boolean }) {
             .join(' · ')}
         </Texto>
       </View>
-      <CartaoDeVidro>
+      <Cartao>
         <Texto variante="leitura" selectable>
           {a.texto}
         </Texto>
-      </CartaoDeVidro>
+      </Cartao>
     </>
   )
 }
@@ -136,6 +144,9 @@ function Gestao({ comunidadeId, aviso }: { comunidadeId: string; aviso: Aviso })
   const publicacao = usePublicacaoDoAviso(comunidadeId)
   const excluir = useExcluirAviso(comunidadeId)
   const publicado = aviso.estado === 'publicado'
+  const aAvisar = usePessoasAAvisar(comunidadeId)
+  // O rascunho já aparece "publicando" na tela e espera os 10 s do Desfazer (o envio só sai ao fim).
+  const [esperando, setEsperando] = useState(false)
   const erro = editar.error ?? publicacao.error ?? excluir.error
   // Editando com algo mudado, sair pergunta antes (A5). Salvo, o aviso novo é a base: nada a perder.
   const iniciais = valoresIniciais(aviso, fuso)
@@ -157,6 +168,25 @@ function Gestao({ comunidadeId, aviso }: { comunidadeId: string; aviso: Aviso })
       { id: aviso.id, versao: aviso.versao, ...r.dados },
       { onSuccess: () => mostrarToast({ texto: 'Alterações salvas' }) },
     )
+  }
+
+  function publicar() {
+    setEsperando(true)
+    mostrarDesfazer({
+      texto: aAvisar
+        ? `Publicando e avisando ${aAvisar} ${aAvisar === 1 ? 'pessoa' : 'pessoas'}.`
+        : 'Publicando o aviso.',
+      // Só aqui a chamada sai: se o app for encerrado antes, nada foi publicado nem avisado.
+      aoConfirmar: () =>
+        publicacao.mutate(
+          { id: aviso.id, acao: 'publicar' },
+          {
+            onSuccess: () => mostrarToast({ texto: 'Aviso publicado' }),
+            onSettled: () => setEsperando(false),
+          },
+        ),
+      aoDesfazer: () => setEsperando(false),
+    })
   }
 
   async function despublicar() {
@@ -210,9 +240,9 @@ function Gestao({ comunidadeId, aviso }: { comunidadeId: string; aviso: Aviso })
           </BarraDeAcao>
         }
       >
-        <CartaoDeVidro opaco intervalo={ESPACO.e16}>
+        <Cartao variante="plano" style={{ gap: ESPACO.e16 }}>
           <CamposDoAviso valores={valores} aoMudar={setValores} erros={erros} fuso={fuso} />
-        </CartaoDeVidro>
+        </Cartao>
         {editar.error ? <ErroDaAcao erro={editar.error} /> : null}
       </Tela>
     )
@@ -221,7 +251,7 @@ function Gestao({ comunidadeId, aviso }: { comunidadeId: string; aviso: Aviso })
   const situacao = publicado
     ? 'Publicado: os membros veem no Início e na lista de avisos.'
     : aviso.estado === 'rascunho'
-      ? 'Rascunho: só a organização vê.'
+      ? 'Rascunho: só a organização vê. Ninguém foi avisado ainda.'
       : 'Fora do ar: os membros não veem mais.'
 
   return (
@@ -257,17 +287,15 @@ function Gestao({ comunidadeId, aviso }: { comunidadeId: string; aviso: Aviso })
             />
           ) : (
             <Botao
-              titulo="Publicar"
+              titulo={
+                esperando && !publicacao.isPending ? 'Publicando…' : rotuloDePublicar(aAvisar)
+              }
               icone="publicar"
               tamanho="grande"
               carregando={publicacao.isPending}
-              dica="Membros veem o aviso e recebem notificação, se tiverem ligado."
-              aoPressionar={() =>
-                publicacao.mutate(
-                  { id: aviso.id, acao: 'publicar' },
-                  { onSuccess: () => mostrarToast({ texto: 'Aviso publicado' }) },
-                )
-              }
+              desabilitado={esperando}
+              dica="Membros veem o aviso e recebem notificação, se tiverem ligado. Você tem 10 segundos para desfazer."
+              aoPressionar={publicar}
             />
           )}
         </BarraDeAcao>

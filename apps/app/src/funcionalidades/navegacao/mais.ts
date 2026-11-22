@@ -21,7 +21,7 @@ export interface GrupoDoMais {
 }
 
 /**
- * Os módulos da comunidade que não são aba (D57): atalhos no topo da aba
+ * Os módulos da comunidade que não são aba (D57, D68): atalhos na aba
  * Comunidade e, na web larga, na barra lateral. Cada item só aparece para
  * quem pode usá-lo (mesma matriz da API; quem decide é sempre a API).
  */
@@ -66,8 +66,8 @@ export function useGruposDoMais(): GrupoDoMais[] {
       : []),
     {
       href: '/conteudos',
-      rotulo: 'Conteúdos',
-      descricao: 'Biblioteca da comunidade.',
+      rotulo: 'Biblioteca',
+      descricao: 'Músicas, palestrantes e dinâmicas da comunidade.',
       icone: 'conteudo',
     },
   ]
@@ -77,7 +77,7 @@ export function useGruposDoMais(): GrupoDoMais[] {
           {
             href: '/relatorios' as const,
             rotulo: 'Relatórios',
-            descricao: 'Presença, inscrições, escalas e atividade; exportar CSV.',
+            descricao: 'Presença, inscrições, convocações e atividade; exportar CSV.',
             icone: 'relatorio' as const,
           },
         ]

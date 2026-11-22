@@ -1,46 +1,52 @@
-import { ESPACO, RAIO, TIPO } from '@uj/tokens'
-import { useLocalSearchParams } from 'expo-router'
-import { useState, type ReactNode } from 'react'
-import { useWindowDimensions, View } from 'react-native'
+import { ESPACO } from '@uj/tokens'
+import { router, useLocalSearchParams } from 'expo-router'
+import { useState } from 'react'
+import { View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
-import { ErroDaTela } from '@/ui/Falha'
-import { hojeNoFuso, type DataLocal } from '@/utilidades/datas'
+import type { MinhaEscala, ResumoDoEvento } from '@/servicos/contratoDosEventos'
 import { Aviso } from '@/ui/Aviso'
-import { Botao, BotaoIcone } from '@/ui/Botao'
-import { BlocoDeEsqueleto, CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
-import { LayoutDividido, useLayoutLargo } from '@/ui/LayoutDividido'
+import { Botao } from '@/ui/Botao'
+import { Chip } from '@/ui/Chip'
+import { EntradaEmCascata } from '@/ui/primitivasDeMovimento'
+import { EstadoVazio } from '@/ui/EstadoVazio'
+import { ErroDaTela } from '@/ui/Falha'
+import { LinhaDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
+import { MenuDeAcoes } from '@/ui/FolhaNaTela'
 import { Segmentos } from '@/ui/Segmentos'
-import { TextoAnunciado } from '@/ui/TextoAnunciado'
+import { Sol } from '@/ui/Sol'
+import { Texto } from '@/ui/Texto'
+import { compartilharTexto } from '@/utilidades/compartilhar'
+import {
+  dataDoInstante,
+  formatarDataPorExtenso,
+  hojeNoFuso,
+  instanteDeDataEHora,
+  formatarHora,
+  somarDias,
+  type DataLocal,
+} from '@/utilidades/datas'
 import { parametro } from '@/utilidades/parametros'
 
 import { useFusoDaComunidade } from '../comunidade/consultas'
 import { usePode } from '../comunidade/permissoes'
+import { useResponderComDesfazer, useMinhasEscalas } from '../escalas/consultas'
+import { useRespostasOtimistas } from '../escalas/respostasOtimistas'
 import { useEventosNoPeriodo } from '../eventos/consultas'
 import { FolhaNovaProgramacao } from '../eventos/FolhaNovaProgramacao'
-import { ListaDeEncontros } from '../eventos/ListaDeEncontros'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { TelaDoApp } from '../navegacao/TelaDoApp'
-import {
-  agruparPorDia,
-  descreverPeriodo,
-  intervaloDoModo,
-  limitesParaApi,
-  NOMES_DOS_PASSOS,
-  passo,
-  periodoTemHoje,
-  type ModoDaAgenda,
-} from './calendario'
-import { CartaoDoDia, SobrancelhaDoDia } from './ListaDoDia'
-import { ESQUELETO_DA_GRADE } from './medidas'
-import { ESCALA_DA_LISTA, VistaDoMes } from './VistaDoMes'
+import { useEstaOnline } from '../offline/ProvedorOffline'
+import { CalendarioEmFolha } from './CalendarioEmFolha'
+import { useMinhasInscricoesDaAgenda } from './consultas'
+import { LinhaDoEncontro } from './LinhaDoEncontro'
+import { PedemAjuda } from './PedemAjuda'
+import { agruparPorSemana, dataCurtaDoEncontro, horarioELocal } from './semanas'
 
-export type VistaDaAgenda = 'calendario' | 'lista'
+export type FiltroDaAgenda = 'todos' | 'meu'
 
-/** `/agenda?vista=lista` (o redirecionamento da antiga aba Programas) abre na Lista. */
-function vistaDoParametro(valor: string | null): VistaDaAgenda | null {
-  return valor === 'calendario' || valor === 'lista' ? valor : null
-}
+/** Quanto do passado "Ver encontros passados" mostra (o histórico completo fica nos relatórios). */
+const DIAS_DO_PASSADO = 180
 
 export function TelaAgenda() {
   const { comunidadeAtiva } = useSessao()
@@ -55,244 +61,440 @@ export function TelaAgenda() {
 }
 
 /**
- * Aba Agenda (D57, D62): junta a lista dos encontros (a antiga aba Programas,
- * 3.4.1) e o calendário (3.3), com o seletor "Lista | Calendário" no topo e
- * "Novo encontro" ao lado do título para quem cria (Sábado padrão, Em branco
- * ou A partir de modelo). Abre sempre na Lista; o Calendário é a opção
- * secundária, para achar um dia distante, e só tem o mês (sem "Semana").
+ * Agenda (D69, seção 3.3): a lista por semana (Esta semana, Próxima semana, Mais adiante), com a
+ * parte de cada um na linha e a resposta ali mesmo; o filtro "Todos / Só o que é meu" (o que sobrou
+ * da aba Escalas); "Pedem ajuda" no alto; o Calendário numa folha, com "Dias em que posso
+ * ajudar"; e "Novo encontro" para quem cria. Links de fora: `?filtro=meu`, `?vista=calendario`,
+ * `?vista=disponibilidade` e `?dia=AAAA-MM-DD`.
  */
 function AgendaDaComunidade({ comunidadeId }: { comunidadeId: string }) {
   const pode = usePode()
+  const fuso = useFusoDaComunidade()
+  const online = useEstaOnline()
   const podeCriar = pode('evento', 'criar')
-  const pedida = vistaDoParametro(parametro(useLocalSearchParams<{ vista?: string }>().vista))
-  // Abre na Lista (D62): quem abre a agenda quer ver o próximo encontro, não 7 pontinhos num mês.
-  const [vista, setVista] = useState<VistaDaAgenda>(() => pedida ?? 'lista')
-  // A aba fica montada: um link novo (`?vista=`) troca o modo já aberto.
-  const [ultimaPedida, setUltimaPedida] = useState(pedida)
-  if (pedida !== ultimaPedida) {
-    setUltimaPedida(pedida)
-    if (pedida) setVista(pedida)
-  }
-  const [folhaAberta, setFolhaAberta] = useState(false)
-  const abrirFolha = () => setFolhaAberta(true)
+  const params = useLocalSearchParams<{ filtro?: string; vista?: string; dia?: string }>()
 
-  const seletor = (
-    <Segmentos
-      rotulo="Como ver a agenda"
-      valor={vista}
-      aoMudar={setVista}
-      segmentos={[
-        { valor: 'lista', rotulo: 'Lista' },
-        { valor: 'calendario', rotulo: 'Calendário' },
-      ]}
+  // A aba fica montada: um link novo troca o que já está aberto (o padrão "ultima pedida").
+  const filtroPedido = parametro(params.filtro) === 'meu' ? 'meu' : null
+  const vistaPedida = parametro(params.vista)
+  const diaPedido = parametro(params.dia)
+  const [filtro, setFiltro] = useState<FiltroDaAgenda>(filtroPedido ?? 'todos')
+  const [ultimoFiltro, setUltimoFiltro] = useState(filtroPedido)
+  const [calendario, setCalendario] = useState({
+    aberto: vistaPedida === 'calendario' || vistaPedida === 'disponibilidade',
+    ajuda: vistaPedida === 'disponibilidade',
+    chave: 0,
+  })
+  const [ultimaVista, setUltimaVista] = useState(vistaPedida)
+  const [dia, setDia] = useState<DataLocal | null>(
+    diaPedido && /^\d{4}-\d{2}-\d{2}$/.test(diaPedido) ? diaPedido : null,
+  )
+  const [ultimoDia, setUltimoDia] = useState(diaPedido)
+  if (filtroPedido !== ultimoFiltro) {
+    setUltimoFiltro(filtroPedido)
+    if (filtroPedido) setFiltro(filtroPedido)
+  }
+  if (vistaPedida !== ultimaVista) {
+    setUltimaVista(vistaPedida)
+    if (vistaPedida === 'calendario' || vistaPedida === 'disponibilidade') {
+      setCalendario((c) => ({
+        aberto: true,
+        ajuda: vistaPedida === 'disponibilidade',
+        chave: c.chave + 1,
+      }))
+    }
+  }
+  if (diaPedido !== ultimoDia) {
+    setUltimoDia(diaPedido)
+    if (diaPedido && /^\d{4}-\d{2}-\d{2}$/.test(diaPedido)) setDia(diaPedido)
+  }
+  const [novoAberto, setNovoAberto] = useState(false)
+  const [menuDe, setMenuDe] = useState<ResumoDoEvento | null>(null)
+  const [verPassados, setVerPassados] = useState(false)
+
+  const hoje = hojeNoFuso(fuso)
+  const inicioDeHoje = instanteDeDataEHora(hoje, '00:00', fuso)
+  const proximos = useEventosNoPeriodo(comunidadeId, inicioDeHoje, null)
+  const doDia = useEventosNoPeriodo(
+    dia ? comunidadeId : null,
+    dia ? instanteDeDataEHora(dia, '00:00', fuso) : null,
+    dia ? instanteDeDataEHora(somarDias(dia, 1), '00:00', fuso) : null,
+  )
+  const passados = useEventosNoPeriodo(
+    verPassados ? comunidadeId : null,
+    instanteDeDataEHora(somarDias(hoje, -DIAS_DO_PASSADO), '00:00', fuso),
+    inicioDeHoje,
+  )
+  const escalas = useMinhasEscalas(comunidadeId)
+  const inscricoes = useMinhasInscricoesDaAgenda(comunidadeId)
+  const otimistas = useRespostasOtimistas()
+  const { aceitar, recusar } = useResponderComDesfazer(comunidadeId)
+
+  const partesPorEncontro = new Map<string, MinhaEscala[]>()
+  for (const e of escalas.data ?? []) {
+    partesPorEncontro.set(e.eventoId, [...(partesPorEncontro.get(e.eventoId) ?? []), e])
+  }
+  const inscritos = new Set((inscricoes.data ?? []).map((i) => i.evento.id))
+  const minha = (e: ResumoDoEvento) =>
+    (partesPorEncontro.get(e.id)?.length ?? 0) > 0 || inscritos.has(e.id)
+
+  const base = dia ? doDia : proximos
+  const todos = (base.data ?? []).filter((e) => e.status !== 'encerrado' || dia !== null)
+  const visiveis = filtro === 'meu' ? todos.filter(minha) : todos
+  const rascunhos = podeCriar
+    ? (proximos.data ?? []).filter((e) => e.status === 'rascunho').length
+    : 0
+  const grupos = dia ? [] : agruparPorSemana(visiveis, hoje)
+
+  const abrir = (e: ResumoDoEvento) =>
+    router.push({ pathname: '/evento/[eventoId]', params: { eventoId: e.id } })
+  const abrirCalendario = (ajuda: boolean) =>
+    setCalendario((c) => ({ aberto: true, ajuda, chave: c.chave + 1 }))
+  const marcarOProximo = () => router.push('/evento/igual-ao-ultimo')
+
+  const linha = (e: ResumoDoEvento) => (
+    <LinhaDoEncontro
+      key={e.id}
+      evento={e}
+      partes={partesPorEncontro.get(e.id) ?? []}
+      inscrito={inscritos.has(e.id)}
+      otimistas={otimistas}
+      semInternet={!online}
+      aoAbrir={() => abrir(e)}
+      aoSegurar={() => setMenuDe(e)}
+      aoAceitar={(p) =>
+        aceitar({
+          atribuicaoId: p.id,
+          eventoInicio: p.eventoInicio,
+          fuso: e.fuso,
+          funcao: p.funcao,
+          etapaTitulo: p.etapaTitulo,
+        })
+      }
+      aoRecusar={(p) =>
+        recusar({
+          atribuicaoId: p.id,
+          eventoInicio: p.eventoInicio,
+          fuso: e.fuso,
+          funcao: p.funcao,
+          etapaTitulo: p.etapaTitulo,
+        })
+      }
     />
   )
-  // Criar é a ação principal: "Novo encontro" escrito, não só um "+" (auditoria U-06).
+
+  const salvaEm =
+    proximos.dataUpdatedAt > 0
+      ? formatarHora(new Date(proximos.dataUpdatedAt).toISOString(), fuso)
+      : null
+
   const acao = podeCriar ? (
     <Botao
       titulo="Novo encontro"
       icone="adicionar"
       variante="secundario"
-      aoPressionar={abrirFolha}
+      tamanho="medio"
+      aoPressionar={() => setNovoAberto(true)}
     />
   ) : undefined
 
   return (
-    <>
-      {vista === 'lista' ? (
-        <ListaDeEncontros
-          comunidadeId={comunidadeId}
-          seletor={seletor}
-          {...(acao ? { acao } : {})}
-          aoCriar={abrirFolha}
-          aoVerCalendario={() => setVista('calendario')}
+    <TelaDoApp titulo="Agenda" {...(acao ? { acaoComTexto: acao } : {})}>
+      {!online ? (
+        <Aviso
+          tipo="alerta"
+          titulo={`Sem internet. Você vê a última versão${salvaEm ? `, salva às ${salvaEm}` : ''}.`}
+        />
+      ) : null}
+      <EntradaEmCascata ordem={1}>
+        <View style={{ gap: ESPACO.e12 }}>
+          <Segmentos
+            rotulo="Filtrar encontros"
+            valor={filtro}
+            aoMudar={setFiltro}
+            segmentos={[
+              { valor: 'todos', rotulo: 'Todos' },
+              { valor: 'meu', rotulo: 'Só o que é meu' },
+            ]}
+          />
+          <View
+            style={{
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: ESPACO.e8,
+            }}
+          >
+            <Botao
+              titulo="Calendário"
+              icone="agenda"
+              variante="secundario"
+              tamanho="medio"
+              aoPressionar={() => abrirCalendario(false)}
+            />
+            {rascunhos > 0 ? <Chip situacao="rascunho" texto={`Rascunhos (${rascunhos})`} /> : null}
+          </View>
+        </View>
+      </EntradaEmCascata>
+
+      {dia ? (
+        <View
+          style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8, flexWrap: 'wrap' }}
+        >
+          <Texto variante="rotulo" style={{ flex: 1 }}>
+            {`Só o dia ${formatarDataPorExtenso(dia, false)}`}
+          </Texto>
+          <Botao titulo="Ver todos" variante="terciario" aoPressionar={() => setDia(null)} />
+        </View>
+      ) : null}
+
+      {base.isPending ? (
+        base.fetchStatus === 'paused' ? (
+          <Aviso tipo="alerta" titulo="Sem internet. A agenda volta quando a conexão voltar." />
+        ) : (
+          <Esqueleto rotulo="Carregando a agenda">
+            <LinhaDeEsqueleto altura={88} />
+            <LinhaDeEsqueleto altura={88} />
+            <LinhaDeEsqueleto altura={88} />
+          </Esqueleto>
+        )
+      ) : base.error ? (
+        <ErroDaTela
+          erro={base.error}
+          titulo="Não deu para carregar a agenda"
+          aoTentarDeNovo={() => void base.refetch()}
         />
       ) : (
-        <Calendario comunidadeId={comunidadeId} seletor={seletor} {...(acao ? { acao } : {})} />
+        <>
+          <PedemAjuda comunidadeId={comunidadeId} semInternet={!online} />
+          {visiveis.length === 0 ? (
+            <Vazio
+              filtro={filtro}
+              dia={dia}
+              podeCriar={podeCriar}
+              aoMarcar={marcarOProximo}
+              aoAjudar={() => abrirCalendario(true)}
+              aoVerTodos={() => {
+                setDia(null)
+                setFiltro('todos')
+              }}
+            />
+          ) : dia ? (
+            <View style={{ gap: ESPACO.e12 }}>{visiveis.map(linha)}</View>
+          ) : (
+            grupos.map((g, i) => (
+              <EntradaEmCascata key={g.grupo} ordem={Math.min(i + 2, 5)}>
+                <View style={{ gap: ESPACO.e8 }}>
+                  <Texto variante="tituloItem" nivel={2} accessibilityRole="header">
+                    {g.rotulo}
+                  </Texto>
+                  <View style={{ gap: ESPACO.e12 }}>{g.itens.map(linha)}</View>
+                </View>
+              </EntradaEmCascata>
+            ))
+          )}
+        </>
       )}
-      {podeCriar ? (
-        <FolhaNovaProgramacao aberta={folhaAberta} aoFechar={() => setFolhaAberta(false)} />
+
+      {!dia ? (
+        <View style={{ gap: ESPACO.e12 }}>
+          <View style={{ alignItems: 'center' }}>
+            <Botao
+              titulo={verPassados ? 'Esconder encontros passados' : 'Ver encontros passados'}
+              variante="terciario"
+              aoPressionar={() => setVerPassados((v) => !v)}
+            />
+          </View>
+          {verPassados ? (
+            passados.isPending ? (
+              <Esqueleto rotulo="Carregando os encontros passados">
+                <LinhaDeEsqueleto altura={88} />
+              </Esqueleto>
+            ) : passados.error ? (
+              <ErroDaTela
+                erro={passados.error}
+                titulo="Não deu para carregar os encontros passados"
+                aoTentarDeNovo={() => void passados.refetch()}
+              />
+            ) : (passados.data ?? []).length === 0 ? (
+              <Texto variante="corpo" cor="textoSuave">
+                Nenhum encontro nos últimos meses.
+              </Texto>
+            ) : (
+              <View style={{ gap: ESPACO.e12 }}>
+                <Texto variante="tituloItem" nivel={2} accessibilityRole="header">
+                  Encontros passados
+                </Texto>
+                {[...(passados.data ?? [])].reverse().map(linha)}
+              </View>
+            )
+          ) : null}
+        </View>
       ) : null}
-    </>
-  )
-}
 
-/** Só o mês (D62): para 1 a 3 encontros por semana, a Lista e o mês bastam; "Semana" saiu. */
-type ModoDoCalendario = Extract<ModoDaAgenda, 'mes'>
-
-/**
- * Calendário (3.3 e quadro 06): só o mês; a linha do período
- * com o título em `tituloCartao`, o terciário "Hoje" (fora do período atual)
- * e os botões só ícone de anterior e próximo; a grade num cartão de vidro e,
- * abaixo, o dia escolhido.
- */
-function Calendario({
-  comunidadeId,
-  seletor,
-  acao,
-}: {
-  comunidadeId: string
-  seletor: ReactNode
-  acao?: ReactNode
-}) {
-  const fuso = useFusoDaComunidade()
-  const pode = usePode()
-  const podeCriar = pode('evento', 'criar')
-  const largo = useLayoutLargo()
-  const hoje = hojeNoFuso(fuso)
-  const modo: ModoDoCalendario = 'mes'
-  const [referencia, setReferencia] = useState<DataLocal>(hoje)
-  const [selecionado, setSelecionado] = useState<DataLocal>(hoje)
-  const intervalo = intervaloDoModo(modo, referencia)
-  const { de, ate } = limitesParaApi(intervalo, fuso)
-  const eventos = useEventosNoPeriodo(comunidadeId, de, ate)
-  const porDia = agruparPorDia(eventos.data ?? [])
-  const pronto = !eventos.isPending && !eventos.error
-
-  function mover(sentido: 1 | -1) {
-    const nova = passo(modo, referencia, sentido)
-    setReferencia(nova)
-    setSelecionado(nova)
-  }
-
-  function irParaHoje() {
-    setReferencia(hoje)
-    setSelecionado(hoje)
-  }
-
-  const controles = (
-    <>
-      {seletor}
-      <LinhaDoPeriodo
-        titulo={descreverPeriodo(modo, referencia)}
-        nomes={NOMES_DOS_PASSOS[modo]}
-        mostrarHoje={!periodoTemHoje(modo, referencia, hoje)}
-        aoIrParaHoje={irParaHoje}
-        aoMover={mover}
-      />
-    </>
-  )
-
-  const grade = eventos.isPending ? (
-    eventos.fetchStatus === 'paused' ? (
-      <Aviso tipo="alerta" titulo="Sem conexão: a agenda volta quando a internet voltar">
-        O que foi baixado neste aparelho continua no Início.
-      </Aviso>
-    ) : (
-      <EsqueletoDaAgenda />
-    )
-  ) : eventos.error ? (
-    <ErroDaTela
-      erro={eventos.error}
-      oQue="a agenda"
-      aoTentarDeNovo={() => void eventos.refetch()}
-    />
-  ) : (
-    <VistaDoMes
-      referencia={referencia}
-      hoje={hoje}
-      selecionado={selecionado}
-      porDia={porDia}
-      aoEscolher={setSelecionado}
-    />
-  )
-
-  const painelDoDia = pronto ? (
-    <View style={{ gap: ESPACO.e8 }}>
-      <SobrancelhaDoDia
-        dia={selecionado}
+      {podeCriar ? (
+        <FolhaNovaProgramacao aberta={novoAberto} aoFechar={() => setNovoAberto(false)} />
+      ) : null}
+      <CalendarioEmFolha
+        key={calendario.chave}
+        aberta={calendario.aberto}
+        aoFechar={() => setCalendario((c) => ({ ...c, aberto: false }))}
+        comunidadeId={comunidadeId}
+        fuso={fuso}
         hoje={hoje}
-        quantidade={porDia.get(selecionado)?.length ?? 0}
+        modoDeAjudaInicial={calendario.ajuda}
+        aoEscolherDia={(d) => {
+          setCalendario((c) => ({ ...c, aberto: false }))
+          setDia(d)
+          setFiltro('todos')
+        }}
       />
-      <CartaoDoDia
-        dia={selecionado}
-        eventos={porDia.get(selecionado) ?? []}
-        podeCriar={podeCriar}
+      <MenuDaLinha
+        evento={menuDe}
+        organiza={podeCriar}
+        podeCancelar={pode('evento', 'cancelar_ou_adiar')}
+        aoFechar={() => setMenuDe(null)}
       />
-    </View>
-  ) : null
-
-  if (largo) {
-    return (
-      <TelaDoApp titulo="Agenda" rolar={false} larga {...(acao ? { acaoComTexto: acao } : {})}>
-        <LayoutDividido
-          rotuloDoDetalhe="Dia escolhido"
-          lista={
-            <>
-              {controles}
-              {grade}
-            </>
-          }
-          detalhe={painelDoDia}
-        />
-      </TelaDoApp>
-    )
-  }
-
-  return (
-    <TelaDoApp titulo="Agenda" {...(acao ? { acaoComTexto: acao } : {})}>
-      {controles}
-      {grade}
-      {painelDoDia}
     </TelaDoApp>
   )
 }
 
-/**
- * Linha do período: o título à esquerda, anunciado quando muda; à direita,
- * "Hoje" (só fora do período atual) e os só ícone de 44 com 8 entre eles.
- * Com fonte grande, os botões descem para baixo do título.
- */
-function LinhaDoPeriodo({
-  titulo,
-  nomes,
-  mostrarHoje,
-  aoIrParaHoje,
-  aoMover,
+/** Os vazios da Agenda, com os textos do documento (seção 3.3) e uma ação sempre que a pessoa pode agir. */
+function Vazio({
+  filtro,
+  dia,
+  podeCriar,
+  aoMarcar,
+  aoAjudar,
+  aoVerTodos,
 }: {
-  titulo: string
-  nomes: { anterior: string; proximo: string }
-  mostrarHoje: boolean
-  aoIrParaHoje: () => void
-  aoMover: (sentido: 1 | -1) => void
+  filtro: FiltroDaAgenda
+  dia: DataLocal | null
+  podeCriar: boolean
+  aoMarcar: () => void
+  aoAjudar: () => void
+  aoVerTodos: () => void
 }) {
-  const { fontScale } = useWindowDimensions()
-  const empilhar = fontScale >= ESCALA_DA_LISTA
-  return (
-    <View
-      style={{
-        flexDirection: empilhar ? 'column' : 'row',
-        alignItems: empilhar ? 'flex-start' : 'center',
-        gap: ESPACO.e12,
-      }}
-    >
-      <TextoAnunciado soMudancas variante="tituloCartao" style={empilhar ? null : { flex: 1 }}>
-        {titulo}
-      </TextoAnunciado>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8 }}>
-        {mostrarHoje ? (
-          <Botao
-            titulo="Hoje"
-            variante="terciario"
-            dica="Volta para o período de hoje."
-            aoPressionar={aoIrParaHoje}
-          />
-        ) : null}
-        <BotaoIcone icone="voltar" rotulo={nomes.anterior} aoPressionar={() => aoMover(-1)} />
-        <BotaoIcone icone="avancar" rotulo={nomes.proximo} aoPressionar={() => aoMover(1)} />
+  const sol = (
+    <View style={{ alignItems: 'center' }}>
+      <Sol pose="escondido" lado={96} />
+    </View>
+  )
+  if (dia) {
+    return (
+      <View style={{ gap: ESPACO.e12 }}>
+        {sol}
+        <EstadoVazio
+          icone="agenda"
+          titulo="Nenhum encontro neste dia."
+          descricao="Escolha outro dia no calendário ou veja a lista inteira."
+          acao={{ titulo: 'Ver todos os encontros', aoPressionar: aoVerTodos }}
+        />
       </View>
+    )
+  }
+  if (filtro === 'meu') {
+    return (
+      <View style={{ gap: ESPACO.e12 }}>
+        {sol}
+        <EstadoVazio
+          icone="agenda"
+          titulo="Você não tem nenhuma parte nos próximos encontros."
+          descricao="Se quiser ajudar, diga em quais dias você pode."
+          acao={{ titulo: 'Dias em que posso ajudar', aoPressionar: aoAjudar }}
+        />
+      </View>
+    )
+  }
+  return (
+    <View style={{ gap: ESPACO.e12 }}>
+      {sol}
+      <EstadoVazio
+        icone="agenda"
+        titulo="Nenhum encontro marcado."
+        descricao={
+          podeCriar
+            ? 'O Sábado padrão já vem com o roteiro de sempre.'
+            : 'Quando a liderança marcar o próximo, ele aparece aqui.'
+        }
+        {...(podeCriar
+          ? { acao: { titulo: 'Marcar o próximo sábado', aoPressionar: aoMarcar } }
+          : {})}
+      />
     </View>
   )
 }
 
-/** Esqueleto da grade, com a altura do que vai chegar. */
-function EsqueletoDaAgenda() {
-  const sobrancelha = Math.round(TIPO.sobrancelha.altura * 0.6)
+/**
+ * O menu de pressionar e segurar (padrão 5.7): só o que já existe no "Mais" do encontro. Nada
+ * exclusivo do gesto: cada item também está dentro do encontro.
+ */
+function MenuDaLinha({
+  evento,
+  organiza,
+  podeCancelar,
+  aoFechar,
+}: {
+  evento: ResumoDoEvento | null
+  organiza: boolean
+  podeCancelar: boolean
+  aoFechar: () => void
+}) {
+  async function compartilhar(e: ResumoDoEvento) {
+    const dia = dataCurtaDoEncontro(e.inicio, e.fuso)
+    await compartilharTexto(
+      `${e.titulo}, ${dia}, ${formatarHora(e.inicio, e.fuso)}${e.localNome ? `, ${e.localNome}` : ''}.`,
+    )
+  }
+  const e = evento
   return (
-    <Esqueleto rotulo="Carregando a agenda">
-      <BlocoDeEsqueleto altura={ESQUELETO_DA_GRADE.mes} raio={RAIO.cartao} />
-      <BlocoDeEsqueleto largura="48%" altura={sobrancelha} />
-      <CartaoDeEsqueleto />
-    </Esqueleto>
+    <MenuDeAcoes
+      aberto={e !== null}
+      titulo={e?.titulo ?? 'Encontro'}
+      aoFechar={aoFechar}
+      acoes={
+        e
+          ? [
+              {
+                titulo: 'Ver o encontro',
+                icone: 'eventos',
+                descricao: horarioELocal(e),
+                navega: true,
+                aoPressionar: () =>
+                  router.push({ pathname: '/evento/[eventoId]', params: { eventoId: e.id } }),
+              },
+              {
+                titulo: 'Compartilhar',
+                icone: 'compartilhar',
+                aoPressionar: () => compartilhar(e),
+              },
+              organiza && {
+                titulo: 'Copiar este encontro',
+                icone: 'duplicar',
+                navega: true,
+                aoPressionar: () =>
+                  router.push({ pathname: '/evento/igual-ao-ultimo', params: { origem: e.id } }),
+              },
+              podeCancelar &&
+                (e.status === 'publicado' || e.status === 'adiado') && {
+                  titulo: 'Cancelar ou adiar',
+                  icone: 'cancelar',
+                  destrutiva: true,
+                  navega: true,
+                  aoPressionar: () =>
+                    router.push({
+                      pathname: '/evento/[eventoId]/status',
+                      params: { eventoId: e.id, acao: 'adiar' },
+                    }),
+                },
+            ]
+          : []
+      }
+    />
   )
 }
+
+/** Usado pelos testes: o dia (AAAA-MM-DD) de um encontro no fuso dele. */
+export const diaDoEncontro = (e: Pick<ResumoDoEvento, 'inicio' | 'fuso'>) =>
+  dataDoInstante(e.inicio, e.fuso)

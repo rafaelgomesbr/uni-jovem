@@ -59,6 +59,11 @@ export default function LayoutAutenticado() {
         <Stack.Screen name="convidar" options={{ title: 'Convidar' }} />
         {/* ADR 0007: entrar sem convite, criar comunidade e o código da comunidade. */}
         <Stack.Screen name="comece-por-aqui" options={{ title: 'Outra comunidade' }} />
+        {/* Degrau antes do Início, uma vez por entrada: sem gesto de voltar para o código. */}
+        <Stack.Screen
+          name="boas-vindas"
+          options={{ title: 'Boas-vindas', gestureEnabled: false }}
+        />
         <Stack.Screen name="tenho-um-codigo" options={{ title: 'Tenho um código' }} />
         <Stack.Screen name="procurar-comunidade" options={{ title: 'Procurar comunidade' }} />
         <Stack.Screen name="comunidade-encontrada/[idPublico]" options={{ title: 'Comunidade' }} />
@@ -69,12 +74,19 @@ export default function LayoutAutenticado() {
         />
         <Stack.Screen name="codigo-da-comunidade" options={{ title: 'Código da comunidade' }} />
         <Stack.Screen name="membro/[vinculoId]" options={{ title: 'Pessoa' }} />
+        <Stack.Screen name="pessoas" options={{ title: 'Pessoas' }} />
+        <Stack.Screen name="pedidos-de-entrada" options={{ title: 'Pedidos de entrada' }} />
         <Stack.Screen name="aparelhos" options={{ title: 'Aparelhos' }} />
         <Stack.Screen name="ativar-2fa" options={{ title: 'Segurança' }} />
         <Stack.Screen name="plataforma/index" options={{ title: 'Plataforma' }} />
         <Stack.Screen name="plataforma/nova" options={{ title: 'Nova comunidade' }} />
         <Stack.Screen name="plataforma/[comunidadeId]" options={{ title: 'Comunidade' }} />
         <Stack.Screen name="evento/novo" options={{ title: 'Novo encontro', ...telaCheia }} />
+        {/* "Igual ao último sábado" e "Marcar o próximo sábado" (D69): a conferência. */}
+        <Stack.Screen
+          name="evento/igual-ao-ultimo"
+          options={{ title: 'Igual ao último sábado', ...telaCheia }}
+        />
         <Stack.Screen name="evento/[eventoId]/index" options={{ title: 'Encontro' }} />
         <Stack.Screen name="evento/[eventoId]/editar" options={{ title: 'Editar', ...telaCheia }} />
         <Stack.Screen
@@ -106,14 +118,14 @@ export default function LayoutAutenticado() {
         />
         <Stack.Screen name="conta" options={{ title: 'Perfil' }} />
         <Stack.Screen name="conta/seguranca" options={{ title: 'Segurança' }} />
-        <Stack.Screen name="oracao/index" options={{ title: 'Oração' }} />
-        <Stack.Screen name="oracao/novo" options={{ title: 'Novo pedido' }} />
+        <Stack.Screen name="oracao/index" options={{ title: 'Pedidos de oração' }} />
+        <Stack.Screen name="oracao/novo" options={{ title: 'Pedir oração' }} />
         <Stack.Screen name="oracao/[pedidoId]" options={{ title: 'Pedido de oração' }} />
         <Stack.Screen name="sugestoes/index" options={{ title: 'Sugestões' }} />
-        <Stack.Screen name="sugestoes/nova" options={{ title: 'Nova sugestão' }} />
+        <Stack.Screen name="sugestoes/nova" options={{ title: 'Sugerir uma ideia' }} />
         <Stack.Screen name="sugestoes/[sugestaoId]" options={{ title: 'Sugestão' }} />
         <Stack.Screen name="bloqueados" options={{ title: 'Pessoas bloqueadas' }} />
-        <Stack.Screen name="conteudos/index" options={{ title: 'Conteúdos' }} />
+        <Stack.Screen name="conteudos/index" options={{ title: 'Biblioteca' }} />
         <Stack.Screen name="conteudos/[tipo]/novo" options={{ title: 'Novo conteúdo' }} />
         <Stack.Screen name="conteudos/[tipo]/[itemId]" options={{ title: 'Conteúdo' }} />
         <Stack.Screen name="avisos/index" options={{ title: 'Avisos' }} />
@@ -125,7 +137,7 @@ export default function LayoutAutenticado() {
         <Stack.Screen name="locais/[localId]" options={{ title: 'Local' }} />
         <Stack.Screen name="modelos" options={{ title: 'Modelos' }} />
         <Stack.Screen name="denuncias" options={{ title: 'Denúncias' }} />
-        <Stack.Screen name="notificacoes" options={{ title: 'Ajustes de notificação' }} />
+        <Stack.Screen name="notificacoes" options={{ title: 'Quando o app me avisa' }} />
         <Stack.Screen name="caixa-de-notificacoes" options={{ title: 'Notificações' }} />
         <Stack.Screen name="versiculo/index" options={{ title: 'Versículo do dia' }} />
         <Stack.Screen name="versiculo/traducao" options={{ title: 'Sobre a tradução' }} />
@@ -134,6 +146,8 @@ export default function LayoutAutenticado() {
         <Stack.Screen name="pendencias" options={{ title: 'Uso sem internet' }} />
         {/* Antiga aba Programas (D57): redireciona para a Agenda no modo Lista. */}
         <Stack.Screen name="programacoes" options={{ title: 'Agenda' }} />
+        {/* Antiga aba Escalas (D68): redireciona para a Agenda, "Só o que é meu". */}
+        <Stack.Screen name="escalas/index" options={{ title: 'Agenda' }} />
         <Stack.Screen name="excluir-conta" options={{ title: 'Excluir conta' }} />
       </Stack>
       {/* A barra de abas também nas telas empilhadas de navegação (D56), por cima da pilha. */}

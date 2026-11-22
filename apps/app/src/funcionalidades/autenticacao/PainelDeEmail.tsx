@@ -15,7 +15,7 @@ import { CampoDeAcesso } from '@/ui/CampoDeAcesso'
 import type { NoDeTexto, NoDeView } from '@/ui/foco'
 import { Icone } from '@/ui/Icone'
 import { LinkDeAcesso } from '@/ui/LinkDeAcesso'
-import { MarcaDoSol } from '@/ui/MarcaDoSol'
+import { Sol } from '@/ui/Sol'
 import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
 import { FaseDoPainel } from '@/ui/TrocaDePainel'
@@ -165,7 +165,7 @@ export function PainelDeEmail({
             </Texto>
           </LinkDeAcesso>
           <FaseDoPainel tipo="entra" de={0.6}>
-            <MarcaDoSol lado={LADO_DO_SOL.mini} etapa="estatica" halo={false} />
+            <Sol pose="pleno" lado={LADO_DO_SOL.mini} halo={false} />
           </FaseDoPainel>
         </View>
 

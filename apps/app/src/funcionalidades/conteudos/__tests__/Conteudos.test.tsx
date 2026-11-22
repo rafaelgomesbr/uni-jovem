@@ -98,3 +98,67 @@ describe('conteúdos (3.7.3)', () => {
     ).toMatchObject({ tom: 'A', versao: 3 })
   })
 })
+
+describe('Biblioteca no visual A (D71)', () => {
+  beforeEach(() => jest.clearAllMocks())
+
+  test('o título é Biblioteca e quem gerencia vê "Nova" escrito, não só um símbolo', async () => {
+    jest.mocked(useLocalSearchParams).mockReturnValue({ tipo: 'musicas' })
+    await renderizarTela(<TelaConteudos />, {
+      papel: 'organizador',
+      rotas: {
+        [`GET ${BASE}/conteudos/musicas`]: () => ({ status: 200, corpo: { itens: [MUSICA] } }),
+      },
+    })
+    expect(await screen.findByRole('header', { name: 'Biblioteca' })).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Adicionar música' })).toHaveTextContent('Nova')
+    // Música sem cifra no texto (a lista só diz que há, nunca traz a cifra).
+    expect(screen.queryByText('G D Em C')).toBeNull()
+  })
+
+  test('vazio: o sol, o porquê e a ação para quem organiza', async () => {
+    jest.mocked(useLocalSearchParams).mockReturnValue({ tipo: 'musicas' })
+    await renderizarTela(<TelaConteudos />, {
+      papel: 'organizador',
+      rotas: { [`GET ${BASE}/conteudos/musicas`]: () => ({ status: 200, corpo: { itens: [] } }) },
+    })
+    expect(await screen.findByText('Nenhuma música cadastrada')).toBeOnTheScreen()
+    expect(screen.getAllByRole('button', { name: 'Adicionar música' })).toHaveLength(2)
+  })
+
+  test('vazio para membro: espera a organização, sem botão', async () => {
+    jest.mocked(useLocalSearchParams).mockReturnValue({ tipo: 'musicas' })
+    await renderizarTela(<TelaConteudos />, {
+      papel: 'membro',
+      rotas: { [`GET ${BASE}/conteudos/musicas`]: () => ({ status: 200, corpo: { itens: [] } }) },
+    })
+    expect(
+      await screen.findByText('Quando a organização cadastrar, aparece aqui.'),
+    ).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: 'Adicionar música' })).toBeNull()
+  })
+
+  test('erro: texto humano e "Tentar de novo"', async () => {
+    jest.mocked(useLocalSearchParams).mockReturnValue({ tipo: 'musicas' })
+    await renderizarTela(<TelaConteudos />, {
+      papel: 'membro',
+      rotas: {
+        [`GET ${BASE}/conteudos/musicas`]: () => ({
+          status: 500,
+          corpo: { erro: 'interno', mensagem: 'Algo deu errado do nosso lado. Tente de novo.' },
+        }),
+      },
+    })
+    expect(await screen.findByText('Não deu para carregar as músicas')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeOnTheScreen()
+  })
+
+  test('carregando: esqueleto com a forma das linhas', async () => {
+    jest.mocked(useLocalSearchParams).mockReturnValue({ tipo: 'musicas' })
+    await renderizarTela(<TelaConteudos />, {
+      papel: 'membro',
+      rotas: { [`GET ${BASE}/conteudos/musicas`]: () => new Promise<never>(() => {}) },
+    })
+    expect(await screen.findByLabelText('Carregando músicas')).toBeOnTheScreen()
+  })
+})

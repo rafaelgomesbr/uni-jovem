@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import { ALTURA, ESPACO } from '@uj/tokens'
 import { router } from 'expo-router'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { View } from 'react-native'
 
 import { api } from '@/servicos/api'
@@ -12,20 +12,25 @@ import { type AcaoDoMenu, MenuDeAcoes } from '@/ui/FolhaNaTela'
 import type { NomeDoIcone } from '@/ui/Icone'
 import { useTravaDeEnvio } from '@/ui/navegacao'
 import { mostrarToast } from '@/ui/Toast'
+import { mostrarDesfazer } from '@/ui/ToastComDesfazer'
 import { confirmar } from '@/utilidades/confirmar'
 
 import { usePode } from '../comunidade/permissoes'
 import { textoDoPreparo } from '../offline/formatos'
 import { useOffline, usePacoteDoEvento } from '../offline/ProvedorOffline'
 import { naComunidade, useInvalidarEventos } from './consultas'
-import { ehHoje, useAoVivoNoDia } from './DestaqueDoEvento'
-import { acoesDeStatus, dataJaPassou, podeIrAoVivo } from './regras'
+import { pessoasDistintas, quantasPessoas } from './Convocacao'
+import { acoesDeStatus, dataJaPassou, faseDoEncontro, podeIrAoVivo } from './regras'
+import type { LembreteDoEncontro } from './useLembrete'
 
-interface AcaoPrincipal {
+export interface AcaoPrincipal {
   titulo: string
   icone?: NomeDoIcone
   aoPressionar: () => void
   carregando: boolean
+  desabilitado?: boolean
+  /** Por que está desabilitado, em palavras (o botão desabilitado sempre diz o motivo). */
+  motivo?: string
 }
 
 interface Opcoes {
@@ -33,34 +38,46 @@ interface Opcoes {
   comunidadeId: string
   /** Para onde ir depois de excluir (na tela própria, voltar; no painel, fechar o painel). */
   aoSair: () => void
+  /** O lembrete a quem não respondeu: é o primário do encontro publicado ainda longe. */
+  lembrete: LembreteDoEncontro
+  /** Mostra a parte "Convocados" (o primário da véspera: "Ver convocados"). */
+  aoVerConvocados: () => void
+  /** Compartilhar o encontro (o botão do topo faz o mesmo). */
+  aoCompartilhar: () => void
 }
 
 /**
- * Ações sobre o evento (3.4.2, item 9): um primário contextual ("Publicar"
- * no rascunho, "Abrir ao vivo" no dia, "Editar" nos outros casos) e a folha
- * "Mais ações" com o resto. No dia, quem registra presença ganha "Check-in"
- * na própria barra: é a tarefa da porta, e no "Mais" ninguém achava (U-04).
- * Cada ação só aparece se o papel permite (matriz de `@uj/dominio`) e se a
- * transição de situação é válida. A API confere de novo.
+ * Ações sobre o encontro (D69, 3.4): um primário que depende da hora ("Publicar e avisar 11
+ * pessoas" no rascunho, "Lembrar os 2", "Fazer check-in", "Conduzir ao vivo", "Marcar o próximo
+ * sábado") e o menu "Mais" em grupos. Publicar não pergunta "tem certeza?": mostra o Desfazer de
+ * 10 s e só então avisa as pessoas. Cada ação só aparece se o papel permite (matriz de
+ * `@uj/dominio`) e se a transição de situação é válida. A API confere de novo.
  */
-export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
+export function useAcoesDoEvento({
+  evento,
+  comunidadeId,
+  aoSair,
+  lembrete,
+  aoVerConvocados,
+  aoCompartilhar,
+}: Opcoes) {
   const pode = usePode()
   const invalidar = useInvalidarEventos(comunidadeId)
   const offline = useOffline()
   const guardado = usePacoteDoEvento(evento.id).data ?? null
-  const noDia = useAoVivoNoDia(evento)
   const travaDoModelo = useTravaDeEnvio()
   const [menuAberto, setMenuAberto] = useState(false)
+  const [publicando, setPublicando] = useState(false)
   const base = `${naComunidade(comunidadeId)}/eventos/${evento.id}`
   const acoes = acoesDeStatus(evento.status)
   const params = { eventoId: evento.id }
+  const fase = faseDoEncontro(evento)
+  const avisaria = pessoasDistintas(evento.atribuicoes)
 
-  const mudarStatus = useMutation({
-    mutationFn: (status: 'publicado' | 'encerrado') => api.post(`${base}/status`, { status }),
-    onSuccess: async (_r, status) => {
-      mostrarToast({
-        texto: status === 'publicado' ? 'Encontro publicado.' : 'Encontro encerrado.',
-      })
+  const encerrarMutacao = useMutation({
+    mutationFn: () => api.post(`${base}/status`, { status: 'encerrado' }),
+    onSuccess: async () => {
+      mostrarToast({ texto: 'Encontro encerrado.' })
       await invalidar(evento.id)
     },
   })
@@ -93,6 +110,7 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
     networkMode: 'always',
     onSuccess: () => mostrarToast({ texto: 'A cópia saiu deste aparelho.' }),
   })
+  const [erroAoPublicar, setErroAoPublicar] = useState<unknown>(null)
 
   const podeEditar = pode('evento', 'editar')
   const podePublicar = pode('evento', 'publicar') && acoes.publicar
@@ -102,29 +120,47 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
   const podeExcluir = pode('evento', 'excluir') && acoes.excluir
   const organiza = podeEditar || podePublicar || podeCancelarOuAdiar || podeDuplicar
   const conduz = pode('ao_vivo', 'conduzir')
-  const checkinNoDia =
-    pode('presenca', 'registrar') && podeIrAoVivo(evento.status) && ehHoje(evento)
+  const registraPresenca = pode('presenca', 'registrar') && podeIrAoVivo(evento.status)
+  const noPeriodoDoDia = fase === 'checkin' || fase === 'acontecendo'
+
+  /** Publica de verdade e avisa as pessoas: só roda depois dos 10 s do Desfazer. */
+  function enviarPublicacao() {
+    api
+      .post(`${base}/status`, { status: 'publicado' })
+      .then(async () => {
+        mostrarToast({
+          texto:
+            avisaria > 0
+              ? `Publicado. ${quantasPessoas(avisaria)} ${avisaria === 1 ? 'avisada' : 'avisadas'}.`
+              : 'Encontro publicado.',
+        })
+        await invalidar(evento.id)
+      })
+      .catch((erro: unknown) => setErroAoPublicar(erro))
+      .finally(() => setPublicando(false))
+  }
 
   async function publicar() {
-    const passou = dataJaPassou(evento.inicio)
-    const quemVe =
-      evento.visibilidade === 'publica'
-        ? 'Todos da comunidade passam a ver o encontro, e a página pública de inscrição fica no ar.'
-        : 'Todos da comunidade passam a ver o encontro na agenda.'
-    const ok = await confirmar(
-      passou
-        ? {
-            titulo: 'Esta data já passou',
-            mensagem: `O início marcado é anterior a agora: confira o dia e o ano. ${quemVe}`,
-            confirmar: 'Publicar mesmo assim',
-          }
-        : {
-            titulo: evento.status === 'adiado' ? 'Publicar de novo?' : 'Publicar este encontro?',
-            mensagem: quemVe,
-            confirmar: 'Publicar',
-          },
-    )
-    if (ok) mudarStatus.mutate('publicado')
+    setErroAoPublicar(null)
+    // Erro de ano: publicar uma data que já passou avisa gente à toa. Esta é a única pergunta que resta.
+    if (dataJaPassou(evento.inicio)) {
+      const ok = await confirmar({
+        titulo: 'Esta data já passou',
+        mensagem:
+          'O início marcado é anterior a agora: confira o dia e o ano. Publicado, o encontro aparece para todos da comunidade.',
+        confirmar: 'Publicar mesmo assim',
+      })
+      if (!ok) return
+    }
+    setPublicando(true)
+    mostrarDesfazer({
+      texto:
+        avisaria > 0
+          ? `Publicando e avisando ${quantasPessoas(avisaria)}.`
+          : 'Publicando o encontro.',
+      aoDesfazer: () => setPublicando(false),
+      aoConfirmar: enviarPublicacao,
+    })
   }
 
   async function encerrar() {
@@ -134,7 +170,7 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
         'Use quando o encontro já aconteceu. Depois de encerrado, ele não volta a ser publicado.',
       confirmar: 'Encerrar encontro',
     })
-    if (ok) mudarStatus.mutate('encerrado')
+    if (ok) encerrarMutacao.mutate()
   }
 
   async function pedirExclusao() {
@@ -157,29 +193,97 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
     if (ok) remover.mutate()
   }
 
-  const irParaStatus = (acao: 'cancelar' | 'adiar') =>
-    router.push({ pathname: '/evento/[eventoId]/status', params: { eventoId: evento.id, acao } })
+  const irParaStatus = () =>
+    router.push({
+      pathname: '/evento/[eventoId]/status',
+      params: { eventoId: evento.id, acao: 'adiar' },
+    })
   const editar = () => router.push({ pathname: '/evento/[eventoId]/editar', params })
   const abrirAoVivo = () => router.push({ pathname: '/evento/[eventoId]/ao-vivo', params })
   const abrirCheckin = () => router.push({ pathname: '/evento/[eventoId]/checkin', params })
+  const marcarOProximo = () => router.push('/evento/igual-ao-ultimo')
 
-  const primaria: AcaoPrincipal | null = !organiza
-    ? null
-    : podePublicar
-      ? {
-          titulo: evento.status === 'adiado' ? 'Publicar de novo' : 'Publicar',
-          aoPressionar: () => void publicar(),
-          carregando: mudarStatus.isPending && mudarStatus.variables === 'publicado',
-        }
-      : noDia
-        ? { titulo: 'Abrir ao vivo', aoPressionar: abrirAoVivo, carregando: false }
-        : podeEditar
-          ? { titulo: 'Editar', aoPressionar: editar, carregando: false }
+  const checkinPossivel = registraPresenca && (fase === 'checkin' || fase === 'acontecendo')
+  const aoVivoPossivel = conduz && podeIrAoVivo(evento.status) && noPeriodoDoDia
+
+  // O primário por estado: uma função decide o botão grande da barra.
+  let primaria: AcaoPrincipal | null = null
+  let secundaria: AcaoPrincipal | null = null
+  if (organiza) {
+    if (podePublicar) {
+      primaria = {
+        titulo: publicando
+          ? 'Publicado'
+          : evento.status === 'adiado'
+            ? 'Publicar de novo'
+            : avisaria > 0
+              ? `Publicar e avisar ${quantasPessoas(avisaria)}`
+              : 'Publicar',
+        ...(publicando ? { icone: 'check' as const } : {}),
+        aoPressionar: () => void publicar(),
+        carregando: false,
+        desabilitado: publicando,
+      }
+    } else if (evento.status === 'publicado') {
+      if (fase === 'terminou') {
+        primaria = podeDuplicar
+          ? { titulo: 'Marcar o próximo sábado', aoPressionar: marcarOProximo, carregando: false }
           : null
+      } else if (fase === 'acontecendo') {
+        if (aoVivoPossivel) {
+          primaria = { titulo: 'Conduzir ao vivo', aoPressionar: abrirAoVivo, carregando: false }
+        }
+        if (checkinPossivel) {
+          const check = {
+            titulo: 'Check-in',
+            icone: 'qr' as const,
+            aoPressionar: abrirCheckin,
+            carregando: false,
+          }
+          if (primaria) secundaria = check
+          else primaria = check
+        }
+      } else if (fase === 'checkin') {
+        if (checkinPossivel) {
+          primaria = {
+            titulo: 'Fazer check-in',
+            icone: 'qr',
+            aoPressionar: abrirCheckin,
+            carregando: false,
+          }
+        }
+        if (aoVivoPossivel) {
+          const vivo = { titulo: 'Abrir ao vivo', aoPressionar: abrirAoVivo, carregando: false }
+          if (primaria) secundaria = vivo
+          else primaria = vivo
+        }
+      } else if (fase === 'vespera' || fase === 'no_dia') {
+        primaria = { titulo: 'Ver convocados', aoPressionar: aoVerConvocados, carregando: false }
+        if (checkinPossivel) secundaria = null
+      } else if (lembrete.disponivel) {
+        primaria = {
+          titulo:
+            lembrete.estado.fase === 'esperando'
+              ? 'Enviando em 10 s'
+              : lembrete.estado.fase === 'enviado'
+                ? 'Lembrete enviado'
+                : `Lembrar ${lembrete.pendentes === 1 ? 'o 1' : `os ${lembrete.pendentes}`}`,
+          icone: lembrete.estado.fase === 'enviado' ? 'check' : 'sino',
+          aoPressionar: lembrete.pedir,
+          carregando: false,
+          desabilitado: lembrete.estado.fase !== 'ocioso' || !offline.online,
+          ...(!offline.online ? { motivo: 'Precisa de internet para avisar as pessoas.' } : {}),
+        }
+      }
+    }
+    if (!primaria && podeEditar && evento.status !== 'cancelado' && evento.status !== 'encerrado') {
+      primaria = { titulo: 'Editar', aoPressionar: editar, carregando: false }
+    }
+  }
 
   const validoAte = guardado ? (offline.validoAte ?? guardado.validoAte) : null
-  const deOrganizacao: (AcaoDoMenu | false)[] = organiza
-    ? noGrupo('Organizar', [
+  const doEncontro: (AcaoDoMenu | false)[] = organiza
+    ? noGrupo('Encontro', [
         podeEditar &&
           primaria?.titulo !== 'Editar' && {
             titulo: 'Editar',
@@ -188,11 +292,17 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
             aoPressionar: editar,
           },
         podeDuplicar && {
-          titulo: 'Duplicar',
+          titulo: 'Copiar este encontro',
           icone: 'duplicar',
-          descricao: 'Copia etapas, checklist, tarefas e materiais para outra data',
+          descricao: 'O roteiro e a equipe, numa data nova',
           navega: true,
-          aoPressionar: () => router.push({ pathname: '/evento/[eventoId]/duplicar', params }),
+          aoPressionar: () =>
+            router.push({ pathname: '/evento/igual-ao-ultimo', params: { origem: evento.id } }),
+        },
+        {
+          titulo: 'Compartilhar',
+          icone: 'compartilhar',
+          aoPressionar: aoCompartilhar,
         },
         podeModelo && {
           titulo: 'Salvar como modelo',
@@ -203,15 +313,16 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
         },
         !!evento.serieId &&
           podeEditar && {
-            titulo: 'Ver a repetição',
+            titulo: 'Repetição',
             icone: 'repetir',
+            descricao: 'Este encontro se repete sozinho',
             navega: true,
             aoPressionar: () =>
               router.push({ pathname: '/serie/[serieId]', params: { serieId: evento.serieId! } }),
           },
         conduz &&
           podeIrAoVivo(evento.status) &&
-          !noDia && {
+          !aoVivoPossivel && {
             titulo: 'Conduzir ao vivo',
             icone: 'aoVivo',
             navega: true,
@@ -223,10 +334,9 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
           navega: true,
           aoPressionar: () => router.push({ pathname: '/evento/[eventoId]/inscricoes', params }),
         },
-        // No dia, o check-in está na barra; aqui, só nos outros dias.
-        pode('presenca', 'registrar') &&
-          !checkinNoDia && {
-            titulo: 'Check-in de presença',
+        registraPresenca &&
+          !checkinPossivel && {
+            titulo: 'Check-in',
             icone: 'qr',
             navega: true,
             aoPressionar: abrirCheckin,
@@ -256,14 +366,16 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
           },
         ])
       : []
-  const destrutivas: (AcaoDoMenu | false)[] = organiza
-    ? noGrupo('Organizar', [
+  const cuidado: (AcaoDoMenu | false)[] = organiza
+    ? noGrupo('Cuidado', [
         podeCancelarOuAdiar &&
-          acoes.adiar && {
-            titulo: 'Adiar',
-            icone: 'relogio',
+          (acoes.adiar || acoes.cancelar) && {
+            titulo: 'Cancelar ou adiar',
+            icone: 'cancelar',
+            descricao: 'Avisa quem foi convocado e quem se inscreveu',
+            destrutiva: true,
             navega: true,
-            aoPressionar: () => irParaStatus('adiar'),
+            aoPressionar: irParaStatus,
           },
         podeCancelarOuAdiar &&
           acoes.encerrar && {
@@ -271,13 +383,6 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
             icone: 'encerrar',
             descricao: 'O encontro já aconteceu',
             aoPressionar: () => void encerrar(),
-          },
-        podeCancelarOuAdiar &&
-          acoes.cancelar && {
-            titulo: 'Cancelar encontro',
-            icone: 'cancelar',
-            destrutiva: true,
-            aoPressionar: () => irParaStatus('cancelar'),
           },
         podeExcluir && {
           titulo: 'Excluir rascunho',
@@ -287,13 +392,13 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
         },
       ])
     : []
-  const itens = [...deOrganizacao, ...doAparelho, ...destrutivas]
+  const itens = [...doEncontro, ...doAparelho, ...cuidado]
   const temMenu = itens.some(Boolean)
 
   const menu = (
     <MenuDeAcoes
       aberto={menuAberto}
-      titulo="Mais ações"
+      titulo="Mais"
       acoes={itens}
       aoFechar={() => setMenuAberto(false)}
     />
@@ -302,13 +407,14 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
   return {
     organiza,
     primaria,
-    /** No dia, para quem registra presença: abre o check-in direto da barra. */
-    checkin: checkinNoDia ? abrirCheckin : null,
+    secundaria,
     temMenu,
     menu,
     abrirMenu: () => setMenuAberto(true),
+    publicando,
     erro:
-      mudarStatus.error ??
+      erroAoPublicar ??
+      encerrarMutacao.error ??
       excluir.error ??
       salvarModelo.error ??
       preparar.error ??
@@ -319,12 +425,43 @@ export function useAcoesDoEvento({ evento, comunidadeId, aoSair }: Opcoes) {
 
 export type AcoesDoEvento = ReturnType<typeof useAcoesDoEvento>
 
-/** Põe as ações (as válidas) num grupo com título do menu "Mais ações". */
+/** Põe as ações (as válidas) num grupo com título do menu "Mais". */
 function noGrupo(grupo: string, acoes: (AcaoDoMenu | false)[]): (AcaoDoMenu | false)[] {
   return acoes.map((a) => a && { ...a, grupo })
 }
 
-const DICA_DO_MENU = 'Abre a folha com as outras ações do encontro.'
+/**
+ * Baixa o encontro sozinho quando faz sentido (D69, seção 5.10): publicado, a menos de 7 dias,
+ * de quem organiza, conduz ou tem parte, e ainda sem cópia neste aparelho. Uma tentativa por
+ * encontro e por abertura da tela; falhar não incomoda (o botão manual segue no "Mais"). Só
+ * existe no app nativo: na web não há onde guardar, e nada acontece.
+ */
+export function useBaixarSozinho(evento: DetalheDoEvento, interessa: boolean) {
+  const offline = useOffline()
+  const guardado = usePacoteDoEvento(evento.id)
+  const tentou = useRef<string | null>(null)
+  const fase = faseDoEncontro(evento)
+  const noPrazo = fase !== 'terminou' && evento.status === 'publicado' && prazoCurto(evento)
+  const quer =
+    interessa &&
+    noPrazo &&
+    offline.disponivel &&
+    offline.online &&
+    !guardado.isFetching &&
+    !guardado.data
+  const preparar = offline.prepararEvento
+  useEffect(() => {
+    if (!quer || tentou.current === evento.id) return
+    tentou.current = evento.id
+    preparar(evento.id).catch(() => undefined)
+  }, [quer, evento.id, preparar])
+}
+
+function prazoCurto(evento: Pick<DetalheDoEvento, 'inicio'>): boolean {
+  return Date.parse(evento.inicio) - Date.now() <= 7 * 86_400_000
+}
+
+const DICA_DO_MENU = 'Abre as outras ações do encontro.'
 
 /**
  * "… Mais": o "…" sozinho não diz "menu" para todo mundo (U-05). Vai direto
@@ -344,47 +481,33 @@ function botaoMais(acoes: AcoesDoEvento) {
   )
 }
 
-/** "Check-in" do dia: secundário ao lado do primário ("Abrir ao vivo"); sozinho, é o primário. */
-function BotaoCheckin({ acoes }: { acoes: AcoesDoEvento }) {
-  if (!acoes.checkin) return null
+function BotaoDaBarra({ acao, principal }: { acao: AcaoPrincipal; principal: boolean }) {
   return (
     <Botao
-      titulo="Check-in"
-      icone="qr"
+      titulo={acao.titulo}
       tamanho="grande"
-      variante={acoes.primaria ? 'secundario' : 'primario'}
-      rotuloAcessivel="Check-in de presença"
-      dica="Marque quem chegou, pelo nome ou pelo QR."
-      aoPressionar={acoes.checkin}
+      variante={principal ? 'primario' : 'secundario'}
+      carregando={acao.carregando}
+      {...(acao.desabilitado ? { desabilitado: true } : {})}
+      {...(acao.motivo ? { motivo: acao.motivo } : {})}
+      aoPressionar={acao.aoPressionar}
+      {...(acao.icone ? { icone: acao.icone } : {})}
     />
   )
 }
 
 /**
- * Barra de ação do detalhe (quadro 03): "Mais" à esquerda, o "Check-in" no
- * dia e o primário contextual, os dois com `flex: 1`. Sem primário, só o
- * "Mais" (e o check-in).
+ * Barra de ação do encontro (organização): "Mais" à esquerda, o secundário (se houver) e o
+ * primário do estado, os dois com `flex: 1`. Sem primário, só o "Mais".
  */
 export function BarraDoEvento({ acoes }: { acoes: AcoesDoEvento }) {
   if (!acoes.organiza) return null
   return (
     <BarraDeAcao>
       {acoes.temMenu ? botaoMais(acoes) : null}
-      {acoes.checkin ? <BotaoCheckin acoes={acoes} /> : null}
-      {acoes.primaria ? <BotaoPrincipal acao={acoes.primaria} /> : null}
+      {acoes.secundaria ? <BotaoDaBarra acao={acoes.secundaria} principal={false} /> : null}
+      {acoes.primaria ? <BotaoDaBarra acao={acoes.primaria} principal /> : null}
     </BarraDeAcao>
-  )
-}
-
-function BotaoPrincipal({ acao }: { acao: AcaoPrincipal }) {
-  return (
-    <Botao
-      titulo={acao.titulo}
-      tamanho="grande"
-      carregando={acao.carregando}
-      aoPressionar={acao.aoPressionar}
-      {...(acao.icone ? { icone: acao.icone } : {})}
-    />
   )
 }
 
@@ -394,17 +517,17 @@ export function AcoesNoPainel({ acoes }: { acoes: AcoesDoEvento }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e12 }}>
       {acoes.temMenu ? botaoMais(acoes) : null}
-      {acoes.checkin ? (
+      {acoes.secundaria ? (
         <View style={{ flex: 1 }}>
           <EmPar>
-            <BotaoCheckin acoes={acoes} />
+            <BotaoDaBarra acao={acoes.secundaria} principal={false} />
           </EmPar>
         </View>
       ) : null}
       {acoes.primaria ? (
         <View style={{ flex: 1 }}>
           <EmPar>
-            <BotaoPrincipal acao={acoes.primaria} />
+            <BotaoDaBarra acao={acoes.primaria} principal />
           </EmPar>
         </View>
       ) : null}

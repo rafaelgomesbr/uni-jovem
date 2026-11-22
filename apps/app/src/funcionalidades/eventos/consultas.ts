@@ -1,7 +1,8 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { api } from '@/servicos/api'
+import { chamadasV3 } from '@/servicos/contratoV3'
 import type {
   DetalheDaSerie,
   DetalheDoEvento,
@@ -92,4 +93,49 @@ export function useInvalidarEventos(comunidadeId: string) {
       consultas.invalidateQueries({ queryKey: CHAVES.minhasEscalas(comunidadeId) }),
     ])
   }
+}
+
+/**
+ * De onde copiar "Igual ao último sábado" (D66): até 3 encontros já realizados, um por título.
+ * Sob o prefixo dos eventos: publicar ou copiar recarrega. Só a organização chama (403 para o resto).
+ */
+export function useAnterioresParaCopiar(comunidadeId: string | null, habilitado: boolean) {
+  return useQuery({
+    queryKey: ['c', comunidadeId ?? '', 'eventos', 'anteriores-para-copiar'] as const,
+    queryFn: () => chamadasV3.anterioresParaCopiar(comunidadeId!),
+    enabled: comunidadeId !== null && habilitado,
+    retry: false,
+  })
+}
+
+export interface PedidoDeCopia {
+  origem: string
+  /** AAAA-MM-DD. Sem ela, vale a sugerida pelo servidor. */
+  data?: string
+  /** HH:MM. Sem ela, a do encontro de origem. */
+  hora?: string
+  incluirMusicas?: boolean
+  /** O rascunho de uma cópia anterior desta mesma tela: sai antes de nascer o novo (nada fica solto). */
+  rascunhoAnterior?: string | null
+}
+
+/**
+ * "Igual ao último sábado" (D66): cria o rascunho copiado e devolve o resumo da conferência.
+ * Trocar a data ou as músicas refaz a cópia: o rascunho anterior desta tela é apagado antes
+ * (rascunho nunca avisou ninguém, então apagar não machuca ninguém).
+ */
+export function useCopiarEncontro(comunidadeId: string) {
+  const invalidar = useInvalidarEventos(comunidadeId)
+  return useMutation({
+    mutationFn: async ({ origem, rascunhoAnterior, ...corpo }: PedidoDeCopia) => {
+      if (rascunhoAnterior) {
+        // Falhar ao apagar não pode impedir a cópia nova: o pior caso é um rascunho a mais na Agenda.
+        await api
+          .delete(`${naComunidade(comunidadeId)}/eventos/${rascunhoAnterior}`)
+          .catch(() => null)
+      }
+      return chamadasV3.copiarEncontro(comunidadeId, origem, corpo)
+    },
+    onSuccess: () => invalidar(),
+  })
 }

@@ -57,6 +57,32 @@ export function useAdicionarMusica(comunidadeId: string, eventoId: string) {
   })
 }
 
+/**
+ * Adiciona várias músicas de uma vez, na ordem em que foram marcadas (a ordem do repertório é a
+ * ordem de chegada ao servidor, por isso uma de cada vez). Se uma falhar, as anteriores já
+ * entraram: a tela diz quantas, e a lista recarrega de qualquer jeito.
+ */
+export function useAdicionarMusicas(comunidadeId: string, eventoId: string) {
+  const invalidar = useInvalidarRepertorio(comunidadeId, eventoId)
+  return useMutation({
+    mutationFn: async (musicaIds: readonly string[]) => {
+      let entraram = 0
+      try {
+        for (const musicaId of musicaIds) {
+          await api.post<{ id: string; ordem: number }>(doEvento(comunidadeId, eventoId), {
+            musicaId,
+          })
+          entraram++
+        }
+      } catch (erro) {
+        throw Object.assign(erro instanceof Error ? erro : new Error('falhou'), { entraram })
+      }
+      return entraram
+    },
+    onSettled: invalidar,
+  })
+}
+
 export function useMudarItemDoRepertorio(comunidadeId: string, eventoId: string) {
   const invalidar = useInvalidarRepertorio(comunidadeId, eventoId)
   return useMutation({

@@ -11,11 +11,11 @@ import { DeviceEventEmitter, Text } from 'react-native'
 
 import { ContextoDaBarraDeAbas } from '@/ui/Tela'
 
-import { RedirecionarParaALista } from '../../agenda/RedirecionarParaALista'
 import { ABAS } from '../abas'
 import { AbasDoApp } from '../AbasDoApp'
 import { BarraDaPilha, leiauteDaTelaNaPilha } from '../BarraDaPilha'
 import { espacoDaBarra } from '../BarraDeAbas'
+import { RedirecionarParaAAgenda, RedirecionarParaMinhaParte } from '../Redirecionamentos'
 import {
   abaDosSegmentos,
   barraFlutuanteNaJanela,
@@ -38,11 +38,12 @@ function marcador(nome: string) {
   }
 }
 
-/** A Agenda mostra o modo pedido no link (o redirecionamento de `/programacoes`). */
+/** A Agenda mostra o modo e o filtro pedidos no link (os redirecionamentos da D68). */
 function MarcadorDaAgenda() {
   const espaco = useContext(ContextoDaBarraDeAbas)
-  const { vista } = useLocalSearchParams<{ vista?: string }>()
-  return <Text>{`Agenda${vista ? ` (${vista})` : ''} (fim ${espaco})`}</Text>
+  const { vista, filtro } = useLocalSearchParams<{ vista?: string; filtro?: string }>()
+  const pedidos = [vista, filtro].filter(Boolean).join(', ')
+  return <Text>{`Agenda${pedidos ? ` (${pedidos})` : ''} (fim ${espaco})`}</Text>
 }
 
 const ESPACO = espacoDaBarra(0)
@@ -58,12 +59,12 @@ const ROTAS = {
   '(autenticado)/(abas)/_layout': AbasDoApp,
   '(autenticado)/(abas)/index': marcador('Início'),
   '(autenticado)/(abas)/agenda': MarcadorDaAgenda,
-  '(autenticado)/(abas)/escalas': marcador('Escalas'),
   '(autenticado)/(abas)/comunidade': marcador('Comunidade'),
   '(autenticado)/(abas)/perfil': marcador('Perfil'),
   '(autenticado)/avisos/index': marcador('Lista de avisos'),
   '(autenticado)/avisos/novo': marcador('Novo aviso'),
-  '(autenticado)/programacoes': RedirecionarParaALista,
+  '(autenticado)/programacoes': RedirecionarParaAAgenda,
+  '(autenticado)/escalas/index': RedirecionarParaMinhaParte,
   '(autenticado)/escalas/substituicao/[atribuicaoId]': marcador('Pedir substituição'),
   '(autenticado)/evento/novo': marcador('Novo encontro'),
   '(autenticado)/evento/[eventoId]/index': marcador('Detalhe do encontro'),
@@ -99,15 +100,15 @@ describe('barra flutuante nas telas empilhadas (D56)', () => {
     expect(await screen.findByText(`Detalhe do encontro (fim ${ESPACO})`)).toBeOnTheScreen()
     expect(screen.getByRole('tab', { name: 'Início', selected: true })).toBeOnTheScreen()
 
-    await fireEvent.press(screen.getByRole('tab', { name: 'Escalas' }))
-    expect(await screen.findByText(`Escalas (fim ${ESPACO})`)).toBeOnTheScreen()
-    expect(r.getSegments()).toEqual(['(autenticado)', '(abas)', 'escalas'])
+    await fireEvent.press(screen.getByRole('tab', { name: 'Comunidade' }))
+    expect(await screen.findByText(`Comunidade (fim ${ESPACO})`)).toBeOnTheScreen()
+    expect(r.getSegments()).toEqual(['(autenticado)', '(abas)', 'comunidade'])
     // A pilha fechou: nem o detalhe nem a lista continuam montados por baixo.
     expect(screen.queryByText(/Detalhe do encontro/, { includeHiddenElements: true })).toBeNull()
     expect(screen.queryByText(/Lista de avisos/, { includeHiddenElements: true })).toBeNull()
-    // De volta às abas, a barra é a delas, com Escalas marcada.
+    // De volta às abas, a barra é a delas, com Comunidade marcada.
     expect(barrasVisiveis()).toHaveLength(1)
-    expect(screen.getByRole('tab', { name: 'Escalas', selected: true })).toBeOnTheScreen()
+    expect(screen.getByRole('tab', { name: 'Comunidade', selected: true })).toBeOnTheScreen()
   })
 
   test('aberta por link, sem abas embaixo, a aba troca a tela pelas abas', async () => {
@@ -150,25 +151,19 @@ describe('barra flutuante nas telas empilhadas (D56)', () => {
   })
 })
 
-describe('as cinco abas e as rotas antigas (D57)', () => {
-  test('a barra tem Início, Agenda, Escalas, Comunidade e Perfil, nesta ordem', async () => {
-    expect(ABAS.map((a) => a.rotulo)).toEqual([
-      'Início',
-      'Agenda',
-      'Escalas',
-      'Comunidade',
-      'Perfil',
-    ])
+describe('as quatro abas e as rotas antigas (D57, D68)', () => {
+  test('a barra tem Início, Agenda, Comunidade e Perfil, nesta ordem, e o Início é o sol', async () => {
+    expect(ABAS.map((a) => a.rotulo)).toEqual(['Início', 'Agenda', 'Comunidade', 'Perfil'])
+    expect(ABAS.map((a) => a.rota)).toEqual(['index', 'agenda', 'comunidade', 'perfil'])
+    expect(ABAS[0]!.icone).toBe('sol')
     await renderRouter(ROTAS, { initialUrl: '/' })
     expect(await screen.findByText(`Início (fim ${ESPACO})`)).toBeOnTheScreen()
     // A ordem que o leitor de tela percorre é a da tela.
-    expect(screen.getAllByRole('tab').map((t) => t.props.accessibilityLabel)).toEqual([
-      'Início',
-      'Agenda',
-      'Escalas',
-      'Comunidade',
-      'Perfil',
-    ])
+    const nomes = screen.getAllByRole('tab').map((t) => t.props.accessibilityLabel)
+    expect(nomes).toEqual(['Início', 'Agenda', 'Comunidade', 'Perfil'])
+    // Sem bolinha nem número em nenhuma aba: o sino é o único lugar de "tem novidade".
+    expect(nomes.some((n) => /\d/.test(n))).toBe(false)
+    expect(screen.queryByRole('tab', { name: /Escalas/ })).toBeNull()
   })
 
   test('/programacoes (a antiga aba Programas) redireciona para a Agenda no modo Lista', async () => {
@@ -178,12 +173,16 @@ describe('as cinco abas e as rotas antigas (D57)', () => {
     expect(screen.getByRole('tab', { name: 'Agenda', selected: true })).toBeOnTheScreen()
   })
 
-  test('/escalas (antes uma tela empilhada) abre a aba Escalas', async () => {
+  test('/escalas (a antiga aba Escalas) redireciona para a Agenda, em Lista, com "Só o que é meu"', async () => {
     const r = await renderRouter(ROTAS, { initialUrl: '/escalas' })
-    expect(await screen.findByText(`Escalas (fim ${ESPACO})`)).toBeOnTheScreen()
-    expect(r.getSegments()).toEqual(['(autenticado)', '(abas)', 'escalas'])
-    expect(screen.getByRole('tab', { name: 'Escalas', selected: true })).toBeOnTheScreen()
-    // A substituição continua empilhada por cima, sem a barra (é um modal).
+    expect(await screen.findByText(`Agenda (lista, meu) (fim ${ESPACO})`)).toBeOnTheScreen()
+    expect(r.getSegments()).toEqual(['(autenticado)', '(abas)', 'agenda'])
+    expect(screen.getByRole('tab', { name: 'Agenda', selected: true })).toBeOnTheScreen()
+  })
+
+  test('o pedido "Preciso de alguém no meu lugar" segue empilhado por cima, sem a barra (é um modal)', async () => {
+    await renderRouter(ROTAS, { initialUrl: '/agenda' })
+    await screen.findByText(`Agenda (fim ${ESPACO})`)
     await act(async () => router.push('/escalas/substituicao/a1'))
     expect(await screen.findByText('Pedir substituição (fim 0)')).toBeOnTheScreen()
   })
@@ -205,14 +204,14 @@ describe('rotas com e sem a barra (D56)', () => {
     expect(barraFlutuanteNaRota('evento/[eventoId]/index')).toBe(true)
     expect(barraFlutuanteNaRota(['(autenticado)', 'avisos'])).toBe(true)
     expect(barraFlutuanteNaRota('escalas/substituicao/[atribuicaoId]')).toBe(false)
-    expect(barraFlutuanteNaRota(['(autenticado)', '(abas)', 'escalas'])).toBe(false)
     expect(barraFlutuanteNaRota('plataforma/[comunidadeId]')).toBe(true)
   })
 
   test('a aba aberta sai dos segmentos (o Início é a rota vazia)', () => {
     expect(abaDosSegmentos(['(autenticado)', '(abas)'])).toBe('index')
     expect(abaDosSegmentos(['(autenticado)', '(abas)', 'perfil'])).toBe('perfil')
-    expect(abaDosSegmentos(['(autenticado)', '(abas)', 'escalas'])).toBe('escalas')
+    // A antiga aba Escalas virou redirecionamento: também fora do mapa.
+    expect(abaDosSegmentos(['(autenticado)', '(abas)', 'escalas'])).toBeNull()
     // A antiga aba Programas não é mais aba: fica fora do mapa da última aba.
     expect(abaDosSegmentos(['(autenticado)', '(abas)', 'programacoes'])).toBeNull()
     expect(abaDosSegmentos(['(autenticado)', 'avisos'])).toBeNull()

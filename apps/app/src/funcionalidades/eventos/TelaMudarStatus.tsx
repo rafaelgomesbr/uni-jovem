@@ -15,8 +15,10 @@ import { CampoDeData, CampoDeHora } from '@/ui/CampoDeMomento'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { CartaoDeEsqueleto, Esqueleto } from '@/ui/Esqueleto'
 import { AvisoDeFalha, ErroDaTela } from '@/ui/Falha'
+import { Segmentos } from '@/ui/Segmentos'
 import { Tela } from '@/ui/Tela'
 import { mostrarToast } from '@/ui/Toast'
+import { mostrarDesfazer } from '@/ui/ToastComDesfazer'
 import { instanteDeDataEHora, lerDataDigitada, lerHoraDigitada } from '@/utilidades/datas'
 import { parametro } from '@/utilidades/parametros'
 import { voltarOu } from '@/ui/navegacao'
@@ -24,35 +26,33 @@ import { voltarOu } from '@/ui/navegacao'
 import { usePode } from '../comunidade/permissoes'
 import { SemComunidade } from '../navegacao/SemComunidade'
 import { naComunidade, useEvento, useInvalidarEventos } from './consultas'
+import { pessoasDistintas, quantasPessoas } from './Convocacao'
 import { acoesDeStatus } from './regras'
 
 type Acao = 'cancelar' | 'adiar'
 
-/** "3 pessoas escaladas e quem se inscreveu recebem o motivo." */
+/** "Vai avisar 3 pessoas convocadas e quem se inscreveu": a consequência escrita, sem rodeio. */
 function consequencia(evento: DetalheDoEvento): string {
-  const escalados = new Set(
-    evento.atribuicoes.filter((a) => a.estado !== 'recusada').map((a) => a.vinculoId),
-  ).size
-  const quem =
-    escalados === 0
-      ? 'Quem se inscreveu recebe'
-      : escalados === 1
-        ? '1 pessoa escalada e quem se inscreveu recebem'
-        : `${escalados} pessoas escaladas e quem se inscreveu recebem`
-  return `${quem} o motivo.`
+  const convocados = pessoasDistintas(evento.atribuicoes)
+  return convocados === 0
+    ? 'Vai avisar quem se inscreveu.'
+    : `Vai avisar ${quantasPessoas(convocados)} ${convocados === 1 ? 'convocada' : 'convocadas'} e quem se inscreveu.`
 }
 
 /**
- * Rota `/evento/[eventoId]/status?acao=cancelar|adiar` (3.4.6): o aviso com a
- * consequência, o motivo (obrigatório: ele vai para quem participa) e, no
- * adiamento, a nova data e hora pelos seletores. Na barra, o destrutivo
- * cheio "Cancelar evento" ou o primário "Adiar evento".
+ * Rota `/evento/[eventoId]/status?acao=cancelar|adiar` ("Cancelar ou adiar", D69): a escolha entre
+ * adiar e cancelar, o aviso com a consequência escrita ("Vai avisar 11 pessoas"), o motivo
+ * (obrigatório: ele vai para quem participa) e, no adiamento, a nova data e hora. "Adiar o
+ * encontro" avisa as pessoas só depois de 10 s, com Desfazer. "Cancelar o encontro" é um dos
+ * poucos diálogos de verdade: desfaz o que outras pessoas já organizaram e não volta atrás.
  */
 export function TelaMudarStatus() {
   const { comunidadeAtiva } = useSessao()
   const params = useLocalSearchParams<{ eventoId: string; acao: string }>()
   const eventoId = parametro(params.eventoId)
-  const acao: Acao = parametro(params.acao) === 'adiar' ? 'adiar' : 'cancelar'
+  const [acaoPedida, setAcao] = useState<Acao>(
+    parametro(params.acao) === 'adiar' ? 'adiar' : 'cancelar',
+  )
   const evento = useEvento(comunidadeAtiva?.id ?? null, eventoId)
   const pode = usePode()
   const invalidar = useInvalidarEventos(comunidadeAtiva?.id ?? '')
@@ -60,14 +60,14 @@ export function TelaMudarStatus() {
   const [data, setData] = useState<string | null>(null)
   const [hora, setHora] = useState<string | null>(null)
   const [erros, setErros] = useState<{ motivo?: string; data?: string; hora?: string }>({})
-  const titulo = acao === 'adiar' ? 'Adiar encontro' : 'Cancelar encontro'
+  const titulo = 'Cancelar ou adiar'
 
   const enviar = useMutation({
     mutationFn: (corpo: object) =>
       api.post(`${naComunidade(comunidadeAtiva!.id)}/eventos/${eventoId}/status`, corpo),
     onSuccess: async () => {
       await invalidar(eventoId ?? undefined)
-      mostrarToast({ texto: acao === 'adiar' ? 'Encontro adiado.' : 'Encontro cancelado.' })
+      mostrarToast({ texto: 'Encontro cancelado.' })
       voltarOu(eventoId ? { pathname: '/evento/[eventoId]', params: { eventoId } } : '/agenda')
     },
   })
@@ -96,9 +96,17 @@ export function TelaMudarStatus() {
     )
   }
   const e = evento.data
-  const permitido =
-    pode('evento', 'cancelar_ou_adiar') &&
-    (acao === 'adiar' ? acoesDeStatus(e.status).adiar : acoesDeStatus(e.status).cancelar)
+  const { adiar: podeAdiar, cancelar: podeCancelar } = acoesDeStatus(e.status)
+  // Se a situação do encontro só permite uma das duas, a tela já abre nela.
+  const acao: Acao =
+    acaoPedida === 'adiar'
+      ? podeAdiar
+        ? 'adiar'
+        : 'cancelar'
+      : podeCancelar
+        ? 'cancelar'
+        : 'adiar'
+  const permitido = pode('evento', 'cancelar_ou_adiar') && (podeAdiar || podeCancelar)
 
   if (!permitido) {
     return (
@@ -106,7 +114,7 @@ export function TelaMudarStatus() {
         <Aviso tipo="info" titulo="Não dá para fazer isso agora">
           {pode('evento', 'cancelar_ou_adiar')
             ? 'A situação atual do encontro não permite esta mudança.'
-            : 'Só a organização cancela ou adia eventos.'}
+            : 'Só a organização cancela ou adia encontros.'}
         </Aviso>
       </Tela>
     )
@@ -125,11 +133,34 @@ export function TelaMudarStatus() {
     }
     setErros(novos)
     if (Object.keys(novos).length) return
-    enviar.mutate({
+    const corpo = {
       status: acao === 'adiar' ? 'adiado' : 'cancelado',
       motivo: motivo.trim(),
       ...(novoInicio ? { novoInicio } : {}),
+    }
+    if (acao === 'cancelar') {
+      enviar.mutate(corpo)
+      return
+    }
+    // Adiar avisa gente: o app volta ao encontro e o aviso espera 10 s, com Desfazer.
+    const id = e.id
+    const comunidadeId = comunidadeAtiva!.id
+    const quantas = pessoasDistintas(e.atribuicoes)
+    mostrarDesfazer({
+      texto: quantas > 0 ? `Adiando e avisando ${quantasPessoas(quantas)}.` : 'Adiando o encontro.',
+      aoConfirmar: () => {
+        api
+          .post(`${naComunidade(comunidadeId)}/eventos/${id}/status`, corpo)
+          .then(async () => {
+            await invalidar(id)
+            mostrarToast({ texto: 'Encontro adiado.' })
+          })
+          .catch(() =>
+            mostrarToast({ texto: 'Não deu para adiar o encontro. Tente de novo.', tipo: 'erro' }),
+          )
+      },
     })
+    voltarOu({ pathname: '/evento/[eventoId]', params: { eventoId: id } })
   }
 
   const erroDaData = !!(erros.data || erros.hora)
@@ -142,7 +173,7 @@ export function TelaMudarStatus() {
       barraDeAcao={
         <BarraDeAcao>
           <Botao
-            titulo={titulo}
+            titulo={acao === 'adiar' ? 'Adiar o encontro' : 'Cancelar o encontro'}
             tamanho="grande"
             variante={acao === 'adiar' ? 'primario' : 'destrutivoCheio'}
             carregando={enviar.isPending}
@@ -151,13 +182,24 @@ export function TelaMudarStatus() {
         </BarraDeAcao>
       }
     >
+      {podeAdiar && podeCancelar ? (
+        <Segmentos
+          rotulo="O que fazer com o encontro"
+          valor={acao}
+          aoMudar={setAcao}
+          segmentos={[
+            { valor: 'adiar', rotulo: 'Adiar' },
+            { valor: 'cancelar', rotulo: 'Cancelar' },
+          ]}
+        />
+      ) : null}
       <Aviso
         tipo="alerta"
         titulo={acao === 'adiar' ? 'Quem participa é avisado' : 'Isto não se desfaz'}
       >
         {acao === 'adiar'
-          ? `O encontro fica como adiado até ser publicado de novo. ${consequencia(e)}`
-          : `Um encontro cancelado não volta a ser publicado. ${consequencia(e)}`}
+          ? `O encontro fica como adiado até ser publicado de novo. ${consequencia(e)} Dá para desfazer por 10 segundos.`
+          : `Vai cancelar ${e.titulo}. ${consequencia(e)} Um encontro cancelado não volta a ser publicado.`}
       </Aviso>
       {enviar.error ? (
         <AvisoDeFalha

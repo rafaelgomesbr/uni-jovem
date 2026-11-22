@@ -141,6 +141,42 @@ describe('conta nova por convite', () => {
     expect(corpo).not.toHaveProperty('whatsapp')
   })
 
+  test('conta criada pelo convite: abre a sessão e vai às boas-vindas, não direto ao Início', async () => {
+    const { servidor } = await renderizarTela(
+      <CadastroPorConvite token={TOKEN} comunidade="Jovens Centro" />,
+      {
+        rotas: {
+          'POST /api/auth/convite/criar': () => ({
+            status: 200,
+            corpo: { segundoFator: false, acesso: 'acesso-1', refresh: 'refresh-1' },
+          }),
+        },
+      },
+    )
+    await irParaEmailESenha()
+    await preencherNome()
+    await fireEvent.press(screen.getByRole('radio', { name: /^Tenho 18 anos ou mais/ }))
+    await fireEvent.press(
+      screen.getByRole('checkbox', {
+        name: 'Li e concordo com os Termos de Uso e a Política de Privacidade.',
+      }),
+    )
+    await fireEvent.press(screen.getByRole('button', { name: 'Continuar' }))
+    await fireEvent.press(
+      await screen.findByRole('checkbox', { name: /^Concordo que a Jovens Centro/ }),
+    )
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Criar conta e participar da Jovens Centro' }),
+    )
+    await waitFor(() =>
+      expect(router.replace).toHaveBeenCalledWith({
+        pathname: '/boas-vindas',
+        params: { comunidade: 'Jovens Centro' },
+      }),
+    )
+    expect(pedidosPara(servidor, 'POST', '/api/auth/convite/criar')).toHaveLength(1)
+  })
+
   test('senha curta: diz quantos caracteres faltam, sem pedir a senha duas vezes', async () => {
     await renderizarTela(<CadastroPorConvite token={TOKEN} comunidade="Jovens Centro" />)
     await fireEvent.press(await screen.findByRole('button', { name: 'Criar conta com e-mail' }))
@@ -229,8 +265,12 @@ describe('conta existente aceitando convite', () => {
       screen.getByRole('button', { name: 'Entrar em Jovens Centro como Membro' }),
     )
 
+    // Entrou: o degrau de boas-vindas, antes do Início (UX v3, fluxo j).
+    expect(await screen.findByText('Você entrou em Jovens Centro.')).toBeOnTheScreen()
     expect(
-      await screen.findByText('Agora você participa de Jovens Centro como Membro.'),
+      screen.getByRole('button', {
+        name: /Ligar os avisos|Ver o próximo encontro|Ir para o Início|Abrir os ajustes/,
+      }),
     ).toBeOnTheScreen()
     expect(tentativas).toBe(2)
     expect(pedidosPara(servidor, 'POST', '/api/auth/convite/aceitar')[1]!.corpo).toEqual({
@@ -320,9 +360,7 @@ describe('conta existente aceitando convite', () => {
     expect(await screen.findByText('Não deu para entrar na comunidade')).toBeOnTheScreen()
     expect(screen.getByText('Tente de novo já já.')).toBeOnTheScreen()
     await fireEvent.press(entrar)
-    expect(
-      await screen.findByText('Agora você participa de Jovens Centro como Membro.'),
-    ).toBeOnTheScreen()
+    expect(await screen.findByText('Você entrou em Jovens Centro.')).toBeOnTheScreen()
   })
 })
 

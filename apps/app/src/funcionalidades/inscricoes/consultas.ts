@@ -73,6 +73,62 @@ export function useMarcarPresenca(comunidadeId: string, eventoId: string) {
   })
 }
 
+export interface ResultadoDaMarcacao {
+  nome: string
+  ok: boolean
+  /** O id da presença criada (para o Desfazer); nulo se falhou ou já estava marcada. */
+  id: string | null
+  jaRegistrada: boolean
+  erro: unknown
+}
+
+/**
+ * "Marcar todos que aceitaram": uma presença por pessoa, cada uma com a sua chave de idempotência,
+ * em paralelo. Quem falhou não derruba as demais: o resultado diz quem foi e quem não foi.
+ */
+export function useMarcarVarias(comunidadeId: string, eventoId: string) {
+  const invalidar = useInvalidarPresenca(comunidadeId, eventoId)
+  return useMutation({
+    mutationFn: async (
+      pessoas: readonly { alvo: AlvoDaPresenca; nome: string }[],
+    ): Promise<ResultadoDaMarcacao[]> => {
+      const feitas = await Promise.allSettled(
+        pessoas.map((p) =>
+          api.post<{ id: string; jaRegistrada: boolean }>(
+            `${doEvento(comunidadeId, eventoId)}/presencas`,
+            { chaveIdempotencia: novaChave(), origem: 'manual', ...p.alvo },
+          ),
+        ),
+      )
+      return feitas.map((r, i) =>
+        r.status === 'fulfilled'
+          ? {
+              nome: pessoas[i]!.nome,
+              ok: true,
+              id: r.value.jaRegistrada ? null : r.value.id,
+              jaRegistrada: r.value.jaRegistrada,
+              erro: null,
+            }
+          : { nome: pessoas[i]!.nome, ok: false, id: null, jaRegistrada: false, erro: r.reason },
+      )
+    },
+    onSuccess: invalidar,
+  })
+}
+
+/** Desfaz várias presenças de uma vez (o Desfazer do "Marcar todos"). */
+export function useDesfazerVarias(comunidadeId: string, eventoId: string) {
+  const invalidar = useInvalidarPresenca(comunidadeId, eventoId)
+  return useMutation({
+    mutationFn: async (ids: readonly string[]) => {
+      await Promise.allSettled(
+        ids.map((id) => api.delete(`${doEvento(comunidadeId, eventoId)}/presencas/${id}`)),
+      )
+    },
+    onSuccess: invalidar,
+  })
+}
+
 export function useDesfazerPresenca(comunidadeId: string, eventoId: string) {
   const invalidar = useInvalidarPresenca(comunidadeId, eventoId)
   return useMutation({

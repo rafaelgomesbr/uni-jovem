@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CHAVES } from '@/estado/clienteDeConsulta'
 import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
+import { chamadasV3 } from '@/servicos/contratoV3'
 import type {
   CodigoDaComunidade,
   ConviteDaComunidade,
@@ -11,6 +12,23 @@ import type {
   PedidoDeEntrada,
 } from '@/servicos/contrato'
 import { fusoDoAparelho } from '@/utilidades/datas'
+
+/** O mural vive sob `['c', id]`: o que invalida a comunidade invalida o mural. */
+export const chaveDoMural = (comunidadeId: string) =>
+  [...CHAVES.comunidade(comunidadeId), 'mural'] as const
+
+/**
+ * Mural da aba Comunidade (`GET /mural`, D66): aviso à vista, quantos pedidos de oração
+ * novos (só o número, nunca o texto), quantas pessoas e, para a organização, os pedidos
+ * de entrada. Uma chamada só.
+ */
+export function useMural(comunidadeId: string | null) {
+  return useQuery({
+    queryKey: chaveDoMural(comunidadeId ?? ''),
+    queryFn: () => chamadasV3.mural(comunidadeId as string),
+    enabled: comunidadeId !== null,
+  })
+}
 
 /** Membros da comunidade. A chave leva o id da comunidade: cache nunca mistura comunidades. */
 export function useMembros(comunidadeId: string | null) {

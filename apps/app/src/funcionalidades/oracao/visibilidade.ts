@@ -70,6 +70,22 @@ export function contagemDaVisibilidade(v: VisibilidadeDeOracao, c: Contagem): st
   return `${pessoas(n)} além de você.`
 }
 
+/**
+ * A frase grande do resumo antes de publicar: quem lê e com que nome. "Vai aparecer como
+ * Anônimo para 15 pessoas." Com a equipe vazia, diz a verdade: só a própria pessoa vê.
+ */
+export function quemVaiVer(v: VisibilidadeDeOracao, anonimo: boolean, c: Contagem): string {
+  const como = anonimo ? 'como Anônimo' : 'com o seu nome'
+  if (v === 'somente_eu') return 'Só você vai ver este pedido.'
+  if (v === 'equipe_oracao') {
+    if (c.equipe === 0) {
+      return 'Hoje ninguém além de você está na equipe de oração, então só você vê até alguém ser designado.'
+    }
+    return `Vai aparecer ${como} para a equipe de oração${c.equipe === null ? '' : ` (${pessoas(c.equipe)})`}.`
+  }
+  return `Vai aparecer ${como} para ${c.comunidade === null ? 'toda a comunidade' : pessoas(c.comunidade)}.`
+}
+
 export function opcoesDeVisibilidade(c: Contagem): Opcao<VisibilidadeDeOracao>[] {
   return (Object.keys(NOME_DA_VISIBILIDADE) as VisibilidadeDeOracao[]).map((valor) => ({
     valor,

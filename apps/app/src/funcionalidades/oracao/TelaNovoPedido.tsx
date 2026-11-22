@@ -1,16 +1,19 @@
 import { VISIBILIDADE_PADRAO_DE_ORACAO, type VisibilidadeDeOracao } from '@uj/dominio'
+import { ESPACO } from '@uj/tokens'
 import { useState } from 'react'
+import { View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
 import { origemPublica } from '@/servicos/enderecos'
+import { mensagemDoErro } from '@/servicos/erros'
 import { AvisoDeFalha } from '@/ui/Falha'
+import { FolhaNaTela } from '@/ui/FolhaNaTela'
 import { abrirLink } from '@/utilidades/compartilhar'
-import { confirmar } from '@/utilidades/confirmar'
 import { Aviso } from '@/ui/Aviso'
 import { BarraDeAcao } from '@/ui/BarraDeAcao'
-import { Botao } from '@/ui/Botao'
+import { Botao, ParDeBotoes } from '@/ui/Botao'
 import { Campo } from '@/ui/Campo'
-import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
+import { Cartao } from '@/ui/Cartao'
 import { Interruptor } from '@/ui/Interruptor'
 import { ListaDeOpcoes } from '@/ui/ListaDeOpcoes'
 import { useConfirmarDescarte, useTravaDeEnvio, voltarOu } from '@/ui/navegacao'
@@ -19,11 +22,12 @@ import { Texto } from '@/ui/Texto'
 import { TextoAnunciado } from '@/ui/TextoAnunciado'
 
 import { SemComunidade } from '../navegacao/SemComunidade'
+import { useEstaOnline } from '../offline/ProvedorOffline'
 import { useCriarPedido } from './consultas'
 import {
   explicarVisibilidade,
-  leitores,
   opcoesDeVisibilidade,
+  quemVaiVer,
   useContagemDeLeitores,
 } from './visibilidade'
 
@@ -58,7 +62,7 @@ export function TelaNovoPedido() {
   const { comunidadeAtiva } = useSessao()
   if (!comunidadeAtiva) {
     return (
-      <Tela pilha titulo="Novo pedido">
+      <Tela pilha titulo="Pedir oração">
         <SemComunidade oQue="o novo pedido" />
       </Tela>
     )
@@ -69,12 +73,13 @@ export function TelaNovoPedido() {
 }
 
 /**
- * Novo pedido (3.7.1): o texto em multilinha com o contador, o aviso de
- * privacidade com "Entenda como é guardado", "Quem vai ver" em lista de
- * opções com a contagem de leitores (e, abaixo, quem vê por extenso, antes
- * de publicar), o interruptor "Publicar como anônimo" (desligado por padrão,
- * e só quando mais alguém pode ler o pedido) e a barra de ação com "Publicar pedido". Ampliar o público pede a
- * confirmação nativa.
+ * Novo pedido (D70, fluxo h): o texto, "Quem vai ver" em lista de opções com a contagem de
+ * leitores, o interruptor "Publicar como anônimo" (desligado por padrão, e só quando mais
+ * alguém pode ler) e "Publicar pedido". Com "Somente eu" publica direto. Com mais leitores,
+ * abre a folha de resumo ("Vai aparecer como Anônimo para 15 pessoas."), o único passo de
+ * confirmação: é decisão de privacidade (D55, D62). O texto nunca vai para o armazenamento
+ * do aparelho: vive só nesta tela, e sem internet o botão diz isso em vez de prometer
+ * guardar.
  */
 function FormularioDoPedido({
   comunidadeId,
@@ -90,6 +95,8 @@ function FormularioDoPedido({
   )
   const [anonimo, setAnonimo] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  const [resumoAberto, setResumoAberto] = useState(false)
+  const online = useEstaOnline()
   const contagem = useContagemDeLeitores(comunidadeId)
   const criar = useCriarPedido(comunidadeId)
   const trava = useTravaDeEnvio()
@@ -98,25 +105,18 @@ function FormularioDoPedido({
   const anonimoPossivel = visibilidade !== 'somente_eu'
   const anonimoDeFato = anonimoPossivel && anonimo
 
-  async function publicar() {
+  function publicar() {
     if (!texto.trim()) {
       setErro('Escreva o seu pedido.')
       return
     }
     setErro(null)
-    if (visibilidade !== 'somente_eu') {
-      const ok = await confirmar({
-        titulo:
-          visibilidade === 'comunidade'
-            ? 'Publicar para toda a comunidade?'
-            : 'Publicar para a equipe de oração?',
-        mensagem: anonimoDeFato
-          ? `${leitores(visibilidade, contagem)} Seu nome não aparece: o pedido sai como "Anônimo".`
-          : leitores(visibilidade, contagem),
-        confirmar: 'Publicar',
-      })
-      if (!ok) return
-    }
+    // "Somente eu": ninguém mais lê, não há o que resumir.
+    if (visibilidade === 'somente_eu') enviar()
+    else setResumoAberto(true)
+  }
+
+  function enviar() {
     if (!trava.pegar()) return
     criar.mutate(
       { texto: texto.trim(), visibilidade, anonimo: anonimoDeFato },
@@ -134,19 +134,25 @@ function FormularioDoPedido({
   return (
     <Tela
       pilha
-      titulo="Novo pedido"
+      titulo="Pedir oração"
       barraDeAcao={
         <BarraDeAcao>
           <Botao
             titulo="Publicar pedido"
             tamanho="grande"
             carregando={criar.isPending}
-            aoPressionar={() => void publicar()}
+            desabilitado={!online}
+            {...(online
+              ? {}
+              : {
+                  motivo: 'Precisa de internet para publicar. O texto não é guardado no aparelho.',
+                })}
+            aoPressionar={publicar}
           />
         </BarraDeAcao>
       }
     >
-      <CartaoDeVidro opaco>
+      <Cartao variante="plano">
         <Campo
           rotulo="Seu pedido"
           value={texto}
@@ -156,7 +162,7 @@ function FormularioDoPedido({
           maxLength={2000}
           mostrarContador
         />
-      </CartaoDeVidro>
+      </Cartao>
       <Aviso
         tipo="info"
         acao={{ titulo: 'Entenda como é guardado', aoPressionar: entenderComoEGuardado }}
@@ -174,16 +180,75 @@ function FormularioDoPedido({
         {`${explicarVisibilidade(visibilidade, nomeDaComunidade, contagem)} Você pode mudar isso depois, sempre com confirmação.`}
       </TextoAnunciado>
       {anonimoPossivel ? (
-        <CartaoDeVidro sobrancelha="Quem vê que foi você" opaco comecaComTitulo>
+        <Cartao variante="plano">
           <Interruptor
             rotulo="Publicar como anônimo"
             ligado={anonimo}
             aoMudar={setAnonimo}
             descricao={estadoDoAnonimato(anonimo)}
           />
-        </CartaoDeVidro>
+        </Cartao>
       ) : null}
-      {criar.error ? <AvisoDeFalha erro={criar.error} /> : null}
+      {criar.error ? (
+        <AvisoDeFalha
+          erro={criar.error}
+          titulo="Não deu para publicar"
+          mensagem={`${mensagemDoErro(criar.error)} O texto está só nesta tela: não é guardado no aparelho, então tente de novo antes de sair.`}
+        />
+      ) : null}
+      <ResumoDaPublicacao
+        aberta={resumoAberto}
+        aoFechar={() => setResumoAberto(false)}
+        resumo={quemVaiVer(visibilidade, anonimoDeFato, contagem)}
+        anonimo={anonimoDeFato}
+        aoPublicar={() => {
+          setResumoAberto(false)
+          enviar()
+        }}
+      />
     </Tela>
+  )
+}
+
+/**
+ * Folha de resumo, uma vez, antes de publicar para mais gente: a frase de quem vai ver, o
+ * aviso de privacidade em palavras comuns (conteúdo legal mantido, D62) e o botão com o
+ * verbo ("Publicar como Anônimo"). "Voltar" fecha sem publicar; o texto continua na tela.
+ */
+function ResumoDaPublicacao({
+  aberta,
+  aoFechar,
+  resumo,
+  anonimo,
+  aoPublicar,
+}: {
+  aberta: boolean
+  aoFechar: () => void
+  resumo: string
+  anonimo: boolean
+  aoPublicar: () => void
+}) {
+  return (
+    <FolhaNaTela aberta={aberta} titulo="Antes de publicar" aoFechar={aoFechar}>
+      <View style={{ gap: ESPACO.e16 }}>
+        <Texto variante="tituloItem">{resumo}</Texto>
+        <Texto variante="corpo" cor="textoSuave">
+          {AVISO_DO_TEXTO}
+        </Texto>
+        <Botao
+          titulo="Entenda como é guardado"
+          variante="terciario"
+          alinhado
+          aoPressionar={entenderComoEGuardado}
+        />
+        <ParDeBotoes>
+          <Botao titulo="Voltar" variante="secundario" aoPressionar={aoFechar} />
+          <Botao
+            titulo={anonimo ? 'Publicar como Anônimo' : 'Publicar com meu nome'}
+            aoPressionar={aoPublicar}
+          />
+        </ParDeBotoes>
+      </View>
+    </FolhaNaTela>
   )
 }

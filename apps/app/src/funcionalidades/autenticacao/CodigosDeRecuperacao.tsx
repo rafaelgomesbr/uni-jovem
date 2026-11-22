@@ -5,7 +5,7 @@ import { View } from 'react-native'
 import { copiarTexto } from '@/utilidades/compartilhar'
 import { Botao } from '@/ui/Botao'
 import { CaixaDeMarcar } from '@/ui/CaixaDeMarcar'
-import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
+import { Cartao } from '@/ui/Cartao'
 import { Texto } from '@/ui/Texto'
 import { TextoAnunciado } from '@/ui/TextoAnunciado'
 
@@ -27,10 +27,9 @@ export function CodigosDeRecuperacao({ codigos, aoConcluir, rotuloDeConcluir }: 
   const colunas = [codigos.slice(0, metade), codigos.slice(metade)]
 
   return (
-    <CartaoDeDestaque
+    <Cartao
       sobrancelha="Códigos de recuperação"
       titulo="Guarde estes códigos"
-      descricao="Eles aparecem só agora. Cada um serve uma vez para entrar se você perder o celular com o autenticador. Guarde fora deste aparelho."
       acoes={
         <View style={{ gap: ESPACO.e8 }}>
           <Botao
@@ -60,6 +59,10 @@ export function CodigosDeRecuperacao({ codigos, aoConcluir, rotuloDeConcluir }: 
         </View>
       }
     >
+      <Texto variante="corpo" cor="textoSuave">
+        Eles aparecem só agora. Cada um serve uma vez para entrar se você perder o celular com o
+        autenticador. Guarde fora deste aparelho.
+      </Texto>
       <View
         accessible
         accessibilityLabel={`Códigos de recuperação: ${codigos.join(', ')}`}
@@ -75,6 +78,6 @@ export function CodigosDeRecuperacao({ codigos, aoConcluir, rotuloDeConcluir }: 
           </View>
         ))}
       </View>
-    </CartaoDeDestaque>
+    </Cartao>
   )
 }

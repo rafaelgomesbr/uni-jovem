@@ -9,7 +9,15 @@ import {
   validarRascunho,
 } from '../formulario'
 import { descreverRegra } from '../nomes'
-import { acoesDeStatus, motivoSemInscricao, reordenarEtapas } from '../regras'
+import {
+  acoesDeStatus,
+  diasAteOEncontro,
+  etiquetaDoEncontro,
+  faseDoEncontro,
+  momentoDaFase,
+  motivoSemInscricao,
+  reordenarEtapas,
+} from '../regras'
 
 const FUSO = 'America/Sao_Paulo'
 
@@ -106,5 +114,40 @@ describe('formulário de evento', () => {
     const { regra } = regraDoRascunho({ ...regraVazia(), repeticao: 'semanal' }, '2026-11-21')
     expect(regra).toEqual({ frequencia: 'semanal', intervaloSemanas: 1, diasDaSemana: [6] })
     expect(descreverRegra(regra!)).toBe('Toda semana, aos sábados')
+  })
+})
+
+describe('o relógio do encontro (D69)', () => {
+  // Sábado 28/11/2026, 16:00 em São Paulo (19:00 UTC), uma hora de duração.
+  const SABADO = { inicio: '2026-11-28T19:00:00.000Z', fuso: FUSO, duracaoMin: 60 }
+  const em = (iso: string) => new Date(iso)
+
+  test('as fases: longe, véspera, no dia, check-in (2 h antes), acontecendo e terminou', () => {
+    expect(faseDoEncontro(SABADO, em('2026-11-22T15:00:00.000Z'))).toBe('longe')
+    expect(faseDoEncontro(SABADO, em('2026-11-27T20:00:00.000Z'))).toBe('vespera')
+    expect(faseDoEncontro(SABADO, em('2026-11-28T12:00:00.000Z'))).toBe('no_dia')
+    // 14:30 em São Paulo: falta 1 h 30.
+    expect(faseDoEncontro(SABADO, em('2026-11-28T17:30:00.000Z'))).toBe('checkin')
+    expect(faseDoEncontro(SABADO, em('2026-11-28T19:10:00.000Z'))).toBe('acontecendo')
+    expect(faseDoEncontro(SABADO, em('2026-11-28T20:01:00.000Z'))).toBe('terminou')
+  })
+
+  test('a véspera e o dia usam o calendário do fuso do encontro, não o do aparelho', () => {
+    // 01:00 UTC do dia 28 ainda é noite de sexta em São Paulo: o sábado é amanhã (véspera).
+    expect(diasAteOEncontro(SABADO, em('2026-11-28T01:00:00.000Z'))).toBe(1)
+    // 04:00 UTC já é 01:00 de sábado lá: é hoje.
+    expect(diasAteOEncontro(SABADO, em('2026-11-28T04:00:00.000Z'))).toBe(0)
+  })
+
+  test('a etiqueta ao lado do título e a luz da tela acompanham a fase', () => {
+    expect(etiquetaDoEncontro(SABADO, em('2026-11-23T15:00:00.000Z'))).toBe('Em 5 dias')
+    expect(etiquetaDoEncontro(SABADO, em('2026-11-27T20:00:00.000Z'))).toBe('Amanhã')
+    expect(etiquetaDoEncontro(SABADO, em('2026-11-28T12:00:00.000Z'))).toBe('Hoje')
+    expect(etiquetaDoEncontro(SABADO, em('2026-11-28T19:10:00.000Z'))).toBe('Acontecendo agora')
+    expect(etiquetaDoEncontro(SABADO, em('2026-11-29T12:00:00.000Z'))).toBe('Terminou')
+    expect(momentoDaFase('longe')).toBe('longe')
+    expect(momentoDaFase('checkin')).toBe('dia')
+    expect(momentoDaFase('acontecendo')).toBe('agora')
+    expect(momentoDaFase('terminou')).toBe('fim')
   })
 })

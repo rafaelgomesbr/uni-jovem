@@ -7,7 +7,7 @@ import type { ConfiguracaoDoAutenticador } from '@/servicos/contrato'
 import { abrirLink, copiarTexto } from '@/utilidades/compartilhar'
 import { agruparDe4 } from '@/utilidades/formatos'
 import { Botao, BotaoIcone } from '@/ui/Botao'
-import { CartaoDeDestaque } from '@/ui/CartaoDeDestaque'
+import { Cartao } from '@/ui/Cartao'
 import { CodigoQR } from '@/ui/CodigoQR'
 import { Texto } from '@/ui/Texto'
 import { TextoAnunciado } from '@/ui/TextoAnunciado'
@@ -21,10 +21,9 @@ export function ConfigurarAutenticador({ uri, segredo }: ConfiguracaoDoAutentica
   const [aviso, setAviso] = useState<string | null>(null)
 
   return (
-    <CartaoDeDestaque
+    <Cartao
       sobrancelha="App autenticador"
       titulo={`Cadastre o ${NOME_DO_APP} no autenticador`}
-      descricao="Use o Google Authenticator, o Microsoft Authenticator ou o app Senhas do iPhone: leia o QR com outro aparelho ou digite a chave."
       acoes={
         <Botao
           titulo="Abrir no app autenticador"
@@ -38,6 +37,10 @@ export function ConfigurarAutenticador({ uri, segredo }: ConfiguracaoDoAutentica
       }
     >
       <View style={{ gap: ESPACO.e16 }}>
+        <Texto variante="corpo" cor="textoSuave">
+          Use o Google Authenticator, o Microsoft Authenticator ou o app Senhas do iPhone: leia o QR
+          com outro aparelho ou digite a chave.
+        </Texto>
         <CodigoQR valor={uri} rotulo="QR para cadastrar no app autenticador" tamanho={200} />
         <View>
           <Texto variante="rotulo" cor="textoSuave">
@@ -69,6 +72,6 @@ export function ConfigurarAutenticador({ uri, segredo }: ConfiguracaoDoAutentica
           </TextoAnunciado>
         ) : null}
       </View>
-    </CartaoDeDestaque>
+    </Cartao>
   )
 }

@@ -156,7 +156,7 @@ function DemoCheckin() {
       {nomes.map((n) => (
         <CaixaDeMarcar
           key={n}
-          rotulo={`Marcar presença de ${n}`}
+          rotulo={`Chegou: ${n}`}
           marcada={presentes.includes(n)}
           aoMudar={(sim) => setPresentes((p) => (sim ? [...p, n] : p.filter((x) => x !== n)))}
         />

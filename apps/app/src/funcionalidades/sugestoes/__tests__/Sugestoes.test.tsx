@@ -36,15 +36,31 @@ const SUGESTAO = {
 }
 
 describe('sugestões', () => {
-  test('a lista traz o botão "Nova sugestão" com a palavra à vista, não só um "+" (D62)', async () => {
+  test('a lista traz o botão "Sugerir uma ideia" com a frase à vista, não só um "+" (D70)', async () => {
     await renderizarTela(<TelaSugestoes />, {
       papel: 'membro',
       rotas: { [`GET ${BASE}/sugestoes`]: () => ({ status: 200, corpo: { sugestoes: [] } }) },
     })
     expect(
-      (await screen.findAllByRole('button', { name: 'Nova sugestão' })).length,
+      (await screen.findAllByRole('button', { name: 'Sugerir uma ideia' })).length,
     ).toBeGreaterThan(0)
-    expect(screen.getByText('Nova')).toBeOnTheScreen()
+    // Vazio com o sol, o que fazer e a ação; a palavra "Nova" sozinha saiu.
+    expect(screen.getByText('Nenhuma sugestão por aqui.')).toBeOnTheScreen()
+    expect(screen.queryByText('Nova')).toBeNull()
+  })
+
+  test('erro ao carregar: texto humano e "Tentar de novo"', async () => {
+    await renderizarTela(<TelaSugestoes />, {
+      papel: 'membro',
+      rotas: {
+        [`GET ${BASE}/sugestoes`]: () => ({
+          status: 500,
+          corpo: { codigo: 'erro_interno', mensagem: 'falha' },
+        }),
+      },
+    })
+    expect(await screen.findByText('Não deu para carregar as sugestões')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeOnTheScreen()
   })
 
   test('anônima explica que ninguém vê, nem a liderança, e envia anonima: true', async () => {

@@ -65,7 +65,7 @@ export function TelaSerie() {
     return (
       <Tela pilha titulo="Repetição">
         <Aviso tipo="info" titulo="Só a organização gerencia repetições">
-          Cada data da série aparece na agenda como um evento.
+          Cada data da repetição aparece na agenda como um encontro.
         </Aviso>
       </Tela>
     )
@@ -340,7 +340,7 @@ function EditarRegra({
       const ok = await confirmar({
         titulo: 'Recriar as próximas datas?',
         mensagem: e.mensagem,
-        confirmar: 'Recriar e perder as escalas',
+        confirmar: 'Recriar e perder as convocações',
         destrutivo: true,
       })
       if (ok) salvar.mutate(true)
@@ -470,7 +470,7 @@ function EncerrarSerie({
     <FolhaNaTela aberta={aberta} titulo="Encerrar a repetição" aoFechar={aoFechar}>
       <Aviso tipo="alerta" titulo="Quem participa é avisado">
         A partir do dia escolhido, rascunhos somem e encontros publicados são cancelados com o
-        motivo, que vai para quem está escalado e inscrito.
+        motivo, que vai para quem está convocado e inscrito.
       </Aviso>
       <CampoDeData
         rotulo="A partir do dia"

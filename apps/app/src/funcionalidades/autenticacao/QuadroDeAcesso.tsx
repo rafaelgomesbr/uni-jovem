@@ -13,7 +13,8 @@ import { BotaoIcone } from '@/ui/Botao'
 import { ContextoDaBarraFlutuanteEmbaixo } from '@/ui/BarraDeAcao'
 import type { NoDeTexto } from '@/ui/foco'
 import { FundoAurora } from '@/ui/FundoAurora'
-import { MarcaDoSol } from '@/ui/MarcaDoSol'
+import { Sol } from '@/ui/Sol'
+import { useTecladoAberto } from '@/ui/teclado'
 import { ProvedorDeRevelacao, Revelar } from '@/ui/Revelar'
 import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
@@ -60,11 +61,13 @@ export function QuadroDeAcesso({
   const { cores } = useTema()
   const margens = useSafeAreaInsets()
   const [alturaDaBarra, setAlturaDaBarra] = useState(0)
+  const tecladoAberto = useTecladoAberto()
 
   return (
     <ProvedorDeRevelacao value="curta">
       <View style={{ flex: 1, backgroundColor: cores.fundo }}>
-        <FundoAurora intensidade={1} />
+        {/* D67: a deriva lenta vale em toda tela com Aurora; para com o teclado dos formulários. */}
+        <FundoAurora intensidade={1} movimento="ambiente" pausada={tecladoAberto} />
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -105,7 +108,7 @@ export function QuadroDeAcesso({
                     aoPressionar={aoVoltar ?? (() => voltarOu('/entrar'))}
                   />
                 )}
-                <MarcaDoSol lado={LADO_DO_SOL.mini} etapa="estatica" halo={false} />
+                <Sol pose="pleno" lado={LADO_DO_SOL.mini} halo={false} />
               </View>
 
               <Revelar key={`${chaveDoPasso}-titulo`} ordem={0} direcao={direcao}>

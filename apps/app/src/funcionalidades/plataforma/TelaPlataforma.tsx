@@ -26,6 +26,7 @@ import {
   type ComunidadeNaPlataforma,
   type FiltroDaPlataforma,
 } from './consultas'
+import { VazioComSol } from '../entrada/VazioComSol'
 import { exigeProvaDeSegundoFator, ProvaDeSegundoFator } from './ProvaDeSegundoFator'
 
 /** Espera de digitação antes de buscar na API. */
@@ -173,8 +174,7 @@ function Vazio({
 }) {
   if (buscando) {
     return (
-      <EstadoVazio
-        icone="buscar"
+      <VazioComSol
         titulo="Nenhuma comunidade com esse nome"
         descricao="Confira a grafia ou busque pela cidade."
         acao={{ titulo: 'Limpar a busca', variante: 'secundario', aoPressionar: aoLimpar }}
@@ -183,13 +183,12 @@ function Vazio({
   }
   if (filtro === 'nova') {
     return (
-      <EstadoVazio
-        icone="confirmado"
+      <VazioComSol
+        pose="pleno"
         titulo="Nenhuma comunidade esperando verificação"
         descricao="Quando alguém criar uma comunidade, ela aparece aqui até você verificar."
         acao={{
           titulo: 'Criar comunidade',
-          icone: 'adicionar',
           variante: 'secundario',
           aoPressionar: () => router.push('/plataforma/nova'),
         }}
@@ -197,17 +196,12 @@ function Vazio({
     )
   }
   return (
-    <EstadoVazio
-      icone="plataforma"
+    <VazioComSol
       titulo={
         filtro === 'verificada' ? 'Nenhuma comunidade verificada' : 'Nenhuma comunidade ainda'
       }
       descricao="Crie uma comunidade e entre como administrador, ou mande o convite para quem vai cuidar dela."
-      acao={{
-        titulo: 'Criar comunidade',
-        icone: 'adicionar',
-        aoPressionar: () => router.push('/plataforma/nova'),
-      }}
+      acao={{ titulo: 'Criar comunidade', aoPressionar: () => router.push('/plataforma/nova') }}
     />
   )
 }

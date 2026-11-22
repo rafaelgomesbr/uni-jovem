@@ -2,7 +2,9 @@ import { screen, userEvent } from '@testing-library/react-native'
 import { router } from 'expo-router'
 
 import { INICIO } from '@/testes/fixturas'
+import { inicioComMomento, momentoDeTeste, parteDoMomento, RELOGIO } from '@/testes/momento'
 import { BASE, renderizarTela } from '@/testes/telas'
+import type { ParteDoMomento } from '@/servicos/contratoV3'
 
 import { escalaDeLouvor } from '../../repertorio/souDoLouvor'
 import { TelaInicio } from '../TelaInicio'
@@ -34,48 +36,25 @@ const VISAO = {
   }),
 }
 
-function inicioCom(escala: object | null) {
-  return {
-    proximosEventos: [
-      {
-        id: 'e1',
-        titulo: 'Sábado com a juventude',
-        categoria: 'Programação de sábado',
-        inicio: INICIO,
-        duracaoMin: 60,
-        status: 'publicado',
-        localNome: 'Salão',
-        localTipo: 'interno',
-      },
-    ],
-    minhasEscalas: escala
-      ? [
-          {
-            id: 'a1',
-            estado: 'confirmada',
-            eventoId: 'e1',
-            eventoTitulo: 'Sábado com a juventude',
-            eventoInicio: INICIO,
-            ...escala,
-          },
-        ]
-      : [],
-    minhasTarefas: [],
-    substituicoesAbertas: 0,
-  }
-}
-
-const rotasCom = (escala: object | null) => ({
+const rotasCom = (parte: Partial<ParteDoMomento> | null, relogio: object = {}) => ({
   ...VISAO,
-  [`GET ${BASE}/inicio`]: () => ({ status: 200, corpo: inicioCom(escala) }),
+  [`GET ${BASE}/inicio`]: () => ({
+    status: 200,
+    corpo: inicioComMomento(
+      momentoDeTeste({
+        ...relogio,
+        suaParte: parte ? [parteDoMomento({ estado: 'confirmada', ...parte })] : [],
+      }),
+    ),
+  }),
 })
 
-const ABRIR = { name: 'Abrir o meu repertório de Sábado com a juventude' }
+const ABRIR = { name: 'Abrir o meu repertório de Sábado Jovem' }
 
-describe('modo músico no Início (D61, D62): sem cartão, só o botão do cartão do encontro', () => {
+describe('modo músico no Início (D61, D62, D68): o botão "Abrir o repertório" no cartão do momento', () => {
   beforeEach(() => jest.clearAllMocks())
 
-  test('convocado ao louvor (pela etapa): "Abrir o repertório" no cartão do encontro leva ao Meu repertório', async () => {
+  test('convocado ao louvor (pela etapa): é o primário do cartão e leva ao Meu repertório', async () => {
     await renderizarTela(<TelaInicio />, {
       papel: 'membro',
       rotas: rotasCom({ funcao: 'integrante', etapaTitulo: 'Louvor' }),
@@ -100,19 +79,19 @@ describe('modo músico no Início (D61, D62): sem cartão, só o botão do cart�
       papel: 'membro',
       rotas: rotasCom({ funcao: 'recepção', etapaTitulo: 'Palavra' }),
     })
-    await screen.findByText('Você: Palavra · recepção')
+    await screen.findByText('Sua parte: Palavra · recepção')
     expect(screen.queryByRole('button', ABRIR)).toBeNull()
     expect(screen.getByRole('button', { name: 'Ver o encontro' })).toBeOnTheScreen()
   })
 
-  test('convocação de louvor recusada não mostra o botão nem a linha "Você:"', async () => {
+  test('convocação de louvor recusada não mostra o botão nem a linha "Sua parte"', async () => {
     await renderizarTela(<TelaInicio />, {
       papel: 'membro',
       rotas: rotasCom({ funcao: 'Bateria', etapaTitulo: 'Louvor', estado: 'recusada' }),
     })
-    await screen.findByRole('button', { name: 'Ver o encontro' })
+    await screen.findByText('Você avisou que não pode. A liderança será avisada.')
     expect(screen.queryByRole('button', ABRIR)).toBeNull()
-    expect(screen.queryByText(/^Você:/)).toBeNull()
+    expect(screen.queryByText(/^Sua parte/)).toBeNull()
   })
 
   test('convocação de louvor ainda pendente: primeiro responder; o repertório só depois de aceitar', async () => {
@@ -128,6 +107,18 @@ describe('modo músico no Início (D61, D62): sem cartão, só o botão do cart�
     await renderizarTela(<TelaInicio />, { papel: 'membro', rotas: rotasCom(null) })
     await screen.findByRole('button', { name: 'Ver o encontro' })
     expect(screen.queryByRole('button', ABRIR)).toBeNull()
+  })
+
+  test('na véspera o primário é "Como chegar", e o repertório continua a um toque', async () => {
+    await renderizarTela(<TelaInicio />, {
+      papel: 'membro',
+      rotas: rotasCom({ funcao: 'Vocal', etapaTitulo: 'Louvor' }, RELOGIO.vespera),
+    })
+    expect(
+      await screen.findByRole('button', { name: 'Como chegar a Sábado Jovem' }),
+    ).toBeOnTheScreen()
+    await userEvent.setup().press(screen.getByRole('button', ABRIR))
+    expect(router.push).toHaveBeenCalledWith('/meu-repertorio')
   })
 })
 
