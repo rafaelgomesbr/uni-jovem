@@ -82,8 +82,8 @@ function camadasDoTema(tema: NomeDoTema): readonly DefinicaoDePar[] {
     },
     { nome: 'texto sobre campoFundo', frente: 'texto', sobre: ['campoFundo'], tipo: 'texto' },
     {
-      nome: 'textoSuave (exemplo) sobre campoFundo',
-      frente: 'textoSuave',
+      nome: 'campoExemplo (exemplo) sobre campoFundo',
+      frente: 'campoExemplo',
       sobre: ['campoFundo'],
       tipo: 'texto',
     },
@@ -371,6 +371,8 @@ function camadasDoTema(tema: NomeDoTema): readonly DefinicaoDePar[] {
     },
     // Tela de acesso (D63): botões de marca, estados e textos sobre o pior ponto da Aurora.
     ...paresDoAcesso(tema, sobAVioleta),
+    // Controles v2 (D64): apêndice A de docs/design/controles-v2.md.
+    ...paresDosControles(),
     // Iniciais brancas sobre as cores de comunidade.
     ...CORES_DA_COMUNIDADE.map((c) => ({
       nome: `iniciais sobre ${c.rotulo}`,
@@ -502,6 +504,155 @@ function paresDoAcesso(tema: NomeDoTema, sobAVioleta: string): DefinicaoDePar[] 
     )
   }
   return pares
+}
+
+/**
+ * Pares dos controles v2 (D64, apêndice A de `docs/design/controles-v2.md`):
+ * botões, campos, segmentos e interruptor. "Composto" é a cor translúcida sobre
+ * o cartão opaco (o `solido` do tema faz o mesmo na tela).
+ */
+function paresDosControles(): DefinicaoDePar[] {
+  return [
+    // Campo: borda a 3:1 contra tudo em que ele pode estar (cartão, tela, folha e o próprio fundo).
+    {
+      nome: 'interface: campoBorda contra superficieElevada',
+      frente: 'campoBorda',
+      sobre: ['superficieElevada'],
+      tipo: 'interface',
+    },
+    {
+      nome: 'interface: sucesso (borda do campo) contra campoFundo',
+      frente: 'sucesso',
+      sobre: ['campoFundo'],
+      tipo: 'interface',
+    },
+    {
+      nome: 'destaque ("Mostrar") sobre campoFundo',
+      frente: 'destaque',
+      sobre: ['campoFundo'],
+      tipo: 'texto',
+    },
+    {
+      nome: 'campo: texto sobre campoFundo no cartão translúcido (pior caso: o fundo é opaco)',
+      frente: 'texto',
+      sobre: ['superficie', 'campoFundo'],
+      tipo: 'texto',
+    },
+    // Botão primário: o degradê só clareia o topo; o pior ponto é a base (escuro) ou o topo (claro).
+    {
+      nome: 'sobrePrimaria sobre primariaTopo',
+      frente: 'sobrePrimaria',
+      sobre: ['primariaTopo'],
+      tipo: 'texto',
+    },
+    {
+      nome: 'sobrePrimaria sobre primariaBase',
+      frente: 'sobrePrimaria',
+      sobre: ['primariaBase'],
+      tipo: 'texto',
+    },
+    {
+      nome: 'interface: primariaTopo contra superficie',
+      frente: 'primariaTopo',
+      sobre: ['superficie'],
+      tipo: 'interface',
+    },
+    {
+      nome: 'interface: primariaBase contra superficie',
+      frente: 'primariaBase',
+      sobre: ['superficie'],
+      tipo: 'interface',
+    },
+    // Botão secundário e de ícone: tonal composto no cartão, sem borda.
+    {
+      nome: 'texto sobre botaoTonal composto',
+      frente: 'texto',
+      sobre: ['superficie', 'botaoTonal'],
+      tipo: 'texto',
+    },
+    {
+      nome: 'texto sobre botaoTonalPressionado composto',
+      frente: 'texto',
+      sobre: ['superficie', 'botaoTonalPressionado'],
+      tipo: 'texto',
+    },
+    {
+      nome: 'texto sobre botaoTonalOpaco (Reduzir transparência)',
+      frente: 'texto',
+      sobre: ['botaoTonalOpaco'],
+      tipo: 'texto',
+    },
+    {
+      nome: 'texto sobre botaoTonal composto no fundo da tela',
+      frente: 'texto',
+      sobre: ['fundo', 'botaoTonal'],
+      tipo: 'texto',
+    },
+    // Destrutivo e terciário.
+    {
+      nome: 'erro sobre erroFundo composto (botão destrutivo)',
+      frente: 'erro',
+      sobre: ['superficie', 'erroFundo'],
+      tipo: 'texto',
+    },
+    {
+      nome: 'destaque sobre superficie (botão terciário)',
+      frente: 'destaque',
+      sobre: ['superficie'],
+      tipo: 'texto',
+    },
+    // Segmentos: o escolhido é `quenteFundo` sobre o trilho; o inativo é `textoSuave`.
+    {
+      nome: 'segmento escolhido: destaque sobre quenteFundo no trilho',
+      frente: 'destaque',
+      sobre: ['superficie', 'tonal', 'quenteFundo'],
+      tipo: 'texto',
+    },
+    {
+      nome: 'segmento escolhido: destaque sobre quenteFundo no trilho opaco',
+      frente: 'destaque',
+      sobre: ['tonalOpaco', 'quenteFundo'],
+      tipo: 'texto',
+    },
+    {
+      nome: 'segmento inativo: textoSuave sobre o trilho',
+      frente: 'textoSuave',
+      sobre: ['superficie', 'tonal'],
+      tipo: 'texto',
+    },
+    {
+      nome: 'segmento inativo: textoSuave sobre o trilho opaco',
+      frente: 'textoSuave',
+      sobre: ['tonalOpaco'],
+      tipo: 'texto',
+    },
+    // Interruptor com trilho próprio: o desligado precisa de 3:1 (o Switch nativo tinha 1,28:1).
+    {
+      nome: 'interface: interruptor desligado (campoBorda contra superficie)',
+      frente: 'campoBorda',
+      sobre: ['superficie'],
+      tipo: 'interface',
+    },
+    {
+      nome: 'interface: interruptor ligado (primaria contra superficie)',
+      frente: 'primaria',
+      sobre: ['superficie'],
+      tipo: 'interface',
+    },
+    {
+      nome: 'interface: polegar ligado (sobrePrimaria sobre primaria)',
+      frente: 'sobrePrimaria',
+      sobre: ['primaria'],
+      tipo: 'interface',
+    },
+    // Radio e caixa de marcar: anel de 2 pt e miolo em `primaria`; check em `sobrePrimaria`.
+    {
+      nome: 'interface: radio marcado (primaria contra a linha marcada)',
+      frente: 'primaria',
+      sobre: ['superficie', 'quenteFundo'],
+      tipo: 'interface',
+    },
+  ]
 }
 
 /** Resolve um nome de camada para a cor do tema. */

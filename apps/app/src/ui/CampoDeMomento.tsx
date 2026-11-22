@@ -1,11 +1,11 @@
 import DateTimePicker from '@expo/ui/community/datetime-picker'
-import { ESPACO } from '@uj/tokens'
+import { ESPACO, TIPO } from '@uj/tokens'
 import { useId, useState } from 'react'
 import { Platform, Pressable, View } from 'react-native'
 
 import { Botao } from './Botao'
-import { BlocoDoCampo, useEstiloDaCaixa, type EstadoDaCaixa } from './Campo'
-import { ALFA_DESABILITADO, comOpacidade } from './cor'
+import { AnelDoCampo, BlocoDoCampo, useEstiloDaCaixa, type EstadoDaCaixa } from './Campo'
+import { comOpacidade } from './cor'
 import { FolhaNaTela } from './FolhaNaTela'
 import { Icone } from './Icone'
 import { Texto } from './Texto'
@@ -23,8 +23,10 @@ export { deDate, formatarMomento, paraDate }
 export type { PropsDoCampoDeMomento, TipoDeMomento }
 
 /**
- * Campo de data ou hora (seção 2.12.3): a caixa do Campo, tocável, com o valor
- * formatado e o ícone à direita. O toque abre o seletor nativo do `@expo/ui`:
+ * Campo de data ou hora (D64): a caixa do Campo, tocável, com o ícone de
+ * calendário ou relógio à esquerda (esquerda diz "o que é"), o valor em 16/22 ou
+ * "Escolher data" em `campoExemplo`, e o anel de foco ligado enquanto o seletor
+ * está aberto. O toque abre o seletor nativo do `@expo/ui`:
  * no iOS, o calendário (data) ou a roda (hora) numa folha da largura da tela,
  * com "Pronto"; no Android, o diálogo do Material 3. Nada é digitado.
  */
@@ -57,10 +59,10 @@ export function CampoDeMomento({
         : 'normal'
   const estiloDaCaixa = useEstiloDaCaixa(estado)
   const corDoValor = desabilitado
-    ? comOpacidade(cores.texto, ALFA_DESABILITADO)
+    ? comOpacidade(cores.textoSuave, 0.6)
     : formatado
       ? cores.texto
-      : cores.textoSuave
+      : cores.campoExemplo
 
   const escolher = (d: Date) => aoMudar(deDate(tipo, d))
   const limites = {
@@ -95,21 +97,31 @@ export function CampoDeMomento({
         onPress={() => setAberto((a) => !a)}
         style={estiloDaCaixa}
       >
+        <View style={{ paddingLeft: ESPACO.e16 }}>
+          <Icone
+            nome={tipo === 'data' ? 'calendario' : 'relogio'}
+            cor={desabilitado ? corDoValor : cores.textoSuave}
+            tamanho={20}
+          />
+        </View>
         <Texto
           variante="corpo"
           tabular={tipo === 'hora'}
-          style={{ flex: 1, paddingLeft: ESPACO.e16, fontSize: 16, color: corDoValor }}
+          style={{
+            flex: 1,
+            paddingLeft: ESPACO.e12,
+            paddingRight: ESPACO.e16,
+            fontSize: TIPO.campo.tamanho,
+            lineHeight: TIPO.campo.altura,
+            color: corDoValor,
+          }}
           numberOfLines={1}
         >
           {formatado ?? (tipo === 'data' ? 'Escolher data' : 'Escolher horário')}
         </Texto>
-        <View style={{ paddingRight: ESPACO.e16 }}>
-          <Icone
-            nome={tipo === 'data' ? 'calendario' : 'relogio'}
-            cor={desabilitado ? corDoValor : cores.textoSuave}
-            tamanho={18}
-          />
-        </View>
+        {desabilitado ? null : (
+          <AnelDoCampo ativo={aberto} comErro={!!erro} testID={`momento-${tipo}`} />
+        )}
       </Pressable>
       {ios ? (
         // O seletor nativo do iOS só mede a altura; a largura vem do pai. Dentro de

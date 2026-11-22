@@ -53,7 +53,7 @@ export interface PropsDoBotaoDeAcesso {
 
 /**
  * Botão de acesso (D63), no lugar do `BotaoDeAcessoRapido`: 56 de altura (48 o
- * terciário), raio 14, logotipo oficial à esquerda do texto, três níveis de
+ * terciário), cápsula (D64), logotipo oficial à esquerda do texto, três níveis de
  * peso e retorno ao toque (escala 0,98 com mola e camada de pressionado).
  * Carregando, o indicador troca o logotipo depois de 250 ms (resposta rápida
  * não pisca), no mesmo tamanho, e o rótulo continua o mesmo para o leitor de
@@ -192,7 +192,7 @@ export function BotaoDeAcesso({
             onFocus={anel.onFocus}
             onBlur={anel.onBlur}
             {...soNaWeb({ 'data-acesso': marca })}
-            style={[
+            style={({ pressed }) => [
               {
                 minHeight: a.altura,
                 overflow: 'hidden',
@@ -202,12 +202,17 @@ export function BotaoDeAcesso({
                 gap: ESPACO.e12,
                 paddingHorizontal: ESPACO.e20,
                 paddingVertical: ESPACO.e8,
-                borderRadius: RAIO.controle,
+                borderRadius: RAIO.pilula,
                 backgroundColor: a.fundo,
+                // Degradê do primário com o sólido por baixo (onde o degradê não é desenhado, vale o sólido).
+                ...(a.degrade && !aumentarContraste ? { backgroundImage: a.degrade } : {}),
                 borderWidth: comBorda ? 2 : a.borda ? 1 : 0,
                 borderColor: comBorda ? a.texto : (a.borda ?? 'transparent'),
               },
               a.sombra && elevacao.cartao !== 'none' ? { boxShadow: elevacao.cartao } : null,
+              a.brilho && !aumentarContraste && !pressed && !camadaDeVitrine
+                ? { boxShadow: a.brilho }
+                : null,
               anel.estilo,
             ]}
           >

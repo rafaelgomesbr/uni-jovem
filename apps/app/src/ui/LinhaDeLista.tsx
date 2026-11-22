@@ -26,8 +26,8 @@ export const RECUO_DA_LISTA = {
   /** Bloco de data ou coluna de hora, de 44. */
   data: 18 + LARGURA_DA_HORA + 12,
   hora: 18 + LARGURA_DA_HORA + 12,
-  /** Rádio ou caixa de marcar, de 22. */
-  caixa: 18 + 22 + 12,
+  /** Rádio ou caixa de marcar, de 24. */
+  caixa: 18 + 24 + 12,
   /** Sem elemento à esquerda (interruptor, texto). */
   texto: 18,
 } as const

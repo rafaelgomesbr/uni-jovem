@@ -1,4 +1,4 @@
-import { ESPACO } from '@uj/tokens'
+import { ESPACO, RAIO } from '@uj/tokens'
 import { Fragment } from 'react'
 import { Pressable, View } from 'react-native'
 
@@ -25,9 +25,9 @@ export interface PropsDaListaDeOpcoes<T extends string> {
 }
 
 /**
- * Lista de opções, escolha única (seção 2.12.6): linhas de 56 (64 com
- * descrição) dentro de um cartão opaco, rádio de 22 à esquerda, separador
- * recuado 52 e nenhum check repetido à direita. Dentro de um cartão que já
+ * Lista de opções, escolha única (seção 2.12.6, D64): linhas de 56 (64 com
+ * descrição) dentro de um cartão opaco, rádio de 24 à esquerda, separador
+ * recuado 54, a linha marcada com fundo quente e nenhum check repetido à direita. Dentro de um cartão que já
  * existe, as linhas entram nele (nada de cartão dentro de cartão).
  */
 export function ListaDeOpcoes<T extends string>({
@@ -44,7 +44,7 @@ export function ListaDeOpcoes<T extends string>({
     <View accessibilityRole="radiogroup" aria-label={rotulo}>
       {opcoes.map((opcao, i) => (
         <Fragment key={opcao.valor}>
-          {i > 0 ? <Separador recuo={dentroDeCartao ? 34 : 52} /> : null}
+          {i > 0 ? <Separador recuo={dentroDeCartao ? 36 : 54} /> : null}
           <LinhaDeOpcao
             opcao={opcao}
             marcada={opcao.valor === valor}
@@ -95,7 +95,7 @@ function LinhaDeOpcao<T extends string>({
   aoEscolher: () => void
   extra: object
 }) {
-  const { cores } = useTema()
+  const { cores, solido } = useTema()
   const corDoTexto = opcao.desabilitada ? comOpacidade(cores.texto, ALFA_DESABILITADO) : cores.texto
   return (
     <Pressable
@@ -118,6 +118,23 @@ function LinhaDeOpcao<T extends string>({
         backgroundColor: pressed ? cores.pressionado : 'transparent',
       })}
     >
+      {marcada ? (
+        // A linha marcada ganha uma faixa quente (a 50%), recuada 8 dos lados e com cantos
+        // redondos: a escolha se vê de longe, além do miolo do rádio.
+        <View
+          pointerEvents="none"
+          testID="faixa-da-opcao-marcada"
+          style={{
+            position: 'absolute',
+            top: ESPACO.e4,
+            bottom: ESPACO.e4,
+            left: ESPACO.e8,
+            right: ESPACO.e8,
+            borderRadius: RAIO.controle,
+            backgroundColor: solido(comOpacidade(cores.quenteFundo, 0.5)),
+          }}
+        />
+      ) : null}
       <Radio marcado={marcada} desabilitado={!!opcao.desabilitada} />
       <View style={{ flex: 1, gap: 2 }}>
         <Texto variante="tituloItem" style={{ color: corDoTexto }}>
@@ -133,16 +150,16 @@ function LinhaDeOpcao<T extends string>({
   )
 }
 
-/** Rádio de 22: anel de 2 (`campoBorda`); marcado, anel e miolo de 10 em `primaria`. */
+/** Rádio de 24 (D64): anel de 2 (`campoBorda`); marcado, anel e miolo de 12 em `primaria`. */
 export function Radio({ marcado, desabilitado }: { marcado: boolean; desabilitado?: boolean }) {
   const { cores, semFundo } = useTema()
   const cor = desabilitado ? cores.tonalBorda : marcado ? cores.primaria : cores.campoBorda
   return (
     <View
       style={{
-        width: 22,
-        height: 22,
-        borderRadius: 11,
+        width: 24,
+        height: 24,
+        borderRadius: 12,
         borderWidth: 2,
         borderColor: cor,
         backgroundColor: semFundo,
@@ -151,7 +168,7 @@ export function Radio({ marcado, desabilitado }: { marcado: boolean; desabilitad
       }}
     >
       {marcado ? (
-        <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: cor }} />
+        <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: cor }} />
       ) : null}
     </View>
   )

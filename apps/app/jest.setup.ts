@@ -351,3 +351,25 @@ jest.mock('react-native-reanimated', () => {
     useReducedMotion: () => false,
   }
 })
+
+/**
+ * O `expo-router/testing-library` instala por conta própria um dublê do Reanimated
+ * que, sem o módulo nativo, vira `{}` e derruba qualquer componente que anima (o
+ * botão e o campo animam desde a D64). Este dublê do módulo de mocks dele faz o
+ * mesmo que o original (gesture handler e `expo-linking`), menos o Reanimated: vale o
+ * de cima.
+ */
+jest.mock('expo-router/build/testing-library/mocks', () => {
+  try {
+    require('react-native-gesture-handler/jestSetup')
+  } catch {
+    // O pacote é opcional para o roteador.
+  }
+  jest.mock('expo-linking', () => ({
+    ...jest.requireActual('expo-linking'),
+    createURL: (caminho: string) => `yourscheme://${caminho}`,
+    resolveScheme: () => 'yourscheme',
+    addEventListener: () => ({ remove: () => undefined }),
+  }))
+  return {}
+})

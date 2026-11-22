@@ -1,0 +1,658 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Uni Jovem: controles v2 (botões e campos), antes e depois</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;font:400 15px/22px Inter,system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--pagina);color:var(--texto)}
+button{font-family:inherit}
+
+/* ---------- tokens: tema escuro (valores de packages/tokens/src/cores.ts) ---------- */
+body[data-tema="escuro"]{
+  --pagina:#0B0A1C; --fundo:#12102A; --sup:#232139; --sup-tr:rgba(255,255,255,.07); --sup-borda:rgba(255,255,255,.14); --elev:#2B2848;
+  --texto:#F5F3FF; --suave:#C9C4EC; --destaque:#FFB199;
+  --primaria:#FF8A65; --prim-press:#F0764F; --sobre-prim:#1A0F0A;
+  --contorno:rgba(255,255,255,.36); --tonal:rgba(255,255,255,.08); --tonal-borda:rgba(255,255,255,.18); --pressionado:rgba(255,255,255,.08);
+  --erro:#FF8A8A; --erro-fundo:rgba(255,138,138,.16); --erro-press:rgba(255,138,138,.26); --erro-cheio:#FF8A8A; --sobre-erro:#2A0A0A;
+  --sucesso:#7FE0B0; --quente-fundo:rgba(255,177,153,.16); --quente-50:rgba(255,177,153,.08);
+  --texto-50:rgba(245,243,255,.5); --suave-60:rgba(201,196,236,.6); --suave-70:rgba(201,196,236,.7);
+  --destaque-70:rgba(255,177,153,.7); --destaque-50:rgba(255,177,153,.5);
+  --topo-bg:rgba(11,10,28,.86); --aur-coral:rgba(255,138,101,.55); --aur-violeta:rgba(124,108,255,.45);
+  --barra-bg:rgba(30,27,62,.88); --barra-borda:rgba(255,255,255,.16);
+  /* antes */
+  --a-campo-fundo:#1A1833; --a-campo-borda:#736DA8; --a-foco:#FFD166; --a-sombra-cartao:none;
+  /* depois */
+  --d-campo-fundo:#322F4C; --d-campo-borda:#7C77A8; --d-exemplo:#A7A2D0; --d-foco:#FF8A65; --d-halo:rgba(255,138,101,.22);
+  --d-topo:#FF9A78; --d-base:#FF8A65; --d-tonal:rgba(179,168,255,.16); --d-tonal-press:rgba(179,168,255,.24);
+  --d-desab:rgba(255,255,255,.04);
+  --d-sombra:0 6px 16px rgba(255,138,101,.28); --d-realce:inset 0 1px 0 rgba(255,255,255,.30);
+}
+/* ---------- tema claro ---------- */
+body[data-tema="claro"]{
+  --pagina:#E9E6F6; --fundo:#F7F5FF; --sup:#FFFFFF; --sup-tr:#FFFFFF; --sup-borda:rgba(27,24,56,.10); --elev:#FFFFFF;
+  --texto:#1B1838; --suave:#4B4670; --destaque:#8A2E12;
+  --primaria:#C2491F; --prim-press:#A93D18; --sobre-prim:#FFFFFF;
+  --contorno:#857FAF; --tonal:rgba(27,24,56,.05); --tonal-borda:rgba(27,24,56,.12); --pressionado:rgba(27,24,56,.06);
+  --erro:#B42318; --erro-fundo:#FDE4E1; --erro-press:#FBCFCA; --erro-cheio:#B42318; --sobre-erro:#FFFFFF;
+  --sucesso:#16794B; --quente-fundo:#FFE3D9; --quente-50:rgba(255,227,217,.5);
+  --texto-50:rgba(27,24,56,.5); --suave-60:rgba(75,70,112,.6); --suave-70:rgba(75,70,112,.7);
+  --destaque-70:rgba(138,46,18,.7); --destaque-50:rgba(138,46,18,.5);
+  --topo-bg:rgba(233,230,246,.9); --aur-coral:rgba(255,138,101,.30); --aur-violeta:rgba(124,108,255,.22);
+  --barra-bg:rgba(255,255,255,.86); --barra-borda:rgba(27,24,56,.10);
+  --a-campo-fundo:#FFFFFF; --a-campo-borda:#857FAF; --a-foco:#4B3FC4; --a-sombra-cartao:0 1px 2px rgba(27,24,56,.06),0 6px 16px rgba(27,24,56,.06);
+  --d-campo-fundo:#F3F1FA; --d-campo-borda:#857FAF; --d-exemplo:#6B6690; --d-foco:#C2491F; --d-halo:rgba(194,73,31,.18);
+  --d-topo:#C64B20; --d-base:#B5431B; --d-tonal:rgba(75,63,196,.12); --d-tonal-press:rgba(75,63,196,.18);
+  --d-desab:rgba(27,24,56,.04);
+  --d-sombra:0 6px 14px rgba(194,73,31,.30); --d-realce:inset 0 1px 0 rgba(255,255,255,.22);
+}
+
+/* ---------- ícones ---------- */
+.i{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.i.p{width:16px;height:16px}.i.m{width:18px;height:18px}.i.g{width:22px;height:22px}
+
+/* ---------- página ---------- */
+.topo{position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 24px;background:var(--topo-bg);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid var(--sup-borda)}
+.topo b{font:600 15px/20px Inter}
+.pagina{max-width:880px;margin:0 auto;padding:40px 24px 120px}
+h1{font:800 34px/38px "Bricolage Grotesque",Inter,sans-serif;letter-spacing:-.5px;margin:0 0 12px}
+h2{font:800 28px/32px "Bricolage Grotesque",Inter,sans-serif;letter-spacing:-.3px;margin:72px 0 8px}
+.lead{color:var(--suave);max-width:660px;margin:0 0 8px}
+.nota{font:400 14px/20px Inter;color:var(--suave);max-width:660px;margin:8px 0 0}
+.caixa-info{background:var(--sup);border:1px solid var(--sup-borda);border-radius:22px;padding:20px;margin:24px 0}
+.caixa-info h3{font:600 13px/18px Inter;letter-spacing:1px;text-transform:uppercase;color:var(--destaque);margin:0 0 12px}
+.caixa-info ul{margin:0;padding-left:20px}.caixa-info li{margin:4px 0}
+.tab{width:100%;border-collapse:collapse;font:400 14px/20px Inter;font-variant-numeric:tabular-nums}
+.tab th{font:600 13px/18px Inter;text-align:left;color:var(--suave);padding:8px 12px 8px 0;border-bottom:1px solid var(--sup-borda)}
+.tab td{padding:8px 12px 8px 0;border-bottom:1px solid var(--sup-borda);vertical-align:top}
+.tab td.n,.tab th.n{text-align:right;padding-right:16px}
+.ruim{color:var(--erro);font-weight:600}.bom{color:var(--sucesso);font-weight:600}
+body[data-tema="escuro"] .tb-claro,body[data-tema="claro"] .tb-escuro{display:none}
+
+/* palco: duas colunas de celular (390), uma linha de grade por exemplo, para antes e depois alinharem */
+.palco{display:grid;grid-template-columns:390px 390px;column-gap:24px;justify-content:center;margin-top:24px}
+.cel{background:var(--fundo);padding:0 20px 24px;border-left:1px solid var(--sup-borda);border-right:1px solid var(--sup-borda);min-width:0}
+.cel.topo-cel{padding-top:20px;border-top:1px solid var(--sup-borda);border-radius:28px 28px 0 0}
+.cel.fim-cel{padding:0;height:12px;border-bottom:1px solid var(--sup-borda);border-radius:0 0 28px 28px}
+.cel h3{font:600 13px/18px Inter;letter-spacing:1px;text-transform:uppercase;margin:0 0 4px}
+.cel.antes h3{color:var(--suave)}.cel.depois h3{color:var(--destaque)}
+.leg{font:500 13px/18px Inter;color:var(--suave);margin:0 0 8px}
+.linha{display:flex;gap:12px;align-items:flex-start}.linha>*{flex:1;min-width:0}
+.linha.auto>*{flex:none}
+.cartao{background:var(--sup-tr);border:1px solid var(--sup-borda);border-radius:22px;padding:18px;box-shadow:var(--a-sombra-cartao)}
+.motivo{display:flex;align-items:center;gap:6px;margin-top:8px;font:400 14px/20px Inter;color:var(--suave)}
+.spin{width:20px;height:20px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:gira .8s linear infinite;flex:none}
+.spin.s18{width:18px;height:18px}
+@keyframes gira{to{transform:rotate(360deg)}}
+
+/* ======================= ANTES: botões (Botao.tsx) ======================= */
+.a-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:8px 20px;border-radius:14px;border:0;background:transparent;color:var(--texto);font:600 15px/20px Inter;cursor:pointer;transition:transform 120ms}
+.a-btn.med{min-height:44px;padding:8px 16px}
+.a-btn.cheio{display:flex;width:100%}
+.a-pri{background:var(--primaria);color:var(--sobre-prim)}
+.a-pri:active,.a-pri.press{background:var(--prim-press);transform:scale(.98)}
+.a-sec{border:1px solid var(--contorno)}
+.a-sec:active,.a-sec.press{background:var(--pressionado);transform:scale(.98)}
+.a-ter{color:var(--destaque);padding:8px 16px}
+.a-ter:active,.a-ter.press{background:var(--quente-fundo);transform:scale(.98)}
+.a-des{border:1px solid var(--erro);color:var(--erro)}
+.a-des:active,.a-des.press{background:var(--erro-fundo);transform:scale(.98)}
+.a-btn[disabled]{cursor:not-allowed;transform:none}
+.a-pri[disabled]{background:var(--tonal);color:var(--texto-50)}
+.a-sec[disabled]{border-color:var(--tonal-borda);color:var(--texto-50);background:transparent}
+.a-btn:focus-visible,.a-btn.foco{outline:2px solid var(--a-foco);outline-offset:2px}
+.a-ico{width:44px;height:44px;display:inline-grid;place-items:center;border-radius:14px;border:0;background:var(--tonal);color:var(--texto);cursor:pointer}
+.a-ico:active{background:rgba(128,128,160,.25)}
+.a-ico:focus-visible{outline:2px solid var(--a-foco);outline-offset:2px}
+
+/* ======================= DEPOIS: botões ======================= */
+.d-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 20px;border-radius:999px;border:0;background:transparent;color:var(--texto);font:600 16px/20px Inter;cursor:pointer;
+  transition:transform 260ms cubic-bezier(.34,1.56,.64,1),background-color 160ms,box-shadow 160ms}
+.d-btn.g{min-height:56px;padding:0 24px}
+.d-btn.c{min-height:40px;padding:0 16px}
+.d-btn.cheio{display:flex;width:100%}
+.d-btn:active,.d-btn.press{transform:scale(.98);transition-duration:90ms,90ms,90ms;transition-timing-function:cubic-bezier(.25,.46,.45,.94)}
+.d-pri{background:linear-gradient(180deg,var(--d-topo),var(--d-base));color:var(--sobre-prim);box-shadow:var(--d-realce),var(--d-sombra)}
+.d-pri:hover{filter:brightness(1.04)}
+.d-pri:active,.d-pri.press{background:var(--prim-press);box-shadow:none;filter:none}
+.d-sec{background:var(--d-tonal)}
+.d-sec:hover{background:var(--d-tonal-press)}
+.d-sec:active,.d-sec.press{background:var(--d-tonal-press)}
+.d-ter{color:var(--destaque);padding:0 16px}
+.d-ter:hover{background:var(--quente-50)}
+.d-ter:active,.d-ter.press{background:var(--quente-fundo)}
+.d-des{background:var(--erro-fundo);color:var(--erro)}
+.d-des:active,.d-des.press{background:var(--erro-press)}
+.d-btn[disabled]{cursor:not-allowed;transform:none;box-shadow:none;filter:none}
+.d-pri[disabled]{background:var(--quente-fundo);color:var(--destaque-70)}
+.d-sec[disabled]{background:var(--tonal);color:var(--suave-70)}
+.d-ter[disabled]{color:var(--destaque-50);background:transparent}
+.d-btn:focus-visible,.d-btn.foco{outline:2px solid var(--d-foco);outline-offset:2px}
+.d-ico{width:48px;height:48px;display:inline-grid;place-items:center;border-radius:50%;border:0;background:var(--d-tonal);color:var(--texto);cursor:pointer;transition:transform 260ms cubic-bezier(.34,1.56,.64,1),background-color 160ms}
+.d-ico:active{transform:scale(.98);background:var(--d-tonal-press);transition-duration:90ms}
+.d-ico:focus-visible{outline:2px solid var(--d-foco);outline-offset:2px}
+
+/* ======================= ANTES: campos (Campo.tsx) ======================= */
+.a-bloco{margin-top:12px}.a-bloco:first-child{margin-top:0}
+.a-rot{display:block;font:600 15px/20px Inter;color:var(--suave);margin-bottom:8px}
+.a-rot small{font:400 15px/20px Inter}
+.a-caixa{position:relative;display:flex;align-items:center;min-height:48px;border-radius:14px;border:1px solid var(--a-campo-borda);background:var(--a-campo-fundo)}
+.a-caixa input,.a-caixa textarea{flex:1;min-width:0;height:46px;border:0;outline:0;background:transparent;color:var(--texto);font:400 16px/22px Inter;padding:0 16px}
+.a-caixa textarea{height:118px;padding:13px 16px;resize:none}
+.a-caixa.area{align-items:flex-start;min-height:120px}
+.a-caixa input::placeholder,.a-caixa textarea::placeholder{color:var(--suave);opacity:1}
+.a-caixa:focus-within,.a-caixa.foco{border-color:var(--a-foco);box-shadow:inset 0 0 0 1px var(--a-foco)}
+.a-caixa.erro{border-color:var(--erro);box-shadow:inset 0 0 0 1px var(--erro)}
+.a-caixa.desab{background:transparent;border-style:dashed;border-color:var(--tonal-borda)}
+.a-caixa.desab input{color:var(--suave)}
+.a-caixa.leitura{background:var(--tonal);border-color:transparent}
+.a-caixa .esq{position:absolute;left:14px;color:var(--suave)}
+.a-caixa.com-esq input{padding-left:40px}
+.a-caixa .dir{position:absolute;right:2px;width:44px;height:44px;display:grid;place-items:center;border:0;background:transparent;color:var(--suave);border-radius:12px;cursor:pointer}
+.a-caixa.com-dir input{padding-right:48px}
+.a-ajuda{font:400 14px/20px Inter;color:var(--suave);margin-top:6px}
+.a-erro{display:flex;gap:6px;margin-top:6px;font:600 15px/20px Inter;color:var(--erro)}
+.a-erro .i{margin-top:2px}
+.a-cont{display:block;text-align:right;font:400 14px/20px Inter;color:var(--suave);margin-top:6px;font-variant-numeric:tabular-nums}
+
+/* ======================= DEPOIS: campos ======================= */
+.d-bloco{margin-top:20px}.d-bloco:first-child{margin-top:0}
+.d-rot{display:block;font:600 15px/20px Inter;color:var(--texto);margin-bottom:8px}
+.d-rot small{font:400 15px/20px Inter;color:var(--suave)}
+.d-caixa{position:relative;display:flex;align-items:center;gap:12px;min-height:56px;padding:0 16px;border-radius:16px;border:1px solid var(--d-campo-borda);background:var(--d-campo-fundo)}
+.d-caixa::after{content:"";position:absolute;inset:-1px;border-radius:16px;border:2px solid var(--d-foco);box-shadow:0 0 0 4px var(--d-halo);opacity:0;pointer-events:none;transition:opacity 120ms ease-out}
+.d-caixa:focus-within::after,.d-caixa.foco::after{opacity:1;transition-duration:160ms}
+.d-caixa input,.d-caixa textarea{flex:1;min-width:0;height:54px;border:0;outline:0;background:transparent;color:var(--texto);font:400 16px/22px Inter;padding:0;caret-color:var(--d-foco)}
+.d-caixa input::placeholder,.d-caixa textarea::placeholder{color:var(--d-exemplo);opacity:1}
+.d-caixa .i{color:var(--suave)}
+.d-caixa.area{align-items:flex-start;min-height:100px}
+.d-caixa.area textarea{height:98px;padding:16px 0;resize:none;overflow:hidden}
+.d-caixa.erro::after{opacity:1;border-color:var(--erro);box-shadow:none}
+.d-caixa.erro:focus-within::after{box-shadow:0 0 0 4px var(--erro-fundo)}
+.d-caixa.erro>.i.estado{color:var(--erro)}
+.d-caixa.ok{border-color:var(--sucesso)}
+.d-caixa.ok>.i.estado{color:var(--sucesso)}
+.d-caixa.desab{background:var(--d-desab);border-color:transparent}
+.d-caixa.desab input{color:var(--suave-60)}
+.d-caixa.leitura{background:transparent;border-color:var(--tonal-borda)}
+.limpar,.mostrar{flex:none;display:flex;align-items:center;justify-content:center;gap:6px;height:44px;margin-right:-10px;border:0;background:transparent;border-radius:999px;cursor:pointer}
+.limpar{width:44px;color:var(--suave)}
+.limpar:hover{background:var(--d-tonal)}
+.mostrar{padding:0 12px;color:var(--destaque);font:600 15px/20px Inter}
+.mostrar:hover{background:var(--quente-50)}
+.d-caixa .mostrar .i{color:var(--destaque)}
+.d-caixa input:placeholder-shown~.limpar{display:none}
+.d-apoio{display:flex;align-items:flex-start;gap:8px;margin-top:8px;min-height:20px}
+.d-apoio .msg{flex:1;font:400 14px/20px Inter;color:var(--suave)}
+.d-apoio .msg.erro,.d-apoio .msg.ok{display:flex;gap:6px;font:600 15px/20px Inter;color:var(--texto)}
+.d-apoio .msg.erro .i{color:var(--erro);margin-top:2px}
+.d-apoio .msg.ok .i{color:var(--sucesso);margin-top:2px}
+.cont{flex:none;font:400 14px/20px Inter;color:var(--suave);font-variant-numeric:tabular-nums}
+
+/* ======================= vizinhos ======================= */
+.a-trilho{display:flex;gap:4px;padding:4px;min-height:44px;border-radius:14px;background:var(--tonal)}
+.a-trilho button{flex:1;min-height:36px;border:0;border-radius:10px;background:transparent;color:var(--suave);font:500 15px/20px Inter;cursor:pointer}
+.a-trilho button.sel{background:var(--tonal-borda);color:var(--texto);font-weight:600}
+body[data-tema="claro"] .a-trilho{background:#ECEAF5}
+body[data-tema="claro"] .a-trilho button.sel{background:#FFFFFF;box-shadow:inset 0 0 0 1px var(--contorno),0 1px 2px rgba(27,24,56,.06)}
+.d-trilho{display:flex;gap:4px;padding:4px;min-height:48px;border-radius:999px;background:var(--tonal)}
+body[data-tema="claro"] .d-trilho{background:#ECEAF5}
+.d-trilho button{flex:1;min-height:40px;border:0;border-radius:999px;background:transparent;color:var(--suave);font:500 15px/20px Inter;cursor:pointer;transition:background-color 160ms}
+.d-trilho button.sel{background:var(--quente-fundo);color:var(--destaque);font-weight:600}
+.d-trilho button:focus-visible,.a-trilho button:focus-visible{outline:2px solid var(--d-foco);outline-offset:2px}
+.a-trilho button:focus-visible{outline-color:var(--a-foco)}
+
+.lista{border:1px solid var(--sup-borda);border-radius:22px;background:var(--sup);overflow:hidden}
+.opc{position:relative;display:flex;align-items:center;gap:12px;min-height:56px;padding:10px 18px;cursor:pointer;border-top:1px solid var(--tonal)}
+.opc:first-child{border-top:0}
+.opc input{position:absolute;opacity:0;pointer-events:none}
+.opc b{font:600 16px/22px Inter;display:block}.opc span.d{font:400 14px/20px Inter;color:var(--suave);display:block}
+.opc .rd{flex:none;display:grid;place-items:center;border-radius:50%;border:2px solid var(--a-campo-borda)}
+.a-lista .rd{width:22px;height:22px}
+.a-lista input:checked+.rd{border-color:var(--primaria)}
+.a-lista input:checked+.rd::after{content:"";width:10px;height:10px;border-radius:50%;background:var(--primaria)}
+.d-lista .rd{width:24px;height:24px;border-color:var(--d-campo-borda);transition:box-shadow 160ms}
+.d-lista input:checked+.rd{border-color:var(--primaria)}
+.d-lista input:checked+.rd::after{content:"";width:12px;height:12px;border-radius:50%;background:var(--primaria)}
+.d-lista .opc:has(input:checked){background:var(--quente-50)}
+.d-lista input:focus-visible+.rd{outline:2px solid var(--d-foco);outline-offset:2px}
+.a-lista input:focus-visible+.rd{outline:2px solid var(--a-foco);outline-offset:2px}
+
+.sw-linha{display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 0}
+.sw-linha .tx{flex:1}.sw-linha b{font:600 16px/22px Inter;display:block}.sw-linha span.d{font:400 14px/20px Inter;color:var(--suave)}
+.sw{position:relative;flex:none;cursor:pointer}.sw input{position:absolute;opacity:0;inset:0;width:100%;height:100%;margin:0;cursor:pointer}
+.a-sw{width:51px;height:31px}
+.a-sw i{position:absolute;inset:0;border-radius:999px;background:var(--tonal);transition:background-color 200ms}
+.a-sw i::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.3);transition:transform 200ms}
+.a-sw input:checked+i{background:var(--primaria)}
+.a-sw input:checked+i::after{transform:translateX(20px)}
+.a-sw input:focus-visible+i{outline:2px solid var(--a-foco);outline-offset:2px}
+.d-sw{width:52px;height:32px}
+.d-sw i{position:absolute;inset:0;border-radius:999px;border:2px solid var(--d-campo-borda);background:transparent;transition:background-color 160ms,border-color 160ms}
+.d-sw i::before{content:"";position:absolute;top:50%;left:2px;width:24px;height:24px;margin-top:-12px;border-radius:50%;background:var(--d-campo-borda);transform:scale(.58);transition:transform 260ms cubic-bezier(.34,1.56,.64,1)}
+.d-sw i svg{position:absolute;top:50%;left:2px;width:14px;height:14px;margin:-7px 0 0 5px;color:var(--primaria);opacity:0;transition:opacity 120ms,transform 260ms cubic-bezier(.34,1.56,.64,1);stroke-width:3}
+.d-sw input:checked+i{background:var(--primaria);border-color:var(--primaria)}
+.d-sw input:checked+i::before{transform:translateX(20px) scale(1);background:var(--sobre-prim)}
+.d-sw input:checked+i svg{opacity:1;transform:translateX(20px)}
+.d-sw input:focus-visible+i{outline:2px solid var(--d-foco);outline-offset:3px}
+
+.a-pil{display:inline-flex;align-items:center;min-height:36px;padding:0 16px;border-radius:999px;border:1px solid var(--a-campo-borda);background:transparent;color:var(--texto);font:500 15px/20px Inter;cursor:pointer}
+.d-pil{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 16px;border-radius:999px;border:0;background:var(--d-tonal);color:var(--texto);font:500 15px/20px Inter;cursor:pointer;transition:transform 260ms cubic-bezier(.34,1.56,.64,1)}
+.d-pil:active{transform:scale(.98);transition-duration:90ms}
+.d-pil.sel{background:var(--quente-fundo);color:var(--destaque)}
+.pils{display:flex;flex-wrap:wrap;gap:8px}
+
+/* ======================= telas completas ======================= */
+.tela{position:relative;overflow:hidden;background:var(--fundo);border-radius:36px;border:1px solid var(--sup-borda);width:390px;max-width:100%;display:flex;flex-direction:column;min-height:900px}
+.tela::before{content:"";position:absolute;width:380px;height:380px;top:-160px;right:-140px;background:radial-gradient(circle,var(--aur-coral) 0%,transparent 70%);pointer-events:none}
+.tela::after{content:"";position:absolute;width:360px;height:360px;top:120px;left:-160px;background:radial-gradient(circle,var(--aur-violeta) 0%,transparent 70%);pointer-events:none}
+.tela>*{position:relative;z-index:1}
+.tela .corpo{flex:1;padding:16px 20px 24px}
+.tela h4{font:800 28px/32px "Bricolage Grotesque",Inter,sans-serif;letter-spacing:-.3px;margin:16px 0 20px}
+.sobr{font:600 13px/18px Inter;letter-spacing:1px;text-transform:uppercase;color:var(--suave);margin:24px 0 8px}
+.barra{padding:12px 20px 28px;background:var(--barra-bg);border-top:1px solid var(--barra-borda);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
+.par-a{display:flex;gap:10px}.par-a>*{flex:1}
+.par-d{display:flex;gap:12px}.par-d>*{flex:1}
+.telas-linha{display:flex;gap:24px;justify-content:center;flex-wrap:wrap;margin-top:24px}
+.tela-rot{font:600 13px/18px Inter;letter-spacing:1px;text-transform:uppercase;margin:0 0 8px;text-align:center}
+.tela-rot.a{color:var(--suave)}.tela-rot.d{color:var(--destaque)}
+
+@media (max-width:880px){
+  .palco{grid-template-columns:minmax(0,390px)}
+  .cel.fim-cel{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  .d-btn,.d-ico,.d-pil,.d-trilho button{transition:none}
+  .d-btn:active,.d-btn.press,.d-ico:active,.d-pil:active{transform:none}
+  .d-caixa::after{transition:none}
+  .d-sw i,.d-sw i::before,.d-sw i svg{transition:none}
+  .spin{animation-duration:2.4s}
+}
+</style>
+</head>
+<body data-tema="escuro">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.6 10.6 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6A17 17 0 0 0 2 12s3.5 7 10 7c1.7 0 3.2-.4 4.5-1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.1"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-check-c" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9.5" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="M8.2 10.8l7.6-4M8.2 13.2l7.6 4"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12.5A1.5 1.5 0 0 0 8.5 21h7a1.5 1.5 0 0 0 1.5-1.5L18 7M9 7V4.5h6V7"/></symbol>
+    <symbol id="i-seta" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-volta" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="M3.5 7l8.5 6.5L20.5 7"/></symbol>
+  </defs>
+</svg>
+
+<div class="topo">
+  <b>Uni Jovem: controles v2</b>
+  <button class="d-btn d-sec c" id="tema" type="button" aria-pressed="false">Tema: escuro</button>
+</div>
+
+<main class="pagina">
+  <h1>Botões e campos de texto: antes e depois</h1>
+  <p class="lead">Do lado esquerdo, os controles atuais reproduzidos fielmente pelo código (cores, raios, bordas, medidas). Do lado direito, a proposta. Troque o tema no botão do topo. Tudo o que aparece como "foco" e "pressionado" também funciona de verdade: use o teclado (Tab) e clique e segure.</p>
+  <p class="nota">Medidas em pontos (aqui, pixels CSS). Contrastes calculados à mão com a fórmula do pacote de tokens; o teste do repositório deve confirmar. Documento completo: <code>docs/design/controles-v2.md</code>.</p>
+
+  <div class="caixa-info">
+    <h3>O conceito em quatro linhas</h3>
+    <ul>
+      <li>Forma diz função: cápsula para agir, retângulo de raio 16 para escrever, raio 22 para conter.</li>
+      <li>Botões por preenchimento, sem contorno: coral com degradê sutil (ação), tonal violeta (alternativa), só texto coral claro (resto), tonal vermelho (perigo).</li>
+      <li>Campo preenchido, um degrau acima do cartão, borda neutra de 1 pt a 3:1, rótulo forte acima, exemplo mais apagado que o valor, foco coral de 2 pt com halo, erro com anel, ícone e frase.</li>
+      <li>Uma só gramática de estados e de movimento (escala 0,98 em 90 ms com mola, anel em 160 ms), com equivalente para Reduzir movimento.</li>
+    </ul>
+  </div>
+
+  <!-- ===================== 1. BOTÕES: HIERARQUIA ===================== -->
+  <h2>1. Botões: hierarquia</h2>
+  <p class="lead">Antes: 48 pt, raio 14, secundário vazado. Depois: 56 pt na ação principal e 48 dentro de cartão, cápsula, secundário tonal.</p>
+
+  <div class="palco">
+    <div class="cel antes topo-cel"><h3>Antes (código atual)</h3></div>
+    <div class="cel depois topo-cel"><h3>Depois (proposta)</h3></div>
+
+    <div class="cel antes"><p class="leg">Primário, largura cheia (grande, 48)</p><button class="a-btn a-pri cheio" type="button">Publicar</button></div>
+    <div class="cel depois"><p class="leg">Primário, largura cheia (grande, 56)</p><button class="d-btn g d-pri cheio" type="button">Publicar</button></div>
+
+    <div class="cel antes"><p class="leg">Secundário (contorno de 1 pt)</p><button class="a-btn a-sec cheio" type="button">Salvar rascunho</button></div>
+    <div class="cel depois"><p class="leg">Secundário (tonal, sem borda)</p><button class="d-btn g d-sec cheio" type="button">Salvar rascunho</button></div>
+
+    <div class="cel antes"><p class="leg">Terciário (só texto)</p><button class="a-btn a-ter" type="button">Ver todas (5)</button></div>
+    <div class="cel depois"><p class="leg">Terciário (seta à direita só aqui)</p><button class="d-btn d-ter" type="button">Ver todas (5) <svg class="i m"><use href="#i-seta"/></svg></button></div>
+
+    <div class="cel antes"><p class="leg">Destrutivo (contorno de erro)</p><button class="a-btn a-des cheio" type="button">Sair da comunidade</button></div>
+    <div class="cel depois"><p class="leg">Destrutivo (tonal vermelho)</p><button class="d-btn d-des cheio" type="button"><svg class="i m"><use href="#i-trash"/></svg>Sair da comunidade</button></div>
+
+    <div class="cel antes"><p class="leg">Com ícone, dentro de cartão (médio, 44)</p>
+      <div class="cartao"><div class="linha auto"><button class="a-btn a-pri med" type="button"><svg class="i m"><use href="#i-search"/></svg>Procurar</button><button class="a-btn a-sec med" type="button"><svg class="i m"><use href="#i-copy"/></svg>Colar</button></div></div></div>
+    <div class="cel depois"><p class="leg">Com ícone, dentro de cartão (médio, 48)</p>
+      <div class="cartao"><div class="linha auto"><button class="d-btn d-pri" type="button"><svg class="i m"><use href="#i-search"/></svg>Procurar</button><button class="d-btn d-sec" type="button"><svg class="i m"><use href="#i-copy"/></svg>Colar</button></div></div></div>
+
+    <div class="cel antes"><p class="leg">Só ícone (44, raio 14)</p><div class="linha auto"><button class="a-ico" type="button" aria-label="Voltar"><svg class="i g"><use href="#i-volta"/></svg></button><button class="a-ico" type="button" aria-label="Compartilhar"><svg class="i g"><use href="#i-share"/></svg></button></div></div>
+    <div class="cel depois"><p class="leg">Só ícone (48, circular; 44 no cabeçalho)</p><div class="linha auto"><button class="d-ico" type="button" aria-label="Voltar"><svg class="i g"><use href="#i-volta"/></svg></button><button class="d-ico" type="button" aria-label="Compartilhar"><svg class="i g"><use href="#i-share"/></svg></button></div></div>
+
+    <div class="cel antes"><p class="leg">Par lado a lado (intervalo 10, altura 48)</p><div class="linha" style="gap:10px"><button class="a-btn a-sec" type="button">Salvar rascunho</button><button class="a-btn a-pri" type="button">Publicar</button></div></div>
+    <div class="cel depois"><p class="leg">Par lado a lado (intervalo 12, altura 56)</p><div class="linha"><button class="d-btn g d-sec" type="button" style="padding:0 12px">Salvar rascunho</button><button class="d-btn g d-pri" type="button" style="padding:0 12px">Publicar</button></div></div>
+
+    <div class="cel antes"><p class="leg">Par empilhado (fonte grande), ordem dos filhos</p><div style="display:grid;gap:10px"><button class="a-btn a-sec cheio" type="button">Salvar rascunho</button><button class="a-btn a-pri cheio" type="button">Publicar</button></div></div>
+    <div class="cel depois"><p class="leg">Par empilhado: primário em cima, intervalo 12</p><div style="display:grid;gap:12px"><button class="d-btn g d-pri cheio" type="button">Publicar</button><button class="d-btn g d-sec cheio" type="button">Salvar rascunho</button></div></div>
+
+    <div class="cel antes fim-cel"></div><div class="cel depois fim-cel"></div>
+  </div>
+
+  <!-- ===================== 2. BOTÕES: ESTADOS ===================== -->
+  <h2>2. Botões: estados</h2>
+  <p class="lead">Primário e secundário em cada estado. O foco antes é amarelo no escuro e índigo no claro; depois é coral, o mesmo anel de 2 pt afastado 2 em todo o app.</p>
+
+  <div class="palco">
+    <div class="cel antes topo-cel"><h3>Antes</h3></div>
+    <div class="cel depois topo-cel"><h3>Depois</h3></div>
+
+    <div class="cel antes"><p class="leg">Repouso</p><div class="linha"><button class="a-btn a-pri" type="button">Publicar</button><button class="a-btn a-sec" type="button">Cancelar</button></div></div>
+    <div class="cel depois"><p class="leg">Repouso (degradê, realce e brilho no primário)</p><div class="linha"><button class="d-btn g d-pri" type="button">Publicar</button><button class="d-btn g d-sec" type="button">Cancelar</button></div></div>
+
+    <div class="cel antes"><p class="leg">Pressionado (cor troca, escala 0,98 sem mola)</p><div class="linha"><button class="a-btn a-pri press" type="button">Publicar</button><button class="a-btn a-sec press" type="button">Cancelar</button></div></div>
+    <div class="cel depois"><p class="leg">Pressionado (sem sombra, escala 0,98 em 90 ms, volta com mola)</p><div class="linha"><button class="d-btn g d-pri press" type="button">Publicar</button><button class="d-btn g d-sec press" type="button">Cancelar</button></div></div>
+
+    <div class="cel antes"><p class="leg">Foco (anel de 2 pt, afastado 2)</p><div class="linha"><button class="a-btn a-pri foco" type="button">Publicar</button><button class="a-btn a-sec foco" type="button">Cancelar</button></div></div>
+    <div class="cel depois"><p class="leg">Foco (mesmo anel, coral)</p><div class="linha"><button class="d-btn g d-pri foco" type="button">Publicar</button><button class="d-btn g d-sec foco" type="button">Cancelar</button></div></div>
+
+    <div class="cel antes"><p class="leg">Carregando (indicador do sistema de 20)</p><div class="linha"><button class="a-btn a-pri" type="button" aria-busy="true"><span class="spin"></span>Publicar</button><button class="a-btn a-sec" type="button" aria-busy="true"><span class="spin"></span>Cancelar</button></div></div>
+    <div class="cel depois"><p class="leg">Carregando (18, rótulo de progresso, largura travada)</p><div class="linha"><button class="d-btn g d-pri" type="button" aria-busy="true"><span class="spin s18"></span>Publicando</button><button class="d-btn g d-sec" type="button" aria-busy="true"><span class="spin s18"></span>Cancelar</button></div></div>
+
+    <div class="cel antes"><p class="leg">Desabilitado (parece secundário; motivo longe)</p><button class="a-btn a-pri cheio" type="button" disabled>Entrar na comunidade</button><div class="motivo">Preencha o código para continuar.</div></div>
+    <div class="cel depois"><p class="leg">Desabilitado (coral apagado; motivo logo abaixo)</p><button class="d-btn g d-pri cheio" type="button" disabled>Entrar na comunidade</button><div class="motivo"><svg class="i p"><use href="#i-lock"/></svg>Preencha o código para continuar.</div></div>
+
+    <div class="cel antes"><p class="leg">Desabilitado, secundário e terciário</p><div class="linha"><button class="a-btn a-sec" type="button" disabled>Cancelar</button><button class="a-btn a-ter" type="button" disabled>Ver todas</button></div></div>
+    <div class="cel depois"><p class="leg">Desabilitado, secundário e terciário</p><div class="linha"><button class="d-btn g d-sec" type="button" disabled>Cancelar</button><button class="d-btn g d-ter" type="button" disabled>Ver todas</button></div></div>
+
+    <div class="cel antes fim-cel"></div><div class="cel depois fim-cel"></div>
+  </div>
+
+  <!-- ===================== 3. CAMPOS ===================== -->
+  <h2>3. Campos de texto: estados</h2>
+  <p class="lead">Experimente digitar, apagar, mostrar a senha e crescer a área de texto. Antes: poço escuro com contorno violeta, rótulo lavanda, exemplo igual ao valor. Depois: campo um degrau acima do cartão, rótulo forte, exemplo apagado, foco coral com halo, erro com anel, ícone e frase.</p>
+
+  <div class="palco">
+    <div class="cel antes topo-cel"><h3>Antes</h3></div>
+    <div class="cel depois topo-cel"><h3>Depois</h3></div>
+
+    <div class="cel antes"><p class="leg">Vazio e preenchido, dentro de cartão</p>
+      <div class="cartao">
+        <div class="a-bloco"><label class="a-rot" for="a1">Título</label><div class="a-caixa"><input id="a1" placeholder="Sábado Jovem"></div></div>
+        <div class="a-bloco"><label class="a-rot" for="a2">Categoria</label><div class="a-caixa"><input id="a2" value="Programação de sábado"></div><div class="a-ajuda">Escolha uma sugestão ou escreva a sua.</div></div>
+      </div></div>
+    <div class="cel depois"><p class="leg">Vazio e preenchido, dentro de cartão</p>
+      <div class="cartao">
+        <div class="d-bloco"><label class="d-rot" for="d1">Título</label><div class="d-caixa"><input id="d1" placeholder="Sábado Jovem"></div></div>
+        <div class="d-bloco"><label class="d-rot" for="d2">Categoria</label><div class="d-caixa"><input id="d2" value="Programação de sábado"></div><div class="d-apoio"><div class="msg">Escolha uma sugestão ou escreva a sua.</div></div></div>
+      </div></div>
+
+    <div class="cel antes"><p class="leg">Fora do cartão, sobre o fundo</p>
+      <div class="a-bloco"><label class="a-rot" for="a3">Nome da comunidade</label><div class="a-caixa com-esq"><svg class="i m esq"><use href="#i-search"/></svg><input id="a3" placeholder="Nome da comunidade"></div></div></div>
+    <div class="cel depois"><p class="leg">Fora do cartão, sobre o fundo (busca: lupa à esquerda, limpar à direita)</p>
+      <div class="d-bloco"><label class="d-rot" for="d3">Nome da comunidade</label><div class="d-caixa"><svg class="i"><use href="#i-search"/></svg><input id="d3" placeholder="Nome da comunidade" value="Jovens"><button class="limpar" type="button" aria-label="Limpar a busca" data-limpar="d3"><svg class="i m"><use href="#i-x"/></svg></button></div></div></div>
+
+    <div class="cel antes"><p class="leg">Foco (borda amarela de 1 pt mais anel interno de 1)</p>
+      <div class="cartao"><div class="a-bloco"><label class="a-rot" for="a4">E-mail</label><div class="a-caixa foco"><input id="a4" placeholder="nome@exemplo.com"></div></div></div></div>
+    <div class="cel depois"><p class="leg">Foco (anel de 2 pt coral, halo de 4, 160 ms)</p>
+      <div class="cartao"><div class="d-bloco"><label class="d-rot" for="d4">E-mail</label><div class="d-caixa foco"><svg class="i"><use href="#i-mail"/></svg><input id="d4" type="email" autocomplete="email" placeholder="nome@exemplo.com"></div></div></div></div>
+
+    <div class="cel antes"><p class="leg">Erro (borda e anel de erro, mensagem)</p>
+      <div class="cartao"><div class="a-bloco"><label class="a-rot" for="a5">E-mail</label><div class="a-caixa erro"><input id="a5" value="ana@exemplo"></div><div class="a-erro"><svg class="i p"><use href="#i-alert"/></svg><span>Falta o final do e-mail, como ana@exemplo.com.</span></div></div></div></div>
+    <div class="cel depois"><p class="leg">Erro (anel permanente, ícone no campo, ícone e frase embaixo)</p>
+      <div class="cartao"><div class="d-bloco"><label class="d-rot" for="d5">E-mail</label><div class="d-caixa erro"><svg class="i"><use href="#i-mail"/></svg><input id="d5" value="ana@exemplo" aria-invalid="true"><svg class="i estado"><use href="#i-alert"/></svg></div><div class="d-apoio"><div class="msg erro"><svg class="i p"><use href="#i-alert"/></svg><span>Falta o final do e-mail, como ana@exemplo.com.</span></div></div></div></div></div>
+
+    <div class="cel antes"><p class="leg">Sucesso (não existe hoje)</p>
+      <div class="cartao"><div class="a-bloco"><label class="a-rot" for="a6">Apelido</label><div class="a-caixa"><input id="a6" value="ana.ribeiro"></div></div></div></div>
+    <div class="cel depois"><p class="leg">Sucesso (borda verde, check e texto)</p>
+      <div class="cartao"><div class="d-bloco"><label class="d-rot" for="d6">Apelido</label><div class="d-caixa ok"><input id="d6" value="ana.ribeiro"><svg class="i estado"><use href="#i-check-c"/></svg></div><div class="d-apoio"><div class="msg ok"><svg class="i p"><use href="#i-check-c"/></svg><span>Apelido disponível.</span></div></div></div></div></div>
+
+    <div class="cel antes"><p class="leg">Senha (só o olho; sem palavra)</p>
+      <div class="cartao"><div class="a-bloco"><label class="a-rot" for="a7">Senha</label><div class="a-caixa com-dir"><input id="a7" type="password" value="senha-secreta"><button class="dir" type="button" aria-label="Mostrar senha" data-mostrar="a7" data-estilo="a"><svg class="i m"><use href="#i-eye"/></svg></button></div></div></div></div>
+    <div class="cel depois"><p class="leg">Senha (ícone e palavra "Mostrar", clique para alternar)</p>
+      <div class="cartao"><div class="d-bloco"><label class="d-rot" for="d7">Senha</label><div class="d-caixa"><svg class="i"><use href="#i-lock"/></svg><input id="d7" type="password" value="senha-secreta" autocomplete="current-password"><button class="mostrar" type="button" data-mostrar="d7" data-estilo="d"><svg class="i m"><use href="#i-eye"/></svg><span>Mostrar</span></button></div></div></div></div>
+
+    <div class="cel antes"><p class="leg">Data (hora e data nativas do navegador no web)</p>
+      <div class="cartao"><div class="a-bloco"><label class="a-rot" for="a8">Data</label><div class="a-caixa"><input id="a8" placeholder="dd/mm/yyyy"><span style="padding-right:16px;color:var(--suave)"><svg class="i m"><use href="#i-cal"/></svg></span></div></div></div></div>
+    <div class="cel depois"><p class="leg">Data (calendário à esquerda, "Escolher data")</p>
+      <div class="cartao"><div class="d-bloco"><label class="d-rot" for="d8">Data</label><div class="d-caixa"><svg class="i"><use href="#i-cal"/></svg><input id="d8" placeholder="Escolher data" readonly></div></div></div></div>
+
+    <div class="cel antes"><p class="leg">Área de texto (120 fixos, contador solto)</p>
+      <div class="cartao"><div class="a-bloco"><label class="a-rot" for="a9">Descrição <small>(opcional)</small></label><div class="a-caixa area"><textarea id="a9" placeholder="Louvor, estudo da lição e um lanche no fim."></textarea></div><span class="a-cont">0/5000</span></div></div></div>
+    <div class="cel depois"><p class="leg">Área de texto (3 a 8 linhas, cresce ao digitar; escreva para ver)</p>
+      <div class="cartao"><div class="d-bloco"><label class="d-rot" for="d9">Descrição <small>(opcional)</small></label><div class="d-caixa area"><textarea id="d9" placeholder="Louvor, estudo da lição e um lanche no fim." maxlength="5000" data-cresce></textarea></div><div class="d-apoio"><div class="msg">Conte o que vai acontecer.</div><span class="cont" data-cont="d9" data-max="5000">0/5000</span></div></div></div></div>
+
+    <div class="cel antes"><p class="leg">Desabilitado (tracejado) e somente leitura</p>
+      <div class="cartao">
+        <div class="a-bloco"><label class="a-rot" for="a10">Comunidade</label><div class="a-caixa desab"><input id="a10" value="Jovens Esperança" disabled></div></div>
+        <div class="a-bloco"><label class="a-rot" for="a11">Código</label><div class="a-caixa leitura"><input id="a11" value="ABCD 2345" readonly></div></div>
+      </div></div>
+    <div class="cel depois"><p class="leg">Desabilitado (sem tracejado) e somente leitura (cadeado)</p>
+      <div class="cartao">
+        <div class="d-bloco"><label class="d-rot" for="d10">Comunidade</label><div class="d-caixa desab"><input id="d10" value="Jovens Esperança" disabled></div><div class="d-apoio"><div class="msg">Só a liderança troca o nome.</div></div></div>
+        <div class="d-bloco"><label class="d-rot" for="d11">Código</label><div class="d-caixa leitura"><input id="d11" value="ABCD 2345" readonly><svg class="i"><use href="#i-lock"/></svg></div></div>
+      </div></div>
+
+    <div class="cel antes fim-cel"></div><div class="cel depois fim-cel"></div>
+  </div>
+
+  <!-- ===================== 4. VIZINHOS ===================== -->
+  <h2>4. Controles vizinhos</h2>
+  <p class="lead">Segmentos, lista de opções, interruptor e pílulas de filtro acompanham a mesma linguagem. Clique para trocar a seleção.</p>
+
+  <div class="palco">
+    <div class="cel antes topo-cel"><h3>Antes</h3></div>
+    <div class="cel depois topo-cel"><h3>Depois</h3></div>
+
+    <div class="cel antes"><p class="leg">Segmentos (trilho 44, raio 14, polegar cinza)</p>
+      <div class="a-trilho" data-seg><button type="button">1 dia</button><button type="button">3 dias</button><button type="button" class="sel">7 dias</button></div></div>
+    <div class="cel depois"><p class="leg">Segmentos (trilho 48 em cápsula, polegar 40 coral suave)</p>
+      <div class="d-trilho" data-seg><button type="button">1 dia</button><button type="button">3 dias</button><button type="button" class="sel">7 dias</button></div></div>
+
+    <div class="cel antes"><p class="leg">Lista de opções (radio 22)</p>
+      <div class="lista a-lista">
+        <label class="opc"><input type="radio" name="ra" checked><span class="rd"></span><span><b>Somente eu (padrão)</b><span class="d">Só você lê.</span></span></label>
+        <label class="opc"><input type="radio" name="ra"><span class="rd"></span><span><b>Equipe de oração</b><span class="d">Hoje, ninguém além de você.</span></span></label>
+        <label class="opc"><input type="radio" name="ra"><span class="rd"></span><span><b>Comunidade</b><span class="d">14 pessoas além de você.</span></span></label>
+      </div></div>
+    <div class="cel depois"><p class="leg">Lista de opções (radio 24, linha marcada com fundo quente)</p>
+      <div class="lista d-lista">
+        <label class="opc"><input type="radio" name="rd" checked><span class="rd"></span><span><b>Somente eu (padrão)</b><span class="d">Só você lê.</span></span></label>
+        <label class="opc"><input type="radio" name="rd"><span class="rd"></span><span><b>Equipe de oração</b><span class="d">Hoje, ninguém além de você.</span></span></label>
+        <label class="opc"><input type="radio" name="rd"><span class="rd"></span><span><b>Comunidade</b><span class="d">14 pessoas além de você.</span></span></label>
+      </div></div>
+
+    <div class="cel antes"><p class="leg">Interruptor (trilho desligado a 1,28:1 no escuro)</p>
+      <div class="cartao">
+        <div class="sw-linha"><div class="tx"><b>Publicar como anônimo</b><span class="d">Desligado: seu nome aparece.</span></div><label class="sw a-sw"><input type="checkbox" role="switch" aria-label="Publicar como anônimo"><i></i></label></div>
+        <div class="sw-linha"><div class="tx"><b>Lembrete do versículo</b><span class="d">Ligado, todos os dias às 07:00.</span></div><label class="sw a-sw"><input type="checkbox" role="switch" checked aria-label="Lembrete do versículo"><i></i></label></div>
+      </div></div>
+    <div class="cel depois"><p class="leg">Interruptor (trilho com borda a 3,75:1; polegar com check quando ligado)</p>
+      <div class="cartao">
+        <div class="sw-linha"><div class="tx"><b>Publicar como anônimo</b><span class="d">Desligado: seu nome aparece.</span></div><label class="sw d-sw"><input type="checkbox" role="switch" aria-label="Publicar como anônimo"><i><svg class="i"><use href="#i-check"/></svg></i></label></div>
+        <div class="sw-linha"><div class="tx"><b>Lembrete do versículo</b><span class="d">Ligado, todos os dias às 07:00.</span></div><label class="sw d-sw"><input type="checkbox" role="switch" checked aria-label="Lembrete do versículo"><i><svg class="i"><use href="#i-check"/></svg></i></label></div>
+      </div></div>
+
+    <div class="cel antes"><p class="leg">Pílulas de sugestão (contorno violeta, parecem campos)</p>
+      <div class="pils"><button class="a-pil" type="button">Programação de sábado</button><button class="a-pil" type="button">Noite de jogos</button><button class="a-pil" type="button">Retiro</button></div></div>
+    <div class="cel depois"><p class="leg">Pílulas de sugestão (tonais, 40; marcada com check)</p>
+      <div class="pils" data-pils><button class="d-pil sel" type="button"><svg class="i p"><use href="#i-check"/></svg>Programação de sábado</button><button class="d-pil" type="button">Noite de jogos</button><button class="d-pil" type="button">Retiro</button></div></div>
+
+    <div class="cel antes fim-cel"></div><div class="cel depois fim-cel"></div>
+  </div>
+
+  <!-- ===================== 5. TELA COMPLETA ===================== -->
+  <h2>5. Numa tela de verdade</h2>
+  <p class="lead">Mesma tela ("Novo pedido de oração"), sobre o fundo Aurora aproximado, no tema escolhido no topo.</p>
+
+  <div class="telas-linha">
+    <div>
+      <p class="tela-rot a">Antes</p>
+      <div class="tela">
+        <div class="corpo">
+          <button class="a-ico" type="button" aria-label="Voltar"><svg class="i g"><use href="#i-volta"/></svg></button>
+          <h4>Novo pedido</h4>
+          <div class="cartao">
+            <div class="a-bloco"><label class="a-rot" for="at1">Título</label><div class="a-caixa"><input id="at1" value="Prova de sábado"></div></div>
+            <div class="a-bloco"><label class="a-rot" for="at2">Pedido</label><div class="a-caixa area"><textarea id="at2" placeholder="Escreva o que você quer pedir."></textarea></div><span class="a-cont">0/2000</span></div>
+          </div>
+          <div class="sobr">Quem vai ver</div>
+          <div class="a-trilho" data-seg><button type="button" class="sel">Só eu</button><button type="button">Equipe</button><button type="button">Todos</button></div>
+          <div class="cartao" style="margin-top:16px">
+            <div class="sw-linha" style="padding:0"><div class="tx"><b>Publicar como anônimo</b><span class="d">Desligado: seu nome aparece.</span></div><label class="sw a-sw"><input type="checkbox" role="switch" aria-label="Publicar como anônimo"><i></i></label></div>
+          </div>
+        </div>
+        <div class="barra"><div class="par-a"><button class="a-btn a-sec" type="button">Salvar rascunho</button><button class="a-btn a-pri" type="button">Publicar</button></div></div>
+      </div>
+    </div>
+    <div>
+      <p class="tela-rot d">Depois</p>
+      <div class="tela">
+        <div class="corpo">
+          <button class="d-ico" type="button" aria-label="Voltar"><svg class="i g"><use href="#i-volta"/></svg></button>
+          <h4>Novo pedido</h4>
+          <div class="cartao">
+            <div class="d-bloco"><label class="d-rot" for="dt1">Título</label><div class="d-caixa"><input id="dt1" value="Prova de sábado"></div></div>
+            <div class="d-bloco"><label class="d-rot" for="dt2">Pedido</label><div class="d-caixa area"><textarea id="dt2" placeholder="Escreva o que você quer pedir." maxlength="2000" data-cresce></textarea></div><div class="d-apoio"><div class="msg">Escreva só o necessário.</div><span class="cont" data-cont="dt2" data-max="2000">0/2000</span></div></div>
+          </div>
+          <div class="sobr">Quem vai ver</div>
+          <div class="d-trilho" data-seg><button type="button" class="sel">Só eu</button><button type="button">Equipe</button><button type="button">Todos</button></div>
+          <div class="cartao" style="margin-top:16px">
+            <div class="sw-linha" style="padding:0"><div class="tx"><b>Publicar como anônimo</b><span class="d">Desligado: seu nome aparece.</span></div><label class="sw d-sw"><input type="checkbox" role="switch" aria-label="Publicar como anônimo"><i><svg class="i"><use href="#i-check"/></svg></i></label></div>
+          </div>
+        </div>
+        <div class="barra"><div class="par-d"><button class="d-btn g d-sec" type="button" style="padding:0 12px">Salvar rascunho</button><button class="d-btn g d-pri" type="button" style="padding:0 12px">Publicar</button></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== 6. CONTRASTE ===================== -->
+  <h2>6. Contraste (WCAG 2.2 AA)</h2>
+  <p class="lead">Texto: mínimo 4,5:1. Limites e ícones: mínimo 3:1. A tabela acompanha o tema escolhido no topo.</p>
+
+  <div class="caixa-info tb-escuro">
+    <h3>Tema escuro</h3>
+    <table class="tab">
+      <tr><th>Par</th><th class="n">Antes</th><th class="n">Depois</th><th class="n">Mínimo</th></tr>
+      <tr><td>Texto no campo</td><td class="n">15,7</td><td class="n">11,6</td><td class="n">4,5</td></tr>
+      <tr><td>Exemplo (placeholder) no campo</td><td class="n">10,3 (igual ao valor)</td><td class="n">5,30</td><td class="n">4,5</td></tr>
+      <tr><td>Borda do campo contra o cartão</td><td class="n">3,32</td><td class="n">3,75</td><td class="n">3</td></tr>
+      <tr><td>Borda do campo contra o próprio campo</td><td class="n">3,67</td><td class="n">3,07</td><td class="n">3</td></tr>
+      <tr><td>Anel de foco contra o cartão</td><td class="n">10,8 (amarelo)</td><td class="n">6,73 (coral)</td><td class="n">3</td></tr>
+      <tr><td>Erro (anel) contra o campo</td><td class="n">n/d</td><td class="n">5,62</td><td class="n">3</td></tr>
+      <tr><td>Texto do primário, topo do degradê</td><td class="n">8,13 (sólido)</td><td class="n">9,08</td><td class="n">4,5</td></tr>
+      <tr><td>Texto do primário, base e pressionado</td><td class="n">8,13 e 6,63</td><td class="n">8,13 e 6,63</td><td class="n">4,5</td></tr>
+      <tr><td>Texto do secundário</td><td class="n">14,2 (limite 3,25)</td><td class="n">10,2 (preenchido)</td><td class="n">4,5</td></tr>
+      <tr><td>Destrutivo: erro sobre fundo de erro</td><td class="n">6,87 (contorno)</td><td class="n">5,13</td><td class="n">4,5</td></tr>
+      <tr><td>Terciário contra o cartão</td><td class="n">8,9</td><td class="n">8,9</td><td class="n">4,5</td></tr>
+      <tr><td>"Mostrar" contra o campo</td><td class="n">n/d</td><td class="n">7,3</td><td class="n">4,5</td></tr>
+      <tr><td>Segmento escolhido (destaque sobre fundo quente)</td><td class="n">n/d (cinza)</td><td class="n">6,06</td><td class="n">4,5</td></tr>
+      <tr><td>Interruptor desligado contra o cartão</td><td class="n ruim">1,28</td><td class="n bom">3,75</td><td class="n">3</td></tr>
+      <tr><td>Interruptor ligado contra o cartão</td><td class="n">6,73</td><td class="n">6,73</td><td class="n">3</td></tr>
+      <tr><td>Primário desabilitado (informativo)</td><td class="n">n/d</td><td class="n">3,95</td><td class="n">isento</td></tr>
+    </table>
+  </div>
+
+  <div class="caixa-info tb-claro">
+    <h3>Tema claro</h3>
+    <table class="tab">
+      <tr><th>Par</th><th class="n">Antes</th><th class="n">Depois</th><th class="n">Mínimo</th></tr>
+      <tr><td>Texto no campo</td><td class="n">17,0</td><td class="n">15,2</td><td class="n">4,5</td></tr>
+      <tr><td>Exemplo (placeholder) no campo</td><td class="n">8,7 (igual ao valor)</td><td class="n">4,78</td><td class="n">4,5</td></tr>
+      <tr><td>Borda do campo contra o cartão</td><td class="n">3,72</td><td class="n">3,72</td><td class="n">3</td></tr>
+      <tr><td>Borda do campo contra o fundo da tela</td><td class="n">3,44</td><td class="n">3,44</td><td class="n">3</td></tr>
+      <tr><td>Borda do campo contra o próprio campo</td><td class="n">3,72</td><td class="n">3,32</td><td class="n">3</td></tr>
+      <tr><td>Anel de foco contra o cartão</td><td class="n">7,48 (índigo)</td><td class="n">4,92 (coral)</td><td class="n">3</td></tr>
+      <tr><td>Anel de foco contra o campo</td><td class="n">n/d</td><td class="n">4,40</td><td class="n">3</td></tr>
+      <tr><td>Erro (anel) contra o campo</td><td class="n">n/d</td><td class="n">5,88</td><td class="n">3</td></tr>
+      <tr><td>Texto branco no primário, topo do degradê</td><td class="n">4,92 (sólido)</td><td class="n">4,74</td><td class="n">4,5</td></tr>
+      <tr><td>Texto branco no primário, base e pressionado</td><td class="n">4,92 e 6,24</td><td class="n">5,55 e 6,24</td><td class="n">4,5</td></tr>
+      <tr><td>Texto do secundário</td><td class="n">17,0 (limite 3,72)</td><td class="n">14,1 (preenchido)</td><td class="n">4,5</td></tr>
+      <tr><td>Destrutivo: erro sobre fundo de erro</td><td class="n">6,57 (contorno)</td><td class="n">5,43</td><td class="n">4,5</td></tr>
+      <tr><td>Terciário contra o cartão</td><td class="n">8,46</td><td class="n">8,46</td><td class="n">4,5</td></tr>
+      <tr><td>"Mostrar" contra o campo</td><td class="n">n/d</td><td class="n">7,57</td><td class="n">4,5</td></tr>
+      <tr><td>Segmento escolhido (destaque sobre fundo quente)</td><td class="n">n/d (branco)</td><td class="n">6,95</td><td class="n">4,5</td></tr>
+      <tr><td>Interruptor desligado contra o cartão</td><td class="n">3,72</td><td class="n">3,72</td><td class="n">3</td></tr>
+      <tr><td>Polegar branco contra o trilho ligado</td><td class="n">n/d</td><td class="n">4,92</td><td class="n">3</td></tr>
+      <tr><td>Primário desabilitado (informativo)</td><td class="n">n/d</td><td class="n">3,66</td><td class="n">isento</td></tr>
+    </table>
+  </div>
+</main>
+
+<script>
+(function(){
+  var corpo=document.body, botao=document.getElementById('tema');
+  botao.addEventListener('click',function(){
+    var claro=corpo.getAttribute('data-tema')==='claro';
+    corpo.setAttribute('data-tema',claro?'escuro':'claro');
+    botao.textContent='Tema: '+(claro?'escuro':'claro');
+    botao.setAttribute('aria-pressed',String(!claro));
+  });
+
+  // segmentos: escolha única
+  document.querySelectorAll('[data-seg]').forEach(function(g){
+    g.addEventListener('click',function(e){
+      var b=e.target.closest('button'); if(!b) return;
+      g.querySelectorAll('button').forEach(function(x){x.classList.remove('sel')});
+      b.classList.add('sel');
+    });
+  });
+  // pílulas: alternam
+  document.querySelectorAll('[data-pils]').forEach(function(g){
+    g.addEventListener('click',function(e){
+      var b=e.target.closest('button'); if(!b) return;
+      b.classList.toggle('sel');
+    });
+  });
+
+  // área de texto que cresce: 3 a 8 linhas (98 a 208 de miolo, com padding de 16)
+  function cresce(t){
+    t.style.height='auto';
+    var h=Math.min(Math.max(t.scrollHeight,98),208);
+    t.style.height=h+'px';
+    t.style.overflowY=t.scrollHeight>208?'auto':'hidden';
+  }
+  document.querySelectorAll('textarea[data-cresce]').forEach(function(t){
+    t.addEventListener('input',function(){cresce(t)});
+  });
+  // contador
+  document.querySelectorAll('[data-cont]').forEach(function(c){
+    var t=document.getElementById(c.getAttribute('data-cont')), max=c.getAttribute('data-max');
+    if(t) t.addEventListener('input',function(){c.textContent=t.value.length+'/'+max});
+  });
+  // limpar
+  document.querySelectorAll('[data-limpar]').forEach(function(b){
+    b.addEventListener('click',function(){
+      var i=document.getElementById(b.getAttribute('data-limpar')); i.value=''; i.focus();
+    });
+  });
+  // mostrar e ocultar senha
+  document.querySelectorAll('[data-mostrar]').forEach(function(b){
+    b.addEventListener('click',function(){
+      var i=document.getElementById(b.getAttribute('data-mostrar')), ver=i.type==='password';
+      i.type=ver?'text':'password';
+      b.setAttribute('aria-label',ver?'Ocultar senha':'Mostrar senha');
+      var u=b.querySelector('use'); if(u) u.setAttribute('href',ver?'#i-eye-off':'#i-eye');
+      var s=b.querySelector('span'); if(s) s.textContent=ver?'Ocultar':'Mostrar';
+    });
+  });
+})();
+</script>
+</body>
+</html>

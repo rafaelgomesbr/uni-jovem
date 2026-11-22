@@ -7,12 +7,14 @@ import {
   useContext,
   type ReactNode,
 } from 'react'
-import { Pressable, ScrollView, View } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import Animated from 'react-native-reanimated'
 
 import { usePreferenciasDeAcessibilidade } from './acessibilidade'
 import { Icone } from './Icone'
 import { Texto } from './Texto'
 import { useTema } from './tema'
+import { useToqueComMola } from './useToqueComMola'
 
 export interface Pilula<T extends string> {
   valor: T
@@ -47,9 +49,9 @@ interface PropsDasPilulas<T extends string> {
 const ContextoDaLinha = createContext(false)
 
 /**
- * Pílulas de filtro (seção 2.12.5): 36 de altura visual com folga de toque
- * de 4 em cima e embaixo (44 efetivo), rolagem horizontal, intervalo de 8. A
- * ativa tem fundo quente, borda e check de 14: forma além da cor.
+ * Pílulas de filtro (seção 2.12.5, D64): tonais, 40 de altura visual com folga
+ * de toque de 4 em cima e embaixo (48 efetivo), rolagem horizontal, intervalo de
+ * 8. A ativa tem fundo quente, texto em destaque e check de 14: forma além da cor.
  */
 export function PilulasDeFiltro<T extends string>({
   rotulo,
@@ -129,7 +131,8 @@ function ItemDePilula<T extends string>({
   aoPressionar: () => void
 }) {
   const { cores, solido } = useTema()
-  const { aumentarContraste } = usePreferenciasDeAcessibilidade()
+  const { aumentarContraste, reduzirTransparencia } = usePreferenciasDeAcessibilidade()
+  const toque = useToqueComMola()
   const texto = p.contagem !== undefined ? `${p.rotulo} ${p.contagem}` : p.rotulo
   const falado =
     p.rotuloAcessivel !== undefined
@@ -138,39 +141,54 @@ function ItemDePilula<T extends string>({
         : p.rotuloAcessivel
       : texto
   return (
-    <Pressable
-      accessibilityRole={papel}
-      accessibilityLabel={falado}
-      aria-checked={ativa}
-      hitSlop={{ top: 4, bottom: 4 }}
-      onPress={aoPressionar}
-      style={({ pressed }) => ({
-        minHeight: ALTURA.filtro,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: ESPACO.e6,
-        paddingHorizontal: ESPACO.e14,
-        borderRadius: RAIO.pilula,
-        borderWidth: aumentarContraste ? 2 : 1,
-        borderColor: ativa ? cores.destaque : aumentarContraste ? cores.texto : cores.tonalBorda,
-        backgroundColor: ativa
-          ? solido(cores.quenteFundo)
-          : pressed
-            ? solido(cores.pressionado)
-            : 'transparent',
-      })}
-    >
-      {ativa ? <Icone nome="check" cor={cores.destaque} tamanho={14} peso="forte" /> : null}
-      <Texto
-        variante="lista"
-        peso={ativa ? 'forte' : 'medio'}
-        cor={ativa ? 'destaque' : 'textoSuave'}
-        tabular={p.contagem !== undefined}
-        numberOfLines={1}
+    <Animated.View style={toque.estiloDoToque}>
+      <Pressable
+        accessibilityRole={papel}
+        accessibilityLabel={falado}
+        aria-checked={ativa}
+        hitSlop={{ top: 4, bottom: 4 }}
+        onPress={aoPressionar}
+        onPressIn={toque.aoPressionarDentro}
+        onPressOut={toque.aoPressionarFora}
+        style={{
+          minHeight: ALTURA.filtro,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: ESPACO.e6,
+          paddingHorizontal: ESPACO.e16,
+          overflow: 'hidden',
+          borderRadius: RAIO.pilula,
+          // Tonal (D64): a sugestão não parece mais um campo vazio. Ativa: fundo quente, texto em
+          // destaque e o check (forma além da cor); Aumentar contraste ganha a borda de 2.
+          borderWidth: aumentarContraste ? 2 : 0,
+          borderColor: aumentarContraste ? (ativa ? cores.destaque : cores.texto) : 'transparent',
+          backgroundColor: ativa
+            ? solido(cores.quenteFundo)
+            : reduzirTransparencia
+              ? cores.botaoTonalOpaco
+              : solido(cores.botaoTonal),
+        }}
       >
-        {texto}
-      </Texto>
-    </Pressable>
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: ativa ? solido(cores.quenteFundo) : cores.botaoTonalPressionado },
+            toque.estiloDaCamada,
+          ]}
+        />
+        {ativa ? <Icone nome="check" cor={cores.destaque} tamanho={14} peso="forte" /> : null}
+        <Texto
+          variante="meta"
+          peso={ativa ? 'forte' : 'medio'}
+          cor={ativa ? 'destaque' : 'texto'}
+          tabular={p.contagem !== undefined}
+          numberOfLines={1}
+        >
+          {texto}
+        </Texto>
+      </Pressable>
+    </Animated.View>
   )
 }
 

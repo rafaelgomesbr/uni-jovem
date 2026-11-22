@@ -4,6 +4,7 @@ import { View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { ContextoDoMotivoNaBarra, EmPar } from './Botao'
+import { Icone } from './Icone'
 import { Texto } from './Texto'
 import { sombra, useTema } from './tema'
 import { registrarRodape } from './Toast'
@@ -23,22 +24,22 @@ export function baseDaBarraDeAcao(margemDeBaixo: number, barraFlutuante: number)
   return barraFlutuante > 0 ? barraFlutuante : margemDeBaixo
 }
 
-/** Quanto a barra ocupa: padding de 12, botão de 48 e a área segura mais 12. */
+/** Quanto a barra ocupa: padding de 12, botão grande de 56 e a área segura mais 12. */
 export function alturaDaBarraDeAcao(margemDeBaixo: number): number {
-  return ESPACO.e12 + ALTURA.controle + margemDeBaixo + ESPACO.e12
+  return ESPACO.e12 + ALTURA.botao.grande + margemDeBaixo + ESPACO.e12
 }
 
-/** Padding de fim do conteúdo de uma tela com barra de ação: 48 + 24 + área segura + 16. */
+/** Padding de fim do conteúdo de uma tela com barra de ação: 56 + 24 + área segura + 16. */
 export function fimComBarraDeAcao(margemDeBaixo: number): number {
-  return ALTURA.controle + ESPACO.e24 + margemDeBaixo + ESPACO.e16
+  return ALTURA.botao.grande + ESPACO.e24 + margemDeBaixo + ESPACO.e16
 }
 
 /**
  * Barra de ação (seção 2.12.18): rodapé fixo das telas de pilha com ação
  * principal. Vidro da barra com borda de cima, padding 12 por 20 e a área
  * segura (ou a barra de abas flutuante) mais 12 embaixo. Até 2 botões
- * grandes lado a lado (secundário à esquerda, primário à direita) ou o
- * primário com o botão de ícone "Mais".
+ * grandes (56) lado a lado, intervalo de 12 (secundário à esquerda, primário à
+ * direita) ou o primário com o botão de ícone "Mais".
  * Quem a posiciona (e a faz subir com o teclado) é a `Tela`.
  *
  * O motivo de um botão desabilitado fica numa linha própria, na largura toda,
@@ -46,7 +47,7 @@ export function fimComBarraDeAcao(margemDeBaixo: number): number {
  * `aviso` (erro de envio, por exemplo) fica acima dos botões, sempre à vista.
  */
 export function BarraDeAcao({ children, aviso }: { children: ReactNode; aviso?: ReactNode }) {
-  const { elevacao } = useTema()
+  const { elevacao, cores } = useTema()
   const margens = useSafeAreaInsets()
   const barraFlutuante = useContext(ContextoDaBarraFlutuanteEmbaixo)
   const base = baseDaBarraDeAcao(margens.bottom, barraFlutuante)
@@ -67,7 +68,7 @@ export function BarraDeAcao({ children, aviso }: { children: ReactNode; aviso?: 
         }}
       >
         {aviso}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e10 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e12 }}>
           <ContextoDoMotivoNaBarra.Provider value={idDoMotivo}>
             <EmPar>
               {itens.map((filho, i) => (
@@ -79,9 +80,14 @@ export function BarraDeAcao({ children, aviso }: { children: ReactNode; aviso?: 
           </ContextoDoMotivoNaBarra.Provider>
         </View>
         {motivos.length ? (
-          <Texto variante="legenda" cor="textoSuave" nativeID={idDoMotivo}>
-            {motivos.join(' ')}
-          </Texto>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: ESPACO.e6 }}>
+            <View style={{ height: 20, justifyContent: 'center' }}>
+              <Icone nome="cadeado" cor={cores.textoSuave} tamanho={14} />
+            </View>
+            <Texto variante="legenda" cor="textoSuave" nativeID={idDoMotivo} style={{ flex: 1 }}>
+              {motivos.join(' ')}
+            </Texto>
+          </View>
         ) : null}
       </View>
     </Vidro>

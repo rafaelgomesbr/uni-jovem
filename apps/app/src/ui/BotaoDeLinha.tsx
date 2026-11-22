@@ -1,6 +1,7 @@
 import { ALTURA, ESPACO, RAIO } from '@uj/tokens'
 import { View } from 'react-native'
 
+import { usePreferenciasDeAcessibilidade } from './acessibilidade'
 import { Texto } from './Texto'
 import { useTema } from './tema'
 
@@ -10,17 +11,21 @@ import { useTema } from './tema'
  * porta), não pode haver botão de verdade dentro dela: botão dentro de botão
  * some do leitor de tela. A linha leva o nome acessível e a ação; isto só
  * mostra, em texto, o que o toque faz.
+ *
+ * Mesma gramática do `Botao` (D64): cápsula tonal de 40, sem contorno.
  */
 export function BotaoDeLinha({ texto }: { texto: string }) {
-  const { cores } = useTema()
+  const { cores, solido } = useTema()
+  const { reduzirTransparencia, aumentarContraste } = usePreferenciasDeAcessibilidade()
   return (
     <View
       style={{
-        minHeight: ALTURA.chip + ESPACO.e12,
+        minHeight: ALTURA.botao.compacto,
         paddingHorizontal: ESPACO.e16,
         borderRadius: RAIO.pilula,
-        borderWidth: 1,
-        borderColor: cores.campoBorda,
+        backgroundColor: reduzirTransparencia ? cores.botaoTonalOpaco : solido(cores.botaoTonal),
+        borderWidth: aumentarContraste ? 2 : 0,
+        borderColor: aumentarContraste ? cores.texto : 'transparent',
         alignItems: 'center',
         justifyContent: 'center',
       }}

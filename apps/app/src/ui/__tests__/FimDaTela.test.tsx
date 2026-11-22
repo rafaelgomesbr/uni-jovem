@@ -54,9 +54,9 @@ function fimDaRolagemEmVolta(no: No): number | undefined {
 
 describe('fim da tela (D56)', () => {
   test('com barra de ação sobre a barra flutuante: a soma das duas mais 16, sem a área segura', () => {
-    // Antes de medir, o mínimo calculado: botão de 48, 24 de padding, a barra flutuante e 16.
+    // Antes de medir, o mínimo calculado: botão grande de 56, 24 de padding, a barra flutuante e 16.
     expect(fimDaTela({ margemDeBaixo: AREA_SEGURA, barraFlutuante: BARRA, barraDeAcao: 0 })).toBe(
-      ALTURA.controle + ESPACO.e24 + BARRA + ESPACO.e16,
+      ALTURA.botao.grande + ESPACO.e24 + BARRA + ESPACO.e16,
     )
     // Medida (fonte grande, botão maior): a altura real dela, que já inclui a barra flutuante, mais 16.
     const medida = 120 + BARRA
@@ -67,7 +67,7 @@ describe('fim da tela (D56)', () => {
 
   test('sem a barra flutuante, a barra de ação volta a se apoiar na área segura', () => {
     expect(fimDaTela({ margemDeBaixo: AREA_SEGURA, barraFlutuante: 0, barraDeAcao: 0 })).toBe(
-      ALTURA.controle + ESPACO.e24 + AREA_SEGURA + ESPACO.e16,
+      ALTURA.botao.grande + ESPACO.e24 + AREA_SEGURA + ESPACO.e16,
     )
   })
 
@@ -100,7 +100,7 @@ describe('fim da tela (D56)', () => {
     expect(paddingDeBaixoAcima(screen.getByText('Editar'))).toBe(BARRA + ESPACO.e12)
     // O último bloco rola até 16 acima da barra de ação, que está acima da flutuante.
     expect(fimDaRolagemEmVolta(screen.getByText('Último bloco'))).toBe(
-      ALTURA.controle + ESPACO.e24 + BARRA + ESPACO.e16,
+      ALTURA.botao.grande + ESPACO.e24 + BARRA + ESPACO.e16,
     )
     // O toast fica acima das duas.
     expect(rodapeDoToast()).toBe(alturaDaBarraDeAcao(BARRA))

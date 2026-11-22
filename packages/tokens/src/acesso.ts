@@ -169,20 +169,40 @@ export const CASCATA_DE_ABERTURA = {
 /** Entrada curta (retorno e troca entre Entrar e Criar conta): o sol e a aurora não repetem. */
 export const ENTRADA_CURTA = { duracao: 260, passo: 30, deslocamento: 16, maximo: 470 } as const
 
-/** Demais movimentos da entrada, em ms e pt. */
-export const MOVIMENTO_DE_ACESSO = {
+/**
+ * Movimento dos controles (D64): a gramática única de botão, campo, segmento e
+ * interruptor. Só `opacity` e `transform` (cor muda por camada que altera a
+ * opacidade, nunca animada direto). Com "Reduzir movimento": sem escala nem
+ * mola, só a camada, em `toqueReduzido`; o foco e o Limpar passam a 0 ms.
+ */
+export const MOVIMENTO_DOS_CONTROLES = {
   /** Com Reduzir movimento: só dissolve, e dura isto. */
   dissolver: 120,
-  painelIda: 280,
-  painelVolta: 240,
-  /** O foco só vai ao campo depois que o painel assentou. */
-  focoNoPainel: 280,
   toqueDentro: 90,
   toqueFora: 160,
   toqueReduzido: 80,
   escalaDoToque: 0.98,
-  foco: 140,
-  focoSaida: 100,
+  /** Anel e halo do campo entram e saem (0 com Reduzir movimento). */
+  foco: 160,
+  focoSaida: 120,
+  /** Habilitar ou desabilitar: a camada de cor muda de opacidade. */
+  estado: 140,
+  /** A mensagem de erro sobe 4 pt e aparece. */
+  mensagemDeErro: 200,
+  mensagemDeErroReduzida: 120,
+  deslocamentoDaMensagem: 4,
+  /** O botão Limpar entra e sai. */
+  limpar: 120,
+  /** Ponteiro em cima (web): a camada de hover muda de opacidade. */
+  hover: 120,
+  /** Polegar do segmento escolhido. */
+  segmento: 200,
+  /** Interruptor com Reduzir movimento: linear, sem mola. */
+  interruptorReduzido: 80,
+  /** O indicador do botão só aparece depois desta espera (resposta rápida não pisca). */
+  esperaDoIndicador: 250,
+  indicadorEntra: 140,
+  indicadorSai: 100,
   /** Balanço do erro: deslocamentos e duração de cada etapa (ms), 260 no total. */
   balancoDoCampo: {
     amplitude: 5,
@@ -202,8 +222,15 @@ export const MOVIMENTO_DE_ACESSO = {
       { dx: 0, duracao: 50 },
     ],
   },
-  /** O indicador do botão só aparece depois desta espera (resposta rápida não pisca). */
-  esperaDoIndicador: 250,
+} as const
+
+/** Demais movimentos da entrada, em ms e pt. Os dos controles vêm de `MOVIMENTO_DOS_CONTROLES` (apelido). */
+export const MOVIMENTO_DE_ACESSO = {
+  ...MOVIMENTO_DOS_CONTROLES,
+  painelIda: 280,
+  painelVolta: 240,
+  /** O foco só vai ao campo depois que o painel assentou. */
+  focoNoPainel: 280,
   /** O sucesso segura o redirecionamento por este tempo, para o check aparecer. */
   sucesso: 200,
 } as const

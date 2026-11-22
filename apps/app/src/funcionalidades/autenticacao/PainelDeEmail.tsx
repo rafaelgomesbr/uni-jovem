@@ -183,6 +183,7 @@ export function PainelDeEmail({
             onChangeText={aoMudarEmail}
             onBlur={aoSairDoEmail}
             erro={erros.email ?? null}
+            invalido={erroGeral?.tipo === 'credencial'}
             disparoDeErro={disparoDeErro}
             somenteLeitura={carregando}
             exemplo="nome@exemplo.com"
@@ -203,6 +204,7 @@ export function PainelDeEmail({
             value={senha}
             onChangeText={aoMudarSenha}
             erro={erros.senha ?? null}
+            invalido={erroGeral?.tipo === 'credencial'}
             disparoDeErro={disparoDeErro}
             somenteLeitura={carregando}
             autoCapitalize="none"

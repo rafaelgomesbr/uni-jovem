@@ -99,12 +99,23 @@ function Botoes() {
           <Linha>
             <Botao
               titulo="Carregando"
+              tituloCarregando="Enviando..."
               variante={v}
               aoPressionar={nada}
               tamanho="grande"
               carregando
             />
             <Botao titulo="Médio" variante={v} aoPressionar={nada} icone="adicionar" />
+          </Linha>
+          <Linha>
+            <Botao titulo="Compacto" variante={v} aoPressionar={nada} tamanho="compacto" />
+            <Botao
+              titulo="Desabilitado"
+              variante={v}
+              aoPressionar={nada}
+              tamanho="compacto"
+              desabilitado
+            />
           </Linha>
         </Grupo>
       ))}
@@ -175,7 +186,21 @@ function Campos() {
     <Grupo titulo="Campos">
       <CartaoDeVidro intervalo={ESPACO.e16}>
         <Campo rotulo="Título" exemplo="Sábado Jovem" ajuda="Aparece na agenda e no convite." />
-        <Campo rotulo="Nome" value="Ana Lima" onChangeText={nada} />
+        <Campo rotulo="Nome" value="Ana Lima" onChangeText={nada} limpavel />
+        <Campo
+          rotulo="Apelido"
+          value="ana.lima"
+          onChangeText={nada}
+          sucesso="Nome disponível"
+          prefixo="@"
+        />
+        <Campo
+          rotulo="Senha"
+          value="123"
+          onChangeText={nada}
+          invalido
+          ajuda="O erro é do formulário, mostrado em outro lugar."
+        />
         <Campo
           rotulo="E-mail"
           value="ana.lima@email.com"
@@ -184,6 +209,13 @@ function Campos() {
           ajuda="Usamos só para avisos da comunidade."
         />
         <Campo rotulo="Hora de início" value="16h" onChangeText={nada} erro="Use o formato 16:00" />
+        <Campo
+          rotulo="Hora de fim"
+          value="25:00"
+          onChangeText={nada}
+          erro="Use uma hora entre 00:00 e 23:59."
+          estadoDeVitrine="foco"
+        />
         <Campo
           rotulo="Comunidade"
           value="Jovens Central"
@@ -195,6 +227,22 @@ function Campos() {
         <Campo rotulo="Senha" senha value="segredo123" onChangeText={nada} />
         <Campo rotulo="Duração" value="60" onChangeText={nada} sufixo="min" validando />
         <Campo rotulo="Descrição" opcional multiline exemplo="O que vai acontecer" />
+        <Campo
+          rotulo="Pedido quase no limite"
+          multiline
+          maxLength={100}
+          mostrarContador
+          value={'a'.repeat(92)}
+          onChangeText={nada}
+        />
+        <Campo
+          rotulo="Pedido no limite"
+          multiline
+          maxLength={40}
+          mostrarContador
+          value={'a'.repeat(40)}
+          onChangeText={nada}
+        />
         <Campo rotulo="Código de 6 números" codigo value="123456" onChangeText={nada} />
         <Campo rotulo="Seu pedido" leitura maxLength={2000} mostrarContador value="" />
         <Campo
@@ -334,6 +382,12 @@ function Selecao() {
             descricao={ligado ? 'Ligado, todos os dias às 07:00' : 'Desligado'}
             ligado={ligado}
             aoMudar={setLigado}
+          />
+          <Interruptor
+            rotulo="Aparecer na busca"
+            descricao="Desligado: o trilho vazado se vê no cartão"
+            ligado={false}
+            aoMudar={nada}
           />
           <Interruptor
             rotulo="Lista de espera"

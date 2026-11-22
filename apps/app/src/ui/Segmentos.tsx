@@ -1,6 +1,14 @@
-import { ALTURA, ESPACO, RAIO, RITMO, TIPO } from '@uj/tokens'
-import { useState } from 'react'
+/* eslint-disable no-restricted-syntax -- opacidade aqui é a camada do polegar que dissolve, não estado (D64) */
+import { ALTURA, ESPACO, MOVIMENTO_DOS_CONTROLES, RAIO, RITMO, TIPO } from '@uj/tokens'
+import { useEffect, useState } from 'react'
 import { Pressable, useWindowDimensions, View, type ViewStyle } from 'react-native'
+import Animated, {
+  Easing,
+  ReduceMotion,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated'
 
 import { LARGURA_MAXIMA_DO_CONTEUDO } from '@/constantes'
 
@@ -124,9 +132,50 @@ export function escolherDisposicao(
 }
 
 /**
- * Segmentos (seção 2.12.4): trilho de largura total (44, raio 14, tonal) com
- * segmentos de largura igual (36, raio 10). O escolhido tem polegar em
- * relevo e peso 600: forma e peso além da cor. Papel `radio` para o leitor de
+ * Fundo do polegar do segmento escolhido: uma camada que só muda de `opacity`
+ * (200 ms; 120 com "Reduzir movimento"), em vez de animar a cor.
+ */
+function FundoDoPolegar({ marcado }: { marcado: boolean }) {
+  const { cores, solido } = useTema()
+  const { aumentarContraste, reduzirMovimento } = usePreferenciasDeAcessibilidade()
+  const progresso = useSharedValue(marcado ? 1 : 0)
+  useEffect(() => {
+    progresso.set(
+      withTiming(marcado ? 1 : 0, {
+        duration: reduzirMovimento
+          ? MOVIMENTO_DOS_CONTROLES.dissolver
+          : MOVIMENTO_DOS_CONTROLES.segmento,
+        easing: Easing.bezier(0.4, 0, 0.2, 1),
+        reduceMotion: ReduceMotion.Never,
+      }),
+    )
+  }, [marcado, reduzirMovimento, progresso])
+  const estilo = useAnimatedStyle(() => ({ opacity: progresso.value }))
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        {
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          borderRadius: RAIO.pilula,
+          backgroundColor: solido(cores.quenteFundo),
+          borderWidth: aumentarContraste ? 2 : 0,
+          borderColor: aumentarContraste ? cores.texto : 'transparent',
+        },
+        estilo,
+      ]}
+    />
+  )
+}
+
+/**
+ * Segmentos (seção 2.12.4, D64): trilho em cápsula de largura total (48,
+ * tonal) com segmentos de largura igual (40, cápsula). O escolhido tem o fundo
+ * quente, o texto em `destaque` e peso 600: forma e peso além da cor. Papel `radio` para o leitor de
  * tela. Nenhum rótulo é cortado: sem espaço para larguras iguais, o tipo fica
  * compacto e as larguras seguem o conteúdo; se nem assim couber, vira pílulas
  * de filtro roláveis. Com fonte grande (1,35 ou mais) nunca rola de lado: as
@@ -138,7 +187,7 @@ export function Segmentos<T extends string>({
   valor,
   aoMudar,
 }: PropsDosSegmentos<T>) {
-  const { cores, escuro, elevacao, solido } = useTema()
+  const { cores, solido } = useTema()
   const { aumentarContraste, reduzirTransparencia } = usePreferenciasDeAcessibilidade()
   const { fontScale, width } = useWindowDimensions()
   const propsDaOpcao = useSetasDoGrupo(segmentos, valor, aoMudar)
@@ -174,10 +223,10 @@ export function Segmentos<T extends string>({
           flexDirection: disposicao.pilha ? 'column' : 'row',
           flexWrap: disposicao.grade ? 'wrap' : 'nowrap',
           alignSelf: 'stretch',
-          minHeight: ALTURA.iconeSo,
+          minHeight: ALTURA.trilho,
           padding: PADDING_DO_TRILHO,
           gap: INTERVALO,
-          borderRadius: RAIO.controle,
+          borderRadius: RAIO.pilula,
           backgroundColor: reduzirTransparencia ? cores.tonalOpaco : solido(cores.tonal),
           borderWidth: borda,
           borderColor: aumentarContraste ? cores.texto : 'transparent',
@@ -202,40 +251,25 @@ export function Segmentos<T extends string>({
               accessibilityLabel={s.rotulo}
               aria-checked={marcado}
               onPress={() => aoMudar(s.valor)}
-              // O polegar tem 36; os 4 de cima e de baixo completam os 44 de alvo de toque.
+              // O polegar tem 40; os 4 de cima e de baixo completam os 48 de alvo de toque.
               hitSlop={{ top: PADDING_DO_TRILHO, bottom: PADDING_DO_TRILHO }}
               style={({ pressed }) => [
                 medida,
                 {
-                  minHeight: disposicao.pilha ? ALVO : 36,
+                  minHeight: disposicao.pilha ? ALVO : ALTURA.polegar,
                   paddingHorizontal: padding,
-                  borderRadius: RAIO.celula,
+                  borderRadius: RAIO.pilula,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: marcado
-                    ? escuro
-                      ? cores.tonalBorda
-                      : cores.superficie
-                    : pressed
-                      ? cores.pressionado
-                      : 'transparent',
-                  borderWidth: marcado && aumentarContraste ? 2 : 0,
-                  borderColor: aumentarContraste ? cores.texto : 'transparent',
+                  backgroundColor: !marcado && pressed ? cores.pressionado : 'transparent',
                 },
-                // Claro: polegar branco com anel interno de 1 no contorno e a sombra de cartão.
-                marcado && !escuro && !aumentarContraste
-                  ? {
-                      boxShadow: [`inset 0px 0px 0px 1px ${cores.contorno}`, elevacao.cartao].join(
-                        ', ',
-                      ),
-                    }
-                  : null,
               ]}
             >
+              <FundoDoPolegar marcado={marcado} />
               <Texto
                 variante={variante}
                 peso={marcado ? 'forte' : 'medio'}
-                cor={marcado ? 'texto' : 'textoSuave'}
+                cor={marcado ? 'destaque' : 'textoSuave'}
                 {...(disposicao.pilha ? {} : { numberOfLines: 1 })}
               >
                 {s.rotulo}

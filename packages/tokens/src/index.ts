@@ -42,6 +42,8 @@ export const RITMO = {
   topoDaTela: ESPACO.e8,
   /** Intervalo entre blocos (M). */
   entreSecoes: ESPACO.e16,
+  /** Entre dois blocos de campo (rótulo, caixa e apoio): o olho sabe a quem o rótulo pertence (D64). */
+  entreCampos: ESPACO.e20,
   /** Antes de um grupo novo (sobrancelha fora de cartão). */
   antesDoGrupo: ESPACO.e24,
   /** Entre a sobrancelha de um grupo e o cartão. */
@@ -57,7 +59,7 @@ export const ALVO_MINIMO = { ios: 44, android: 48, web: 44 } as const
 
 /** Alturas (seção 2.5). */
 export const ALTURA = {
-  /** Botão grande e campo. */
+  /** Legado (D64): os botões usam `botao` e o campo usa `campo`. Fica para quadrados de 48 (ícone, célula). */
   controle: 48,
   /** Botão médio, dentro de cartão: 44 no iOS e na web, 48 no Android. */
   controleCompacto: ALVO_MINIMO,
@@ -71,13 +73,30 @@ export const ALTURA = {
   linha: 56,
   /** Pílula da comunidade (M). */
   pilula: 44,
-  /** Pílula de filtro: 36 visual, com folga de toque vertical de 4 (44 efetivo). */
-  filtro: 36,
+  /** Pílula de filtro (tonal, D64): 40 visual, com folga de toque vertical de 4 (48 efetivo). */
+  filtro: 40,
   chip: 24,
-  /** Campo multilinha. */
-  multilinha: 120,
-  /** Multilinha de texto longo em `leitura` (pedido de oração, 3.7.1). */
-  multilinhaLonga: 160,
+  /**
+   * Botão (D64): `grande` em formulário, barra de ação e entrada; `medio` dentro de
+   * cartão; `compacto` só em linha de lista (40 visual mais `hitSlop` de 4 = alvo de 48).
+   */
+  botao: { grande: 56, medio: 48, compacto: 40 },
+  /** Caixa de campo de uma linha (D64). */
+  campo: 56,
+  /**
+   * Área de texto (D64): cresce com o conteúdo, de 3 a 8 linhas (16 + linhas x 22 + 16 + 2 de
+   * borda); em `leitura` (17/26), de 5 a 10 linhas. Passando do máximo, rola por dentro.
+   */
+  areaDeTexto: {
+    padrao: { linhaMinima: 3, linhaMaxima: 8, linha: 22, min: 100, max: 210 },
+    leitura: { linhaMinima: 5, linhaMaxima: 10, linha: 26, min: 164, max: 294 },
+  },
+  /** Trilho de segmentos e polegar (cápsulas, D64). */
+  trilho: 48,
+  polegar: 40,
+  /** Interruptor com trilho próprio: 52 x 32. */
+  interruptorLargura: 52,
+  interruptorAltura: 32,
   /** Ladrilho de ícone à esquerda da linha. */
   ladrilho: 32,
   /** Barra de progresso (3.3.4 e 3.5.1). */
@@ -89,12 +108,16 @@ export const ALTURA = {
  * afastamento. Nenhum outro raio é permitido.
  */
 export const RAIO = {
-  /** Caixa de marcar e linha do esqueleto (10 - 4). */
+  /** Linha do esqueleto (10 - 4). */
   marca: 6,
+  /** Caixa de marcar de 24 (D64). */
+  caixa: 8,
   /** Célula do calendário, ladrilho de 32, segmento interno (14 - 4). */
   celula: 10,
-  /** Botão, campo, trilho de segmentos, aviso, toast (M). */
+  /** Aviso e toast (M). Botão é `pilula` e campo é `campo` (D64: a forma diz a função). */
   controle: 14,
+  /** Caixa de campo (D64): retângulo de raio 16 para escrever; cápsula é para agir. */
+  campo: 16,
   /** Pílula da aba ativa (28 - 8, M). */
   abaAtiva: 20,
   /** Cartão de vidro, cartão de destaque, diálogo (M). */
@@ -106,7 +129,10 @@ export const RAIO = {
 } as const
 
 /** Espessuras de borda: 1 em tudo (M); 2 com "Aumentar contraste" e no foco do campo. */
-export const BORDA = { fina: 1, contraste: 2 } as const
+export const BORDA = { fina: 1, contraste: 2, anel: 2 } as const
+
+/** Halo de foco do campo e do botão: 4 pt além do anel de 2 (D64). */
+export const HALO_DE_FOCO = 4
 
 /** Lado do avatar em cada uso (seção 2.12.13). */
 export const TAMANHO_DO_AVATAR = {
@@ -204,8 +230,13 @@ export const TIPO = {
   tituloItem: papel('texto', '600', 16, 22),
   /** Texto de interface, descrição de estado vazio, texto de toast. */
   corpo: papel('texto', '400', 15, 22),
-  /** Botões, pílula da comunidade, links terciários, segmento ativo (o inativo é 500). */
-  botao: papel('texto', '600', 15, 20, { teto: 2 }),
+  /**
+   * Botões, pílula da comunidade, links terciários, segmento ativo (o inativo é 500). 16/20 (D64):
+   * a Inter já vem calibrada em 16, e espaçar mais abre demais. Nunca em maiúsculas.
+   */
+  botao: papel('texto', '600', 16, 20, { teto: 2 }),
+  /** Texto digitado no campo (D64). 16 evita o zoom automático do Safari ao focar. */
+  campo: papel('texto', '400', 16, 22, { teto: 2 }),
   /** Linhas compactas ("16:05 Louvor") e pílulas de filtro (500). */
   lista: papel('texto', '400', 14, 20),
   /**
@@ -252,6 +283,9 @@ export const ELEVACAO = {
     destaque: 'none',
     flutuante: '0px 12px 32px rgba(0,0,0,0.40)',
     folha: '0px -8px 40px rgba(0,0,0,0.50)',
+    // Brilho coral do botão primário (D64) e o realce de 1 pt no topo dele.
+    botao: '0px 6px 16px rgba(255,138,101,0.28)',
+    realceDoBotao: 'inset 0px 1px 0px rgba(255,255,255,0.30)',
   },
   claro: {
     nenhuma: 'none',
@@ -259,6 +293,8 @@ export const ELEVACAO = {
     destaque: '0px 10px 30px rgba(31,27,77,0.28)',
     flutuante: '0px 12px 32px rgba(27,24,56,0.14)',
     folha: '0px -8px 40px rgba(27,24,56,0.18)',
+    botao: '0px 6px 14px rgba(194,73,31,0.30)',
+    realceDoBotao: 'inset 0px 1px 0px rgba(255,255,255,0.22)',
   },
 } as const
 

@@ -403,8 +403,8 @@ O tema inverso se aplica por um provedor (`ProvedorDeTemaInverso`). Todo filho d
 | superficie translúcida (só com ADR) | `rgba(255,255,255,0.07)`             | (M)                                   | Cartão de vidro, opção B                                           |
 | superficieBorda                     | `rgba(255,255,255,0.14)`             | (M)                                   | Borda do cartão de vidro                                           |
 | superficieElevada                   | `#2B2848`                            | (D)                                   | Folha e diálogo (fallback opaco), menu                             |
-| campoFundo                          | `#1A1833`                            | (D)                                   | Caixa do campo (mais funda que o cartão)                           |
-| campoBorda                          | `#736DA8`                            | (D)                                   | Borda do campo (3,33:1 contra o cartão)                            |
+| campoFundo                          | `#322F4C`                            | (D64)                                 | Caixa do campo (opaca, um degrau acima do cartão)                  |
+| campoBorda                          | `#7C77A8`                            | (D64)                                 | Borda do campo (3,75:1 contra o cartão)                            |
 | texto                               | `#F5F3FF`                            | (M)                                   | Texto principal                                                    |
 | textoSuave                          | `#C9C4EC`                            | (M)                                   | Meta, ajuda, rótulo de campo, aba inativa                          |
 | destaque                            | `#FFB199`                            | (M)                                   | Sobrancelha, link, aba ativa, botão terciário                      |
@@ -426,7 +426,7 @@ O tema inverso se aplica por um provedor (`ProvedorDeTemaInverso`). Todo filho d
 | info / infoFundo                    | `#B3A8FF` / `rgba(157,143,255,0.16)` | (D)                                   | Aviso informativo, "Substituição pedida"                           |
 | quenteFundo                         | `rgba(255,177,153,0.16)`             | (D)                                   | Chip quente (local, "Ao vivo", "Fixado"), pílula de filtro ativa   |
 | neutroFundo                         | `rgba(255,255,255,0.10)`             | (D)                                   | Chip neutro ("Rascunho", "Anônima")                                |
-| foco                                | `#FFD166`                            | (D)                                   | Anel de foco                                                       |
+| foco                                | `#FF8A65`                            | (D64)                                 | Anel de foco (coral, igual à `primaria`)                           |
 
 **Inverso do escuro.** É usado no cartão de destaque claro e no toast. Os valores são os do mockup e, onde ele não define, os do tema claro.
 
@@ -447,7 +447,7 @@ O tema inverso se aplica por um provedor (`ProvedorDeTemaInverso`). Todo filho d
 | fundo                                          | `#F7F5FF`                                                 | Tela                                                      |
 | superficie / superficieElevada                 | `#FFFFFF` / `#FFFFFF`                                     | Cartão de vidro (opaco) com sombra de nível cartão; folha |
 | superficieBorda                                | `rgba(27,24,56,0.08)`                                     | Borda do cartão                                           |
-| campoFundo / campoBorda                        | `#FFFFFF` / `#857FAF`                                     | Campo (3,72:1 contra o branco)                            |
+| campoFundo / campoBorda                        | `#F3F1FA` / `#857FAF`                                     | Campo (3,72:1 contra o branco, D64)                       |
 | texto / textoSuave                             | `#1B1838` / `#4B4670`                                     | Texto                                                     |
 | destaque                                       | `#8A2E12`                                                 | Sobrancelha, link, aba ativa                              |
 | primaria / primariaPressionada / sobrePrimaria | `#C2491F` / `#A93D18` / `#FFFFFF`                         | Botão primário                                            |
@@ -664,8 +664,8 @@ Todo par texto/fundo e de interface, nos dois temas. O mínimo é 4,5 para texto
 | info sobre superficie                                                   | 7,4                              | 7,5                              | 4,5    |
 | texto sobre superficieElevada                                           | 12,8                             | 17,0                             | 4,5    |
 | textoSuave sobre superficieElevada                                      | 8,5                              | 8,7                              | 4,5    |
-| texto sobre campoFundo                                                  | 15,7                             | 17,0                             | 4,5    |
-| textoSuave (exemplo) sobre campoFundo                                   | 10,4                             | 8,7                              | 4,5    |
+| texto sobre campoFundo                                                  | 11,6                             | 15,2                             | 4,5    |
+| campoExemplo (exemplo) sobre campoFundo                                 | 5,3                              | 4,8                              | 4,5    |
 | sobrePrimaria sobre primaria                                            | 8,1                              | 4,9                              | 4,5    |
 | sobrePrimaria sobre primariaPressionada                                 | 6,6                              | 6,2                              | 4,5    |
 | sobreErro sobre erroCheio                                               | 8,1                              | 6,6                              | 4,5    |
@@ -688,13 +688,13 @@ Todo par texto/fundo e de interface, nos dois temas. O mínimo é 4,5 para texto
 | Aba ativa sobre a pílula, com o destaque por baixo                      | 4,6                              | 4,9                              | 4,5    |
 | Cartão translúcido (opção B): texto, suave e destaque sobre o violeta   | 8,5 / 5,6 / 5,3                  | não se aplica                    | 4,5    |
 | Interface: primaria contra fundo                                        | 8,0                              | 4,6                              | 3      |
-| Interface: campoBorda contra superficie                                 | 3,3                              | 3,7                              | 3      |
-| Interface: campoBorda contra campoFundo                                 | 3,7                              | 3,7                              | 3      |
+| Interface: campoBorda contra superficie                                 | 3,75                             | 3,7                              | 3      |
+| Interface: campoBorda contra campoFundo                                 | 3,1                              | 3,3                              | 3      |
 | Interface: contorno contra superficie                                   | 3,3                              | 3,7                              | 3      |
 | Interface: contorno contra fundo                                        | 3,3                              | 3,4                              | 3      |
-| Interface: foco contra fundo                                            | 12,9                             | 6,9                              | 3      |
-| Interface: foco contra superficie                                       | 10,8                             | 7,5                              | 3      |
-| Interface: foco contra o inverso                                        | 6,8 (`#4B3FC4` sobre `#F5F3FF`)  | 12,9 (`#FFD166` sobre `#1F1B4D`) | 3      |
+| Interface: foco contra fundo                                            | 8,0                              | 4,6                              | 3      |
+| Interface: foco contra superficie                                       | 6,7                              | 4,9                              | 3      |
+| Interface: foco contra o inverso                                        | 4,5 (`#C2491F` sobre `#F5F3FF`)  | 6,9 (`#FF8A65` sobre `#1F1B4D`)  | 3      |
 | Interface: check de sincronizado sobre a Aurora                         | 4,4                              | não se aplica                    | 3      |
 | Iniciais `#FFFFFF` sobre as 6 cores de comunidade                       | 5,0 a 7,0                        | 5,0 a 7,0                        | 4,5    |
 
@@ -714,6 +714,8 @@ Para todos os componentes:
 - **Estado acessível:** usar `aria-*` (`aria-checked`, `aria-selected`, `aria-disabled`, `aria-busy`), conforme a revisão B1.
 
 ### 2.12.1 Botão (substitui `ui/Botao.tsx` e o botão de `ui/BotoesDeOrdem.tsx`)
+
+> **Atualizado em 22/11/2026 (D64):** as medidas, as cores e os estados deste componente passaram a ser os de [controles-v2.md](controles-v2.md); onde esta seção divergir, vale o controles-v2.
 
 **Anatomia:** [ícone de 18, opcional] + 8 + rótulo (`botao` 15/20 600). No carregamento, um indicador de 18 entra no lugar do ícone (ou à esquerda do rótulo) e o rótulo fica.
 
@@ -754,6 +756,8 @@ Para todos os componentes:
 - **Ícone:** só quando ajuda a reconhecer a ação (QR, compartilhar, "+"), nunca em um botão do par e não no outro.
 
 ### 2.12.2 Campo de texto e de senha (substitui `ui/Campo.tsx`)
+
+> **Atualizado em 22/11/2026 (D64):** as medidas, as cores e os estados deste componente passaram a ser os de [controles-v2.md](controles-v2.md); onde esta seção divergir, vale o controles-v2.
 
 **Anatomia**, de cima para baixo. Rótulo, caixa, ajuda e erro começam todos em x=0 (a borda esquerda da caixa).
 
@@ -796,6 +800,8 @@ Para todos os componentes:
 
 ### 2.12.4 Seleção: Segmentos (substitui `ui/Segmentos.tsx`)
 
+> **Atualizado em 22/11/2026 (D64):** as medidas, as cores e os estados deste componente passaram a ser os de [controles-v2.md](controles-v2.md); onde esta seção divergir, vale o controles-v2.
+
 - **Trilho:** largura total, 44 de altura, raio 14, fundo `tonal`, padding de 4.
 - **Segmentos:** largura igual (`flex: 1`), 36 de altura, raio 10, quando os rótulos cabem. Se não couberem (4 opções em 360 pt, por exemplo), nesta ordem: tipo 13 com padding 4; larguras pelo conteúdo, como o controle segmentado do iOS; pílulas. Nenhum rótulo é cortado (achado da D5 em 15/11/2026).
 - **Inativo:** `botao` em peso 500, `textoSuave`.
@@ -834,6 +840,8 @@ Para todos os componentes:
 - **Uso:** consentimentos, tarefas, checklist e "Enviar também por e-mail". Nunca para preferências de liga e desliga.
 
 ### 2.12.8 Interruptor (novo)
+
+> **Atualizado em 22/11/2026 (D64):** as medidas, as cores e os estados deste componente passaram a ser os de [controles-v2.md](controles-v2.md); onde esta seção divergir, vale o controles-v2.
 
 - **Controle:** `Switch` nativo do React Native (51×31 no iOS, 52×32 no Material 3). `trackColor.true` igual a `primaria`; polegar branco; `ios_backgroundColor` igual a `tonal`.
 - **Linha:** altura mínima de 56. Rótulo `tituloItem` 16/22, com a descrição em `legenda` dizendo o estado em texto ("Ligado, todos os dias às 07:00"). O interruptor fica à direita, centralizado na linha.

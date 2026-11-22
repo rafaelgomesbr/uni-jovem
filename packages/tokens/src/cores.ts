@@ -21,10 +21,17 @@ export interface Paleta {
   superficieBorda: string
   /** Folha, diálogo e menu (fallback opaco). */
   superficieElevada: string
-  /** Caixa do campo: mais funda que o cartão, para o campo existir sem depender da borda. */
+  /**
+   * Caixa do campo (D64): opaca e um degrau ACIMA do cartão (no escuro, mais clara que ele;
+   * antes era um poço mais escuro), igual dentro e fora do cartão.
+   */
   campoFundo: string
-  /** Borda do campo (3:1 contra o cartão e contra o próprio fundo do campo). */
+  /** Borda do campo (3:1 contra o cartão, a folha, o fundo e o próprio fundo do campo). */
   campoBorda: string
+  /** Texto de exemplo do campo (placeholder): mais apagado que o valor, 4,5:1 sobre `campoFundo`. */
+  campoExemplo: string
+  /** Fundo do campo desabilitado (sem borda). */
+  campoDesabilitado: string
   texto: string
   /** Meta, ajuda, rótulo de campo, aba inativa (sempre 4,5:1 ou mais). */
   textoSuave: string
@@ -33,9 +40,19 @@ export interface Paleta {
   /** Botão primário, check, interruptor ligado. */
   primaria: string
   primariaPressionada: string
+  /** Topo do degradê do botão primário (D64). */
+  primariaTopo: string
+  /** Base do degradê do botão primário (igual à `primaria` no escuro). */
+  primariaBase: string
   sobrePrimaria: string
-  /** Borda do botão secundário. */
+  /** Contorno de elementos de interface que ainda têm borda (3:1). O botão secundário não tem mais borda (D64). */
   contorno: string
+  /** Fundo do botão secundário e do botão de ícone (D64): tom violeta, sem borda. */
+  botaoTonal: string
+  /** Botão secundário pressionado ou com o ponteiro em cima. */
+  botaoTonalPressionado: string
+  /** `botaoTonal` com "Reduzir transparência". */
+  botaoTonalOpaco: string
   /** Fundo da pílula da comunidade, do botão só ícone e do trilho de segmentos. */
   tonal: string
   /** Tonal com "Reduzir transparência". */
@@ -64,8 +81,10 @@ export interface Paleta {
   quenteFundo: string
   /** Chip neutro ("Rascunho", "Anônima"). */
   neutroFundo: string
-  /** Anel de foco. */
+  /** Anel de foco: coral em tudo (D64), nunca amarelo. */
   foco: string
+  /** Halo de 4 pt ao redor do anel de foco do campo e do botão. */
+  focoHalo: string
   /** Pílula por trás do item ativo da barra de abas. */
   abaAtivaFundo: string
 }
@@ -79,16 +98,23 @@ export const ESCURO: Paleta = {
   superficieTranslucida: 'rgba(255,255,255,0.07)',
   superficieBorda: 'rgba(255,255,255,0.14)',
   superficieElevada: '#2B2848',
-  campoFundo: '#1A1833',
-  campoBorda: '#736DA8',
+  campoFundo: '#322F4C',
+  campoBorda: '#7C77A8',
+  campoExemplo: '#A7A2D0',
+  campoDesabilitado: 'rgba(255,255,255,0.04)',
   texto: '#F5F3FF',
   textoSuave: '#C9C4EC',
   destaque: '#FFB199',
   primaria: '#FF8A65',
   primariaPressionada: '#F0764F',
+  primariaTopo: '#FF9A78',
+  primariaBase: '#FF8A65',
   sobrePrimaria: '#1A0F0A',
   // Mockup: 30%; 36% para a borda do secundário passar 3:1 contra o cartão (1.11, item 4).
   contorno: 'rgba(255,255,255,0.36)',
+  botaoTonal: 'rgba(179,168,255,0.16)',
+  botaoTonalPressionado: 'rgba(179,168,255,0.24)',
+  botaoTonalOpaco: '#3A3759',
   tonal: 'rgba(255,255,255,0.08)',
   tonalOpaco: '#25233B',
   tonalBorda: 'rgba(255,255,255,0.18)',
@@ -108,7 +134,8 @@ export const ESCURO: Paleta = {
   infoFundo: 'rgba(157,143,255,0.16)',
   quenteFundo: 'rgba(255,177,153,0.16)',
   neutroFundo: 'rgba(255,255,255,0.10)',
-  foco: '#FFD166',
+  foco: '#FF8A65',
+  focoHalo: 'rgba(255,138,101,0.22)',
   abaAtivaFundo: 'rgba(255,138,101,0.20)',
 }
 
@@ -120,15 +147,22 @@ export const CLARO: Paleta = {
   superficieTranslucida: '#FFFFFF',
   superficieBorda: 'rgba(27,24,56,0.08)',
   superficieElevada: '#FFFFFF',
-  campoFundo: '#FFFFFF',
+  campoFundo: '#F3F1FA',
   campoBorda: '#857FAF',
+  campoExemplo: '#6B6690',
+  campoDesabilitado: 'rgba(27,24,56,0.04)',
   texto: '#1B1838',
   textoSuave: '#4B4670',
   destaque: '#8A2E12',
   primaria: '#C2491F',
   primariaPressionada: '#A93D18',
+  primariaTopo: '#C64B20',
+  primariaBase: '#B5431B',
   sobrePrimaria: '#FFFFFF',
   contorno: '#857FAF',
+  botaoTonal: 'rgba(75,63,196,0.12)',
+  botaoTonalPressionado: 'rgba(75,63,196,0.18)',
+  botaoTonalOpaco: '#E9E8F8',
   tonal: 'rgba(27,24,56,0.05)',
   tonalOpaco: '#ECEAF5',
   tonalBorda: 'rgba(27,24,56,0.12)',
@@ -148,7 +182,8 @@ export const CLARO: Paleta = {
   infoFundo: '#ECEAFD',
   quenteFundo: '#FFE3D9',
   neutroFundo: '#EEEBFA',
-  foco: '#4B3FC4',
+  foco: '#C2491F',
+  focoHalo: 'rgba(194,73,31,0.18)',
   abaAtivaFundo: 'rgba(194,73,31,0.12)',
 }
 

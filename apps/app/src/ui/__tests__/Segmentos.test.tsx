@@ -1,6 +1,7 @@
 import { act, render, screen, userEvent } from '@testing-library/react-native'
+import { TEMAS } from '@uj/tokens'
 import { useState } from 'react'
-import { Dimensions } from 'react-native'
+import { Dimensions, StyleSheet } from 'react-native'
 
 import { BotoesDeOrdem } from '../BotoesDeOrdem'
 import { escolherDisposicao, Segmentos } from '../Segmentos'
@@ -153,7 +154,7 @@ describe('Segmentos com fonte grande (D62, auditoria A1)', () => {
     comFonte(1)
     await render(<Dois />)
     const opcao = screen.getByRole('radio', { name: 'Lista' })
-    // O polegar tem 36; os 4 de cima e de baixo (hitSlop) completam os 44.
+    // O polegar tem 40; os 4 de cima e de baixo (hitSlop) completam os 48.
     expect(opcao.props.hitSlop).toEqual({ top: 4, bottom: 4 })
   })
 
@@ -166,5 +167,55 @@ describe('Segmentos com fonte grande (D62, auditoria A1)', () => {
         .flat(3)
         .some((e: { flexDirection?: string } | null) => e?.flexDirection === 'row'),
     ).toBe(true)
+  })
+})
+
+describe('Segmentos: trilho e polegar em cápsula (D64)', () => {
+  const janelaOriginal = Dimensions.get('window')
+  beforeEach(() => {
+    const janela = { width: 390, height: 844, scale: 3, fontScale: 1 }
+    Dimensions.set({ window: janela, screen: janela })
+  })
+  afterEach(async () => {
+    await act(async () => Dimensions.set({ window: janelaOriginal, screen: janelaOriginal }))
+  })
+  const C = TEMAS.claro.base
+  const plano = (no: { props: { style?: unknown } }) =>
+    StyleSheet.flatten(no.props.style as never) as Record<string, unknown>
+
+  function Dois() {
+    const [valor, setValor] = useState<'a' | 'b'>('a')
+    return (
+      <Segmentos
+        rotulo="Escolha"
+        valor={valor}
+        aoMudar={setValor}
+        segmentos={[
+          { valor: 'a', rotulo: 'Lista' },
+          { valor: 'b', rotulo: 'Mês' },
+        ]}
+      />
+    )
+  }
+
+  test('o trilho tem 48 e raio de cápsula; cada polegar tem 40 e também é cápsula', async () => {
+    await render(<Dois />)
+    expect(plano(screen.getByLabelText('Escolha'))).toMatchObject({
+      minHeight: 48,
+      borderRadius: 999,
+    })
+    expect(plano(screen.getByRole('radio', { name: 'Lista' }))).toMatchObject({
+      minHeight: 40,
+      borderRadius: 999,
+    })
+  })
+
+  test('o escolhido tem o texto em `destaque` 600 e o inativo, `textoSuave` 500', async () => {
+    await render(<Dois />)
+    expect(screen.getByText('Lista')).toHaveStyle({ color: C.destaque })
+    expect(screen.getByText('Mês')).toHaveStyle({ color: C.textoSuave })
+    await userEvent.setup().press(screen.getByRole('radio', { name: 'Mês' }))
+    expect(screen.getByText('Mês')).toHaveStyle({ color: C.destaque })
+    expect(screen.getByText('Lista')).toHaveStyle({ color: C.textoSuave })
   })
 })

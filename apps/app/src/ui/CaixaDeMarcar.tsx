@@ -28,9 +28,9 @@ interface PropsDaCaixa {
 }
 
 /**
- * Caixa de marcar (seção 2.12.7): 22×22, raio 6, borda de 1,5; marcada,
- * fundo primário com check de 14 em negrito. A caixa fica no topo da primeira
- * linha do rótulo (entrelinha 22, a mesma altura). Para consentimentos,
+ * Caixa de marcar (seção 2.12.7, D64): 24×24, raio 8, borda de 2 em `campoBorda`;
+ * marcada, fundo primário com check de 14 em negrito. A caixa fica no topo da
+ * primeira linha do rótulo. Para consentimentos,
  * tarefas e checklist; liga e desliga é `Interruptor`. Dentro do cartão
  * lista, ganha o padding de 18 da linha e o separador recua 52
  * (`RECUO_DA_LISTA.caixa`).
@@ -71,7 +71,7 @@ export function CaixaDeMarcar({
           flexDirection: 'row',
           alignItems: 'flex-start',
           gap: ESPACO.e12,
-          paddingVertical: 13,
+          paddingVertical: ESPACO.e12,
           paddingHorizontal: noCartaoLista ? ESPACO.e18 : 0,
           borderRadius: noCartaoLista ? 0 : RAIO.controle,
         },
@@ -80,10 +80,10 @@ export function CaixaDeMarcar({
     >
       <View
         style={{
-          width: 22,
-          height: 22,
-          borderRadius: RAIO.marca,
-          borderWidth: marcada && !desabilitada ? 0 : mostrarErro ? 2 : 1.5,
+          width: 24,
+          height: 24,
+          borderRadius: RAIO.caixa,
+          borderWidth: marcada && !desabilitada ? 0 : 2,
           borderColor: desabilitada
             ? cores.tonalBorda
             : mostrarErro

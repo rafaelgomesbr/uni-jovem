@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
+import { TEMAS } from '@uj/tokens'
 import { useState } from 'react'
-import { View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 
 import { CampoDeData, CampoDeHora } from '../CampoDeMomento'
 
@@ -47,5 +48,37 @@ describe('CampoDeMomento no iOS', () => {
     expect(seletor.props.display).toBe('spinner')
     expect(seletor.props.style).toMatchObject({ alignSelf: 'stretch' })
     expect(screen.getByRole('header', { name: 'Escolher o horário' })).toBeOnTheScreen()
+  })
+})
+
+describe('CampoDeMomento: a mesma caixa do Campo (D64)', () => {
+  test('vazio, mostra "Escolher data" em `campoExemplo`, e a caixa tem 56 e raio 16', async () => {
+    await render(<CampoDeData rotulo="Data" valor={null} aoMudar={() => {}} />)
+    const exemplo = screen.getByText('Escolher data')
+    expect(exemplo).toHaveStyle({
+      color: TEMAS.claro.base.campoExemplo,
+      fontSize: 16,
+      lineHeight: 22,
+    })
+    const caixa = screen.getByRole('button', { name: /^Data:/ })
+    expect(StyleSheet.flatten(caixa.props.style as never)).toMatchObject({
+      minHeight: 56,
+      borderRadius: 16,
+      backgroundColor: TEMAS.claro.base.campoFundo,
+    })
+  })
+
+  test('com valor, o texto é `texto`; o anel de foco liga enquanto o seletor está aberto', async () => {
+    await render(<CampoDeData rotulo="Data" valor="2026-11-21" aoMudar={() => {}} />)
+    expect(screen.getByText(/21/)).toHaveStyle({ color: TEMAS.claro.base.texto })
+    const anel = () =>
+      StyleSheet.flatten(screen.getByTestId('momento-data-anel').props.style as never) as {
+        opacity: number
+      }
+    expect(anel().opacity).toBe(0)
+    await fireEvent.press(screen.getByRole('button', { name: /^Data:/ }))
+    expect(anel().opacity).toBe(1)
+    await fireEvent.press(screen.getByRole('button', { name: 'Pronto' }))
+    expect(anel().opacity).toBe(0)
   })
 })

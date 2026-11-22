@@ -8,12 +8,14 @@ import {
   type Paleta,
 } from '@uj/tokens'
 
+import { aparenciaDoBotao } from './aparenciaDoBotao'
+
 /**
  * Os botões de acesso (D63). `marca` decide o logotipo e, na Apple e no Google,
  * as cores fixas da marca; `nivel` decide o peso:
  * - `primario`: o caminho provável, o único preenchimento forte por estado;
- * - `secundario`: o outro caminho de um toque, mesma altura e largura, com
- *   contorno (nunca outra laje branca);
+ * - `secundario`: o outro caminho de um toque, mesma altura e largura, tonal
+ *   e sem borda (nunca outra laje branca); o Google mantém o contorno da marca;
  * - `terciario`: o caminho de mais passos, só texto.
  * O coral cheio (`primaria`) é do "avançar" (Entrar, Continuar) e de quem
  * volta (método usado da última vez, Face ID).
@@ -33,6 +35,10 @@ export interface AparenciaDoAcesso {
   logo: LogoDoAcesso
   /** O botão branco do Google no claro ganha a sombra de cartão. */
   sombra: boolean
+  /** Degradê do primário de e-mail, Face ID e ação (D64); `null` nos demais. */
+  degrade: string | null
+  /** Realce e brilho do primário (`boxShadow`); `null` nos demais. */
+  brilho: string | null
 }
 
 const LOGO: Record<MarcaDoAcesso, LogoDoAcesso> = {
@@ -64,6 +70,8 @@ export function aparenciaDoAcesso({ marca, nivel, cores, escuro }: Entrada): Apa
       altura: ALTURA_DO_ACESSO,
       logo,
       sombra: false,
+      degrade: null,
+      brilho: null,
     }
   }
 
@@ -81,6 +89,8 @@ export function aparenciaDoAcesso({ marca, nivel, cores, escuro }: Entrada): Apa
         altura: ALTURA_DO_ACESSO,
         logo,
         sombra: false,
+        degrade: null,
+        brilho: null,
       }
     }
     const g = MARCA_DO_GOOGLE
@@ -92,39 +102,29 @@ export function aparenciaDoAcesso({ marca, nivel, cores, escuro }: Entrada): Apa
       altura: ALTURA_DO_ACESSO,
       logo,
       sombra: !escuro,
+      degrade: null,
+      brilho: null,
     }
   }
 
-  // E-mail, Face ID e botões de ação: a paleta do tema.
-  if (nivel === 'primario') {
-    return {
-      fundo: cores.primaria,
-      texto: cores.sobrePrimaria,
-      borda: null,
-      camada: cores.primariaPressionada,
-      altura: ALTURA_DO_ACESSO,
-      logo,
-      sombra: false,
-    }
-  }
-  if (nivel === 'secundario') {
-    return {
-      fundo: 'transparent',
-      texto: cores.texto,
-      borda: cores.contorno,
-      camada: cores.pressionado,
-      altura: ALTURA_DO_ACESSO,
-      logo,
-      sombra: false,
-    }
-  }
+  // E-mail, Face ID e botões de ação: a tabela única do `Botao` (D64).
+  const variante =
+    nivel === 'primario' ? 'primario' : nivel === 'secundario' ? 'secundario' : 'terciario'
+  const a = aparenciaDoBotao(variante, false, {
+    cores,
+    escuro,
+    solido: (cor) => cor,
+    semFundo: 'transparent',
+  })
   return {
-    fundo: 'transparent',
-    texto: cores.texto,
+    fundo: a.fundo,
+    texto: a.texto,
     borda: null,
-    camada: cores.pressionado,
-    altura: ALTURA_DO_ACESSO_TERCIARIO,
+    camada: a.camadaDeToque,
+    altura: nivel === 'terciario' ? ALTURA_DO_ACESSO_TERCIARIO : ALTURA_DO_ACESSO,
     logo,
     sombra: false,
+    degrade: a.degrade,
+    brilho: a.sombra,
   }
 }

@@ -84,28 +84,36 @@ describe('aparenciaDoAcesso: a tabela de botões (3.1 do desenho)', () => {
     })
   })
 
-  test('e-mail: coral cheio como primário, contorno como secundário, só texto como terciário (48)', () => {
+  test('e-mail: degradê coral como primário, tonal sem borda como secundário, só texto como terciário (48)', () => {
     expect(aparenciaDoAcesso({ marca: 'email', nivel: 'primario', ...escuro })).toMatchObject({
+      // O sólido fica por baixo do degradê: onde `backgroundImage` não desenha, vale ele.
       fundo: ESCURO.primaria,
       texto: ESCURO.sobrePrimaria,
       altura: 56,
+      degrade: `linear-gradient(180deg, ${ESCURO.primariaTopo}, ${ESCURO.primariaBase})`,
+      camada: ESCURO.primariaPressionada,
     })
+    expect(aparenciaDoAcesso({ marca: 'email', nivel: 'primario', ...escuro }).brilho).toContain(
+      'rgba(255,138,101,0.28)',
+    )
     expect(aparenciaDoAcesso({ marca: 'email', nivel: 'secundario', ...escuro })).toMatchObject({
-      fundo: 'transparent',
+      fundo: ESCURO.botaoTonal,
       texto: ESCURO.texto,
-      borda: ESCURO.contorno,
+      borda: null,
+      camada: ESCURO.botaoTonalPressionado,
+      degrade: null,
       altura: 56,
     })
     expect(aparenciaDoAcesso({ marca: 'email', nivel: 'terciario', ...claro })).toMatchObject({
       fundo: 'transparent',
-      texto: CLARO.texto,
+      texto: CLARO.destaque,
       borda: null,
       altura: 48,
       logo: 'email',
     })
   })
 
-  test('o coral cheio é do avançar e de quem volta: o Face ID e as ações usam o mesmo desenho', () => {
+  test('o coral é do avançar e de quem volta: o Face ID e as ações usam o mesmo desenho', () => {
     expect(aparenciaDoAcesso({ marca: 'biometria', nivel: 'primario', ...escuro })).toMatchObject({
       fundo: ESCURO.primaria,
       logo: 'faceId',
@@ -141,6 +149,49 @@ describe('BotaoDeAcesso', () => {
     expect(estilo(botao).minHeight).toBe(56)
     expect(botao).toBeEnabled()
     expect(botao).not.toBeBusy()
+  })
+
+  test('o botão de acesso é uma cápsula (raio máximo), como todo botão', async () => {
+    await render(
+      <BotaoDeAcesso
+        marca="apple"
+        nivel="primario"
+        titulo="Continuar com a Apple"
+        aoPressionar={() => {}}
+      />,
+    )
+    expect(estilo(screen.getByRole('button', { name: 'Continuar com a Apple' })).borderRadius).toBe(
+      999,
+    )
+  })
+
+  test('o primário de ação leva o degradê e o brilho; pressionado, sem o brilho', async () => {
+    await render(
+      <ProvedorDeTemaForcado nome="escuro">
+        <BotaoDeAcesso marca="acao" nivel="primario" titulo="Entrar" aoPressionar={() => {}} />
+      </ProvedorDeTemaForcado>,
+    )
+    const botao = screen.getByRole('button', { name: 'Entrar' })
+    expect(estilo(botao)).toMatchObject({
+      backgroundColor: ESCURO.primaria,
+      backgroundImage: `linear-gradient(180deg, ${ESCURO.primariaTopo}, ${ESCURO.primariaBase})`,
+    })
+    expect(String(estilo(botao).boxShadow)).toContain('inset 0px 1px 0px')
+  })
+
+  test('pressionado (vitrine): a camada cobre o degradê e o brilho some', async () => {
+    await render(
+      <ProvedorDeTemaForcado nome="escuro">
+        <BotaoDeAcesso
+          marca="acao"
+          nivel="primario"
+          titulo="Entrar"
+          estadoDeVitrine="pressionado"
+          aoPressionar={() => {}}
+        />
+      </ProvedorDeTemaForcado>,
+    )
+    expect(estilo(screen.getByRole('button', { name: 'Entrar' })).boxShadow).toBeUndefined()
   })
 
   test('o terciário tem 48 de altura e nenhum fundo', async () => {
