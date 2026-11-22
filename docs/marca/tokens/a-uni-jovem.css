@@ -1,0 +1,69 @@
+/* Proposta A: Uni Jovem. Tokens de cor, 22/11/2026. Razões WCAG 2.2 calculadas por script. */
+/* Mistura em OKLCH: Sol #FFD66B + Coral #FF8A65 = #FFAF5A no meio (sem passar pelo cinza). */
+
+:root,
+[data-tema='claro'] {
+  --fundo: #F7F5FF;
+  --superficie: #FFFFFF;
+  --superficie-elevada: #FFFFFF;
+  --texto: #1B1838;
+  --texto-suave: #4B4670;
+  --destaque: #8A2E12;
+  --primaria: #C2491F;
+  --sobre-primaria: #FFFFFF;
+  --apoio: #8A5A00;
+  --mistura: #B4571A;
+  --contorno: #857FAF;
+  --sucesso: #16794B;
+  --erro: #B42318;
+
+  /* Texto sobre o fundo: 15,77:1 (mínimo 4,5) */
+  /* Texto sobre o cartão: 17,01:1 (mínimo 4,5) */
+  /* Texto secundário sobre o fundo: 8,08:1 (mínimo 4,5) */
+  /* Texto secundário sobre o cartão: 8,72:1 (mínimo 4,5) */
+  /* Texto secundário sobre a folha: 8,72:1 (mínimo 4,5) */
+  /* Destaque (link, sobrancelha) sobre o fundo: 7,85:1 (mínimo 4,5) */
+  /* Destaque sobre o cartão: 8,47:1 (mínimo 4,5) */
+  /* Rótulo do botão principal: 4,92:1 (mínimo 4,5) */
+  /* Botão principal contra o fundo: 4,56:1 (mínimo 3) */
+  /* Botão principal contra o cartão: 4,92:1 (mínimo 3) */
+  /* Contorno de campo contra o cartão: 3,72:1 (mínimo 3) */
+  /* Cor de apoio como texto sobre o cartão: 5,93:1 (mínimo 4,5) */
+  /* Mistura como ícone sobre o cartão: 4,86:1 (mínimo 3) */
+  /* Sucesso como texto sobre o cartão: 5,43:1 (mínimo 4,5) */
+  /* Erro como texto sobre o cartão: 6,57:1 (mínimo 4,5) */
+  --degrade-marca: linear-gradient(135deg, #FFD66B, #FFAF5A, #FF8A65);
+}
+
+[data-tema='escuro'] {
+  --fundo: #12102A;
+  --superficie: #232139;
+  --superficie-elevada: #2B2848;
+  --texto: #F5F3FF;
+  --texto-suave: #C9C4EC;
+  --destaque: #FFB199;
+  --primaria: #FF8A65;
+  --sobre-primaria: #1A0F0A;
+  --apoio: #FFD66B;
+  --mistura: #FFAF5A;
+  --contorno: #8A85B8;
+  --sucesso: #7FE0B0;
+  --erro: #FF8A8A;
+
+  /* Texto sobre o fundo: 16,90:1 (mínimo 4,5) */
+  /* Texto sobre o cartão: 14,20:1 (mínimo 4,5) */
+  /* Texto secundário sobre o fundo: 11,11:1 (mínimo 4,5) */
+  /* Texto secundário sobre o cartão: 9,34:1 (mínimo 4,5) */
+  /* Texto secundário sobre a folha: 8,39:1 (mínimo 4,5) */
+  /* Destaque (link, sobrancelha) sobre o fundo: 10,59:1 (mínimo 4,5) */
+  /* Destaque sobre o cartão: 8,90:1 (mínimo 4,5) */
+  /* Rótulo do botão principal: 8,13:1 (mínimo 4,5) */
+  /* Botão principal contra o fundo: 8,01:1 (mínimo 3) */
+  /* Botão principal contra o cartão: 6,73:1 (mínimo 3) */
+  /* Contorno de campo contra o cartão: 4,55:1 (mínimo 3) */
+  /* Cor de apoio como texto sobre o cartão: 11,19:1 (mínimo 4,5) */
+  /* Mistura como ícone sobre o cartão: 8,55:1 (mínimo 3) */
+  /* Sucesso como texto sobre o cartão: 9,79:1 (mínimo 4,5) */
+  /* Erro como texto sobre o cartão: 6,86:1 (mínimo 4,5) */
+  --degrade-marca: linear-gradient(135deg, #FFD66B, #FFAF5A, #FF8A65);
+}

@@ -13,3 +13,7 @@ docs/design/*.html
 apps/app/expo-env.d.ts
 # Apresentação gerada por scripts/apresentacao/montar.ts (telas embutidas).
 docs/apresentacao/*.html
+# Protótipos e páginas de escolha geradas (HTML e CSS autônomos): docs/design/v3 e docs/marca.
+docs/design/v3/**/*.html
+docs/marca/**/*.html
+docs/marca/tokens/*.css

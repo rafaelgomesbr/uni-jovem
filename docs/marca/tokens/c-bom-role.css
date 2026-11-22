@@ -1,0 +1,69 @@
+/* Proposta C: Bom Rolê. Tokens de cor, 22/11/2026. Razões WCAG 2.2 calculadas por script. */
+/* Mistura em OKLCH: Lima #C6F25A + Água #4FE0D2 = #74F0A5 no meio (sem passar pelo cinza). */
+
+:root,
+[data-tema='claro'] {
+  --fundo: #F7F8F0;
+  --superficie: #FFFFFF;
+  --superficie-elevada: #FFFFFF;
+  --texto: #17123A;
+  --texto-suave: #4D4A66;
+  --destaque: #1D6B45;
+  --primaria: #17123A;
+  --sobre-primaria: #C6F25A;
+  --apoio: #0B6B64;
+  --mistura: #1D6B45;
+  --contorno: #86839E;
+  --sucesso: #1D6B45;
+  --erro: #B3261E;
+
+  /* Texto sobre o fundo: 16,59:1 (mínimo 4,5) */
+  /* Texto sobre o cartão: 17,74:1 (mínimo 4,5) */
+  /* Texto secundário sobre o fundo: 7,90:1 (mínimo 4,5) */
+  /* Texto secundário sobre o cartão: 8,44:1 (mínimo 4,5) */
+  /* Texto secundário sobre a folha: 8,44:1 (mínimo 4,5) */
+  /* Destaque (link, sobrancelha) sobre o fundo: 6,06:1 (mínimo 4,5) */
+  /* Destaque sobre o cartão: 6,48:1 (mínimo 4,5) */
+  /* Rótulo do botão principal: 13,72:1 (mínimo 4,5) */
+  /* Botão principal contra o fundo: 16,59:1 (mínimo 3) */
+  /* Botão principal contra o cartão: 17,74:1 (mínimo 3) */
+  /* Contorno de campo contra o cartão: 3,65:1 (mínimo 3) */
+  /* Cor de apoio como texto sobre o cartão: 6,36:1 (mínimo 4,5) */
+  /* Mistura como ícone sobre o cartão: 6,48:1 (mínimo 3) */
+  /* Sucesso como texto sobre o cartão: 6,48:1 (mínimo 4,5) */
+  /* Erro como texto sobre o cartão: 6,54:1 (mínimo 4,5) */
+  --degrade-marca: linear-gradient(135deg, #C6F25A, #74F0A5, #4FE0D2);
+}
+
+[data-tema='escuro'] {
+  --fundo: #100D26;
+  --superficie: #1C1838;
+  --superficie-elevada: #25204A;
+  --texto: #F4F6EC;
+  --texto-suave: #BEBBD3;
+  --destaque: #74F0A5;
+  --primaria: #C6F25A;
+  --sobre-primaria: #17123A;
+  --apoio: #4FE0D2;
+  --mistura: #74F0A5;
+  --contorno: #77729C;
+  --sucesso: #74F0A5;
+  --erro: #FF8FA3;
+
+  /* Texto sobre o fundo: 17,37:1 (mínimo 4,5) */
+  /* Texto sobre o cartão: 15,55:1 (mínimo 4,5) */
+  /* Texto secundário sobre o fundo: 10,15:1 (mínimo 4,5) */
+  /* Texto secundário sobre o cartão: 9,08:1 (mínimo 4,5) */
+  /* Texto secundário sobre a folha: 8,12:1 (mínimo 4,5) */
+  /* Destaque (link, sobrancelha) sobre o fundo: 13,32:1 (mínimo 4,5) */
+  /* Destaque sobre o cartão: 11,92:1 (mínimo 4,5) */
+  /* Rótulo do botão principal: 13,72:1 (mínimo 4,5) */
+  /* Botão principal contra o fundo: 14,67:1 (mínimo 3) */
+  /* Botão principal contra o cartão: 13,13:1 (mínimo 3) */
+  /* Contorno de campo contra o cartão: 3,78:1 (mínimo 3) */
+  /* Cor de apoio como texto sobre o cartão: 10,45:1 (mínimo 4,5) */
+  /* Mistura como ícone sobre o cartão: 11,92:1 (mínimo 3) */
+  /* Sucesso como texto sobre o cartão: 11,92:1 (mínimo 4,5) */
+  /* Erro como texto sobre o cartão: 7,85:1 (mínimo 4,5) */
+  --degrade-marca: linear-gradient(135deg, #C6F25A, #74F0A5, #4FE0D2);
+}

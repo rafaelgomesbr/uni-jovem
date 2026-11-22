@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Uni Jovem: escolha o novo visual</title>
+<style>
+  :root { --noite:#14112e; --cartao:#2a2552; --claro:#f4f1fb; --suave:#c9c2e6; --coral:#ff8a65; --amarelo:#f2c94c; --borda:#3a3466; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--noite); color:var(--claro); font:17px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; padding:32px 20px 120px; }
+  main { max-width:1040px; margin:0 auto; }
+  h1 { font-size:clamp(28px,4vw,44px); line-height:1.1; margin-bottom:8px; }
+  h2 { font-size:24px; margin:36px 0 6px; }
+  p.apoio { color:var(--suave); max-width:70ch; }
+  .grade { display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); margin-top:16px; }
+  label.opcao { display:block; background:var(--cartao); border:2px solid var(--borda); border-radius:20px; padding:20px; cursor:pointer; }
+  label.opcao:has(input:checked) { border-color:var(--coral); box-shadow:0 0 0 3px rgba(255,138,101,.25); }
+  label.opcao:focus-within { outline:3px solid var(--amarelo); outline-offset:2px; }
+  label.opcao input { position:absolute; opacity:0; }
+  .tag { display:inline-block; font-size:13px; font-weight:700; letter-spacing:.08em; color:var(--amarelo); margin-bottom:6px; }
+  .nome { font-size:22px; font-weight:700; display:block; }
+  .desc { color:var(--suave); display:block; margin:6px 0 12px; font-size:16px; }
+  a.abrir { display:inline-block; color:var(--noite); background:var(--coral); font-weight:700; text-decoration:none; padding:10px 18px; border-radius:999px; min-height:44px; line-height:24px; }
+  a.abrir:focus-visible { outline:3px solid var(--amarelo); outline-offset:2px; }
+  .rec { font-size:14px; color:var(--amarelo); display:block; margin-top:10px; }
+  .barra { position:fixed; left:0; right:0; bottom:0; background:rgba(20,17,46,.96); border-top:1px solid var(--borda); padding:14px 20px; }
+  .barra .dentro { max-width:1040px; margin:0 auto; display:flex; gap:16px; align-items:center; flex-wrap:wrap; justify-content:space-between; }
+  #resumo { font-weight:600; }
+  button { font:inherit; font-weight:700; color:var(--noite); background:var(--coral); border:0; border-radius:999px; min-height:48px; padding:0 22px; cursor:pointer; }
+  button:focus-visible { outline:3px solid var(--amarelo); outline-offset:2px; }
+  .ok { color:var(--amarelo); font-size:14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Escolha o novo visual do Uni Jovem</h1>
+  <p class="apoio">São duas escolhas independentes: o <b>desenho do app</b> (como as telas ficam e se movem) e a <b>marca</b> (nome e ícone). Abra cada proposta, mexa nela como num app de verdade, e marque a que você prefere. Embaixo da página aparece o texto para colar na conversa comigo.</p>
+
+  <h2>1. Desenho do app (as três usam a mesma estrutura nova: 4 abas, Início que leva ao que fazer agora)</h2>
+  <div class="grade" role="radiogroup" aria-label="Direção visual">
+    <label class="opcao">
+      <input type="radio" name="visual" value="A. Aurora viva">
+      <span class="tag">DIREÇÃO A</span>
+      <span class="nome">Aurora viva</span>
+      <span class="desc">A evolução ousada do app atual: noite roxa, luz coral e o sol nascendo como fio condutor. Mais profundidade e movimento.</span>
+      <a class="abrir" href="a/prototipo.html" target="_blank" rel="noopener">Abrir protótipo A</a>
+    </label>
+    <label class="opcao">
+      <input type="radio" name="visual" value="B. Claro e acolhedor">
+      <span class="tag">DIREÇÃO B</span>
+      <span class="nome">Claro e acolhedor</span>
+      <span class="desc">Tema claro como principal: papel quente, letras grandes, muito respiro. Parece uma conversa, feito para quem tem 16 e para quem tem 55 anos.</span>
+      <a class="abrir" href="b/prototipo.html" target="_blank" rel="noopener">Abrir protótipo B</a>
+    </label>
+    <label class="opcao">
+      <input type="radio" name="visual" value="C. Editorial ousado">
+      <span class="tag">DIREÇÃO C</span>
+      <span class="nome">Editorial ousado</span>
+      <span class="desc">Tipografia enorme e expressiva, blocos de cor chapada, ritmo de revista. Mais jovem e com personalidade.</span>
+      <a class="abrir" href="c/prototipo.html" target="_blank" rel="noopener">Abrir protótipo C</a>
+    </label>
+  </div>
+
+  <h2>2. Marca: nome e ícone</h2>
+  <p class="apoio">A página da marca mostra os ícones em vários tamanhos, na tela do celular e na loja, com a paleta e o tom de voz de cada uma. <a href="../../marca/identidade.html" target="_blank" rel="noopener" style="color:var(--coral)">Abrir a página da marca</a>.</p>
+  <div class="grade" role="radiogroup" aria-label="Marca">
+    <label class="opcao">
+      <input type="radio" name="marca" value="Marca A. Uni Jovem (evolução do ícone)">
+      <span class="tag">MARCA A</span>
+      <span class="nome">Uni Jovem</span>
+      <span class="desc">Mesmo nome, ícone do sol refinado (raios mais grossos, aparece melhor pequeno). Mudança pequena e sem risco.</span>
+    </label>
+    <label class="opcao">
+      <input type="radio" name="marca" value="Marca B. Nossa Roda (nome novo)">
+      <span class="tag">MARCA B</span>
+      <span class="nome">Nossa Roda</span>
+      <span class="desc">Nome novo: grupo de jovens é uma roda. Ícone com cinco pessoas em volta de uma luz e um lugar vago. Depende de um advogado conferir a marca.</span>
+      <span class="rec">Recomendada pelo especialista, se não houver conflito de marca</span>
+    </label>
+    <label class="opcao">
+      <input type="radio" name="marca" value="Marca C. Bom Rolê (vibrante)">
+      <span class="tag">MARCA C</span>
+      <span class="nome">Bom Rolê</span>
+      <span class="desc">Mais ousada e jovem, em lima e água. A mudança mais cara, e o tom combina menos com pedido de oração.</span>
+    </label>
+  </div>
+</main>
+
+<div class="barra">
+  <div class="dentro">
+    <span id="resumo">Nenhuma escolha ainda.</span>
+    <span>
+      <span id="ok" class="ok" role="status"></span>
+      <button type="button" id="copiar">Copiar minha escolha</button>
+    </span>
+  </div>
+</div>
+
+<script>
+  const resumo = document.getElementById('resumo')
+  const ok = document.getElementById('ok')
+  function texto() {
+    const v = document.querySelector('input[name=visual]:checked')
+    const m = document.querySelector('input[name=marca]:checked')
+    const partes = []
+    if (v) partes.push('Desenho ' + v.value)
+    if (m) partes.push(m.value)
+    return partes.length ? 'ESCOLHI: ' + partes.join(' + ') : ''
+  }
+  function atualizar() {
+    resumo.textContent = texto() || 'Nenhuma escolha ainda.'
+    ok.textContent = ''
+  }
+  document.addEventListener('change', atualizar)
+  document.getElementById('copiar').addEventListener('click', async () => {
+    const t = texto()
+    if (!t) { ok.textContent = 'Marque uma opção primeiro. '; return }
+    try { await navigator.clipboard.writeText(t); ok.textContent = 'Copiado: cole na conversa. ' }
+    catch (e) { ok.textContent = 'Selecione e copie o texto ao lado. ' }
+  })
+</script>
+</body>
+</html>
