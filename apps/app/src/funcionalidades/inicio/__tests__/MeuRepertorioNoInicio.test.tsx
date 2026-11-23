@@ -145,10 +145,11 @@ describe('repertório para toda a comunidade (D73): "Ver o repertório" quando o
     })
   })
 
-  test('sem nenhuma convocação também vê: o repertório é de todos, e o primário segue "Ver o encontro"', async () => {
+  test('sem nenhuma convocação também vê: o repertório é de todos, e "Ver o encontro" é só a chamada do cartão', async () => {
     await renderizarTela(<TelaInicio />, { papel: 'membro', rotas: rotasCom(null, {}, 2) })
-    expect(await screen.findByRole('button', { name: 'Ver o encontro' })).toBeOnTheScreen()
-    expect(screen.getByRole('button', VER)).toBeOnTheScreen()
+    expect(await screen.findByRole('button', VER)).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: 'Ver o encontro' })).toBeNull()
+    expect(screen.getAllByText('Ver o encontro')).toHaveLength(1)
   })
 
   test('sem músicas e sem tocar: nenhum botão de repertório', async () => {

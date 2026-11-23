@@ -73,7 +73,7 @@ export default function LayoutAutenticado() {
         {/* D78: páginas comuns da pilha (não modais): o encontro que elas criam abre por cima com a
             barra de abas, que um modal nativo cobriria. */}
         <Stack.Screen name="evento/novo" options={{ title: 'Novo encontro' }} />
-        {/* "Igual ao último encontro" e "Marcar o próximo encontro" (D69): a conferência. */}
+        {/* "Igual ao último encontro" (cópia pedida pela pessoa, D69): a conferência. */}
         <Stack.Screen
           name="evento/igual-ao-ultimo"
           options={{ title: 'Igual ao último encontro' }}

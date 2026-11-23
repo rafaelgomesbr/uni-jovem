@@ -21,6 +21,7 @@ import { CartaoDoRepertorioNoEncontro } from '../repertorio/CartaoDoRepertorioNo
 import { contarRespostas, juntarNomes } from './respostas'
 import { faseDoEncontro, podeIrAoVivo } from './regras'
 import { AvisoDeStatus, Preparacao, QuandoEOnde, SobreOEncontro } from './PartesDaPagina'
+import { SecaoDadosDoEncontro, type EdicaoNoResumo } from './SecaoDadosDoEncontro'
 
 /** "9 de 11 responderam. Faltam: Bruno e Camila. Falta: bateria.": a linha dos Convocados no Resumo. */
 function resumoDosConvocadosDoEncontro(evento: DetalheDoEvento): string {
@@ -96,12 +97,15 @@ export function ResumoDoEncontro({
   comunidadeId,
   aoVerConvocados,
   outrasCoisas = [],
+  edicao,
 }: {
   evento: DetalheDoEvento
   comunidadeId: string
   aoVerConvocados: () => void
   /** As ações que antes moravam no "Mais": aparecem aqui, sempre visíveis e com texto (D74). */
   outrasCoisas?: readonly AcaoDoMenu[]
+  /** A seção "Dados do encontro" (só para quem edita, e com o encontro ainda vivo). */
+  edicao?: EdicaoNoResumo
 }) {
   const { cores } = useTema()
   const pode = usePode()
@@ -110,10 +114,17 @@ export function ResumoDoEncontro({
   const registraPresenca = pode('presenca', 'registrar') && podeIrAoVivo(evento.status)
   const noPeriodoDoCheckin = fase === 'checkin' || fase === 'acontecendo'
   const params = { eventoId: evento.id }
+  // Cancelado e encerrado não se editam (a API também recusa): sem a seção, sem convite a editar.
+  const podeEditar =
+    pode('evento', 'editar') && evento.status !== 'cancelado' && evento.status !== 'encerrado'
   return (
     <>
       <AvisoDeStatus evento={evento} />
-      <QuandoEOnde evento={evento} />
+      {edicao && podeEditar ? (
+        <SecaoDadosDoEncontro evento={evento} comunidadeId={comunidadeId} edicao={edicao} />
+      ) : null}
+      {/* Com "Dados do encontro" aberto, o dia, a hora e o local já estão nos campos: não repete. */}
+      {edicao && podeEditar && edicao.aberta ? null : <QuandoEOnde evento={evento} />}
       <CartaoDeVidro lista>
         <Lista>
           <LinhaDeLista

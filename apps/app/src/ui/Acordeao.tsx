@@ -1,5 +1,5 @@
 import { ESPACO } from '@uj/tokens'
-import { useState, type ReactNode } from 'react'
+import { useState, type ComponentRef, type ReactNode, type Ref } from 'react'
 import { Pressable, View } from 'react-native'
 
 import { Aparecer } from './Aparecer'
@@ -33,6 +33,15 @@ interface PropsDoAcordeao {
   rotuloAberto: string
   /** Recuo lateral da linha (dentro de cartão lista, 18; solto na tela, 0). */
   recuo?: number
+  /**
+   * Quem chama decide se está aberto (um "Editar" de outro lugar da tela abre o bloco, e o
+   * fechamento pode pedir confirmação). Com ele, o acordeão não guarda estado próprio: o toque só
+   * chama `aoAlternar` com o estado pedido.
+   */
+  aberto?: boolean
+  aoAlternar?: (aberto: boolean) => void
+  /** O botão do cabeçalho, para quem precisa levar o foco do leitor de tela até ele. */
+  refDoBotao?: Ref<ComponentRef<typeof View>>
   children: ReactNode
 }
 
@@ -49,22 +58,29 @@ export function Acordeao({
   rotuloRecolhido,
   rotuloAberto,
   recuo = 0,
+  aberto: abertoDeFora,
+  aoAlternar,
+  refDoBotao,
   children,
 }: PropsDoAcordeao) {
   const { cores } = useTema()
-  const [aberto, setAberto] = useState(() =>
+  const [abertoInterno, setAbertoInterno] = useState(() =>
     chave ? (abertosNestaSessao.get(chave) ?? false) : false,
   )
+  const controlado = abertoDeFora !== undefined
+  const aberto = controlado ? abertoDeFora : abertoInterno
 
   function alternar() {
     const novo = !aberto
     if (chave) abertosNestaSessao.set(chave, novo)
-    setAberto(novo)
+    if (!controlado) setAbertoInterno(novo)
+    aoAlternar?.(novo)
   }
 
   return (
     <View>
       <Pressable
+        ref={refDoBotao}
         accessibilityRole="button"
         accessibilityLabel={aberto ? rotuloAberto : rotuloRecolhido}
         aria-expanded={aberto}

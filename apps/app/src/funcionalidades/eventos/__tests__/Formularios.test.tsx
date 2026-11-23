@@ -399,6 +399,74 @@ describe('criar encontro', () => {
   })
 })
 
+describe('começar de outro jeito (atalhos do encontro do zero)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    usarFonte(1)
+  })
+
+  const ANTERIOR = {
+    eventoId: '77777777-7777-4777-8777-000000000000',
+    titulo: 'Sábado Jovem',
+    inicio: '2026-11-21T19:00:00.000Z',
+    fuso: 'America/Sao_Paulo',
+    duracaoMin: 60,
+    etapas: 7,
+    convocados: 11,
+    musicas: 4,
+    dataSugerida: '2026-11-28',
+    horaSugerida: '16:00',
+    inicioSugerido: '2026-11-28T19:00:00.000Z',
+  }
+  const comAnteriores = (opcoes: object[]) => ({
+    ...ROTAS_DO_FORMULARIO,
+    [`GET ${BASE}/eventos/anteriores-para-copiar`]: () => ({ status: 200, corpo: { opcoes } }),
+  })
+
+  test('com encontro anterior: oferece copiar o último e usar um modelo, e cada um troca de tela', async () => {
+    parametros.mockReturnValue({})
+    await renderizarTela(<TelaNovoEvento />, { rotas: comAnteriores([ANTERIOR]) })
+    const usuario = userEvent.setup()
+    expect(await screen.findByText('Começar de outro jeito?')).toBeOnTheScreen()
+    await usuario.press(await screen.findByRole('button', { name: 'Copiar o último encontro' }))
+    expect(router.replace).toHaveBeenCalledWith('/evento/igual-ao-ultimo')
+    await usuario.press(screen.getByRole('button', { name: 'Usar um modelo de roteiro' }))
+    expect(router.replace).toHaveBeenCalledWith({
+      pathname: '/evento/novo',
+      params: { modelo: 'escolher' },
+    })
+    // Nada foi digitado: a tela não está "suja", então trocar de tela não pergunta nada.
+    expect(usePreventRemove).not.toHaveBeenCalledWith(true, expect.anything())
+  })
+
+  test('sem encontro anterior: só "Usar um modelo de roteiro"', async () => {
+    parametros.mockReturnValue({})
+    await renderizarTela(<TelaNovoEvento />, { rotas: comAnteriores([]) })
+    expect(
+      await screen.findByRole('button', { name: 'Usar um modelo de roteiro' }),
+    ).toBeOnTheScreen()
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Copiar o último encontro' })).toBeNull(),
+    )
+  })
+
+  test('com um modelo já escolhido, os atalhos não aparecem', async () => {
+    parametros.mockReturnValue({ modelo: 'sabado_padrao' })
+    await renderizarTela(<TelaNovoEvento />, { rotas: comAnteriores([ANTERIOR]) })
+    await screen.findByLabelText('Título')
+    expect(screen.queryByText('Começar de outro jeito?')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Copiar o último encontro' })).toBeNull()
+  })
+
+  test('com o dia já escolhido (Agenda), os atalhos não aparecem', async () => {
+    parametros.mockReturnValue({ data: DIA_DO_INICIO })
+    await renderizarTela(<TelaNovoEvento />, { rotas: comAnteriores([ANTERIOR]) })
+    await screen.findByLabelText('Título')
+    expect(screen.queryByText('Começar de outro jeito?')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Usar um modelo de roteiro' })).toBeNull()
+  })
+})
+
 describe('criar vários dias de uma vez (D78)', () => {
   beforeEach(() => {
     jest.clearAllMocks()
@@ -673,6 +741,20 @@ describe('editar encontro', () => {
       versao: 3,
       titulo: 'Sábado especial',
     })
+  })
+
+  test('na rota própria o desenho é o de sempre ("O essencial", "Onde") e "Cancelar" volta', async () => {
+    parametros.mockReturnValue({ eventoId: EVENTO_ID })
+    await renderizarTela(<TelaEditarEvento />, {
+      rotas: {
+        ...ROTAS_DO_FORMULARIO,
+        [`GET ${CAMINHO}`]: () => ({ status: 200, corpo: eventoDeTeste() }),
+      },
+    })
+    expect(await screen.findByText('O essencial')).toBeOnTheScreen()
+    expect(screen.getByText('Onde')).toBeOnTheScreen()
+    await userEvent.setup().press(screen.getByRole('button', { name: 'Cancelar' }))
+    expect(router.back).toHaveBeenCalled()
   })
 
   test('409: mostra a versão atual e deixa escolher, sem sobrescrever sozinho', async () => {

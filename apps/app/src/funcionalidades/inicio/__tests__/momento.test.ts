@@ -19,6 +19,7 @@ import {
   quandoFoiSalva,
   posicaoNoDia,
   seloDoCartaoDoLider,
+  semVerRepetido,
   textoDaDespedida,
   textoDoObrigado,
   tituloDoBlocoDoDia,
@@ -287,10 +288,10 @@ describe('a UMA próxima ação do cartão do LÍDER (D75, ordem do documento de
     })
   })
 
-  test('2. rascunho: Publicar vence tudo (e Editar é o caminho)', () => {
+  test('2. rascunho: Publicar vence tudo, sem botão "Editar" (a chamada do cartão já edita)', () => {
     expect(
       acao({ rascunho: true, lembraveis: 3, faltaFuncao: ['Bateria'], semMusicas: true }),
-    ).toEqual({ primaria: 'publicar', secundaria: 'editar' })
+    ).toEqual({ primaria: 'publicar', secundaria: null })
   })
 
   test('3. falta gente responder: Lembrar os N, longe, na véspera e no dia antes das 2 h', () => {
@@ -370,6 +371,44 @@ describe('a UMA próxima ação do cartão do LÍDER (D75, ordem do documento de
 
   test('o líder do teste tem 2 pessoas a lembrar (a fixture bate com a tabela)', () => {
     expect(liderDoMomento().lembraveis).toBe(2)
+  })
+})
+
+describe('"Ver o encontro" não aparece duas vezes (a chamada do cartão já cobre)', () => {
+  test('secundário "ver" some; o principal fica', () => {
+    expect(semVerRepetido({ primaria: 'comoChegar', secundaria: 'ver' })).toEqual({
+      primaria: 'comoChegar',
+      secundaria: null,
+      semChamada: false,
+    })
+  })
+
+  test('principal "ver" com outro botão: o outro vira o principal', () => {
+    expect(semVerRepetido({ primaria: 'ver', secundaria: 'repertorio' })).toEqual({
+      primaria: 'repertorio',
+      secundaria: null,
+      semChamada: false,
+    })
+    expect(semVerRepetido({ primaria: 'verProximo', secundaria: 'repertorio' }).primaria).toBe(
+      'repertorio',
+    )
+  })
+
+  test('principal "ver" sozinho: o botão fica e a chamada do cartão se esconde', () => {
+    expect(semVerRepetido({ primaria: 'ver', secundaria: null })).toEqual({
+      primaria: 'ver',
+      secundaria: null,
+      semChamada: true,
+    })
+    expect(semVerRepetido({ primaria: 'verProximo', secundaria: 'ver' }).semChamada).toBe(true)
+  })
+
+  test('as outras ações passam sem mudar', () => {
+    expect(semVerRepetido({ primaria: 'aceitar', secundaria: 'naoPossoIr' })).toEqual({
+      primaria: 'aceitar',
+      secundaria: 'naoPossoIr',
+      semChamada: false,
+    })
   })
 })
 

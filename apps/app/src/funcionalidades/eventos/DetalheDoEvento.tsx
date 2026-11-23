@@ -13,10 +13,11 @@ import { EstadoVazio } from '@/ui/EstadoVazio'
 import { AvisoDeFalha } from '@/ui/Falha'
 import { voltarOu } from '@/ui/navegacao'
 import { Segmentos, type Segmento } from '@/ui/Segmentos'
-import { Tela } from '@/ui/Tela'
+import { RolarAoTopoQuando, Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { mostrarToast } from '@/ui/Toast'
 import { compartilharTexto } from '@/utilidades/compartilhar'
+import { confirmar } from '@/utilidades/confirmar'
 import { formatarHora } from '@/utilidades/datas'
 
 import { dataCurtaDoEncontro } from '../agenda/semanas'
@@ -67,6 +68,8 @@ interface Props {
   convocarInicial?: PedidoDeConvocacao | undefined
   /** Acabou de publicar em outra tela ("Igual ao último encontro"): quantas pessoas foram avisadas. */
   avisadasAoPublicar?: number | undefined
+  /** "Editar" de fora (Início, links): abre já a seção "Dados do encontro" do Resumo. */
+  editarInicial?: boolean | undefined
 }
 
 /**
@@ -84,6 +87,7 @@ export function DetalheDoEvento({
   abaInicial,
   convocarInicial,
   avisadasAoPublicar,
+  editarInicial,
 }: Props) {
   const pode = usePode()
   // Baixar para usar sem internet é coisa de quem organiza ou conduz (D57).
@@ -93,7 +97,29 @@ export function DetalheDoEvento({
   const guardado = usePacoteDoEvento(eventoId).data ?? null
   const pausado = evento.isPending && evento.fetchStatus === 'paused'
   const semRede = !online || pausado || evento.error instanceof SemConexao
+  // Há algo digitado em "Dados do encontro" ainda não salvo? Sobe até aqui porque é este componente
+  // que decide trocar a tela pela cópia do aparelho, e trocar apagaria o que a pessoa escreveu.
+  const [edicaoSuja, setEdicaoSuja] = useState(false)
 
+  // Com algo por salvar, a tela fica (mesmo sem internet ou com erro de rede): o encontro já
+  // carregado segue montado e o formulário não perde o que foi digitado.
+  if (edicaoSuja && evento.data) {
+    return (
+      <Conteudo
+        evento={evento.data}
+        comunidadeId={comunidadeId}
+        aoSair={aoSair}
+        painel={painel}
+        abaInicial={abaInicial}
+        convocarInicial={convocarInicial}
+        avisadasAoPublicar={avisadasAoPublicar}
+        editarInicial={editarInicial}
+        edicaoSuja={edicaoSuja}
+        aoMudarSujo={setEdicaoSuja}
+        semRede={semRede}
+      />
+    )
+  }
   // Sem conexão e com o encontro preparado: a cópia deste aparelho, com o que está pendente.
   if (semRede && guardado) {
     return (
@@ -148,6 +174,10 @@ export function DetalheDoEvento({
       abaInicial={abaInicial}
       convocarInicial={convocarInicial}
       avisadasAoPublicar={avisadasAoPublicar}
+      editarInicial={editarInicial}
+      edicaoSuja={edicaoSuja}
+      aoMudarSujo={setEdicaoSuja}
+      semRede={false}
     />
   )
 }
@@ -192,6 +222,10 @@ function Conteudo({
   abaInicial,
   convocarInicial,
   avisadasAoPublicar,
+  editarInicial,
+  edicaoSuja,
+  aoMudarSujo,
+  semRede,
 }: {
   evento: Evento
   comunidadeId: string
@@ -200,6 +234,11 @@ function Conteudo({
   abaInicial: Visao | undefined
   convocarInicial: PedidoDeConvocacao | undefined
   avisadasAoPublicar: number | undefined
+  editarInicial: boolean | undefined
+  edicaoSuja: boolean
+  aoMudarSujo: (sujo: boolean) => void
+  /** Sem internet com a edição por salvar: o formulário continua aqui e a tela avisa. */
+  semRede: boolean
 }) {
   const { comunidadeAtiva } = useSessao()
   const eu = useMeuVinculo()
@@ -207,7 +246,43 @@ function Conteudo({
   const [aba, setAba] = useState<Visao>(abaInicial ?? 'resumo')
   // O pedido de convocar vale uma vez: voltar à aba Quem vai depois não reabre a folha.
   const [pedidoDeConvocar, setPedidoDeConvocar] = useState(convocarInicial ?? null)
+  // "Dados do encontro" aberto: começa assim quando a tela vem de um "Editar" (`editar=1`).
+  const [editando, setEditando] = useState(editarInicial ?? false)
+  // Cada "Editar" de dentro do encontro sobe o pedido; a tela rola ao topo, onde a seção abre.
+  const [pedidoDeRolar, setPedidoDeRolar] = useState(0)
   const lembrete = useLembrete(e, comunidadeId)
+
+  async function perderOQueFoiDigitado(): Promise<boolean> {
+    if (!edicaoSuja) return true
+    return confirmar({
+      titulo: 'Descartar o que você escreveu?',
+      mensagem: 'O que você digitou em "Dados do encontro" não fica guardado.',
+      confirmar: 'Descartar',
+      destrutivo: true,
+    })
+  }
+
+  async function irParaAba(nova: Visao) {
+    if (nova === aba) return
+    if (aba === 'resumo' && editando) {
+      if (!(await perderOQueFoiDigitado())) return
+      // Sair do Resumo desmonta o formulário: ao voltar, a seção está recolhida.
+      setEditando(false)
+    }
+    setAba(nova)
+  }
+
+  async function alternarEdicao(abrir: boolean) {
+    if (!abrir && !(await perderOQueFoiDigitado())) return
+    setEditando(abrir)
+  }
+
+  /** Todo "Editar" de dentro do encontro (barra, "Outras coisas") abre a seção, no alto do Resumo. */
+  function abrirEdicao() {
+    setAba('resumo')
+    setEditando(true)
+    setPedidoDeRolar((n) => n + 1)
+  }
 
   async function compartilhar() {
     const linha = `${e.titulo}, ${dataCurtaDoEncontro(e.inicio, e.fuso)}, ${formatarHora(e.inicio, e.fuso)}${e.local ? `, ${e.local.nome}` : ''}.`
@@ -225,8 +300,11 @@ function Conteudo({
     comunidadeId,
     aoSair,
     lembrete,
-    aoVerConvocados: () => setAba('convocados'),
+    aoVerConvocados: () => void irParaAba('convocados'),
     aoCompartilhar: () => void compartilhar(),
+    aoEditar: abrirEdicao,
+    editando,
+    edicaoSuja,
   })
   const temParte = e.atribuicoes.some((a) => a.vinculoId === eu && a.estado !== 'recusada')
   // O encontro vai ser usado por quem organiza, conduz ou serve: baixa sozinho quando faz sentido.
@@ -268,9 +346,15 @@ function Conteudo({
 
   const corpo = (
     <>
+      <RolarAoTopoQuando pedido={pedidoDeRolar} />
       {comunidadeAtiva?.estado === 'suspensa' ? (
         <Aviso tipo="alerta" titulo="Comunidade suspensa">
           Dá para consultar, mas não alterar nada por enquanto.
+        </Aviso>
+      ) : null}
+      {semRede && edicaoSuja ? (
+        <Aviso tipo="alerta" titulo="Sem conexão">
+          Suas alterações continuam aqui; salve quando a internet voltar.
         </Aviso>
       ) : null}
       {acoes.erro ? <AvisoDeFalha erro={acoes.erro} /> : null}
@@ -289,13 +373,24 @@ function Conteudo({
       <SuaParte evento={e} comunidadeId={comunidadeId} />
       {acoes.organiza ? (
         <>
-          <Segmentos rotulo="Partes do encontro" segmentos={abas} valor={aba} aoMudar={setAba} />
+          <Segmentos
+            rotulo="Partes do encontro"
+            segmentos={abas}
+            valor={aba}
+            aoMudar={(v) => void irParaAba(v)}
+          />
           {aba === 'resumo' ? (
             <ResumoDoEncontro
               evento={e}
               comunidadeId={comunidadeId}
-              aoVerConvocados={() => setAba('convocados')}
+              aoVerConvocados={() => void irParaAba('convocados')}
               outrasCoisas={acoes.itens}
+              edicao={{
+                aberta: editando,
+                aoAlternar: (abrir) => void alternarEdicao(abrir),
+                aoSalvar: () => setEditando(false),
+                aoMudarSujo,
+              }}
             />
           ) : aba === 'roteiro' ? (
             <>

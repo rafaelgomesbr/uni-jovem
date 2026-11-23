@@ -12,12 +12,7 @@ import { gravarPreferenciaLocal, lerPreferenciaLocal } from '@/estado/preferenci
 import { eventoDeTeste } from '@/testes/fixturas'
 import { BASE, COMUNIDADE, FUSO, PESSOAS, pedidosPara, renderizarTela } from '@/testes/telas'
 import { HospedeiroDeToast, mostrarToast } from '@/ui/Toast'
-import {
-  aoMudarEstadoDoApp,
-  confirmarAgora,
-  desfazerAgora,
-  reiniciarDesfazer,
-} from '@/ui/ToastComDesfazer'
+import { desfazerAgora, reiniciarDesfazer } from '@/ui/ToastComDesfazer'
 import { confirmar } from '@/utilidades/confirmar'
 
 import { reiniciarConvocadosEmEspera } from '../convocadosOtimistas'
@@ -190,6 +185,98 @@ describe('Igual ao último encontro (a conferência)', () => {
     // Nenhum toque levou a outra tela.
     expect(router.push).not.toHaveBeenCalled()
     expect(router.replace).not.toHaveBeenCalled()
+  })
+
+  test('Banda e equipe só aparece quando há alguém: com 0 pessoas, nem o acordeão nem a frase sobre ela', async () => {
+    await montar('organizador', {
+      [`POST ${BASE}/eventos/${ORIGEM}/copiar`]: () => ({
+        status: 200,
+        corpo: respostaDaCopia({
+          resumo: {
+            ...respostaDaCopia().resumo,
+            convocados: { pessoas: 0, itens: [] },
+            indisponiveis: [],
+            avisariaAoPublicar: 0,
+          },
+        }),
+      }),
+      [`GET ${BASE}/eventos/${NOVO}`]: () => ({
+        status: 200,
+        corpo: eventoDeTeste({
+          id: NOVO,
+          status: 'rascunho',
+          inicio: '2026-11-28T19:00:00.000Z',
+          atribuicoes: [],
+        }),
+      }),
+    })
+    await aguardarConferencia()
+    expect(screen.getByText('Ninguém foi avisado ainda.')).toBeOnTheScreen()
+    expect(screen.queryByText(/^Banda e equipe/)).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Banda e equipe/ })).toBeNull()
+    expect(screen.queryByText(/Ninguém estava convocado/)).toBeNull()
+  })
+
+  test('toda a equipe saiu da comunidade: o aviso de quem não foi copiado continua à vista', async () => {
+    const usuario = userEvent.setup()
+    await montar('organizador', {
+      [`POST ${BASE}/eventos/${ORIGEM}/copiar`]: () => ({
+        status: 200,
+        corpo: respostaDaCopia({
+          resumo: {
+            ...respostaDaCopia().resumo,
+            convocados: { pessoas: 0, itens: [] },
+            naoCopiados: 3,
+            indisponiveis: [],
+            avisariaAoPublicar: 0,
+          },
+        }),
+      }),
+      [`GET ${BASE}/eventos/${NOVO}`]: () => ({
+        status: 200,
+        corpo: eventoDeTeste({
+          id: NOVO,
+          status: 'rascunho',
+          inicio: '2026-11-28T19:00:00.000Z',
+          atribuicoes: [],
+        }),
+      }),
+    })
+    await aguardarConferencia()
+    // Sem equipe copiada, o acordeão existe só por causa de quem saiu.
+    await usuario.press(await screen.findByRole('button', { name: /^Banda e equipe/ }))
+    expect(
+      await screen.findByText('3 pessoas saíram da comunidade e não foram copiadas.'),
+    ).toBeOnTheScreen()
+    // E não diz "ninguém estava convocado" quando havia gente: ela só saiu.
+    expect(screen.queryByText(/Ninguém estava convocado/)).toBeNull()
+  })
+
+  test('Banda e equipe aparece com 1 pessoa ou mais', async () => {
+    await montar('organizador', {
+      [`POST ${BASE}/eventos/${ORIGEM}/copiar`]: () => ({
+        status: 200,
+        corpo: respostaDaCopia({
+          resumo: {
+            ...respostaDaCopia().resumo,
+            convocados: { pessoas: 1, itens: [] },
+            indisponiveis: [],
+            avisariaAoPublicar: 1,
+          },
+        }),
+      }),
+      [`GET ${BASE}/eventos/${NOVO}`]: () => ({
+        status: 200,
+        corpo: eventoDeTeste({
+          id: NOVO,
+          status: 'rascunho',
+          inicio: '2026-11-28T19:00:00.000Z',
+          atribuicoes: ONZE.slice(1, 2),
+        }),
+      }),
+    })
+    await aguardarConferencia()
+    expect(await screen.findByText('Banda e equipe: 1 pessoa')).toBeOnTheScreen()
   })
 
   test('o título acompanha o dia: "Sábado" copiado para um domingo é "Domingo"', async () => {

@@ -24,6 +24,7 @@ import {
   momentoDoDia,
   posicaoNoDia,
   seloDoCartaoDoLider,
+  semVerRepetido,
   type AcaoDoMomento,
 } from './momento'
 import { dataEHoraDoCartao } from './quando'
@@ -196,10 +197,20 @@ export function CartaoDoLider({
     semEncontro: !evento && !terminou,
   })
   // Depois de lembrar, o botão fica em "Lembrete enviado" até a tela ser fechada.
-  const { primaria, secundaria } =
+  const { primaria: primariaCalculada, secundaria: secundariaCalculada } =
     lembrete !== 'nao' && evento?.status !== 'rascunho'
       ? { primaria: 'lembrar' as const, secundaria: 'verConvocados' as const }
       : calculadas
+  // Havendo músicas, o repertório à mão vence o "Ver o encontro" genérico (D73). E o cartão já tem
+  // a chamada "Ver o encontro": o botão igual a ela some (ou, se fosse o único, fica e a chamada
+  // se esconde).
+  const { primaria, secundaria, semChamada } = semVerRepetido({
+    primaria: primariaCalculada,
+    secundaria:
+      secundariaCalculada === 'ver' && musicas > 0 && primariaCalculada !== 'repertorio'
+        ? 'repertorio'
+        : secundariaCalculada,
+  })
 
   const semInternetParaAvisar =
     semInternet && ['lembrar', 'publicar', 'marcarProximo', 'convocarFuncao'].includes(primaria)
@@ -342,13 +353,9 @@ export function CartaoDoLider({
     }
   }
 
-  // O caminho secundário é UM botão de verdade (D79). Havendo músicas, o repertório à mão vence o
-  // "Ver o encontro" genérico (D73): o cartão inteiro já abre o encontro.
-  const secundariaFinal =
-    secundaria === 'ver' && musicas > 0 && primaria !== 'repertorio' ? 'repertorio' : secundaria
   const botoes = ordenarBotoes(
     botao(primaria, 'primario'),
-    secundariaFinal ? botao(secundariaFinal, 'secundario') : null,
+    secundaria ? botao(secundaria, 'secundario') : null,
   )
 
   // ------------------------------------------------------------------ as linhas do cartão
@@ -434,7 +441,22 @@ export function CartaoDoLider({
       titulo={titulo}
       tituloComoFrase={tituloComoFrase}
       meta={meta}
-      {...(evento ? { aoPressionar: destinos.abrirEncontro, dica: 'Abre o encontro.' } : {})}
+      {...(evento
+        ? evento.status === 'rascunho'
+          ? {
+              // Rascunho: a área do cartão É o "Editar" (um caminho só): abre o encontro com "Dados do
+              // encontro" já aberto. O lápis e o texto dizem isso antes do toque.
+              aoPressionar: destinos.editar,
+              rotuloDaChamada: 'Editar o encontro',
+              iconeDaChamada: 'editar' as const,
+              dica: 'Abre o encontro com os dados para editar.',
+            }
+          : {
+              aoPressionar: destinos.abrirEncontro,
+              dica: 'Abre o encontro.',
+              ...(semChamada ? { semChamada: true } : {}),
+            }
+        : {})}
       rotuloAcessivel={[etiqueta, posicao ? textoDaPosicao(posicao) : null, titulo, meta]
         .filter(Boolean)
         .join('. ')}

@@ -150,7 +150,9 @@ describe('Início do membro: o cartão do momento (3.1 do UX)', () => {
       .setup()
       .press(screen.getByRole('button', { name: 'Abrir o repertório: Sábado Jovem' }))
     expect(router.push).toHaveBeenCalledWith('/meu-repertorio')
-    expect(screen.getByRole('button', { name: 'Ver o encontro' })).toBeOnTheScreen()
+    // "Ver o encontro" é a chamada do cartão: não há um segundo, em botão, ao lado.
+    expect(screen.queryByRole('button', { name: 'Ver o encontro' })).toBeNull()
+    expect(screen.getAllByText('Ver o encontro')).toHaveLength(1)
   })
 
   test('confirmado em outra parte: só "Ver o encontro", sem repertório', async () => {
@@ -179,7 +181,8 @@ describe('Início do membro: o cartão do momento (3.1 do UX)', () => {
     )
     expect(await screen.findByText('Inscrições abertas')).toBeOnTheScreen()
     expect(screen.getByRole('button', { name: 'Inscrever-me' })).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Ver o encontro' })).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: 'Ver o encontro' })).toBeNull()
+    expect(screen.getAllByText('Ver o encontro')).toHaveLength(1)
   })
 
   test('véspera: "AMANHÃ · 16:00" e o primário "Como chegar", que abre o mapa do sistema', async () => {
@@ -613,6 +616,28 @@ describe('Início do líder: o cartão do momento (3.2 do UX)', () => {
     expect(screen.queryByRole('button', { name: /^Lembrar/ })).toBeNull()
   })
 
+  test('publicado, longe e sem pendência: "Ver o encontro" é só a chamada do cartão, sem botão repetido', async () => {
+    await comoLider(
+      momentoDeTeste({
+        evento: eventoDoMomento({ musicas: 3 }),
+        lider: lider({
+          pendentes: 0,
+          responderam: 11,
+          faltamResponder: [],
+          faltamResponderTotal: 0,
+          faltaFuncao: [],
+          lembraveis: 0,
+          musicas: 3,
+        }),
+      }),
+    )
+    expect(await screen.findByText('Todos responderam ✓')).toBeOnTheScreen()
+    // Uma chamada visível no bloco; o botão que sobra é o do repertório (o que há de útil a fazer).
+    expect(screen.getAllByText('Ver o encontro')).toHaveLength(1)
+    expect(screen.queryByRole('button', { name: 'Ver o encontro' })).toBeNull()
+    expect(screen.getByRole('button', { name: /^Ver o repertório/ })).toBeOnTheScreen()
+  })
+
   test('rascunho: "Ainda não publicado", "Publicar e avisar 11 pessoas" publica na hora (sem Desfazer), e Editar', async () => {
     const { servidor } = await comoLider(
       momentoDeTeste({ evento: eventoDoMomento({ status: 'rascunho' }), lider: lider() }),
@@ -620,7 +645,21 @@ describe('Início do líder: o cartão do momento (3.2 do UX)', () => {
     )
     expect(await screen.findByText('RASCUNHO · EM 5 DIAS')).toBeOnTheScreen()
     expect(screen.getByText('Ainda não publicado. Ninguém foi avisado.')).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Editar' })).toBeOnTheScreen()
+    // Um caminho só para editar: a chamada do cartão (texto e lápis). Nada de "Ver e editar",
+    // "Ver o encontro" nem botão "Editar" ao lado.
+    expect(screen.getByText('Editar o encontro')).toBeOnTheScreen()
+    expect(screen.queryByText('Ver e editar')).toBeNull()
+    expect(screen.queryByText('Ver o encontro')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Editar' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Editar o encontro' })).toBeNull()
+    // O leitor de tela ouve o mesmo texto que se vê (WCAG 2.5.3).
+    const bloco = screen.getByRole('button', { name: /Editar o encontro$/ })
+    await userEvent.setup().press(bloco)
+    // Editar é dentro do encontro: abre o detalhe com a seção "Dados do encontro" já aberta.
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/evento/[eventoId]',
+      params: { eventoId: 'e1', editar: '1' },
+    })
 
     await userEvent.setup().press(screen.getByText('Publicar e avisar 11 pessoas'))
     // Sem contagem: a chamada sai direto e nenhum pedido de Desfazer é aberto (D81).
@@ -739,8 +778,8 @@ describe('Início do líder: o cartão do momento (3.2 do UX)', () => {
     expect(await screen.findByText('TERMINOU')).toBeOnTheScreen()
     expect(screen.getByText('O encontro terminou. 12 presentes.')).toBeOnTheScreen()
     await userEvent.setup().press(screen.getByRole('button', { name: 'Marcar o próximo encontro' }))
-    // A conferência "Igual ao último encontro" (ela mesma oferece o modelo padrão quando não há anterior).
-    expect(router.push).toHaveBeenCalledWith('/evento/igual-ao-ultimo')
+    // Do zero (sem roteiro imposto): copiar o último é um atalho dentro da tela de novo encontro.
+    expect(router.push).toHaveBeenCalledWith('/evento/novo')
     expect(screen.getByRole('button', { name: 'Ver o resumo' })).toBeOnTheScreen()
   })
 
@@ -751,7 +790,10 @@ describe('Início do líder: o cartão do momento (3.2 do UX)', () => {
     expect(
       screen.getByText('Marque o próximo para a comunidade ver e responder.'),
     ).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Marcar o próximo encontro' })).toBeOnTheScreen()
+    await userEvent.setup().press(screen.getByRole('button', { name: 'Marcar o próximo encontro' }))
+    // Do zero, sem copiar o último (o atalho de copiar mora na tela de novo encontro).
+    expect(router.push).toHaveBeenCalledWith('/evento/novo')
+    expect(router.push).not.toHaveBeenCalledWith('/evento/igual-ao-ultimo')
   })
 
   test('sem seletor "Minha visão | Da comunidade": o mesmo Início, com os dois grupos no resumo', async () => {

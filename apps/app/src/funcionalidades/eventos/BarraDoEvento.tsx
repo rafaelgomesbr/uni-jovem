@@ -43,6 +43,15 @@ interface Opcoes {
   aoVerConvocados: () => void
   /** Compartilhar o encontro (o botão do topo faz o mesmo). */
   aoCompartilhar: () => void
+  /**
+   * Editar: o detalhe abre a seção "Dados do encontro" (e rola ao topo). Sem ele, quem usa o hook
+   * fora do detalhe abre o encontro já com a seção aberta.
+   */
+  aoEditar?: () => void
+  /** A seção "Dados do encontro" está aberta: a barra não oferece "Editar" de novo. */
+  editando?: boolean
+  /** Há algo digitado e não salvo ali: publicar agora publicaria a versão antiga (e avisaria todos). */
+  edicaoSuja?: boolean
 }
 
 /** "Publicado. 9 pessoas foram avisadas." (ou a frase honesta de quando não há ninguém a avisar). */
@@ -67,6 +76,9 @@ export function useAcoesDoEvento({
   lembrete,
   aoVerConvocados,
   aoCompartilhar,
+  aoEditar,
+  editando = false,
+  edicaoSuja = false,
 }: Opcoes) {
   const pode = usePode()
   const invalidar = useInvalidarEventos(comunidadeId)
@@ -192,10 +204,12 @@ export function useAcoesDoEvento({
   const irParaStatus = () =>
     // Sem escolha de partida: "Adiar" e "Cancelar" aparecem lado a lado, e a pessoa decide (D74).
     router.push({ pathname: '/evento/[eventoId]/status', params: { eventoId: evento.id } })
-  const editar = () => router.push({ pathname: '/evento/[eventoId]/editar', params })
+  const editar =
+    aoEditar ??
+    (() => router.push({ pathname: '/evento/[eventoId]', params: { ...params, editar: '1' } }))
   const abrirAoVivo = () => router.push({ pathname: '/evento/[eventoId]/ao-vivo', params })
   const abrirCheckin = () => router.push({ pathname: '/evento/[eventoId]/checkin', params })
-  const marcarOProximo = () => router.push('/evento/igual-ao-ultimo')
+  const marcarOProximo = () => router.push('/evento/novo')
 
   const checkinPossivel = registraPresenca && (fase === 'checkin' || fase === 'acontecendo')
   const aoVivoPossivel = conduz && podeIrAoVivo(evento.status) && noPeriodoDoDia
@@ -215,7 +229,9 @@ export function useAcoesDoEvento({
               : 'Publicar',
         aoPressionar: () => void publicar(),
         carregando: publicando,
-        desabilitado: publicando,
+        // Com a edição aberta e por salvar, publicar mandaria a versão antiga e avisaria todos.
+        desabilitado: publicando || edicaoSuja,
+        ...(edicaoSuja ? { motivo: 'Salve ou descarte as alterações primeiro.' } : {}),
       }
     } else if (evento.status === 'publicado') {
       if (fase === 'terminou') {
@@ -269,7 +285,14 @@ export function useAcoesDoEvento({
         }
       }
     }
-    if (!primaria && podeEditar && evento.status !== 'cancelado' && evento.status !== 'encerrado') {
+    // Com "Dados do encontro" já aberto, "Editar" na barra diria a mesma coisa: a barra some.
+    if (
+      !primaria &&
+      podeEditar &&
+      !editando &&
+      evento.status !== 'cancelado' &&
+      evento.status !== 'encerrado'
+    ) {
       primaria = { titulo: 'Editar', aoPressionar: editar, carregando: false }
     }
   }
@@ -277,11 +300,16 @@ export function useAcoesDoEvento({
   const validoAte = guardado ? (offline.validoAte ?? guardado.validoAte) : null
   const doEncontro: (AcaoDoMenu | false)[] = organiza
     ? noGrupo('Encontro', [
+        // Mesma regra da seção "Dados do encontro": cancelado e encerrado não se editam. Dentro do
+        // detalhe "Editar" só abre a seção (sem seta); fora dele, leva a outra tela.
         podeEditar &&
+          !editando &&
+          evento.status !== 'cancelado' &&
+          evento.status !== 'encerrado' &&
           primaria?.titulo !== 'Editar' && {
             titulo: 'Editar',
             icone: 'editar',
-            navega: true,
+            navega: aoEditar === undefined,
             aoPressionar: editar,
           },
         podeDuplicar && {
@@ -466,9 +494,14 @@ function prazoCurto(evento: Pick<DetalheDoEvento, 'inicio'>): boolean {
   return Date.parse(evento.inicio) - Date.now() <= 7 * 86_400_000
 }
 
-function BotaoDaBarra({ acao, principal }: { acao: AcaoPrincipal; principal: boolean }) {
+/**
+ * O botão como ELEMENTO (e não como componente): a `BarraDeAcao` lê `desabilitado` e `motivo` das
+ * props dos filhos para escrever o motivo embaixo dos botões, e um componente no meio esconderia isso.
+ */
+function botaoDaBarra(acao: AcaoPrincipal, principal: boolean) {
   return (
     <Botao
+      key={principal ? 'principal' : 'secundario'}
       titulo={acao.titulo}
       tamanho="grande"
       variante={principal ? 'primario' : 'secundario'}
@@ -489,8 +522,8 @@ export function BarraDoEvento({ acoes }: { acoes: AcoesDoEvento }) {
   if (!acoes.organiza || (!acoes.primaria && !acoes.secundaria)) return null
   return (
     <BarraDeAcao solta>
-      {acoes.secundaria ? <BotaoDaBarra acao={acoes.secundaria} principal={false} /> : null}
-      {acoes.primaria ? <BotaoDaBarra acao={acoes.primaria} principal /> : null}
+      {acoes.secundaria ? botaoDaBarra(acoes.secundaria, false) : null}
+      {acoes.primaria ? botaoDaBarra(acoes.primaria, true) : null}
     </BarraDeAcao>
   )
 }
@@ -502,16 +535,12 @@ export function AcoesNoPainel({ acoes }: { acoes: AcoesDoEvento }) {
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e12 }}>
       {acoes.secundaria ? (
         <View style={{ flex: 1 }}>
-          <EmPar>
-            <BotaoDaBarra acao={acoes.secundaria} principal={false} />
-          </EmPar>
+          <EmPar>{botaoDaBarra(acoes.secundaria, false)}</EmPar>
         </View>
       ) : null}
       {acoes.primaria ? (
         <View style={{ flex: 1 }}>
-          <EmPar>
-            <BotaoDaBarra acao={acoes.primaria} principal />
-          </EmPar>
+          <EmPar>{botaoDaBarra(acoes.primaria, true)}</EmPar>
         </View>
       ) : null}
     </View>

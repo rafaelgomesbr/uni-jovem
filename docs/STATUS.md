@@ -1,6 +1,16 @@
 # Status do projeto
 
-Atualizado em 22/11/2026.
+Atualizado em 23/11/2026.
+
+## Marcar o próximo encontro do zero e área tocável visível, em 23/11/2026 (D84)
+
+- Pedido do dono olhando o iPhone: "ao marcar próximo encontro eu quero fazer do zero", roteiro de 7 etapas opcional, "Banda e equipe" sem sentido, a área clicável do cartão do Início invisível e "Editar" como primeiro clique, virando seção dentro do encontro. Decisão D84 em [DECISOES.md](DECISOES.md). Sem migração, sem API, sem dependência nova. **O app precisa de build novo; nada foi implantado nem enviado às lojas nesta rodada.**
+- **Fluxo:** "Marcar o próximo encontro" (Início, encontro que terminou, Ao vivo) abre `/evento/novo`, sem roteiro. A tela ganhou "Começar de outro jeito?" com "Copiar o último encontro" e "Usar um modelo de roteiro"; a folha Novo encontro lista "Em branco" primeiro. A conferência "Igual ao último" só some com "Banda e equipe" quando não há gente nem aviso.
+- **Cartão do Início:** chamada visível com texto e seta ("Ver o encontro"; no rascunho "Editar o encontro"), sem duplicar botão igual; rascunho tem Publicar e a chamada. `CartaoDoMomento` ganhou `rotuloDaChamada`, `iconeDaChamada` e `semChamada`.
+- **Editar dentro do encontro:** `EditarDadosDoEncontro` (novo, corpo da antiga tela de editar) e `SecaoDadosDoEncontro` (novo, acordeão "Dados do encontro" na aba Resumo, aberto por `editar=1`), com Salvar e Cancelar; `/editar` segue existindo. Com edição não salva, Publicar fica desabilitado com motivo; sem rede a edição não se perde.
+- **Revisão:** feita com Opus em 23/11/2026 (11 achados, todos corrigidos, o mais grave: publicar com edição não salva).
+- **Evidência:** `npm run verificar` verde em 23/11/2026 depois das correções da revisão (exit 0: 1132 testes na API e pacotes, 135 suítes do app, fumaça web). Testes novos em `DetalheDoEvento`, `Formularios`, `IgualAoUltimo`, `TelaInicio`, `momento`, `ComponentesDaFundacao` e `offline/telas`.
+- **Não verificado:** aparelho (iOS e Android), VoiceOver e TalkBack na seção aberta e na chamada do cartão, fonte a 200%, e olhar a seção "Dados do encontro" aberta em tela real.
 
 ## Cifra que funciona e acordes coloridos, em 22/11/2026 (D82)
 

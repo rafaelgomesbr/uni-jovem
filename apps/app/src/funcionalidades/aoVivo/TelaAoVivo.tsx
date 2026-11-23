@@ -514,7 +514,7 @@ function Painel({ r, conexao, comandar, enviando, erro, eventoId }: PropsDoPaine
           titulo="Marcar o próximo encontro"
           tamanho="grande"
           larguraTotal
-          aoPressionar={() => router.push('/evento/igual-ao-ultimo')}
+          aoPressionar={() => router.push('/evento/novo')}
         />
       ) : null}
 

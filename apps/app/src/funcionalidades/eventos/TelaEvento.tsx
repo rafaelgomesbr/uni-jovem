@@ -16,6 +16,7 @@ export function TelaEvento() {
     publicado?: string
     funcao?: string
     bloco?: string
+    editar?: string
   }>()
   const eventoId = parametro(params.eventoId)
   // Links internos: "Ver quem falta responder" (Quem vai), o antigo link de uma etapa (Roteiro) e
@@ -29,6 +30,8 @@ export function TelaEvento() {
       : aba === 'roteiro'
         ? 'roteiro'
         : undefined
+  // "Editar" do Início e do próprio encontro (`?editar=1`): abre já a seção "Dados do encontro".
+  const editarInicial = parametro(params.editar) === '1'
   // Veio de "Igual ao último encontro" depois de publicar: quantas pessoas foram avisadas.
   const avisadas = Number(parametro(params.publicado))
   const avisadasAoPublicar =
@@ -49,6 +52,7 @@ export function TelaEvento() {
       {...(abaInicial ? { abaInicial } : {})}
       {...(convocarInicial ? { convocarInicial } : {})}
       avisadasAoPublicar={avisadasAoPublicar}
+      {...(editarInicial ? { editarInicial } : {})}
     />
   )
 }

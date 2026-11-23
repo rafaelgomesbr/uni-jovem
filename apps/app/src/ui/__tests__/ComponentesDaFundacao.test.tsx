@@ -247,10 +247,66 @@ describe('Cartões: tinta, plano e momento', () => {
         acoes={<Botao titulo="Aceitar" aoPressionar={aceitar} />}
       />,
     )
-    await fireEvent.press(screen.getByRole('button', { name: 'Sábado Jovem. 16:00' }))
+    // O nome do bloco termina com a chamada visível (WCAG 2.5.3: o nome contém o texto que se vê).
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Sábado Jovem. 16:00. Ver o encontro' }),
+    )
     await fireEvent.press(screen.getByRole('button', { name: 'Aceitar' }))
     expect(abrir).toHaveBeenCalledTimes(1)
     expect(aceitar).toHaveBeenCalledTimes(1)
+  })
+
+  test('momento tocável: mostra a chamada "Ver o encontro" com texto, seta e alvo de 44; sem toque, não mostra', async () => {
+    const { rerender } = await render(
+      <CartaoDoMomento titulo="Sábado Jovem" meta="16:00" aoPressionar={() => undefined} />,
+    )
+    expect(screen.getByText('Ver o encontro')).toBeOnTheScreen()
+    const chamada = screen.getByTestId('chamada-do-cartao')
+    expect(achatado(chamada).minHeight).toBeGreaterThanOrEqual(44)
+    // É o mesmo botão do bloco (um toque só): a chamada não é um segundo botão.
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+
+    await rerender(
+      <CartaoDoMomento
+        titulo="Sábado Jovem"
+        meta="16:00"
+        aoPressionar={() => undefined}
+        rotuloDaChamada="Ver e editar"
+      />,
+    )
+    expect(screen.getByText('Ver e editar')).toBeOnTheScreen()
+    expect(screen.queryByText('Ver o encontro')).toBeNull()
+
+    // O nome acessível leva a chamada, também quando o rótulo vem de fora.
+    await rerender(
+      <CartaoDoMomento
+        titulo="Sábado Jovem"
+        meta="16:00"
+        aoPressionar={() => undefined}
+        rotuloAcessivel="Próximo encontro. Sábado Jovem"
+        rotuloDaChamada="Editar o encontro"
+        iconeDaChamada="editar"
+      />,
+    )
+    expect(
+      screen.getByRole('button', { name: 'Próximo encontro. Sábado Jovem. Editar o encontro' }),
+    ).toBeOnTheScreen()
+
+    // Sem a chamada (já há um botão que diz o mesmo): o bloco segue tocável, sem o texto repetido.
+    await rerender(
+      <CartaoDoMomento
+        titulo="Sábado Jovem"
+        meta="16:00"
+        aoPressionar={() => undefined}
+        semChamada
+      />,
+    )
+    expect(screen.queryByTestId('chamada-do-cartao')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Sábado Jovem. 16:00' })).toBeOnTheScreen()
+
+    await rerender(<CartaoDoMomento titulo="Sábado Jovem" meta="16:00" />)
+    expect(screen.queryByTestId('chamada-do-cartao')).toBeNull()
+    expect(screen.queryByText('Ver o encontro')).toBeNull()
   })
 })
 

@@ -16,6 +16,7 @@ import {
   etiquetaDoMomento,
   momentoDoDia,
   posicaoNoDia,
+  semVerRepetido,
   tocaNoLouvor,
 } from './momento'
 import { dataEHoraDoCartao } from './quando'
@@ -132,13 +133,20 @@ export function CartaoDoMembro({
   // outro caminho é UM botão de verdade abaixo do principal, na mesma largura (D79). Havendo
   // músicas, o repertório à mão vence o "Ver o encontro" genérico (D73): o cartão já abre o encontro.
   const respondendo = primaria === 'aceitar'
-  const secundariaFinal =
-    secundaria === 'ver' && (musicoConfirmado || musicas > 0) && primaria !== 'repertorio'
-      ? ('repertorio' as const)
-      : secundaria
+  const {
+    primaria: primariaDoCartao,
+    secundaria: secundariaDoCartao,
+    semChamada,
+  } = semVerRepetido({
+    primaria,
+    secundaria:
+      secundaria === 'ver' && (musicoConfirmado || musicas > 0) && primaria !== 'repertorio'
+        ? 'repertorio'
+        : secundaria,
+  })
   const botoes = ordenarBotoes(
-    botao(primaria, 'primario'),
-    secundariaFinal ? botao(secundariaFinal, 'secundario') : null,
+    botao(primariaDoCartao, 'primario'),
+    secundariaDoCartao ? botao(secundariaDoCartao, 'secundario') : null,
   )
 
   // A resposta recusada ainda pode ser desfeita enquanto o toast espera.
@@ -163,6 +171,7 @@ export function CartaoDoMembro({
       titulo={evento.titulo}
       meta={quando}
       aoPressionar={destinos.abrirEncontro}
+      {...(semChamada ? { semChamada: true } : {})}
       rotuloAcessivel={[etiqueta, posicao ? textoDaPosicao(posicao) : null, evento.titulo, quando]
         .filter(Boolean)
         .join('. ')}

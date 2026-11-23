@@ -3,6 +3,8 @@ import type { ReactNode } from 'react'
 import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native'
 
 import { usePreferenciasDeAcessibilidade } from './acessibilidade'
+import { Icone, type NomeDoIcone } from './Icone'
+import { ALVO } from './medidas'
 import { PontoAoVivo } from './PontoAoVivo'
 import { Sol } from './Sol'
 import { Texto } from './Texto'
@@ -37,8 +39,22 @@ export interface PropsDoCartaoDoMomento {
   acoes?: ReactNode
   /** Sem o sol do canto (estado vazio ou de erro). */
   semSol?: boolean
-  /** O cartão inteiro abre o detalhe. As `acoes` ficam fora da área tocável. */
+  /**
+   * O bloco etiqueta, título e meta abre o detalhe. As `acoes` ficam fora da área tocável. Com ele,
+   * o bloco ganha uma chamada visível no fim (`rotuloDaChamada`): sem ela ninguém descobria que
+   * aquela área era tocável (o dono achou por acaso).
+   */
   aoPressionar?: () => void
+  /** O texto da chamada visível ("Ver o encontro", "Ver e editar"); só aparece com `aoPressionar`. */
+  rotuloDaChamada?: string
+  /** O ícone da chamada: a seta de "ver" (padrão) ou o lápis de "editar". */
+  iconeDaChamada?: NomeDoIcone
+  /**
+   * Esconde a chamada visível: para quando um botão do cartão já diz a mesma coisa ("Ver o encontro"
+   * duas vezes no mesmo cartão). O bloco continua tocável.
+   */
+  semChamada?: boolean
+  /** O nome para o leitor de tela; a chamada visível é somada ao fim (WCAG 2.5.3: o nome contém o texto visível). */
   rotuloAcessivel?: string
   dica?: string
   style?: StyleProp<ViewStyle>
@@ -68,6 +84,9 @@ export function CartaoDoMomento({
   acoes,
   semSol = false,
   aoPressionar,
+  rotuloDaChamada = 'Ver o encontro',
+  iconeDaChamada = 'avancar',
+  semChamada = false,
   rotuloAcessivel,
   dica,
   style,
@@ -103,6 +122,25 @@ export function CartaoDoMomento({
         <Texto variante="apoio" style={{ marginTop: ESPACO.e4 }}>
           {meta}
         </Texto>
+      ) : null}
+      {aoPressionar && !semChamada ? (
+        // Texto e seta (cor nunca é o único sinal), na cor `destaque` (4,5:1 sobre o degradê, pares
+        // da D65). A linha tem o alvo de 44 e mora dentro do mesmo `Pressable` do bloco: um toque só.
+        <View
+          testID="chamada-do-cartao"
+          style={{
+            minHeight: ALVO,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: ESPACO.e4,
+            marginTop: ESPACO.e4,
+          }}
+        >
+          <Texto variante="botao" cor="destaque" style={{ flexShrink: 1 }}>
+            {rotuloDaChamada}
+          </Texto>
+          <Icone nome={iconeDaChamada} cor={cores.destaque} tamanho={18} peso="semibold" />
+        </View>
       ) : null}
     </>
   )
@@ -161,9 +199,12 @@ export function CartaoDoMomento({
             {aoPressionar ? (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={
-                  rotuloAcessivel ?? [etiqueta, titulo, meta].filter(Boolean).join('. ')
-                }
+                accessibilityLabel={[
+                  rotuloAcessivel ?? [etiqueta, titulo, meta].filter(Boolean).join('. '),
+                  semChamada ? null : rotuloDaChamada,
+                ]
+                  .filter(Boolean)
+                  .join('. ')}
                 accessibilityHint={dica}
                 onPress={aoPressionar}
                 style={({ pressed }) => ({

@@ -45,6 +45,25 @@ import { Vidro } from './Vidro'
  */
 export const ContextoDaBarraDeAbas = createContext(0)
 
+const ContextoDoTopo = createContext<(() => void) | null>(null)
+
+/**
+ * Leva a rolagem da `Tela` ao topo cada vez que `pedido` sobe (0 não faz nada). Vai como filho da
+ * tela. Serve a quem abre um bloco que mora no alto a partir de um botão lá embaixo ("Editar", na
+ * barra de ação ou nas "Outras coisas"): sem isso o bloco abre fora da vista e parece que nada
+ * aconteceu. Fora de uma `Tela` que rola, não faz nada.
+ */
+export function RolarAoTopoQuando({ pedido }: { pedido: number }) {
+  const rolarAoTopo = useContext(ContextoDoTopo)
+  // A rolagem é um sistema externo (o `ScrollView`): sincroniza quando o pedido muda.
+  useEffect(() => {
+    if (pedido > 0) rolarAoTopo?.()
+    // Só o pedido novo rola; trocar a função a cada render da tela não pode repetir o pedido.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pedido])
+  return null
+}
+
 /**
  * Padding do fim da rolagem: o último bloco sempre rola até 16 acima do que
  * flutua embaixo. Com barra de ação, a altura dela (medida, porque o botão
@@ -255,81 +274,87 @@ export function Tela({
     rolagem.current?.scrollTo({ y: alvo, animated: !reduzirMovimento })
   }
 
+  const rolarAoTopo = rolar
+    ? () => rolagem.current?.scrollTo({ y: 0, animated: !reduzirMovimento })
+    : null
+
   return (
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: cores.fundo,
-        // O fundo desce do `fundo` para o `fundoProfundo` a partir da metade (direção A, D65).
-        ...(aumentarContraste || intensidade <= 0
-          ? {}
-          : {
-              backgroundImage: `linear-gradient(180deg, ${cores.fundo} 0%, ${cores.fundo} 55%, ${cores.fundoProfundo} 100%)`,
-            }),
-      }}
-    >
-      {intensidade > 0 ? <LuzDeBase momento={momento} /> : null}
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <ContextoDoTopo.Provider value={rolarAoTopo}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: cores.fundo,
+          // O fundo desce do `fundo` para o `fundoProfundo` a partir da metade (direção A, D65).
+          ...(aumentarContraste || intensidade <= 0
+            ? {}
+            : {
+                backgroundImage: `linear-gradient(180deg, ${cores.fundo} 0%, ${cores.fundo} 55%, ${cores.fundoProfundo} 100%)`,
+              }),
+        }}
       >
-        {rolar ? (
-          <ScrollView
-            ref={rolagem}
-            contentInsetAdjustmentBehavior="never"
-            keyboardShouldPersistTaps="handled"
-            onScroll={aoRolar}
-            // Tocar de novo (inclusive para parar a rolagem) cancela o assentar automático.
-            onScrollBeginDrag={() => {
-              ultimoAssento.current = null
-            }}
-            // Sem inércia, o dedo soltou e a rolagem parou ali; com inércia, espera ela acabar.
-            onScrollEndDrag={(e) => {
-              if (soltouSemInercia(e.nativeEvent.velocity?.y)) {
-                assentar(e.nativeEvent.contentOffset.y)
-              }
-            }}
-            onMomentumScrollEnd={(e) => assentar(e.nativeEvent.contentOffset.y)}
-            scrollEventThrottle={16}
-            contentContainerStyle={[{ flexGrow: 1 }, preenchimento]}
-          >
-            <FundoAurora intensidade={intensidade} movimento="ambiente" momento={momento} />
-            {conteudo}
-          </ScrollView>
-        ) : (
-          <View style={[{ flex: 1 }, preenchimento]}>
-            <FundoAurora intensidade={intensidade} movimento="ambiente" momento={momento} />
-            {conteudo}
-          </View>
-        )}
-        {barraDeAcao ? (
-          <View
-            // A barra solta (D78) deixa o toque passar pela área em volta dos botões.
-            pointerEvents="box-none"
-            style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}
-            onLayout={(e: LayoutChangeEvent) => {
-              const altura = Math.ceil(e.nativeEvent.layout.height)
-              if (altura !== alturaDaBarraDeAcao) setAlturaDaBarraDeAcao(altura)
-            }}
-          >
-            <ContextoDaBarraFlutuanteEmbaixo.Provider value={barraFlutuanteEmbaixo}>
-              {barraDeAcao}
-            </ContextoDaBarraFlutuanteEmbaixo.Provider>
-          </View>
+        {intensidade > 0 ? <LuzDeBase momento={momento} /> : null}
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          {rolar ? (
+            <ScrollView
+              ref={rolagem}
+              contentInsetAdjustmentBehavior="never"
+              keyboardShouldPersistTaps="handled"
+              onScroll={aoRolar}
+              // Tocar de novo (inclusive para parar a rolagem) cancela o assentar automático.
+              onScrollBeginDrag={() => {
+                ultimoAssento.current = null
+              }}
+              // Sem inércia, o dedo soltou e a rolagem parou ali; com inércia, espera ela acabar.
+              onScrollEndDrag={(e) => {
+                if (soltouSemInercia(e.nativeEvent.velocity?.y)) {
+                  assentar(e.nativeEvent.contentOffset.y)
+                }
+              }}
+              onMomentumScrollEnd={(e) => assentar(e.nativeEvent.contentOffset.y)}
+              scrollEventThrottle={16}
+              contentContainerStyle={[{ flexGrow: 1 }, preenchimento]}
+            >
+              <FundoAurora intensidade={intensidade} movimento="ambiente" momento={momento} />
+              {conteudo}
+            </ScrollView>
+          ) : (
+            <View style={[{ flex: 1 }, preenchimento]}>
+              <FundoAurora intensidade={intensidade} movimento="ambiente" momento={momento} />
+              {conteudo}
+            </View>
+          )}
+          {barraDeAcao ? (
+            <View
+              // A barra solta (D78) deixa o toque passar pela área em volta dos botões.
+              pointerEvents="box-none"
+              style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}
+              onLayout={(e: LayoutChangeEvent) => {
+                const altura = Math.ceil(e.nativeEvent.layout.height)
+                if (altura !== alturaDaBarraDeAcao) setAlturaDaBarraDeAcao(altura)
+              }}
+            >
+              <ContextoDaBarraFlutuanteEmbaixo.Provider value={barraFlutuanteEmbaixo}>
+                {barraDeAcao}
+              </ContextoDaBarraFlutuanteEmbaixo.Provider>
+            </View>
+          ) : null}
+        </KeyboardAvoidingView>
+        {compacto && titulo ? (
+          <CabecalhoCompacto
+            altura={alturaDoCompacto}
+            topo={margens.top}
+            pilha={pilha}
+            titulo={titulo}
+            topoCompacto={topoCompacto}
+            semVoltar={!!semVoltar}
+            modal={modal}
+          />
         ) : null}
-      </KeyboardAvoidingView>
-      {compacto && titulo ? (
-        <CabecalhoCompacto
-          altura={alturaDoCompacto}
-          topo={margens.top}
-          pilha={pilha}
-          titulo={titulo}
-          topoCompacto={topoCompacto}
-          semVoltar={!!semVoltar}
-          modal={modal}
-        />
-      ) : null}
-    </View>
+      </View>
+    </ContextoDoTopo.Provider>
   )
 }
 

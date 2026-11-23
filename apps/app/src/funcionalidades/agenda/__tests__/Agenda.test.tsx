@@ -461,7 +461,7 @@ describe('Agenda', () => {
   })
 
   describe('"Novo encontro"', () => {
-    test('só para quem cria: a folha oferece "Igual ao último encontro" (recomendado) e as outras saídas', async () => {
+    test('só para quem cria: a folha põe "Em branco" (recomendado) antes do modelo e da cópia', async () => {
       const usuario = userEvent.setup()
       await renderizarTela(<TelaAgenda />, {
         papel: 'organizador',
@@ -491,7 +491,16 @@ describe('Agenda', () => {
       await usuario.press(await screen.findByRole('button', { name: 'Novo encontro' }))
       const igual = await screen.findByRole('button', { name: /^Igual ao último encontro/ })
       expect(igual).toBeEnabled()
-      expect(screen.getByText('Recomendado')).toBeOnTheScreen()
+      // O recomendado é o encontro do zero; copiar o último é a última opção, sem o chip.
+      expect(screen.getAllByText('Recomendado')).toHaveLength(1)
+      const [primeira, segunda, terceira] = screen.getAllByRole('button', {
+        name: /^(Em branco|A partir de um modelo|Igual ao último)/,
+      })
+      expect(primeira).toHaveAccessibleName(/^Em branco/)
+      expect(segunda).toHaveAccessibleName(/^A partir de um modelo/)
+      expect(terceira).toHaveAccessibleName(/^Igual ao último/)
+      expect(igual).not.toHaveTextContent('Recomendado')
+      expect(screen.getByRole('button', { name: /^Em branco.*Recomendado/ })).toBeOnTheScreen()
       // Nenhum roteiro é imposto (D81): não há mais "Encontro padrão" na folha.
       expect(screen.queryByRole('button', { name: /^Encontro padrão/ })).toBeNull()
       expect(screen.getByRole('button', { name: /^Em branco/ })).toBeOnTheScreen()

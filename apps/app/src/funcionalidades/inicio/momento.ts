@@ -168,7 +168,6 @@ export type AcaoDoMomento =
   | 'ver'
   | 'verProximo'
   | 'publicar'
-  | 'editar'
   | 'lembrar'
   | 'chamar'
   | 'convocarFuncao'
@@ -246,7 +245,8 @@ export interface SituacaoDoLider {
  * fazer, o botão passa para a seguinte). A primeira condição verdadeira vence, nesta ordem:
  *
  * 1. não há encontro, ou o último terminou e não há outro: "Marcar o próximo encontro";
- * 2. rascunho: "Publicar e avisar N pessoas";
+ * 2. rascunho: "Publicar e avisar N pessoas" (editar é a chamada do próprio cartão, que abre o
+ *    encontro já com "Dados do encontro" aberto: um caminho só, sem botão "Editar" ao lado);
  * 3. acontecendo: "Conduzir ao vivo" (e "Marcar quem chegou" ao lado);
  * 4. de 2 h antes até começar: "Marcar quem chegou" (e "Abrir ao vivo");
  * 5. ninguém foi convocado ainda: "Chamar quem vai" (D79, antes do repertório);
@@ -262,7 +262,7 @@ export function acoesDoLider(s: SituacaoDoLider): AcoesDoCartao {
   if (s.semEncontro || (s.terminou && s.proximoAMarcar)) {
     return { primaria: 'marcarProximo', secundaria: s.terminou ? 'verResumo' : null }
   }
-  if (s.rascunho) return { primaria: 'publicar', secundaria: 'editar' }
+  if (s.rascunho) return { primaria: 'publicar', secundaria: null }
   if (s.momento === 'agora') return { primaria: 'conduzir', secundaria: 'checkin' }
   if (s.momento === 'dia' && s.naHoraDoCheckin) return { primaria: 'checkin', secundaria: 'aoVivo' }
   if (s.semConvocados) {
@@ -276,6 +276,19 @@ export function acoesDoLider(s: SituacaoDoLider): AcoesDoCartao {
   }
   // Longe, publicado e sem pendência: ver o encontro; havendo gente sem responder (já lembrada), a lista.
   return { primaria: 'ver', secundaria: s.pendentes > 0 ? 'verConvocados' : 'repertorio' }
+}
+
+/**
+ * O cartão já tem a chamada visível "Ver o encontro" (o bloco do título é tocável): um botão "Ver o
+ * encontro" ao lado dizia a mesma coisa duas vezes. Tira o botão de ver, promove o que sobrar a
+ * principal e, só se não sobrar nenhum, mantém o botão e pede ao cartão que esconda a chamada.
+ */
+export function semVerRepetido(a: AcoesDoCartao): AcoesDoCartao & { semChamada: boolean } {
+  const ehVer = (x: AcaoDoMomento | null) => x === 'ver' || x === 'verProximo'
+  const secundaria = ehVer(a.secundaria) ? null : a.secundaria
+  if (!ehVer(a.primaria)) return { primaria: a.primaria, secundaria, semChamada: false }
+  if (secundaria) return { primaria: secundaria, secundaria: null, semChamada: false }
+  return { primaria: a.primaria, secundaria: null, semChamada: true }
 }
 
 /** Uma frase do "o que falta" do cartão; `alerta` ganha o ícone de atenção (cor não é o único sinal). */

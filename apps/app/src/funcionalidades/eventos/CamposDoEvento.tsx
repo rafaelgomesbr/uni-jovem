@@ -88,6 +88,12 @@ interface Props {
    * "Mais opções", que abre sozinho quando um campo escondido tem erro.
    */
   simples?: boolean
+  /**
+   * Dentro da seção "Dados do encontro" do Resumo (com `simples`): sem os títulos "O essencial" e
+   * "Onde" (a seção já diz do que se trata) e com os campos essenciais num cartão só, sem cartão
+   * dentro de cartão. Fora dela (tela de novo encontro, rota `/editar`) o desenho é o de sempre.
+   */
+  naSecao?: boolean
   /** O que mais entra em "Mais opções" (a repetição, no novo encontro). */
   extraNasOpcoes?: ReactNode
   /** Abre "Mais opções" por um erro que mora fora dos campos (o fim da repetição). */
@@ -126,6 +132,7 @@ export function CamposDoEvento({
   refs,
   aoAbrirSerie,
   simples = false,
+  naSecao = false,
   extraNasOpcoes,
   abrirOpcoes = false,
   quando,
@@ -252,7 +259,13 @@ export function CamposDoEvento({
     </View>
   )
   const blocoDoLocal = (
-    <ListaDeLocais comunidadeId={comunidadeId} rascunho={r} mudar={mudar} erros={erros} />
+    <ListaDeLocais
+      comunidadeId={comunidadeId}
+      rascunho={r}
+      mudar={mudar}
+      erros={erros}
+      semCartao={naSecao}
+    />
   )
   const blocoDasInscricoes = visiveis.inscricoes ? (
     <>
@@ -387,6 +400,13 @@ export function CamposDoEvento({
               <CartaoDeVidro opaco>{blocoDoTitulo}</CartaoDeVidro>
             </Secao>
           </>
+        ) : naSecao ? (
+          // Um cartão só, sem sobrancelhas: o que o encontro tem de essencial, em ordem.
+          <CartaoDeVidro opaco intervalo={RITMO.entreCampos}>
+            {blocoDoTitulo}
+            {blocoDaData}
+            {blocoDoLocal}
+          </CartaoDeVidro>
         ) : (
           <Secao titulo="O essencial">
             <CartaoDeVidro opaco intervalo={ESPACO.e16}>
@@ -395,7 +415,7 @@ export function CamposDoEvento({
             </CartaoDeVidro>
           </Secao>
         )}
-        <Secao titulo="Onde">{blocoDoLocal}</Secao>
+        {naSecao ? null : <Secao titulo="Onde">{blocoDoLocal}</Secao>}
         <View style={{ gap: ESPACO.e12 }}>
           <View style={{ alignItems: 'flex-start' }}>
             <Botao
@@ -464,11 +484,14 @@ function ListaDeLocais({
   rascunho: r,
   mudar,
   erros,
+  semCartao = false,
 }: {
   comunidadeId: string
   rascunho: RascunhoDoEvento
   mudar: Props['mudar']
   erros: ErrosDoRascunho
+  /** O cartão de fora já existe (a seção "Dados do encontro"): a lista não abre outro dentro dele. */
+  semCartao?: boolean
 }) {
   const locais = useLocais(comunidadeId)
   const [cadastrando, setCadastrando] = useState(false)
@@ -497,6 +520,25 @@ function ListaDeLocais({
       : []),
   ]
 
+  const lista = (
+    <>
+      <ListaDeOpcoes
+        rotulo="Local"
+        valor={r.local ?? ''}
+        aoMudar={(v) => mudar('local', v === '' ? null : v)}
+        opcoes={opcoes}
+      />
+      <Botao
+        titulo="Cadastrar outro local"
+        icone="adicionar"
+        variante="terciario"
+        alinhado
+        dica="Abre uma folha com nome, tipo e endereço."
+        aoPressionar={() => setCadastrando(true)}
+      />
+    </>
+  )
+
   return (
     <>
       {locais.error ? (
@@ -509,22 +551,13 @@ function ListaDeLocais({
       {erros.novoLocal ? (
         <AvisoDeFalha mensagem={erros.novoLocal} titulo="Confira o local novo" />
       ) : null}
-      <CartaoDeVidro opaco intervalo={ESPACO.e8}>
-        <ListaDeOpcoes
-          rotulo="Local"
-          valor={r.local ?? ''}
-          aoMudar={(v) => mudar('local', v === '' ? null : v)}
-          opcoes={opcoes}
-        />
-        <Botao
-          titulo="Cadastrar outro local"
-          icone="adicionar"
-          variante="terciario"
-          alinhado
-          dica="Abre uma folha com nome, tipo e endereço."
-          aoPressionar={() => setCadastrando(true)}
-        />
-      </CartaoDeVidro>
+      {semCartao ? (
+        <View style={{ gap: ESPACO.e8 }}>{lista}</View>
+      ) : (
+        <CartaoDeVidro opaco intervalo={ESPACO.e8}>
+          {lista}
+        </CartaoDeVidro>
+      )}
       <FolhaDoLocalNovo
         aberta={cadastrando}
         inicial={r.novoLocal}

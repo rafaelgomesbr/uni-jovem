@@ -77,11 +77,14 @@ interface Escolhas {
 }
 
 /**
- * Rota `/evento/igual-ao-ultimo?origem=`: "Igual ao último encontro" e "Marcar o próximo encontro"
- * (D66, D69, D78). Uma tela só, sem ir para outra: o app copia o último encontro (um rascunho, sem
- * avisar ninguém) e mostra, de cima para baixo, o cartão do encontro novo, a pergunta "Quando?" com
- * as datas sugeridas e "Outra data", o Roteiro e a Banda e equipe como acordeões (abrem e fecham ali
- * mesmo) e "Levar as músicas também". Salvar rascunho e Publicar flutuam acima da barra de abas. A
+ * Rota `/evento/igual-ao-ultimo?origem=`: a conferência de uma CÓPIA que a pessoa pediu (D66, D69,
+ * D78): "Igual ao último encontro" na folha, "Copiar este encontro", Duplicar e o atalho "Copiar o
+ * último encontro" da tela de novo encontro. "Marcar o próximo encontro" não passa por aqui: ele
+ * abre o encontro do zero (`/evento/novo`). Uma tela só, sem ir para outra: o app copia o último
+ * encontro (um rascunho, sem avisar ninguém) e mostra, de cima para baixo, o cartão do encontro
+ * novo, a pergunta "Quando?" com as datas sugeridas e "Outra data", o Roteiro e a Banda e equipe
+ * (esta só quando há alguém ou algum aviso para mostrar) como acordeões (abrem e fecham ali mesmo)
+ * e "Levar as músicas também". Salvar rascunho e Publicar flutuam acima da barra de abas. A
  * data padrão é o próximo dia da semana do encontro anterior a partir de hoje; se já existe encontro
  * nesse dia, a tela avisa e publicar pergunta "Criar outro mesmo assim?". O título acompanha o dia
  * ("Sábado" copiado para um domingo vira "Domingo"; um título escrito pela pessoa nunca muda).
@@ -231,6 +234,12 @@ function Conferencia({
   const indisponiveis = (rascunho?.resumo.indisponiveis ?? []).filter(
     (i) => !detalhe || detalhe.atribuicoes.some((a) => a.vinculoId === i.vinculoId),
   )
+
+  // Sem ninguém convocado, sem aviso de indisponibilidade e sem equipe, o acordeão só repetiria
+  // "0 pessoas": a frase "Ninguém foi avisado ainda." do cartão de cima já diz isso. Mas quem saiu
+  // da comunidade e não foi copiado precisa continuar dito, mesmo que toda a equipe tenha saído.
+  const naoCopiados = rascunho?.resumo.naoCopiados ?? 0
+  const temEquipe = pessoas > 0 || indisponiveis.length > 0 || equipe.length > 0 || naoCopiados > 0
 
   async function trocar(i: { vinculoId: string; funcao: string }) {
     if (!detalhe) return
@@ -508,73 +517,75 @@ function Conferencia({
         </Acordeao>
       </CartaoDeVidro>
 
-      <CartaoDeVidro lista>
-        <Acordeao
-          recuo={RECUO_DA_LISTA.texto}
-          rotuloRecolhido={`Banda e equipe: ${quantasPessoas(pessoas)}${indisponiveis.length ? `, ${indisponiveis.length} avisou que não pode` : ''}. Recolhido, toque para ver quem volta.`}
-          rotuloAberto="Banda e equipe. Aberto, toque para recolher."
-          cabecalho={() => (
-            <CabecalhoDeAcordeao
-              icone="escalas"
-              titulo={`Banda e equipe: ${quantasPessoas(pessoas)}`}
-              {...(indisponiveis.length > 0
-                ? {
-                    extra: (
-                      <Chip
-                        situacao="naoPode"
-                        texto={`${indisponiveis.length} não ${indisponiveis.length === 1 ? 'pode' : 'podem'}`}
-                      />
-                    ),
-                  }
-                : {})}
-            />
-          )}
-        >
-          {equipe.length > 0 ? (
-            <Lista>
-              {equipe.map((p) => {
-                const naoPode = indisponiveis.find(
-                  (i) => i.vinculoId === p.vinculoId && i.funcao === p.funcao,
-                )
-                const funcao = p.onde ? `${p.funcao} · ${p.onde}` : p.funcao
-                return (
-                  <LinhaDeLista
-                    key={p.chave}
-                    avatar={{ nome: p.nome }}
-                    titulo={p.nome}
-                    descricao={naoPode ? `Avisou que não pode neste dia. ${funcao}` : funcao}
-                    linhasDaDescricao={0}
-                    {...(naoPode
-                      ? {
-                          extra: (
-                            <Botao
-                              titulo="Trocar"
-                              tamanho="compacto"
-                              variante="secundario"
-                              desabilitado={!detalhe || ocupada}
-                              rotuloAcessivel={`Trocar ${p.nome}: ${p.funcao}`}
-                              aoPressionar={() => void trocar(naoPode)}
-                            />
-                          ),
-                        }
-                      : {})}
-                  />
-                )
-              })}
-            </Lista>
-          ) : (
+      {temEquipe ? (
+        <CartaoDeVidro lista>
+          <Acordeao
+            recuo={RECUO_DA_LISTA.texto}
+            rotuloRecolhido={`Banda e equipe: ${quantasPessoas(pessoas)}${indisponiveis.length ? `, ${indisponiveis.length} avisou que não pode` : ''}. Recolhido, toque para ver quem volta.`}
+            rotuloAberto="Banda e equipe. Aberto, toque para recolher."
+            cabecalho={() => (
+              <CabecalhoDeAcordeao
+                icone="escalas"
+                titulo={`Banda e equipe: ${quantasPessoas(pessoas)}`}
+                {...(indisponiveis.length > 0
+                  ? {
+                      extra: (
+                        <Chip
+                          situacao="naoPode"
+                          texto={`${indisponiveis.length} não ${indisponiveis.length === 1 ? 'pode' : 'podem'}`}
+                        />
+                      ),
+                    }
+                  : {})}
+              />
+            )}
+          >
+            {equipe.length > 0 ? (
+              <Lista>
+                {equipe.map((p) => {
+                  const naoPode = indisponiveis.find(
+                    (i) => i.vinculoId === p.vinculoId && i.funcao === p.funcao,
+                  )
+                  const funcao = p.onde ? `${p.funcao} · ${p.onde}` : p.funcao
+                  return (
+                    <LinhaDeLista
+                      key={p.chave}
+                      avatar={{ nome: p.nome }}
+                      titulo={p.nome}
+                      descricao={naoPode ? `Avisou que não pode neste dia. ${funcao}` : funcao}
+                      linhasDaDescricao={0}
+                      {...(naoPode
+                        ? {
+                            extra: (
+                              <Botao
+                                titulo="Trocar"
+                                tamanho="compacto"
+                                variante="secundario"
+                                desabilitado={!detalhe || ocupada}
+                                rotuloAcessivel={`Trocar ${p.nome}: ${p.funcao}`}
+                                aoPressionar={() => void trocar(naoPode)}
+                              />
+                            ),
+                          }
+                        : {})}
+                    />
+                  )
+                })}
+              </Lista>
+            ) : naoCopiados === 0 ? (
+              <TextoDoAcordeao>
+                Ninguém estava convocado no último encontro. Você escolhe quem vai depois de salvar.
+              </TextoDoAcordeao>
+            ) : null}
             <TextoDoAcordeao>
-              Ninguém estava convocado no último encontro. Você escolhe quem vai depois de salvar.
+              {resumo.naoCopiados > 0
+                ? `${resumo.naoCopiados} ${resumo.naoCopiados === 1 ? 'pessoa saiu' : 'pessoas saíram'} da comunidade e não ${resumo.naoCopiados === 1 ? 'foi copiada' : 'foram copiadas'}. `
+                : ''}
+              {equipe.length > 0 ? 'Todos voltam como "aguardando resposta".' : ''}
             </TextoDoAcordeao>
-          )}
-          <TextoDoAcordeao>
-            {resumo.naoCopiados > 0
-              ? `${resumo.naoCopiados} ${resumo.naoCopiados === 1 ? 'pessoa saiu' : 'pessoas saíram'} da comunidade e não ${resumo.naoCopiados === 1 ? 'foi copiada' : 'foram copiadas'}. `
-              : ''}
-            {equipe.length > 0 ? 'Todos voltam como "aguardando resposta".' : ''}
-          </TextoDoAcordeao>
-        </Acordeao>
-      </CartaoDeVidro>
+          </Acordeao>
+        </CartaoDeVidro>
+      ) : null}
 
       {resumo.musicas.naOrigem > 0 ? (
         <CartaoDeVidro opaco>

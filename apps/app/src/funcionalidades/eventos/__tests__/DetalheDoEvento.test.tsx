@@ -4,20 +4,15 @@
  * "Mais" em grupos e o botão principal do momento na barra (publicar na hora, lembrar, check-in,
  * ao vivo, marcar o próximo encontro). D78: o Roteiro é um acordeão por etapa, com edição ali mesmo.
  */
-import { act, screen, userEvent, waitFor, within } from '@testing-library/react-native'
+import { act, fireEvent, screen, userEvent, waitFor, within } from '@testing-library/react-native'
 import { router } from 'expo-router'
-import { Share } from 'react-native'
+import { AccessibilityInfo, Share } from 'react-native'
 
 import { ETAPAS, EVENTO_ID, eventoDeTeste, minutos } from '@/testes/fixturas'
 import { BASE, COMUNIDADE, MEU_VINCULO, PESSOAS, pedidosPara, renderizarTela } from '@/testes/telas'
 import { confirmar } from '@/utilidades/confirmar'
 import { HospedeiroDeToast, mostrarToast } from '@/ui/Toast'
-import {
-  aoMudarEstadoDoApp,
-  confirmarAgora,
-  desfazerAgora,
-  reiniciarDesfazer,
-} from '@/ui/ToastComDesfazer'
+import { confirmarAgora, desfazerAgora, reiniciarDesfazer } from '@/ui/ToastComDesfazer'
 
 import { reiniciarRespostas } from '../../escalas/respostasOtimistas'
 import { DetalheDoEvento } from '../DetalheDoEvento'
@@ -42,10 +37,15 @@ jest.mock('@/ui/Toast', () => ({
 
 const CAMINHO = `${BASE}/eventos/${EVENTO_ID}`
 
-function montar(papel: 'organizador' | 'membro', rotasExtras = {}, evento = eventoDeTeste()) {
+function montar(
+  papel: 'organizador' | 'membro',
+  rotasExtras = {},
+  evento = eventoDeTeste(),
+  props: { editarInicial?: boolean } = {},
+) {
   return renderizarTela(
     <>
-      <DetalheDoEvento comunidadeId={COMUNIDADE} eventoId={EVENTO_ID} />
+      <DetalheDoEvento comunidadeId={COMUNIDADE} eventoId={EVENTO_ID} {...props} />
       <HospedeiroDeToast />
     </>,
     {
@@ -327,6 +327,224 @@ describe('Encontro: a organização', () => {
     )
   })
 
+  describe('Dados do encontro (editar dentro do encontro)', () => {
+    const ROTAS_DA_EDICAO = {
+      [`GET ${BASE}/locais`]: () => ({ status: 200, corpo: { locais: [] } }),
+      [`PATCH ${CAMINHO}`]: () => ({ status: 200, corpo: { id: EVENTO_ID, versao: 4 } }),
+    }
+    const CABECALHO = /^Dados do encontro: .+ · Local a definir\. Recolhido/
+
+    test('é o primeiro bloco do Resumo: fechado, com o resumo de uma linha e o "Editar" escrito', async () => {
+      await montar('organizador', ROTAS_DA_EDICAO)
+      const cabecalho = await screen.findByRole('button', { name: CABECALHO })
+      expect(within(cabecalho).getByText('Editar')).toBeOnTheScreen()
+      expect(within(cabecalho).getByText(/· Local a definir$/)).toBeOnTheScreen()
+      // Fechado: nenhum campo do formulário à vista.
+      expect(screen.queryByLabelText('Título')).toBeNull()
+    })
+
+    test('tocar abre o formulário; tocar de novo recolhe', async () => {
+      const usuario = userEvent.setup()
+      await montar('organizador', ROTAS_DA_EDICAO)
+      await usuario.press(await screen.findByRole('button', { name: CABECALHO }))
+      expect(await screen.findByLabelText('Título')).toBeOnTheScreen()
+      expect(screen.getByRole('button', { name: 'Salvar alterações' })).toBeOnTheScreen()
+      await usuario.press(screen.getByRole('button', { name: /^Dados do encontro\. Aberto/ }))
+      await waitFor(() => expect(screen.queryByLabelText('Título')).toBeNull())
+    })
+
+    test('com `editarInicial` (o "Editar" do Início) já vem aberto', async () => {
+      await montar('organizador', ROTAS_DA_EDICAO, eventoDeTeste(), { editarInicial: true })
+      expect(await screen.findByLabelText('Título')).toBeOnTheScreen()
+      expect(screen.getByRole('button', { name: /^Dados do encontro\. Aberto/ })).toBeOnTheScreen()
+    })
+
+    test('ao abrir, o foco do leitor de tela vai para o cabeçalho da seção', async () => {
+      const focar = jest
+        .spyOn(AccessibilityInfo, 'sendAccessibilityEvent')
+        .mockImplementation(() => {})
+      await montar('organizador', ROTAS_DA_EDICAO, eventoDeTeste(), { editarInicial: true })
+      await screen.findByLabelText('Título')
+      await waitFor(() => expect(focar).toHaveBeenCalledWith(expect.anything(), 'focus'))
+      focar.mockRestore()
+    })
+
+    test('o "Editar" da barra abre a seção em vez de empilhar outra tela', async () => {
+      const usuario = userEvent.setup()
+      await montar('organizador', ROTAS_DA_EDICAO)
+      await usuario.press(await screen.findByRole('button', { name: 'Editar' }))
+      expect(await screen.findByLabelText('Título')).toBeOnTheScreen()
+      expect(router.push).not.toHaveBeenCalled()
+      // Aberta a seção, a barra não repete "Editar" (nem sobra um segundo em "Outras coisas").
+      expect(screen.queryByRole('button', { name: 'Editar' })).toBeNull()
+    })
+
+    test('aberta, a seção não repete "Quando e onde" nem "O essencial": só os campos, e tem "Cancelar"', async () => {
+      await montar('organizador', ROTAS_DA_EDICAO, eventoDeTeste(), { editarInicial: true })
+      expect(await screen.findByLabelText('Título')).toBeOnTheScreen()
+      expect(screen.queryByText('Quando e onde')).toBeNull()
+      expect(screen.queryByText('O essencial')).toBeNull()
+      expect(screen.queryByText('Onde')).toBeNull()
+      expect(screen.getByRole('button', { name: 'Cancelar' })).toBeOnTheScreen()
+      // O cabeçalho aberto diz só o nome da seção (o resumo de uma linha é do estado fechado).
+      expect(screen.queryByText(/· Local a definir$/)).toBeNull()
+    })
+
+    test('"Cancelar" recolhe; com algo digitado pergunta antes, e dizer não mantém o texto', async () => {
+      const usuario = userEvent.setup()
+      await montar('organizador', ROTAS_DA_EDICAO, eventoDeTeste(), { editarInicial: true })
+      await screen.findByLabelText('Título')
+      // Limpo: recolhe direto, sem pergunta.
+      await usuario.press(screen.getByRole('button', { name: 'Cancelar' }))
+      await waitFor(() => expect(screen.queryByLabelText('Título')).toBeNull())
+      expect(confirmar).not.toHaveBeenCalled()
+
+      await usuario.press(await screen.findByRole('button', { name: CABECALHO }))
+      await fireEvent.changeText(await screen.findByLabelText('Título'), 'Sábado especial')
+      ;(confirmar as jest.Mock).mockResolvedValueOnce(false)
+      await usuario.press(screen.getByRole('button', { name: 'Cancelar' }))
+      expect(confirmar).toHaveBeenCalledWith(
+        expect.objectContaining({ titulo: 'Descartar o que você escreveu?' }),
+      )
+      expect(screen.getByDisplayValue('Sábado especial')).toBeOnTheScreen()
+      // Confirmando, recolhe e o que foi digitado some: reabrir mostra o título de verdade.
+      await usuario.press(screen.getByRole('button', { name: 'Cancelar' }))
+      await waitFor(() => expect(screen.queryByLabelText('Título')).toBeNull())
+      await usuario.press(await screen.findByRole('button', { name: CABECALHO }))
+      expect(await screen.findByDisplayValue('Sábado com a juventude')).toBeOnTheScreen()
+    })
+
+    test('trocar de aba com algo digitado pergunta; recusando fica, confirmando o texto some', async () => {
+      const usuario = userEvent.setup()
+      await montar('organizador', ROTAS_DA_EDICAO, eventoDeTeste(), { editarInicial: true })
+      await fireEvent.changeText(await screen.findByLabelText('Título'), 'Sábado especial')
+      ;(confirmar as jest.Mock).mockResolvedValueOnce(false)
+      await usuario.press(screen.getByRole('radio', { name: 'Roteiro' }))
+      expect(confirmar).toHaveBeenCalledWith(
+        expect.objectContaining({ titulo: 'Descartar o que você escreveu?' }),
+      )
+      expect(screen.getByRole('radio', { name: 'Resumo' })).toBeChecked()
+      expect(screen.getByDisplayValue('Sábado especial')).toBeOnTheScreen()
+
+      await usuario.press(screen.getByRole('radio', { name: 'Roteiro' }))
+      expect(await screen.findByRole('radio', { name: 'Roteiro' })).toBeChecked()
+      await usuario.press(screen.getByRole('radio', { name: 'Resumo' }))
+      // Voltou ao Resumo: a seção está recolhida e o que se digitou não existe mais.
+      expect(await screen.findByRole('button', { name: CABECALHO })).toBeOnTheScreen()
+      expect(screen.queryByDisplayValue('Sábado especial')).toBeNull()
+      await usuario.press(screen.getByRole('button', { name: CABECALHO }))
+      expect(await screen.findByDisplayValue('Sábado com a juventude')).toBeOnTheScreen()
+    })
+
+    test('recarga do encontro com a seção aberta e limpa: o formulário parte da versão nova e o primeiro salvar não dá conflito', async () => {
+      const usuario = userEvent.setup()
+      let versao = 3
+      const { servidor, consultas } = await montar(
+        'organizador',
+        {
+          ...ROTAS_DA_EDICAO,
+          [`GET ${CAMINHO}`]: () => ({ status: 200, corpo: eventoDeTeste({ versao }) }),
+        },
+        eventoDeTeste(),
+        { editarInicial: true },
+      )
+      await screen.findByLabelText('Título')
+      // Outra tela ou pessoa mexeu no encontro e o detalhe recarregou, sem nada digitado aqui.
+      versao = 4
+      await act(async () => {
+        await consultas.invalidateQueries()
+      })
+      await waitFor(() => expect(pedidosPara(servidor, 'GET', CAMINHO).length).toBeGreaterThan(1))
+      await act(async () => undefined)
+      await fireEvent.changeText(screen.getByLabelText('Título'), 'Sábado especial')
+      await usuario.press(screen.getByRole('button', { name: 'Salvar alterações' }))
+      await waitFor(() => expect(pedidosPara(servidor, 'PATCH', CAMINHO)).toHaveLength(1))
+      expect(pedidosPara(servidor, 'PATCH', CAMINHO)[0]?.corpo).toEqual({
+        versao: 4,
+        titulo: 'Sábado especial',
+      })
+      expect(screen.queryByText('Conflito de edição')).toBeNull()
+    })
+
+    test('com algo por salvar, "Publicar e avisar" fica desabilitado e diz por quê; limpo, funciona', async () => {
+      await montar('organizador', ROTAS_DA_EDICAO, eventoDeTeste({ status: 'rascunho' }), {
+        editarInicial: true,
+      })
+      const titulo = await screen.findByLabelText('Título')
+      expect(screen.getByRole('button', { name: 'Publicar e avisar 1 pessoa' })).toBeEnabled()
+      expect(screen.queryByText('Salve ou descarte as alterações primeiro.')).toBeNull()
+
+      await fireEvent.changeText(titulo, 'Sábado especial')
+      expect(screen.getByRole('button', { name: 'Publicar e avisar 1 pessoa' })).toBeDisabled()
+      expect(screen.getByText('Salve ou descarte as alterações primeiro.')).toBeOnTheScreen()
+
+      // Voltando ao texto original, nada mais está por salvar: publicar volta a valer.
+      await fireEvent.changeText(titulo, 'Sábado com a juventude')
+      expect(screen.getByRole('button', { name: 'Publicar e avisar 1 pessoa' })).toBeEnabled()
+    })
+
+    test('"Editar" em "Outras coisas" só existe com o encontro vivo (não em cancelado nem encerrado)', async () => {
+      const amanha = new Date(Date.now() + 26 * 3_600_000).toISOString()
+      const { unmount } = await montar(
+        'organizador',
+        ROTAS_DA_EDICAO,
+        eventoDeTeste({ inicio: amanha }),
+      )
+      // Véspera: o primário da barra é "Ver quem vai", então "Editar" mora em "Outras coisas".
+      await screen.findByText('Outras coisas')
+      expect(screen.getByRole('button', { name: 'Editar' })).toBeOnTheScreen()
+      await unmount()
+      await montar('organizador', ROTAS_DA_EDICAO, eventoDeTeste({ status: 'cancelado' }))
+      await screen.findByText('Outras coisas')
+      expect(screen.queryByRole('button', { name: 'Editar' })).toBeNull()
+      await unmount()
+      await montar('organizador', ROTAS_DA_EDICAO, eventoDeTeste({ status: 'encerrado' }))
+      await screen.findByText('Outras coisas')
+      expect(screen.queryByRole('button', { name: 'Editar' })).toBeNull()
+    })
+
+    test('salvar manda só o que mudou, mostra o toast e recolhe a seção', async () => {
+      const usuario = userEvent.setup()
+      const { servidor } = await montar('organizador', ROTAS_DA_EDICAO, eventoDeTeste(), {
+        editarInicial: true,
+      })
+      await fireEvent.changeText(await screen.findByLabelText('Título'), 'Sábado especial')
+      await usuario.press(screen.getByRole('button', { name: 'Salvar alterações' }))
+      await waitFor(() => expect(pedidosPara(servidor, 'PATCH', CAMINHO)).toHaveLength(1))
+      expect(pedidosPara(servidor, 'PATCH', CAMINHO)[0]?.corpo).toEqual({
+        versao: 3,
+        titulo: 'Sábado especial',
+      })
+      await waitFor(() =>
+        expect(mostrarToast).toHaveBeenCalledWith({ texto: 'Alterações salvas.' }),
+      )
+      await waitFor(() => expect(screen.queryByLabelText('Título')).toBeNull())
+      expect(screen.getByRole('button', { name: CABECALHO })).toBeOnTheScreen()
+    })
+
+    test('recolher com algo digitado pergunta antes; dizer não mantém o que foi escrito', async () => {
+      const usuario = userEvent.setup()
+      await montar('organizador', ROTAS_DA_EDICAO, eventoDeTeste(), { editarInicial: true })
+      await fireEvent.changeText(await screen.findByLabelText('Título'), 'Sábado especial')
+      ;(confirmar as jest.Mock).mockResolvedValueOnce(false)
+      await usuario.press(screen.getByRole('button', { name: /^Dados do encontro\. Aberto/ }))
+      expect(confirmar).toHaveBeenCalledWith(
+        expect.objectContaining({ titulo: 'Descartar o que você escreveu?' }),
+      )
+      expect(screen.getByDisplayValue('Sábado especial')).toBeOnTheScreen()
+    })
+
+    test('quem só participa, e o encontro cancelado, não têm a seção', async () => {
+      const { unmount } = await montar('membro', ROTAS_DA_EDICAO)
+      await screen.findByText('Quando e onde')
+      expect(screen.queryByRole('button', { name: /^Dados do encontro/ })).toBeNull()
+      await unmount()
+      await montar('organizador', ROTAS_DA_EDICAO, eventoDeTeste({ status: 'cancelado' }))
+      await screen.findByText('Quando e onde')
+      expect(screen.queryByRole('button', { name: /^Dados do encontro/ })).toBeNull()
+    })
+  })
+
   test('"Copiar este encontro" leva à conferência do "Igual ao último sábado"', async () => {
     const usuario = userEvent.setup()
     await montar('organizador')
@@ -529,13 +747,13 @@ describe('Encontro: a organização', () => {
       expect(screen.getByRole('button', { name: 'Marcar quem chegou' })).toBeOnTheScreen()
     })
 
-    test('terminou: "Marcar o próximo encontro" leva à conferência', async () => {
+    test('terminou: "Marcar o próximo encontro" abre o encontro do zero', async () => {
       const ontem = new Date(Date.now() - 86_400_000).toISOString()
       await montar('organizador', {}, eventoDeTeste({ inicio: ontem }))
       await userEvent
         .setup()
         .press(await screen.findByRole('button', { name: 'Marcar o próximo encontro' }))
-      expect(router.push).toHaveBeenCalledWith('/evento/igual-ao-ultimo')
+      expect(router.push).toHaveBeenCalledWith('/evento/novo')
     })
   })
 })

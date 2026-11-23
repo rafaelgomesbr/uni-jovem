@@ -1,5 +1,5 @@
 import { onlineManager } from '@tanstack/react-query'
-import { act, screen, userEvent, waitFor } from '@testing-library/react-native'
+import { act, fireEvent, screen, userEvent, waitFor } from '@testing-library/react-native'
 import { useLocalSearchParams } from 'expo-router'
 import { useEffect } from 'react'
 
@@ -22,7 +22,7 @@ import { TelaPendencias } from '@/funcionalidades/offline/TelaPendencias'
 import type { DepositoLocal } from '@/funcionalidades/offline/tipos'
 import type { Rota } from '@/testes/dubles'
 import { limparAparelho, pacoteDeTeste, sqlite } from '@/testes/offline'
-import { EVENTO_ID } from '@/testes/fixturas'
+import { EVENTO_ID, eventoDeTeste } from '@/testes/fixturas'
 import {
   BASE,
   COMUNIDADE,
@@ -221,6 +221,42 @@ describe('sem conexão', () => {
       const p = await deposito.abrir(CONTA, COMUNIDADE)
       expect(await p!.operacoes()).toHaveLength(0)
     })
+  })
+
+  test('a internet cai no meio da edição: o formulário continua com o que foi digitado e a tela avisa', async () => {
+    const deposito = criarDeposito()
+    await particaoPreparada(deposito)
+    const { rotas } = rotasDeSincronizacao(BASE)
+    await renderizarTela(
+      <ProvedorOffline deposito={deposito}>
+        <DetalheDoEvento comunidadeId={COMUNIDADE} eventoId={EVENTO_ID} editarInicial />
+      </ProvedorOffline>,
+      {
+        rotas: {
+          ...rotas,
+          [`GET ${BASE}/eventos/${EVENTO_ID}`]: () => ({ status: 200, corpo: eventoDeTeste() }),
+          [`GET ${BASE}/locais`]: () => ({ status: 200, corpo: { locais: [] } }),
+        },
+      },
+    )
+    await fireEvent.changeText(await screen.findByLabelText('Título'), 'Sábado especial')
+
+    await act(async () => onlineManager.setOnline(false))
+    // Em vez de trocar pela cópia do aparelho (e apagar o texto), fica onde está e diz o que houve.
+    expect(
+      await screen.findByText('Suas alterações continuam aqui; salve quando a internet voltar.'),
+    ).toBeOnTheScreen()
+    expect(screen.getByDisplayValue('Sábado especial')).toBeOnTheScreen()
+    expect(screen.queryByText('Sem conexão: cópia deste aparelho')).toBeNull()
+
+    // Voltando a internet, o aviso some e o texto segue ali.
+    await act(async () => onlineManager.setOnline(true))
+    await waitFor(() =>
+      expect(
+        screen.queryByText('Suas alterações continuam aqui; salve quando a internet voltar.'),
+      ).toBeNull(),
+    )
+    expect(screen.getByDisplayValue('Sábado especial')).toBeOnTheScreen()
   })
 
   test('check-in: a lista vem do aparelho e a presença entra na fila uma vez só', async () => {

@@ -157,7 +157,8 @@ export function useDestinosDoEncontro(
       else abrirEncontro()
     },
     temMapa: !!evento.local && linkDoMapa(evento.local) !== null,
-    editar: () => router.push({ pathname: '/evento/[eventoId]/editar', params: alvo }),
+    /** Abre o encontro com "Dados do encontro" já aberto: editar é dentro do encontro, não numa tela à parte. */
+    editar: () => router.push({ pathname: '/evento/[eventoId]', params: { ...alvo, editar: '1' } }),
     checkin: () => router.push({ pathname: '/evento/[eventoId]/checkin', params: alvo }),
     aoVivo: () => router.push({ pathname: '/evento/[eventoId]/ao-vivo', params: alvo }),
     /**
@@ -169,8 +170,8 @@ export function useDestinosDoEncontro(
         ? router.push('/meu-repertorio')
         : router.push({ pathname: '/evento/[eventoId]/repertorio', params: alvo }),
     rotuloDoRepertorio: rotuloDoRepertorio(repertorio),
-    /** A conferência "Igual ao último encontro" (ela mesma oferece o modelo padrão ou o zero, sem anterior). */
-    marcarProximo: () => router.push('/evento/igual-ao-ultimo'),
+    /** O encontro novo do zero (sem roteiro): copiar o último é um atalho dentro dessa tela, nunca o padrão. */
+    marcarProximo: () => router.push('/evento/novo'),
   }
 }
 
@@ -278,16 +279,6 @@ export function botaoComum(
           variante={variante}
           icone="pessoas"
           aoPressionar={destinos.verConvocados}
-        />
-      )
-    case 'editar':
-      return (
-        <Botao
-          key={acao}
-          titulo="Editar"
-          variante={variante}
-          icone="editar"
-          aoPressionar={destinos.editar}
         />
       )
     case 'marcarProximo':

@@ -52,6 +52,7 @@ import {
   avisoDeDiasOcupados,
   naComunidade,
   perguntaDeDataOcupada,
+  useAnterioresParaCopiar,
   useEncontrosNosDias,
   useInvalidarEventos,
   useModelos,
@@ -157,6 +158,12 @@ function NovoEvento({
   const refs = useRefsDosCampos()
   const escolherModelo = modeloInicial === ESCOLHER_MODELO && pode('modelo', 'ler')
   const modelos = useModelos(comunidadeId, pode('modelo', 'ler'))
+  // O encontro nasce do zero. Copiar o último ou partir de um modelo são atalhos que a pessoa
+  // escolhe aqui: só aparecem quando ela não chegou com um modelo ou uma data já escolhidos.
+  const oferecerAtalhos = modeloInicial === '' && dataInicial === null
+  const anteriores = useAnterioresParaCopiar(comunidadeId, oferecerAtalhos)
+  const podeCopiar = (anteriores.data?.opcoes.length ?? 0) > 0
+  const podeUsarModelo = pode('modelo', 'ler')
   const [modelo, setModelo] = useState(modeloInicial === ESCOLHER_MODELO ? '' : modeloInicial)
   const [rascunhoInicial] = useState<RascunhoDoEvento>(() => {
     const r = rascunhoVazio()
@@ -454,6 +461,34 @@ function NovoEvento({
             ? `${avisoDeDiasOcupados(ocupados)} Se criar estes também, a Agenda terá os dois.`
             : `${avisoDeDataOcupada(ocupados)} Se criar este também, a Agenda terá os dois.`}
         </Aviso>
+      ) : null}
+
+      {oferecerAtalhos && (podeCopiar || podeUsarModelo) ? (
+        <CartaoDeVidro opaco intervalo={ESPACO.e12}>
+          <Texto variante="tituloItem">Começar de outro jeito?</Texto>
+          {podeCopiar ? (
+            <Botao
+              titulo="Copiar o último encontro"
+              variante="secundario"
+              tamanho="medio"
+              icone="copiar"
+              larguraTotal
+              aoPressionar={() => router.replace('/evento/igual-ao-ultimo')}
+            />
+          ) : null}
+          {podeUsarModelo ? (
+            <Botao
+              titulo="Usar um modelo de roteiro"
+              variante="secundario"
+              tamanho="medio"
+              icone="duplicar"
+              larguraTotal
+              aoPressionar={() =>
+                router.replace({ pathname: '/evento/novo', params: { modelo: ESCOLHER_MODELO } })
+              }
+            />
+          ) : null}
+        </CartaoDeVidro>
       ) : null}
 
       {escolherModelo ? (

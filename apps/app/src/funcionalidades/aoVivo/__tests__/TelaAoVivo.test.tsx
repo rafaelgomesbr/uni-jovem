@@ -274,7 +274,8 @@ describe('ao vivo no visual A (D71)', () => {
       await userEvent
         .setup()
         .press(screen.getByRole('button', { name: 'Marcar o próximo encontro' }))
-      expect(router.push).toHaveBeenCalledWith('/evento/igual-ao-ultimo')
+      // Do zero: o roteiro é a pessoa que monta; copiar o último é um atalho da tela de novo encontro.
+      expect(router.push).toHaveBeenCalledWith('/evento/novo')
     })
   })
 
