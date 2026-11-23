@@ -19,7 +19,7 @@ import { mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { dataNoFuso } from '@uj/dominio'
-import { chromium, type BrowserContext, type Locator, type Page } from 'playwright'
+import { chromium, type BrowserContext, type Page } from 'playwright'
 import { proximoSabado } from '../../apps/api/src/cli/demonstracao-plano.ts'
 
 const RAIZ = join(import.meta.dirname, '..', '..')
@@ -62,6 +62,19 @@ async function entrar(page: Page, email: string) {
   await page.waitForURL((u) => !u.pathname.endsWith('/entrar'), { timeout: 20000 })
   await assentar(page)
   // Primeira entrada pode abrir o mapa da missão: pula para chegar ao Início.
+  // Base recém-criada: a conta fictícia de admin ainda não aceitou o Termo do Administrador.
+  const aceitar = page.getByRole('button', { name: /^Aceitar e continuar/ })
+  if (await aceitar.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await page.getByRole('checkbox', { name: /^Li e aceito/ }).click()
+    await aceitar.click()
+    await assentar(page)
+  }
+  // O aviso de mudança dos Termos ocuparia o Início inteiro: a conta fictícia já leu.
+  const entendi = page.getByRole('button', { name: 'Entendi', exact: true })
+  if (await entendi.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await entendi.click()
+    await assentar(page)
+  }
   const pular = page.getByRole('button', { name: /Pular/ })
   if (await pular.isVisible().catch(() => false)) {
     await pular.click()
@@ -93,49 +106,27 @@ async function rolarAteOFim(page: Page) {
   await page.waitForTimeout(800)
 }
 
-/**
- * Rola o mínimo para o alvo terminar acima da barra de abas flutuante (66 de
- * altura a 12 do fim, mais um respiro). Em tela alta, não rola nada.
- */
-async function mostrarAcimaDaBarraDeAbas(page: Page, alvo: Locator) {
-  await alvo.evaluate((el) => {
-    const folga = 96
-    let pai = el.parentElement
-    while (
-      pai &&
-      !(pai.scrollHeight > pai.clientHeight + 4 && getComputedStyle(pai).overflowY !== 'visible')
-    ) {
-      pai = pai.parentElement
-    }
-    const falta = el.getBoundingClientRect().bottom - (window.innerHeight - folga)
-    if (pai && falta > 0) pai.scrollTop += falta
-  })
-  await page.waitForTimeout(800)
-}
-
-/** "sábado, 21 de novembro": o começo do nome do dia na grade da Agenda (`rotuloDoDia`). */
-function nomeDoSabado(sabado: string): RegExp {
+/** "28 de novembro": o dia e o mês como a lista da Agenda os escreve por extenso. */
+function diaPorExtenso(sabado: string): string {
   const mes = new Intl.DateTimeFormat('pt-BR', { month: 'long', timeZone: 'UTC' }).format(
     new Date(`${sabado}T12:00:00Z`),
   )
-  return new RegExp(`^sábado, ${Number(sabado.slice(8, 10))} de ${mes}`)
+  return `${Number(sabado.slice(8, 10))} de ${mes}`
 }
 
-/** Agenda no próximo sábado com eventos: a lista do dia aparece abaixo do mês. */
-async function agendaNoSabado(page: Page, sabado: string) {
+/** A Agenda é uma lista por dia (D74): abrir a tela já mostra o próximo sábado, sem clicar em dia. */
+async function agendaNoSabado(page: Page, _sabado: string) {
   await irPara(page, '/agenda')
-  await page
-    .getByRole('button', { name: nomeDoSabado(sabado) })
-    .first()
-    .click()
-  await assentar(page)
 }
 
-/** O Sábado Jovem do próximo sábado, aberto pela lista do dia na Agenda (nunca uma cópia de hoje). */
+/** O Sábado Jovem publicado do próximo sábado, aberto pela lista da Agenda (nunca uma cópia de hoje). */
 async function abrirSabadoJovem(page: Page, sabado: string): Promise<string> {
   await agendaNoSabado(page, sabado)
   await page
-    .getByRole('button', { name: /^Sábado Jovem, / })
+    .getByRole('button', {
+      // Só o publicado: o rótulo dos rascunhos termina com "Rascunho.".
+      name: new RegExp(`^Sábado Jovem\\. sábado, ${diaPorExtenso(sabado)} de \\d{4}(?!.*Rascunho)`),
+    })
     .first()
     .click()
   await page.waitForURL(/\/evento\/[^/]+$/, { timeout: 15000 })
@@ -160,36 +151,47 @@ async function confirmarNoDialogo(page: Page, botao: string) {
 
 /**
  * O dia do evento, só na prévia: cópia de hoje do Sábado Jovem, publicada,
- * com o ao vivo no Louvor e três presenças. O início fica 8 min antes de
- * agora: as Boas-vindas (5 min) já deveriam ter acabado e o Louvor começa
- * com uns 3 min de atraso, como no roteiro (docs/lojas/capturas.md, 4.3).
+ * com o ao vivo no Louvor e três presenças. O início é daqui a 2 min (a
+ * tela não aceita horário que já passou); o ao vivo é iniciado e avançado
+ * até o Louvor logo em seguida (docs/lojas/capturas.md, 4.3).
  */
 async function prepararODiaDoEvento(page: Page, origem: string): Promise<string> {
   const agora = Date.now()
   await irPara(page, `/evento/${origem}/duplicar`)
-  await page.getByLabel('Data', { exact: true }).fill(dataNoFuso(new Date(agora), FUSO))
-  // Arredonda para o minuto mais próximo, contando os ~15 s até o Louvor começar.
-  const inicio = new Date(Math.round((agora + 15_000 - 8 * 60_000) / 60_000) * 60_000)
-  await page.getByLabel('Hora', { exact: true }).fill(horaNoFuso(inicio))
-  await page.getByRole('button', { name: 'Criar a cópia', exact: true }).click()
+  // "Quando?" (D84): a opção "Outra data" mostra os campos de data e de hora do navegador.
+  await page.getByRole('radio', { name: /^Outra data/ }).click()
+  await page.locator('input[type="date"]').fill(dataNoFuso(new Date(agora), FUSO))
+  // Um horário que já passou não é aceito: começa daqui a 2 min e o ao vivo é iniciado pela tela.
+  const inicio = new Date(Math.ceil((agora + 2 * 60_000) / 60_000) * 60_000)
+  await page.locator('input[type="time"]').fill(horaNoFuso(inicio))
+  // Salva como rascunho (a cópia nasce na data de hoje) e publica pela tela do encontro.
+  await page.getByRole('button', { name: 'Salvar rascunho', exact: true }).click()
   await page.waitForURL((u) => /\/evento\/[^/]+$/.test(u.pathname) && !u.pathname.endsWith(origem))
   await assentar(page)
   const copia = idDoEvento(page)
 
-  await page.getByRole('button', { name: 'Publicar', exact: true }).first().click()
-  await confirmarNoDialogo(page, 'Publicar')
-  await page.getByRole('button', { name: 'Abrir ao vivo', exact: true }).waitFor()
+  // Publica direto, sem diálogo: o aviso "Publicado. N pessoas foram avisadas." confirma.
+  await page.getByRole('button', { name: /^Publicar e avisar/ }).click()
+  await page
+    .getByText(/^Publicado\./)
+    .first()
+    .waitFor()
+  await assentar(page)
 
   await irPara(page, `/evento/${copia}/ao-vivo`)
-  await page.getByRole('button', { name: 'Iniciar', exact: true }).click()
+  await page.getByRole('button', { name: 'Iniciar o encontro', exact: true }).click()
   await assentar(page)
-  await page.getByRole('button', { name: 'Avançar etapa', exact: true }).click()
+  await page.getByRole('button', { name: /^Próxima etapa/ }).click()
   await assentar(page)
 
   await irPara(page, `/evento/${copia}/checkin`)
   for (const nome of ['Beatriz Moraes', 'Camila Nunes', 'Davi Monteiro']) {
+    // O "Chegou" de cada linha não é um botão nomeado: acha o texto "Chegou" dentro da linha da pessoa.
     await page
-      .getByRole('button', { name: `Chegou: ${nome}. Marcar presença`, exact: true })
+      .locator(
+        `xpath=//*[normalize-space(text())="${nome}"]/ancestor::*[.//*[normalize-space(text())="Chegou"]][1]//*[normalize-space(text())="Chegou"]`,
+      )
+      .first()
       .click()
     await page.waitForTimeout(900)
   }
@@ -201,11 +203,19 @@ async function encerrarODiaDoEvento(page: Page, copia: string) {
   await irPara(page, `/evento/${copia}/ao-vivo`)
   await page.getByRole('button', { name: 'Mais ações', exact: true }).click()
   await page.getByRole('button', { name: /^Encerrar o ao vivo/ }).click()
-  await confirmarNoDialogo(page, 'Encerrar')
+  // Sem diálogo: há 10 segundos para desfazer (D74); espera a janela passar.
+  await page.waitForTimeout(11_000)
   await irPara(page, `/evento/${copia}`)
-  // Sem "Mais" (D74): "Encerrar" é uma linha das "Outras coisas" do Resumo, lida como "Encerrar. O encontro já aconteceu".
+  // "Encerrar" é uma linha das "Outras coisas" do Resumo, lida como "Encerrar. O encontro já aconteceu".
   await page.getByRole('button', { name: /^Encerrar\. / }).click()
-  await confirmarNoDialogo(page, 'Encerrar encontro')
+  if (
+    await page
+      .getByRole('alertdialog')
+      .isVisible({ timeout: 3000 })
+      .catch(() => false)
+  ) {
+    await confirmarNoDialogo(page, 'Encerrar encontro')
+  }
 }
 
 /**
@@ -217,7 +227,8 @@ async function renomearComunidade(page: Page, nome: string) {
   const campo = page.getByLabel('Nome da comunidade', { exact: true })
   if ((await campo.inputValue()) === nome) return
   await campo.fill(nome)
-  await page.getByRole('button', { name: /^Salvar/ }).click()
+  // A barra de abas flutuante cobre o botão em tela baixa: o clique vai direto no elemento.
+  await page.getByRole('button', { name: /^Salvar/ }).evaluate((el) => (el as HTMLElement).click())
   await assentar(page)
 }
 
@@ -276,10 +287,10 @@ export const TELAS: Tela[] = [
   {
     arquivo: '07-agenda',
     abrir: async (p, c) => {
+      // A lista já é a 04; aqui, o Calendário do mês com os encontros marcados.
       await agendaNoSabado(p, c.sabado)
-      // Em 360 × 640 a lista do dia fica abaixo do mês: sobe só o que falta.
-      const fimDaLista = p.getByRole('button', { name: /^Ver a linha do tempo de / }).first()
-      await mostrarAcimaDaBarraDeAbas(p, fimDaLista)
+      await p.getByRole('button', { name: 'Calendário', exact: true }).click()
+      await assentar(p)
     },
   },
   { arquivo: '08-equipe', abrir: (p) => irPara(p, '/comunidade') },

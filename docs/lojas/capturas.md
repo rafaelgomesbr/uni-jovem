@@ -1,6 +1,6 @@
 # Capturas de tela e roteiro de dados fictícios
 
-- **Versão:** 1, de 14/11/2026.
+- **Versão:** 2, de 23/11/2026 (capturas refeitas com a Direção A; o roteiro de geração acompanhou a Agenda em lista, o ao vivo novo e a cópia "Quando?").
 - **Regra de ouro:** captura publicada numa loja não tem como ser recolhida. Só dados fictícios, nunca nome, telefone ou pedido de oração de pessoa real (regra 5 do `CLAUDE.md`).
 - **Regra da Apple (2.3.3):** captura mostra o app em uso, não só a tela de entrada ou a abertura. Texto sobreposto é permitido, desde que descreva o que o app faz de fato.
 

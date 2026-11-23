@@ -2,6 +2,12 @@
 
 Atualizado em 23/11/2026.
 
+## Capturas das lojas refeitas e Apple já aprovou o 1.0.0, em 23/11/2026 (E37)
+
+- **Capturas:** 10 telas nos três tamanhos (Apple 6,3" e 6,9", Google 1080 x 1920), com o app atual e dados fictícios, em `docs/lojas/capturas/final/`. O roteiro `scripts/lojas/capturas.ts` foi atualizado ao app novo. `npm run verificar` verde.
+- **Achado (somente leitura na API do App Store Connect):** a versão 1.0.0 está `PENDING_DEVELOPER_RELEASE`, aprovada com o build 1 (15/11/2026, app antigo), aguardando liberação manual. Não foi liberada. Detalhes em `docs/lojas/estado-das-lojas.md`, seção 7.13, e decisão do dono na PH-18.
+- **Próximo passo:** o dono decide a PH-18 (nova versão 1.0.1 com o build atual, recomendado). O AAB 17 segue esperando o arrastar no Play (a ferramenta de upload do Chrome limita a 10 MB e o ambiente negou o desvio). Skill `publicar-apps` criada em `~/.claude/skills/`.
+
 ## Marcar o próximo encontro do zero e área tocável visível, em 23/11/2026 (D84)
 
 - Pedido do dono olhando o iPhone: "ao marcar próximo encontro eu quero fazer do zero", roteiro de 7 etapas opcional, "Banda e equipe" sem sentido, a área clicável do cartão do Início invisível e "Editar" como primeiro clique, virando seção dentro do encontro. Decisão D84 em [DECISOES.md](DECISOES.md). Sem migração, sem API, sem dependência nova. **Build novo gerado em 23/11/2026: iOS 14 enviado ao TestFlight (VALID) e Android 17 pronto em `tmp/uni-jovem-1.0.0-17.aab` (o dono arrasta no Play); ver `docs/lojas/estado-das-lojas.md`, seção 7.12.**
