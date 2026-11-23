@@ -13,6 +13,7 @@ import { useTema } from './tema'
 import {
   deDate,
   formatarMomento,
+  formatarMomentoCurto,
   paraDate,
   type PropsDoCampoDeMomento,
   type TipoDeMomento,
@@ -115,9 +116,11 @@ export function CampoDeMomento({
             lineHeight: TIPO.campo.altura,
             color: corDoValor,
           }}
-          numberOfLines={1}
+          // Data curta ("28/11/2026"): a por extenso cortava numa meia coluna (emulador, 23/11/2026).
+          // Com fonte muito grande ainda pode quebrar em duas linhas; a caixa só tem altura mínima.
+          numberOfLines={tipo === 'data' ? 2 : 1}
         >
-          {formatado ?? 'Escolher'}
+          {formatarMomentoCurto(tipo, valor) ?? 'Escolher'}
         </Texto>
         {desabilitado ? null : (
           <AnelDoCampo ativo={aberto} comErro={!!erro} testID={`momento-${tipo}`} />

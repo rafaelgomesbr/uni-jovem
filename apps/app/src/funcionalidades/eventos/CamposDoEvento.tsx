@@ -1,7 +1,7 @@
 import { CATEGORIAS_SUGERIDAS } from '@uj/dominio'
 import { ESPACO, RITMO } from '@uj/tokens'
 import { useRef, useState, type ComponentRef, type ReactNode, type RefObject } from 'react'
-import { type TextInput, View } from 'react-native'
+import { type TextInput, useWindowDimensions, View } from 'react-native'
 
 import type { Local, TipoDeLocal } from '@/servicos/contratoDosEventos'
 import { Aparecer } from '@/ui/Aparecer'
@@ -139,6 +139,16 @@ export function CamposDoEvento({
   titulo: tituloDaTela,
 }: Props) {
   const [opcoesAbertas, setOpcoesAbertas] = useState(false)
+  // "Data | Hora" lado a lado só enquanto cabem: com fonte a 150% ou mais do sistema, "28/11/2026"
+  // quebrava no meio do número e "16:00" virava "16:…" (emulador, 23/11/2026). Aí, um embaixo do outro.
+  const { fontScale } = useWindowDimensions()
+  const empilhar = fontScale >= 1.5
+  const parDeCampos = {
+    flexDirection: empilhar ? 'column' : 'row',
+    alignItems: empilhar ? 'stretch' : 'flex-start',
+    gap: ESPACO.e12,
+  } as const
+  const lado = empilhar ? undefined : ({ flex: 1 } as const)
   const sugestoes = CATEGORIAS_SUGERIDAS.slice(0, 8)
   const comVagas = !!r.capacidade.trim()
   const erroDeQuando = !!(erros.data || erros.hora)
@@ -158,8 +168,8 @@ export function CamposDoEvento({
     />
   )
   const blocoDaData = visiveis.data ? (
-    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: ESPACO.e12 }}>
-      <View style={{ flex: 1 }}>
+    <View style={parDeCampos}>
+      <View style={lado}>
         <CampoDeData
           rotulo="Data"
           valor={r.data || null}
@@ -168,7 +178,7 @@ export function CamposDoEvento({
           reservarApoio={erroDeQuando}
         />
       </View>
-      <View style={{ flex: 1 }}>
+      <View style={lado}>
         <CampoDeHora
           rotulo="Hora"
           valor={r.hora || null}
@@ -316,8 +326,8 @@ export function CamposDoEvento({
                 desabilitado={!comVagas}
                 aoMudar={(v) => mudar('listaDeEspera', v)}
               />
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: ESPACO.e12 }}>
-                <View style={{ flex: 1 }}>
+              <View style={parDeCampos}>
+                <View style={lado}>
                   <CampoDeData
                     rotulo="Inscrições até"
                     opcional
@@ -328,7 +338,7 @@ export function CamposDoEvento({
                     {...(r.data ? { maximo: r.data } : {})}
                   />
                 </View>
-                <View style={{ flex: 1 }}>
+                <View style={lado}>
                   <CampoDeHora
                     rotulo="Hora do prazo"
                     opcional

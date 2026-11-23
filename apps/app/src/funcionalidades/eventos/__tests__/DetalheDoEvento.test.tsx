@@ -334,11 +334,14 @@ describe('Encontro: a organização', () => {
     }
     const CABECALHO = /^Dados do encontro: .+ · Local a definir\. Recolhido/
 
-    test('é o primeiro bloco do Resumo: fechado, com o resumo de uma linha e o "Editar" escrito', async () => {
+    test('é o primeiro bloco do Resumo: fechado, só o nome da seção e o "Editar" escrito', async () => {
       await montar('organizador', ROTAS_DA_EDICAO)
       const cabecalho = await screen.findByRole('button', { name: CABECALHO })
       expect(within(cabecalho).getByText('Editar')).toBeOnTheScreen()
-      expect(within(cabecalho).getByText(/· Local a definir$/)).toBeOnTheScreen()
+      expect(within(cabecalho).getByText('Dados do encontro')).toBeOnTheScreen()
+      // O resumo (dia, hora, local) não repete no cabeçalho: já está em "Quando e onde". O leitor
+      // de tela o ouve pelo rótulo do botão (CABECALHO).
+      expect(within(cabecalho).queryByText(/· Local a definir$/)).toBeNull()
       // Fechado: nenhum campo do formulário à vista.
       expect(screen.queryByLabelText('Título')).toBeNull()
     })
@@ -466,21 +469,23 @@ describe('Encontro: a organização', () => {
       expect(screen.queryByText('Conflito de edição')).toBeNull()
     })
 
-    test('com algo por salvar, "Publicar e avisar" fica desabilitado e diz por quê; limpo, funciona', async () => {
+    test('com "Dados do encontro" aberto não há "Publicar e avisar" (nem com algo por salvar); fechado, ele volta', async () => {
+      const usuario = userEvent.setup()
       await montar('organizador', ROTAS_DA_EDICAO, eventoDeTeste({ status: 'rascunho' }), {
         editarInicial: true,
       })
       const titulo = await screen.findByLabelText('Título')
-      expect(screen.getByRole('button', { name: 'Publicar e avisar 1 pessoa' })).toBeEnabled()
-      expect(screen.queryByText('Salve ou descarte as alterações primeiro.')).toBeNull()
+      const PUBLICAR = { name: 'Publicar e avisar 1 pessoa' }
+      // A barra cobria o formulário e deixava publicar a versão antiga com uma edição por salvar.
+      expect(screen.queryByRole('button', PUBLICAR)).toBeNull()
 
       await fireEvent.changeText(titulo, 'Sábado especial')
-      expect(screen.getByRole('button', { name: 'Publicar e avisar 1 pessoa' })).toBeDisabled()
-      expect(screen.getByText('Salve ou descarte as alterações primeiro.')).toBeOnTheScreen()
+      expect(screen.queryByRole('button', PUBLICAR)).toBeNull()
 
-      // Voltando ao texto original, nada mais está por salvar: publicar volta a valer.
+      // Voltando ao texto original, nada está por salvar: cancelar fecha a seção e a barra volta.
       await fireEvent.changeText(titulo, 'Sábado com a juventude')
-      expect(screen.getByRole('button', { name: 'Publicar e avisar 1 pessoa' })).toBeEnabled()
+      await usuario.press(screen.getByRole('button', { name: 'Cancelar' }))
+      expect(await screen.findByRole('button', PUBLICAR)).toBeEnabled()
     })
 
     test('"Editar" em "Outras coisas" só existe com o encontro vivo (não em cancelado nem encerrado)', async () => {

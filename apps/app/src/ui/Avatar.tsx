@@ -20,6 +20,7 @@ import { registrarAoEncerrarSessao } from '@/estado/aoEncerrarSessao'
 
 import { usePreferenciasDeAcessibilidade } from './acessibilidade'
 import { FAMILIA } from './fontes'
+import { ajusteDoSimbolo } from './Icone'
 import { Texto } from './Texto'
 import { useTema } from './tema'
 
@@ -328,7 +329,7 @@ export function Avatar({
         <SymbolView
           name={SIMBOLO_DO_AVATAR[aparencia.icone]}
           tintColor={frente}
-          size={Math.round(lado * 0.52)}
+          {...ajusteDoSimbolo(Math.round(lado * 0.52))}
           accessible={false}
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"

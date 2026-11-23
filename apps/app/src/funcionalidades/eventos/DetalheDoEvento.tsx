@@ -450,7 +450,10 @@ function Conteudo({
       abaixoDoTitulo={<MetaDoEvento evento={e} publicando={acoes.textoPublicando} />}
       momento={momentoDaFase(faseDoEncontro(e))}
       {...(doTopo ? { acoes: doTopo } : {})}
-      {...(acoes.organiza ? { barra: <BarraDoEvento acoes={acoes} /> } : {})}
+      // Com "Dados do encontro" aberto a barra sai: era ela, mais o motivo do botão travado, que
+      // cobria metade do formulário (emulador a 200% de fonte, 23/11/2026) e ainda deixava
+      // "Publicar" à mão com uma edição por salvar. Salvou ou cancelou, a barra volta.
+      {...(acoes.organiza && !editando ? { barra: <BarraDoEvento acoes={acoes} /> } : {})}
     >
       {corpo}
     </Moldura>

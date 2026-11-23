@@ -30,7 +30,7 @@ import { BarraDeAcao } from '@/ui/BarraDeAcao'
 import { Botao } from '@/ui/Botao'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { ALFA_DESABILITADO, comOpacidade } from '@/ui/cor'
-import { Icone } from '@/ui/Icone'
+import { ajusteDoSimbolo, Icone } from '@/ui/Icone'
 import { ALVO } from '@/ui/medidas'
 import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
@@ -154,7 +154,7 @@ function EscolhaDoAvatar({ conta }: { conta: Conta }) {
               <SymbolView
                 name={SIMBOLO_DO_AVATAR[nome]}
                 tintColor={CORES_DO_AVATAR[cor].frente}
-                size={ESPACO.e24}
+                {...ajusteDoSimbolo(ESPACO.e24)}
                 accessible={false}
               />
             </Opcao>

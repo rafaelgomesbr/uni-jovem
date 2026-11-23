@@ -51,3 +51,15 @@ export function formatarMomento(tipo: TipoDeMomento, valor: string | null): stri
   }).format(paraDate('data', valor))
   return texto.charAt(0).toLocaleUpperCase('pt-BR') + texto.slice(1)
 }
+
+/**
+ * O que o campo mostra na tela: "28/11/2026" (ou "16:00"). A forma por extenso cabe na linha
+ * inteira mas não numa meia coluna ("Data | Hora"), onde cortava ("Sáb., 28 de…", emulador Android
+ * em 23/11/2026, e pior com fonte grande). O leitor de tela continua ouvindo a forma por extenso.
+ */
+export function formatarMomentoCurto(tipo: TipoDeMomento, valor: string | null): string | null {
+  if (!valor) return null
+  if (tipo === 'hora') return formatarMomento(tipo, valor)
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(valor)
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : null
+}

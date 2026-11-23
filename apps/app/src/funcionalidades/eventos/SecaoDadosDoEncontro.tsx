@@ -32,8 +32,8 @@ export function resumoDosDadosDoEncontro(evento: DetalheDoEvento): string {
 
 /**
  * "Dados do encontro" (primeiro bloco do Resumo da organização): o formulário de edição dentro do
- * próprio encontro, dobrado. O cabeçalho diz o que o encontro tem hoje (dia, hora e local) e traz
- * "Editar", escrito e com lápis, para ninguém ter de adivinhar que ali se toca. Antes havia dois
+ * próprio encontro, dobrado. O cabeçalho traz o nome da seção e "Editar", escrito e com lápis,
+ * para ninguém ter de adivinhar que ali se toca (o leitor de tela ouve também dia, hora e local). Antes havia dois
  * caminhos quase iguais (o cartão e um botão "Editar" para outra tela); agora é um só.
  */
 export function SecaoDadosDoEncontro({
@@ -74,8 +74,10 @@ export function SecaoDadosDoEncontro({
           cabecalho={(aberto) => (
             <CabecalhoDeAcordeao
               icone="calendario"
-              // Aberto, o resumo de uma linha sairia repetido logo abaixo, nos próprios campos.
-              titulo={aberto ? 'Dados do encontro' : `Dados do encontro: ${resumo}`}
+              // Só o nome da seção: dia, hora e local já aparecem no cartão "Quando e onde" logo
+              // abaixo (visto em tela real em 23/11/2026: o resumo repetia e quebrava em 3 linhas).
+              // O leitor de tela continua ouvindo o resumo, pelo rótulo do acordeão.
+              titulo="Dados do encontro"
               {...(aberto ? {} : { extra: <ChamadaEditar /> })}
             />
           )}

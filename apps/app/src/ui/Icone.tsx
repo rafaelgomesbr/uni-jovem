@@ -1,5 +1,5 @@
 import { SymbolView } from 'expo-symbols'
-import type { ColorValue } from 'react-native'
+import { PixelRatio, Platform, type ColorValue } from 'react-native'
 import { IconeDeTraco, TRACOS, type NomeDoTraco } from './IconeDeTraco'
 
 /**
@@ -134,6 +134,24 @@ interface PropsDoIcone {
   peso?: PesoDoIcone
 }
 
+/**
+ * No Android o `expo-symbols` desenha o ícone como TEXTO de fonte, e o texto cresce com o tamanho
+ * de fonte do sistema: a 200% o glifo ficava do dobro da própria caixa e saía cortado (visto no
+ * emulador em 23/11/2026: calendário e lápis viravam rabiscos). Quem usa letra grande é justamente
+ * o público idoso. Devolve o `size` a pedir ao símbolo (já descontada a escala da fonte) e o
+ * `style` que mantém a caixa no tamanho pedido. No iOS e na web o símbolo não escala: sem ajuste.
+ */
+export function ajusteDoSimbolo(tamanho: number): {
+  size: number
+  style: { width: number; height: number }
+} {
+  const escala = Platform.OS === 'android' ? PixelRatio.getFontScale() : 1
+  return {
+    size: escala > 1 ? tamanho / escala : tamanho,
+    style: { width: tamanho, height: tamanho },
+  }
+}
+
 /** Tamanhos da 2.10: 22 na barra de abas; 18 em botões, avisos, toast e ladrilho; 16 no status, erro e chip; 14 no chevron. */
 export function Icone({ nome, cor, tamanho = 22, peso = 'medio' }: PropsDoIcone) {
   // Os ícones que aparecem no mockup aprovado usam o desenho exato dele.
@@ -146,7 +164,7 @@ export function Icone({ nome, cor, tamanho = 22, peso = 'medio' }: PropsDoIcone)
     <SymbolView
       name={ICONES[nome]}
       tintColor={cor}
-      size={tamanho}
+      {...ajusteDoSimbolo(tamanho)}
       weight={PESO_DO_SIMBOLO[peso]}
       accessible={false}
       accessibilityElementsHidden
