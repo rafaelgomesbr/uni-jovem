@@ -24,16 +24,16 @@ export interface ModeloEmbutido {
 }
 
 /**
- * A programação habitual do encontro (cerca de 1 hora). É ponto de partida:
- * etapas e ordem são editáveis em cada evento, e nenhuma é obrigatória. O modelo
- * não impõe o dia da semana (D78): a chave `sabado_padrao` fica só por compatibilidade
- * com o que já foi gravado e com as rotas.
+ * Um dos modelos de roteiro que o app oferece (D81). NENHUM é aplicado sozinho: o encontro novo
+ * nasce sem etapas e a pessoa escolhe "Começar do zero" ou "Usar um modelo". Etapas e ordem são
+ * editáveis em cada evento, e nenhuma é obrigatória. Nenhum modelo impõe o dia da semana (D78):
+ * a chave `sabado_padrao` fica só por compatibilidade com o que já foi gravado e com as rotas.
  */
 export const MODELO_SABADO_PADRAO: ModeloEmbutido = {
   chave: 'sabado_padrao',
-  nome: 'Encontro padrão',
+  nome: 'Encontro completo',
   categoria: 'Programação semanal',
-  descricao: 'Programação habitual do encontro, com cerca de uma hora.',
+  descricao: 'Sete etapas, com cerca de uma hora: da recepção ao encerramento.',
   etapas: [
     { titulo: 'Boas-vindas', duracaoMin: 5 },
     { titulo: 'Louvor', duracaoMin: 15 },
@@ -54,7 +54,44 @@ export const MODELO_SABADO_PADRAO: ModeloEmbutido = {
   ],
 }
 
-export const MODELOS_EMBUTIDOS: readonly ModeloEmbutido[] = [MODELO_SABADO_PADRAO]
+/** Um encontro curto: palavra e oração, sem o resto (cerca de meia hora). */
+export const MODELO_REUNIAO_CURTA: ModeloEmbutido = {
+  chave: 'reuniao_curta',
+  nome: 'Reunião curta',
+  categoria: 'Programação semanal',
+  descricao: 'Boas-vindas, uma palavra e oração, em cerca de meia hora.',
+  etapas: [
+    { titulo: 'Boas-vindas', duracaoMin: 5 },
+    { titulo: 'Palavra', duracaoMin: 15 },
+    { titulo: 'Oração', duracaoMin: 10 },
+  ],
+  checklist: [],
+}
+
+/** Um encontro só de música, com um momento de oração no fim. */
+export const MODELO_SO_LOUVOR: ModeloEmbutido = {
+  chave: 'so_louvor',
+  nome: 'Só louvor',
+  categoria: 'Luau musical',
+  descricao: 'Um tempo de louvor, com recepção e uma oração no fim.',
+  etapas: [
+    { titulo: 'Boas-vindas', duracaoMin: 5 },
+    { titulo: 'Louvor', duracaoMin: 30 },
+    { titulo: 'Oração', duracaoMin: 5 },
+  ],
+  checklist: [],
+}
+
+export const MODELOS_EMBUTIDOS: readonly ModeloEmbutido[] = [
+  MODELO_SABADO_PADRAO,
+  MODELO_REUNIAO_CURTA,
+  MODELO_SO_LOUVOR,
+]
+
+/** A chave é de um modelo do app (e não de um modelo salvo pela comunidade)? */
+export function ehModeloEmbutido(chave: string): boolean {
+  return MODELOS_EMBUTIDOS.some((m) => m.chave === chave)
+}
 
 /** Sugestões de categoria (texto livre também é aceito). */
 export const CATEGORIAS_SUGERIDAS = [

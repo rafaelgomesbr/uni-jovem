@@ -23,9 +23,14 @@ export interface PropsDoCartaoDoMomento {
   aoVivo?: boolean
   /** Ao lado da etiqueta: um chip ("Última versão: hoje, 14:32"). */
   chip?: ReactNode
-  /** Título em Bricolage 26/30 ("Sábado Jovem"). */
+  /** Título em Bricolage 24/28 ("Sábado Jovem"). */
   titulo?: string
-  /** Data e local, em `meta` suave. */
+  /**
+   * O título é uma frase de estado ("Nenhum encontro marcado."), não o nome de um encontro: aparece
+   * como título de seção (20 em 600) e não como o título grande do cartão (D83).
+   */
+  tituloComoFrase?: boolean
+  /** Data e local, em `apoio` (15, `textoSuave`). */
   meta?: string
   children?: ReactNode
   /** Botões (use `ParDeBotoes`: secundário à esquerda, primário à direita). 14 abaixo. */
@@ -57,6 +62,7 @@ export function CartaoDoMomento({
   aoVivo = false,
   chip,
   titulo,
+  tituloComoFrase = false,
   meta,
   children,
   acoes,
@@ -89,9 +95,12 @@ export function CartaoDoMomento({
           {chip}
         </View>
       ) : null}
-      {titulo ? <Texto variante="tituloMomento">{titulo}</Texto> : null}
+      {titulo ? (
+        // Frase (estado vazio): título de seção de 20 em 600; senão o nome do encontro, 24 em 800.
+        <Texto variante={tituloComoFrase ? 'secao' : 'tituloMomento'}>{titulo}</Texto>
+      ) : null}
       {meta ? (
-        <Texto variante="meta" cor="textoSuave" style={{ marginTop: ESPACO.e2 }}>
+        <Texto variante="apoio" style={{ marginTop: ESPACO.e4 }}>
           {meta}
         </Texto>
       ) : null}

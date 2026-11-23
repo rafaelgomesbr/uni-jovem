@@ -1,7 +1,7 @@
 /**
  * D69: o Encontro. Para o membro, UMA página ("Sua parte" no alto, quando e onde, roteiro enxuto,
  * quem serve, inscrição). Para a organização, três abas (Resumo, Roteiro, Convocados), o menu
- * "Mais" em grupos e o botão principal do momento na barra (publicar com Desfazer, lembrar, check-in,
+ * "Mais" em grupos e o botão principal do momento na barra (publicar na hora, lembrar, check-in,
  * ao vivo, marcar o próximo encontro). D78: o Roteiro é um acordeão por etapa, com edição ali mesmo.
  */
 import { act, screen, userEvent, waitFor, within } from '@testing-library/react-native'
@@ -259,11 +259,47 @@ describe('Encontro: a organização', () => {
     )
   })
 
-  test('roteiro vazio diz "O roteiro ainda não foi montado." e a organização pode adicionar', async () => {
+  test('roteiro vazio (o encontro novo nasce sem etapas): duas portas, "Começar do zero" e "Usar um modelo" (D81)', async () => {
+    const usuario = userEvent.setup()
     await montar('organizador', {}, eventoDeTeste({ etapas: [], atribuicoes: [] }))
-    await userEvent.setup().press(await screen.findByRole('radio', { name: 'Roteiro' }))
+    await usuario.press(await screen.findByRole('radio', { name: 'Roteiro' }))
+    expect(await screen.findByText('Monte o roteiro do dia')).toBeOnTheScreen()
+    // Nenhum formato é presumido: nada de etapas prontas na tela.
+    expect(screen.queryByText('Boas-vindas')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Usar um modelo' })).toBeOnTheScreen()
+    await usuario.press(screen.getByRole('button', { name: 'Começar do zero' }))
+    expect(await screen.findByText('Adicionar etapa')).toBeOnTheScreen()
+  })
+
+  test('"Usar um modelo" lista os modelos e monta o roteiro só depois de a pessoa escolher', async () => {
+    const usuario = userEvent.setup()
+    const { servidor } = await montar(
+      'organizador',
+      { [`POST ${CAMINHO}/etapas/modelo`]: () => ({ status: 200, corpo: { etapas: 3 } }) },
+      eventoDeTeste({ etapas: [], atribuicoes: [] }),
+    )
+    await usuario.press(await screen.findByRole('radio', { name: 'Roteiro' }))
+    await usuario.press(await screen.findByRole('button', { name: 'Usar um modelo' }))
+    expect(await screen.findByRole('button', { name: /^Encontro completo/ })).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: /^Reunião curta/ })).toBeOnTheScreen()
+    expect(pedidosPara(servidor, 'POST', `${CAMINHO}/etapas/modelo`)).toHaveLength(0)
+    await usuario.press(screen.getByRole('button', { name: /^Só louvor/ }))
+    await waitFor(() =>
+      expect(pedidosPara(servidor, 'POST', `${CAMINHO}/etapas/modelo`)[0]?.corpo).toEqual({
+        modelo: 'so_louvor',
+      }),
+    )
+    await waitFor(() =>
+      expect(mostrarToast).toHaveBeenCalledWith({
+        texto: 'Roteiro montado: Só louvor. Ajuste as etapas como quiser.',
+      }),
+    )
+  })
+
+  test('roteiro vazio, para o membro: a frase diz o que houve, sem ação', async () => {
+    await montar('membro', {}, eventoDeTeste({ etapas: [], atribuicoes: [] }))
     expect(await screen.findByText('O roteiro ainda não foi montado.')).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Adicionar etapa' })).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: 'Usar um modelo' })).toBeNull()
   })
 
   test('publicado e longe, sem ninguém para lembrar: o primário é Editar e as "Outras coisas" estão à vista, sem "Mais"', async () => {
@@ -306,67 +342,72 @@ describe('Encontro: a organização', () => {
   describe('publicar', () => {
     const RASCUNHO = () => eventoDeTeste({ status: 'rascunho' })
 
-    test('o primário diz quem será avisado; publicar mostra o Desfazer, e o botão e o cabeçalho dizem a verdade durante a contagem', async () => {
+    test('o primário diz quem será avisado; publicar vai na hora, sem Desfazer nem contagem (D81)', async () => {
       const usuario = userEvent.setup()
+      // O servidor guarda o que foi feito: depois de publicar, o encontro volta publicado.
+      let publicado = false
       const { servidor } = await montar(
         'organizador',
-        { [`POST ${CAMINHO}/status`]: () => ({ status: 200, corpo: { ok: true } }) },
+        {
+          [`GET ${CAMINHO}`]: () => ({
+            status: 200,
+            corpo: eventoDeTeste({ status: publicado ? 'publicado' : 'rascunho' }),
+          }),
+          [`POST ${CAMINHO}/status`]: () => {
+            publicado = true
+            return { status: 200, corpo: { ok: true } }
+          },
+        },
         RASCUNHO(),
       )
       await usuario.press(await screen.findByRole('button', { name: 'Publicar e avisar 1 pessoa' }))
-      expect(await screen.findByText('Publicando e avisando 1 pessoa.')).toBeOnTheScreen()
-      // Estado único e honesto: nada de "Publicado" enquanto não saiu. O botão é o Desfazer e conta o
-      // mesmo tempo da faixa; o cabeçalho deixa de dizer "Rascunho" e diz "Publicando".
-      expect(screen.queryByRole('button', { name: 'Publicado' })).toBeNull()
-      expect(screen.getByRole('button', { name: 'Publicando em 10 s · Desfazer' })).toBeEnabled()
-      expect(screen.getByText('Publicando em 10 s')).toBeOnTheScreen()
-      expect(screen.queryByText('Rascunho')).toBeNull()
-      expect(pedidosPara(servidor, 'POST', `${CAMINHO}/status`)).toHaveLength(0)
-      // Sem "tem certeza?": nenhum diálogo.
+      // Sem "tem certeza?": nenhum diálogo; sem faixa nem botão de Desfazer.
       expect(confirmar).not.toHaveBeenCalled()
-      await act(async () => confirmarAgora())
+      expect(screen.queryByText('Publicando e avisando 1 pessoa.')).toBeNull()
+      expect(screen.queryByRole('button', { name: /Desfazer/ })).toBeNull()
       await waitFor(() =>
         expect(pedidosPara(servidor, 'POST', `${CAMINHO}/status`)[0]?.corpo).toEqual({
           status: 'publicado',
         }),
       )
-      // O fim diz o que houve, em frase inteira, e fica na tela (não só num aviso que some).
+      // O fim diz o que houve e aponta a saída para quem errou: "Cancelar ou adiar".
       await waitFor(() =>
         expect(mostrarToast).toHaveBeenCalledWith({ texto: 'Publicado. 1 pessoa foi avisada.' }),
       )
-      expect(await screen.findByText('Publicado. 1 pessoa foi avisada.')).toBeOnTheScreen()
-    })
-
-    test('tocar no botão durante a contagem é Desfazer: o encontro segue rascunho', async () => {
-      const usuario = userEvent.setup()
-      const { servidor } = await montar('organizador', {}, RASCUNHO())
-      await usuario.press(await screen.findByRole('button', { name: 'Publicar e avisar 1 pessoa' }))
-      await usuario.press(
-        await screen.findByRole('button', { name: 'Publicando em 10 s · Desfazer' }),
-      )
       expect(
-        await screen.findByRole('button', { name: 'Publicar e avisar 1 pessoa' }),
-      ).toBeEnabled()
-      expect(screen.getByText('Rascunho')).toBeOnTheScreen()
-      expect(pedidosPara(servidor, 'POST', `${CAMINHO}/status`)).toHaveLength(0)
+        await screen.findByText(
+          'Publicado. 1 pessoa foi avisada. Mudou de ideia? Use "Cancelar ou adiar".',
+        ),
+      ).toBeOnTheScreen()
     })
 
-    test('o app vai para segundo plano durante a contagem: a publicação sai na hora', async () => {
+    test('enquanto a resposta viaja, o botão e o cabeçalho dizem "Publicando..."', async () => {
       const usuario = userEvent.setup()
-      const { servidor } = await montar(
+      let liberar: () => void = () => undefined
+      const espera = new Promise<void>((resolver) => {
+        liberar = resolver
+      })
+      await montar(
         'organizador',
-        { [`POST ${CAMINHO}/status`]: () => ({ status: 200, corpo: { ok: true } }) },
+        {
+          [`POST ${CAMINHO}/status`]: async () => {
+            await espera
+            return { status: 200, corpo: { ok: true } }
+          },
+        },
         RASCUNHO(),
       )
       await usuario.press(await screen.findByRole('button', { name: 'Publicar e avisar 1 pessoa' }))
-      expect(pedidosPara(servidor, 'POST', `${CAMINHO}/status`)).toHaveLength(0)
-      await act(async () => aoMudarEstadoDoApp('background'))
-      await waitFor(() =>
-        expect(pedidosPara(servidor, 'POST', `${CAMINHO}/status`)).toHaveLength(1),
-      )
+      expect(await screen.findByRole('button', { name: 'Publicando...' })).toBeOnTheScreen()
+      // O botão e o cabeçalho dizem a mesma coisa.
+      expect(screen.getAllByText('Publicando...').length).toBeGreaterThanOrEqual(2)
+      expect(screen.queryByText('Rascunho')).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Publicado' })).toBeNull()
+      await act(async () => liberar())
+      await waitFor(() => expect(mostrarToast).toHaveBeenCalled())
     })
 
-    test('o servidor recusa: nada foi enviado, a faixa oferece "Tentar de novo" e o botão volta', async () => {
+    test('o servidor recusa: nada foi enviado, a tela diz que não deu e o botão volta', async () => {
       const usuario = userEvent.setup()
       await montar(
         'organizador',
@@ -379,32 +420,11 @@ describe('Encontro: a organização', () => {
         RASCUNHO(),
       )
       await usuario.press(await screen.findByRole('button', { name: 'Publicar e avisar 1 pessoa' }))
-      await act(async () => confirmarAgora())
-      expect(
-        await screen.findByText(
-          'Não deu para publicar. Nada foi enviado nem ninguém foi avisado. Toque em Tentar de novo.',
-        ),
-      ).toBeOnTheScreen()
-      // (a faixa de falha é a do toast: outras partes da página também têm o seu "Tentar de novo")
-      expect(
-        within(screen.getByTestId('toast-com-desfazer')).getByRole('button', {
-          name: 'Tentar de novo',
-        }),
-      ).toBeOnTheScreen()
+      expect(await screen.findByText('Não deu para publicar')).toBeOnTheScreen()
+      expect(mostrarToast).not.toHaveBeenCalled()
       expect(
         await screen.findByRole('button', { name: 'Publicar e avisar 1 pessoa' }),
       ).toBeEnabled()
-    })
-
-    test('Desfazer: o encontro segue rascunho e nada é enviado', async () => {
-      const usuario = userEvent.setup()
-      const { servidor } = await montar('organizador', {}, RASCUNHO())
-      await usuario.press(await screen.findByRole('button', { name: 'Publicar e avisar 1 pessoa' }))
-      await usuario.press(await screen.findByRole('button', { name: 'Desfazer' }))
-      expect(
-        await screen.findByRole('button', { name: 'Publicar e avisar 1 pessoa' }),
-      ).toBeEnabled()
-      expect(pedidosPara(servidor, 'POST', `${CAMINHO}/status`)).toHaveLength(0)
     })
 
     test('sem ninguém convocado o botão é só "Publicar"', async () => {
@@ -412,7 +432,7 @@ describe('Encontro: a organização', () => {
       expect(await screen.findByRole('button', { name: 'Publicar' })).toBeOnTheScreen()
     })
 
-    test('data no passado: é a única pergunta que resta, antes do Desfazer', async () => {
+    test('data no passado: é a única pergunta que resta, antes de publicar', async () => {
       const ontem = new Date(Date.now() - 86_400_000).toISOString()
       const { servidor } = await montar(
         'organizador',
@@ -430,7 +450,6 @@ describe('Encontro: a organização', () => {
           }),
         ),
       )
-      await act(async () => confirmarAgora())
       await waitFor(() =>
         expect(pedidosPara(servidor, 'POST', `${CAMINHO}/status`)[0]?.corpo).toEqual({
           status: 'publicado',
@@ -467,7 +486,7 @@ describe('Encontro: a organização', () => {
       expect(
         await screen.findByText('Lembrando 1 pessoa que ainda não respondeu.'),
       ).toBeOnTheScreen()
-      expect(screen.getByRole('button', { name: 'Enviando em 10 s' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Enviando em 5 s' })).toBeDisabled()
       expect(pedidosPara(servidor, 'POST', `${CAMINHO}/lembrar-pendentes`)).toHaveLength(0)
       await act(async () => confirmarAgora())
       await waitFor(() =>

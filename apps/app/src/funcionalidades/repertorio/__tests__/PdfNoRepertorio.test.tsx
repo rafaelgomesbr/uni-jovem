@@ -107,8 +107,8 @@ describe('leitura da música só com PDF', () => {
     expect(await screen.findByText('PDF da música')).toBeOnTheScreen()
     expect(screen.getByText(NOME_DO_PDF)).toBeOnTheScreen()
     expect(screen.getByText('Tom A (original G)')).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Descer meio tom' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Subir meio tom' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Descer tom' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Subir tom' })).toBeDisabled()
     // O motivo não fica só no leitor de tela: está escrito na tela.
     expect(
       screen.getByText(/O PDF não muda de tom: ele abre do jeito que foi anexado\./),
@@ -193,7 +193,7 @@ describe('leitura da música com cifra em texto E PDF', () => {
     ).toBeOnTheScreen()
     expect(screen.getByLabelText(/Acordes: A, E/)).toBeOnTheScreen()
     // O tom vale para a cifra em texto: os botões continuam habilitados.
-    expect(screen.getByRole('button', { name: 'Subir meio tom' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Subir tom' })).toBeEnabled()
   })
 })
 
@@ -213,9 +213,9 @@ describe('Modo palco com PDF', () => {
     expect(
       screen.getByText(/O PDF não muda de tom: ele abre do jeito que foi anexado\./),
     ).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Descer meio tom' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Subir meio tom' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Diminuir a letra' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Descer tom' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Subir tom' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Letra menor' })).toBeDisabled()
     expect(screen.queryByText('Esta música ainda não tem cifra')).toBeNull()
 
     const { useKeepAwake } = jest.requireMock('expo-keep-awake') as { useKeepAwake: jest.Mock }
@@ -232,7 +232,7 @@ describe('Modo palco com PDF', () => {
       await screen.findByRole('button', { name: `Abrir o PDF de ${TITULO}` }),
     ).toBeOnTheScreen()
     expect(screen.getByLabelText(/Acordes: A, E/)).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Subir meio tom' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Subir tom' })).toBeEnabled()
     expect(screen.queryByText(/O PDF não muda de tom: ele abre/)).toBeNull()
   })
 })

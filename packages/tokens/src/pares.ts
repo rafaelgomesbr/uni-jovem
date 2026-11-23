@@ -62,6 +62,21 @@ function camadasDoTema(tema: NomeDoTema): readonly DefinicaoDePar[] {
       tipo: 'texto',
     },
     { nome: 'destaque sobre superficie', frente: 'destaque', sobre: ['superficie'], tipo: 'texto' },
+    // Acorde da cifra (D82), normal e com "Aumentar contraste".
+    { nome: 'acorde sobre fundo', frente: 'acorde', sobre: ['fundo'], tipo: 'texto' },
+    { nome: 'acorde sobre superficie', frente: 'acorde', sobre: ['superficie'], tipo: 'texto' },
+    {
+      nome: 'acordeContraste sobre fundo',
+      frente: 'acordeContraste',
+      sobre: ['fundo'],
+      tipo: 'texto',
+    },
+    {
+      nome: 'acordeContraste sobre superficie',
+      frente: 'acordeContraste',
+      sobre: ['superficie'],
+      tipo: 'texto',
+    },
     { nome: 'sucesso sobre superficie', frente: 'sucesso', sobre: ['superficie'], tipo: 'texto' },
     { nome: 'alerta sobre superficie', frente: 'alerta', sobre: ['superficie'], tipo: 'texto' },
     { nome: 'erro sobre superficie', frente: 'erro', sobre: ['superficie'], tipo: 'texto' },
@@ -771,7 +786,14 @@ function paresDaFundacao(tema: NomeDoTema): DefinicaoDePar[] {
     i('progresso: primaria contra o trilho opaco', 'primaria', ['tonalOpaco']),
     // Modo palco: escuro nos dois temas.
     t('texto branco sobre o palco', '#FFFFFF', ['palco']),
-    t('acorde sobre o palco', '#FFB199', ['palco']),
+    // Acorde da cifra (D82): o painel de leitura e o palco são escuros nos dois temas.
+    t('acorde sobre o palco', TEMAS.escuro.base.acorde, ['palco']),
+    t('acordeContraste sobre o palco', TEMAS.escuro.base.acordeContraste, ['palco']),
+    t('acorde sobre o painel de leitura', TEMAS.escuro.base.acorde, [TEMAS.escuro.base.fundo]),
+    t('acordeContraste sobre o painel de leitura', TEMAS.escuro.base.acordeContraste, [
+      TEMAS.escuro.base.fundo,
+    ]),
+    t('letra sobre o painel de leitura', TEMAS.escuro.base.texto, [TEMAS.escuro.base.fundo]),
   ]
 }
 

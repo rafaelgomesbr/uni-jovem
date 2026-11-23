@@ -2,6 +2,7 @@ import { simbolosDeAcidente, type LinhaDaCifra, type Trecho } from '@uj/dominio'
 import { ESPACO, TIPO } from '@uj/tokens'
 import { View } from 'react-native'
 
+import { usePreferenciasDeAcessibilidade } from '@/ui/acessibilidade'
 import { Texto } from '@/ui/Texto'
 
 export { TAMANHO_PADRAO_DA_LETRA, TAMANHOS_DA_LETRA } from './useAjustesDaCifra'
@@ -42,11 +43,13 @@ export function palavrasDaLinha(trechos: readonly Trecho[]): Coluna[][] {
 }
 
 /**
- * A cifra desenhada: cada acorde fica ACIMA da sílaba em que muda, em negrito (nunca só em cor),
- * e as seções (Verso, Refrão) têm rótulo em texto. Cada linha é um bloco para o leitor de tela: a
+ * A cifra desenhada: cada acorde fica ACIMA da sílaba em que muda, em negrito e em outra cor que a
+ * da letra (âmbar, token `acorde`; nunca só a cor: a linha própria e o negrito também o separam), e
+ * as seções (Verso, Refrão) têm rótulo em texto. Cada linha é um bloco para o leitor de tela: a
  * letra e depois os acordes. Com a letra grande a linha quebra por palavra, levando o acorde junto
  * (`palavrasDaLinha`). A cor vem do tema em vigor: dentro do painel escuro de leitura e do
- * Modo palco é a paleta escura, com contraste AA (acorde `#FFB199` sobre `#07061A`: 11,43).
+ * Modo palco é a paleta escura, com contraste AA (acorde `#FFD166` sobre o painel `#12102A`:
+ * 12,85, e sobre o palco `#07061A`: 13,87; com Aumentar contraste, `#FFE08A`).
  *
  * `tetoDaEscala` limita quanto a fonte do sistema ainda aumenta a letra: no Modo palco a pessoa já
  * escolhe o tamanho, e dobrar por cima disso tira a linha da tela.
@@ -60,6 +63,8 @@ export function CifraNaTela({
   tamanho?: number
   tetoDaEscala?: number
 }) {
+  const { aumentarContraste } = usePreferenciasDeAcessibilidade()
+  const corDoAcorde = aumentarContraste ? 'acordeContraste' : 'acorde'
   const altura = Math.round(tamanho * 1.45)
   // Acorde e letra bem juntos (um par) e as linhas do par bem separadas entre si: o olho lê o
   // acorde SOBRE a sílaba, e não como uma linha solta entre duas de letra.
@@ -118,7 +123,7 @@ export function CifraNaTela({
                     {temAcorde ? (
                       <Texto
                         variante="leitura"
-                        cor="destaque"
+                        cor={corDoAcorde}
                         peso="forte"
                         {...teto}
                         style={{ fontSize: tamanhoDoAcorde, lineHeight: alturaDoAcorde }}

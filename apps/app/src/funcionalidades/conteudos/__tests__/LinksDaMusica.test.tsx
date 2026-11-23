@@ -145,7 +145,7 @@ describe('links na Biblioteca (D80)', () => {
         }),
       },
     })
-    expect(await screen.findByText('G D')).toBeOnTheScreen()
+    expect(await screen.findByLabelText('Só acordes. Acordes: G, D')).toBeOnTheScreen()
     expect(screen.queryByRole('button', { name: /^Abrir no / })).toBeNull()
   })
 
@@ -160,7 +160,7 @@ describe('links na Biblioteca (D80)', () => {
         }),
       },
     })
-    expect(await screen.findByText('G D')).toBeOnTheScreen()
+    expect(await screen.findByLabelText('Só acordes. Acordes: G, D')).toBeOnTheScreen()
     expect(screen.queryByRole('button', { name: /^Abrir no / })).toBeNull()
   })
 

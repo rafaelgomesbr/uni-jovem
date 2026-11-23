@@ -192,7 +192,9 @@ export function CartaoDoMembro({
                     rowGap: ESPACO.e8,
                   }}
                 >
-                  <Texto variante="rotulo">{`Sua parte: ${descricaoDasPartes(ativas)}`}</Texto>
+                  <Texto variante="corpo" peso="medio">
+                    {`Sua parte: ${descricaoDasPartes(ativas)}`}
+                  </Texto>
                   {pendente ? (
                     <Chip situacao="aguardando" texto="Aguardando sua resposta" />
                   ) : ativas.some((p) => p.estado === 'substituicao_pedida') ? (
@@ -210,7 +212,7 @@ export function CartaoDoMembro({
 
               {todasRecusadas ? (
                 <View style={{ gap: ESPACO.e4, alignItems: 'flex-start' }}>
-                  <Texto variante="rotulo">
+                  <Texto variante="corpo" peso="medio">
                     Você avisou que não pode. A liderança será avisada.
                   </Texto>
                   {podeDesfazer ? (
@@ -226,7 +228,9 @@ export function CartaoDoMembro({
               ) : null}
 
               {ativas.length === 0 && !todasRecusadas && inscricao === 'aberta' ? (
-                <Texto variante="rotulo">Inscrições abertas</Texto>
+                <Texto variante="corpo" peso="medio">
+                  Inscrições abertas
+                </Texto>
               ) : null}
               {inscricao === 'inscrito' ? (
                 <Chip tom="sucesso" icone="check" texto="Inscrito" />

@@ -128,11 +128,11 @@ describe('formas, tipografia e medidas', () => {
     expect(ALTURA.linhaAlta).toBe(72)
   })
 
-  it('tipografia: corpo 16/24, título do momento 26/30, contador 40/40 tabular', () => {
+  it('tipografia (D83): corpo 16/24, título do momento 24/28, contador 40/40 tabular', () => {
     expect(TIPO.corpo).toMatchObject({ tamanho: 16, altura: 24 })
-    expect(TIPO.tituloMomento).toMatchObject({ tamanho: 26, altura: 30, peso: '800' })
+    expect(TIPO.tituloMomento).toMatchObject({ tamanho: 24, altura: 28, peso: '800' })
     expect(TIPO.contador).toMatchObject({ tamanho: 40, altura: 40, tabular: true })
-    expect(TIPO.tituloCartao).toMatchObject({ tamanho: 24, altura: 28 })
+    expect(TIPO.tituloCartao).toMatchObject({ tamanho: 22, altura: 26 })
   })
 
   it('sombra do momento: queda funda mais brilho coral no escuro, índigo no claro', () => {
@@ -167,10 +167,10 @@ describe('movimento (seção 9 da especificação)', () => {
     expect(m.esqueleto).toMatchObject({ pulso: 1200, opacidadeMinima: 0.5, aparece: 160 })
   })
 
-  it('Desfazer: 10 s (WCAG 2.2.1) e o anúncio fala os segundos', () => {
-    expect(DESFAZER.segundos).toBe(10)
+  it('Desfazer: 5 s (WCAG 2.2.1) e o anúncio fala os segundos', () => {
+    expect(DESFAZER.segundos).toBe(5)
     expect(MOVIMENTO_DAS_TELAS.toast.contagem).toBe(DESFAZER.segundos * 1000)
-    expect(DESFAZER.anuncio(10)).toBe('Desfazer disponível por 10 segundos')
+    expect(DESFAZER.anuncio(5)).toBe('Desfazer disponível por 5 segundos')
   })
 
   it('deslizar: aceita além de 40%, revela além de 20%, nunca passa de 55% e 38%', () => {

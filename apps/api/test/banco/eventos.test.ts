@@ -79,6 +79,60 @@ describe('eventos', () => {
     expect(d.checklist.length).toBe(7)
   })
 
+  it('encontro novo sem modelo nasce sem etapas; "Usar um modelo" monta o roteiro uma vez só (D81)', async () => {
+    const criado = await req('POST', '/eventos', org, {
+      titulo: 'Encontro em branco',
+      categoria: 'Encontro',
+      inicio: SABADO,
+      duracaoMin: 60,
+    })
+    const id = criado.json().id as string
+    expect((await req('GET', `/eventos/${id}`, org)).json().etapas).toHaveLength(0)
+
+    // Membro não monta roteiro; modelo desconhecido é recusado; modelo de outra comunidade não existe aqui.
+    expect(
+      (await req('POST', `/eventos/${id}/etapas/modelo`, membro, { modelo: 'so_louvor' }))
+        .statusCode,
+    ).toBe(403)
+    expect(
+      (await req('POST', `/eventos/${id}/etapas/modelo`, org, { modelo: 'inventado' })).statusCode,
+    ).toBe(400)
+
+    const r = await req('POST', `/eventos/${id}/etapas/modelo`, org, { modelo: 'so_louvor' })
+    expect(r.statusCode).toBe(200)
+    expect(r.json()).toEqual({ etapas: 3 })
+    const d = (await req('GET', `/eventos/${id}`, org)).json()
+    expect(d.etapas.map((e: { titulo: string }) => e.titulo)).toEqual([
+      'Boas-vindas',
+      'Louvor',
+      'Oração',
+    ])
+    expect(d.duracaoMin).toBe(60)
+    // Dois toques não dobram as etapas.
+    expect(
+      (await req('POST', `/eventos/${id}/etapas/modelo`, org, { modelo: 'so_louvor' })).statusCode,
+    ).toBe(409)
+    expect((await req('GET', `/eventos/${id}`, org)).json().etapas).toHaveLength(3)
+  })
+
+  it('o modelo completo traz as 7 etapas e o checklist quando o encontro ainda não tem o dele', async () => {
+    const id = (
+      await req('POST', '/eventos', org, {
+        titulo: 'Outro em branco',
+        categoria: 'Encontro',
+        inicio: SABADO,
+        duracaoMin: 60,
+      })
+    ).json().id as string
+    expect(
+      (await req('POST', `/eventos/${id}/etapas/modelo`, org, { modelo: 'sabado_padrao' }))
+        .statusCode,
+    ).toBe(200)
+    const d = (await req('GET', `/eventos/${id}`, org)).json()
+    expect(d.etapas).toHaveLength(7)
+    expect(d.checklist.length).toBe(7)
+  })
+
   it('rascunho é invisível para membro; publicado aparece', async () => {
     const id = await eventoDoSabado()
     expect((await req('GET', `/eventos/${id}`, membro)).statusCode).toBe(404)

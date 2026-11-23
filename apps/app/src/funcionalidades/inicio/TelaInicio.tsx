@@ -420,7 +420,7 @@ function LinhaDeDespedida({ texto }: { texto: string }) {
       style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACO.e8, minHeight: ALVO }}
     >
       <Sol pose="poente" lado={32} halo={false} />
-      <Texto variante="rotulo" style={{ flex: 1 }}>
+      <Texto variante="corpo" peso="medio" style={{ flex: 1 }}>
         {texto}
       </Texto>
     </View>

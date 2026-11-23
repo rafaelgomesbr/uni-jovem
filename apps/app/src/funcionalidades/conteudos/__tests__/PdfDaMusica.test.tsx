@@ -372,7 +372,7 @@ describe('ler e abrir o PDF na Biblioteca', () => {
       await screen.findByRole('button', { name: 'Abrir o PDF de Grande é o Senhor' }),
     ).toBeOnTheScreen()
     expect(await screen.findByLabelText('Sobre a rocha. Acordes: G, D')).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Subir meio tom' })).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Subir tom' })).toBeOnTheScreen()
   })
 
   test('sem internet e sem cópia no aparelho: diz com todas as letras e oferece "Tentar de novo"', async () => {

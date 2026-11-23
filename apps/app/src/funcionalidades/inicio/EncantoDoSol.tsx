@@ -106,7 +106,7 @@ export function FaixaDoEncanto({ texto, aoTerminar }: { texto: string; aoTermina
       ]}
     >
       <Icone nome="sol" cor={cores.destaque} tamanho={20} />
-      <Texto variante="rotulo" style={{ flex: 1 }}>
+      <Texto variante="corpo" peso="medio" style={{ flex: 1 }}>
         {texto}
       </Texto>
     </Animated.View>

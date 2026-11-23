@@ -59,8 +59,8 @@ export const MOVIMENTO_DAS_TELAS = {
   avatarDaPilula: 200,
   /** Cabeçalho que vira vidro. */
   cabecalhoVidro: 200,
-  /** Toast: entra em 200 ms, sai em 160 ms; com Desfazer, a contagem dura 10 s. */
-  toast: { entra: 200, sai: 160, deslocamento: 8, contagem: 10_000 },
+  /** Toast: entra em 200 ms, sai em 160 ms; com Desfazer, a contagem dura 5 s. */
+  toast: { entra: 200, sai: 160, deslocamento: 8, contagem: 5_000 },
   /** O pulso do esqueleto, ida e volta, e o dissolve de entrada dele (depois de 300 ms). */
   esqueleto: { pulso: 1200, opacidadeMinima: 0.5, aparece: 160 },
   /** Ponto "ao vivo": opacidade de 1 a 0,4 em 1,6 s. */
@@ -224,7 +224,7 @@ export const LUZ_DE_BASE = {
 
 /** Toast com Desfazer (WCAG 2.2.1): quanto tempo a pessoa tem e o que ela ouve. */
 export const DESFAZER = {
-  segundos: 10,
+  segundos: 5,
   /** Sem Desfazer (só informação): 4 s. */
   informacaoMs: 4000,
   /** Quanto o leitor de tela ouve ao aparecer (uma vez). */

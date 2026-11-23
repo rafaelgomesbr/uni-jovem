@@ -211,22 +211,24 @@ Par: **Bricolage Grotesque** (títulos, números grandes) e **Inter** (tudo o ma
 
 | Papel (`TIPO`)                      | Família e peso                   | Tamanho e entrelinha | Tracking | Teto de escala             | Status                                          |
 | ----------------------------------- | -------------------------------- | -------------------- | -------- | -------------------------- | ----------------------------------------------- |
-| `display` (saudação, raízes de aba) | Bricolage 800                    | 34 / 38              | -0,5     | 1,6                        | (=)                                             |
-| `tituloTela`                        | Bricolage 800                    | 28 / 32              | -0,3     | 1,8                        | (=)                                             |
-| `tituloMomento`                     | Bricolage 800                    | 26 / 30              | -0,2     | 2,0                        | (novo, título do cartão do momento)             |
-| `tituloCartao`                      | Bricolage 800                    | 24 / 28              | -0,2     | 2,0                        | (=)                                             |
+| `display` (saudação, raízes de aba) | Bricolage 800                    | 30 / 34              | -0,4     | 1,5                        | (D83, era 34 / 38 e teto 1,6)                   |
+| `tituloTela`                        | Bricolage 800                    | 28 / 32              | -0,3     | 1,5                        | (D83, teto era 1,8)                             |
+| `tituloMomento`                     | Bricolage 800                    | 24 / 28              | -0,2     | 1,5                        | (D83, era 26 / 30 e teto 2,0)                   |
+| `tituloCartao`                      | Bricolage 800                    | 22 / 26              | -0,2     | 1,5                        | (D83, era 24 / 28 e teto 2,0)                   |
+| `secao` (nome de um bloco)          | Inter 600                        | 20 / 26              | -0,2     | 1,6                        | (novo, D83)                                     |
 | `contador` (check-in "9")           | Bricolage 800, `tabular-nums`    | 40 / 40              | -0,5     | 1,6                        | (novo, era `numero` 28)                         |
 | `cronometro` (ao vivo)              | Bricolage 800, `tabular-nums`    | 64 / 68              | -1       | 1,4                        | (=)                                             |
-| `tituloItem`                        | Inter 600                        | 16 / 22              | 0        | sem teto                   | (=)                                             |
+| `tituloItem` (linha primária)       | Inter 600                        | 17 / 22              | 0        | sem teto                   | (D83, era 16 / 22)                              |
 | `corpo`                             | Inter 400                        | **16 / 24**          | 0        | sem teto                   | (muda, era 15/22; é o item 3.1 da Fase 3 do UX) |
-| `meta`                              | Inter 400                        | 15 / 20              | 0        | sem teto                   | (=)                                             |
-| `legenda`                           | Inter 400                        | 14 / 20              | 0        | sem teto                   | (=)                                             |
-| `sobrancelha`                       | Inter 600, maiúsculas por estilo | 13 / 18              | +1       | 1,6                        | (=)                                             |
-| `chip`                              | Inter 600                        | 13 / 16              | 0        | 1,6                        | (=)                                             |
+| `meta`                              | Inter 400                        | 16 / 22              | 0        | sem teto                   | (D75: o que se lê, erro, motivo, filtro)        |
+| `apoio` (linha secundária)          | Inter 400, `textoSuave`          | 15 / 20              | 0        | 2,0                        | (novo, D83: metadado, abaixo do piso de 16)     |
+| `legenda`                           | Inter 400                        | 16 / 22              | 0        | sem teto                   | (D75: ajuda e referência)                       |
+| `sobrancelha`                       | Inter 600, maiúsculas por estilo | 14 / 18              | +0,7     | 2,0                        | (D83, era 16 / 20 em 0,6)                       |
+| `chip`                              | Inter 600                        | 14 / 18              | 0        | 2,0                        | (D83, era 16 / 20)                              |
 | `botao`                             | Inter 600                        | 16 / 20              | 0        | 2,0                        | (=)                                             |
 | `aba`                               | Inter 500 (600 ativa)            | 11 / 14              | 0        | 1,6; acima disso só ícones | (=)                                             |
 
-Regras de ritmo: peso e cor fazem a hierarquia antes do tamanho (título 800, item 600, resto 400; `texto`, `textoSuave`, `destaque`). Três tamanhos resolvem a maior parte de uma tela. Números em coluna usam `tabular-nums`. Medida de linha de leitura: no máximo 38 caracteres no versículo e nos avisos dentro de 350 pt.
+Regras de ritmo: peso e cor fazem a hierarquia antes do tamanho (título 800, seção e item 600, resto 400; `texto`, `textoSuave`, `destaque`). Três tamanhos resolvem a maior parte de uma tela. Os cinco níveis da D83: título (`display`, `tituloTela`), seção (`secao`), corpo (`tituloItem` 17 em 600 como linha primária e `corpo` 16), apoio (`apoio` 15, `textoSuave`) e rótulo (`sobrancelha`, caixa-alta de 14 com espaço entre letras); só o apoio, o rótulo, o chip e a aba ficam abaixo de 16. Números em coluna usam `tabular-nums`. Medida de linha de leitura: no máximo 38 caracteres no versículo e nos avisos dentro de 350 pt.
 
 ---
 

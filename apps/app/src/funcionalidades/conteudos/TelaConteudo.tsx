@@ -427,8 +427,9 @@ function Leitura({
         </Secao>
       ) : null}
       {textos.map((c) =>
-        // Cifra em ChordPro: leitor com tom, capotraste e letra grande. O resto, texto simples.
-        c.formato === 'cifra' && detectarFormato(textoDoCampo(registro[c.campo])) === 'chordpro' ? (
+        // Cifra com acordes (ChordPro ou colada com os acordes sobre a letra, D82): leitor com tom,
+        // capotraste e letra grande. Só o texto sem acorde nenhum fica como texto simples.
+        c.formato === 'cifra' && detectarFormato(textoDoCampo(registro[c.campo])) !== 'texto' ? (
           <LeitorDeCifra
             key={c.campo}
             cifra={textoDoCampo(registro[c.campo])}

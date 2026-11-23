@@ -45,7 +45,7 @@ export function PedemAjuda({
 
   return (
     <View style={{ gap: ESPACO.e8 }}>
-      <Texto variante="tituloItem" nivel={2} accessibilityRole="header">
+      <Texto variante="secao" accessibilityRole="header">
         {`Pedem ajuda (${visiveis.length})`}
       </Texto>
       <CartaoDeVidro lista>
@@ -72,9 +72,7 @@ export function PedemAjuda({
               </View>
               <View style={{ flex: 1, gap: ESPACO.e4 }}>
                 <Texto variante="tituloItem">{nome}</Texto>
-                <Texto variante="meta" cor="textoSuave">
-                  {descricao}
-                </Texto>
+                <Texto variante="apoio">{descricao}</Texto>
                 {s.motivo ? (
                   <Texto variante="legenda" cor="textoSuave">
                     {`Motivo: ${s.motivo}`}

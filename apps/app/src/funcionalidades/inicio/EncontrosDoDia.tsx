@@ -1,4 +1,4 @@
-import { ALTURA, ESPACO } from '@uj/tokens'
+import { ALTURA, ESPACO, RITMO } from '@uj/tokens'
 import { router } from 'expo-router'
 import { Pressable, View } from 'react-native'
 
@@ -6,7 +6,7 @@ import type { EncontroDoDia } from '@/servicos/contratoV3'
 import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Chip } from '@/ui/Chip'
 import { Icone } from '@/ui/Icone'
-import { Lista, LARGURA_DA_HORA, RECUO_DA_LISTA } from '@/ui/LinhaDeLista'
+import { ColunaDeHora, Lista, RECUO_DA_LISTA } from '@/ui/LinhaDeLista'
 import { Secao } from '@/ui/Secao'
 import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
@@ -45,7 +45,7 @@ function situacaoDaLinha(e: EncontroDoDia, doCartao: boolean): string | null {
 export function EncontrosDoDia({ titulo, encontros, idDoCartao }: Props) {
   const ativos = encontros.filter((e) => e.status !== 'cancelado')
   return (
-    <Secao titulo={titulo}>
+    <Secao titulo={titulo} estilo="titulo">
       <CartaoDeVidro lista>
         <Lista recuo={RECUO_DA_LISTA.hora}>
           {encontros.map((e) => (
@@ -105,7 +105,7 @@ function LinhaDoDia({
         alignItems: 'flex-start',
         gap: ESPACO.e12,
         minHeight: ALTURA.linha,
-        paddingHorizontal: ESPACO.e18,
+        paddingHorizontal: RITMO.recuoDoCartao,
         paddingVertical: ESPACO.e12,
         backgroundColor: pressed
           ? cores.botaoTonal
@@ -114,17 +114,7 @@ function LinhaDoDia({
             : 'transparent',
       })}
     >
-      <View
-        style={{ minWidth: LARGURA_DA_HORA, alignItems: 'flex-start', gap: ESPACO.e4 }}
-        accessible={false}
-      >
-        <Texto variante="tituloItem" tabular accessibilityRole="text">
-          {inicio}
-        </Texto>
-        <Texto variante="meta" cor="textoSuave" tabular>
-          {fim}
-        </Texto>
-      </View>
+      <ColunaDeHora inicio={inicio} fim={fim} />
       <View style={{ flex: 1, gap: ESPACO.e4 }}>
         <Texto variante="tituloItem">{e.titulo}</Texto>
         {linhaDoPapel || chipDaSituacao || pendente ? (
@@ -139,11 +129,7 @@ function LinhaDoDia({
             }}
           >
             {chipDaSituacao ? <ChipDaSituacao situacao={chipDaSituacao} /> : null}
-            {linhaDoPapel ? (
-              <Texto variante="rotulo" cor="textoSuave">
-                {linhaDoPapel}
-              </Texto>
-            ) : null}
+            {linhaDoPapel ? <Texto variante="apoio">{linhaDoPapel}</Texto> : null}
             {pendente ? <Chip situacao="aguardando" texto="Aguardando sua resposta" /> : null}
           </View>
         ) : null}

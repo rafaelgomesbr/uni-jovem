@@ -222,7 +222,7 @@ export function TelaPerfil({ naPilha = false }: { naPilha?: boolean }) {
           }}
         />
       </View>
-      <Texto variante="legenda" cor="textoSuave" tabular selectable style={{ textAlign: 'center' }}>
+      <Texto variante="apoio" tabular selectable style={{ textAlign: 'center' }}>
         {NOME_DO_APP} {versaoDoApp()}
       </Texto>
     </>
@@ -329,17 +329,13 @@ function Identidade({ conta, funcao }: { conta: Conta; funcao: string | null }) 
           <Texto variante="tituloCartao" accessibilityRole="header" nivel={2}>
             {conta.nome}
           </Texto>
-          {funcao ? (
-            <Texto variante="meta" cor="textoSuave">
-              {funcao}
-            </Texto>
-          ) : null}
+          {funcao ? <Texto variante="apoio">{funcao}</Texto> : null}
         </View>
         <Icone nome="avancar" cor={cores.textoSuave} tamanho={18} />
       </View>
       {/* O e-mail ganha a largura toda do cartão, numa linha só, sem corte (D79): na coluna ao lado
           do avatar ele perdia o fim ("...unijovem.i..."). */}
-      <Texto variante="legenda" cor="textoSuave" selectable style={{ marginTop: ESPACO.e8 }}>
+      <Texto variante="apoio" selectable style={{ marginTop: ESPACO.e8 }}>
         {conta.email}
       </Texto>
     </Cartao>

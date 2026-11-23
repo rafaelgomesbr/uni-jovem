@@ -289,7 +289,7 @@ function Esqueletos() {
 function Toasts() {
   const [log, setLog] = useState('Nada enviado ainda.')
   return (
-    <Grupo titulo="Toast com Desfazer: 10 s, o envio só sai ao fim">
+    <Grupo titulo="Toast com Desfazer: 5 s, o envio só sai ao fim">
       <Texto variante="legenda" cor="textoSuave">
         {log}
       </Texto>

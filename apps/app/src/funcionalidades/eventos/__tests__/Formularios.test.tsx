@@ -778,10 +778,10 @@ describe('cancelar ou adiar', () => {
     )
     const usuario = userEvent.setup()
     await usuario.press(await screen.findByRole('radio', { name: 'Adiar' }))
-    expect(screen.getByText(/Você tem 10 segundos para desfazer\./)).toBeOnTheScreen()
+    expect(screen.getByText(/Você tem 5 segundos para desfazer\./)).toBeOnTheScreen()
     await fireEvent.changeText(screen.getByLabelText('Motivo'), 'Falta de energia')
     await usuario.press(screen.getByRole('button', { name: 'Adiar o encontro' }))
-    expect(await screen.findByText('10 s')).toBeOnTheScreen()
+    expect(await screen.findByText('5 s')).toBeOnTheScreen()
   })
 
   test('motivo é obrigatório; com ele, cancela e volta', async () => {
@@ -835,7 +835,7 @@ describe('cancelar ou adiar', () => {
     expect(screen.getByRole('radio', { name: 'Adiar' })).toBeOnTheScreen()
   })
 
-  test('adiar avisa gente: volta ao encontro e o aviso espera 10 s, com Desfazer', async () => {
+  test('adiar avisa gente: volta ao encontro e o aviso espera 5 s, com Desfazer', async () => {
     parametros.mockReturnValue({ eventoId: EVENTO_ID, acao: 'adiar' })
     const { servidor } = await renderizarTela(
       <>

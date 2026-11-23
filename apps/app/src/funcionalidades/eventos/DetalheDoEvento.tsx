@@ -274,10 +274,16 @@ function Conteudo({
         </Aviso>
       ) : null}
       {acoes.erro ? <AvisoDeFalha erro={acoes.erro} /> : null}
+      {acoes.erroAoPublicar ? (
+        <AvisoDeFalha erro={acoes.erroAoPublicar} titulo="Não deu para publicar" />
+      ) : null}
       {/* Depois de publicar a tela diz o que houve, em frase inteira, e não some sozinha. */}
       {mensagemFinal ? (
         <Aviso tipo="sucesso" anunciar>
-          {mensagemFinal}
+          {/* Publicar é na hora (D81): sem Desfazer, a saída para quem errou fica dita aqui. */}
+          {acoes.itens.some((i) => i.titulo === 'Cancelar ou adiar')
+            ? `${mensagemFinal} Mudou de ideia? Use "Cancelar ou adiar".`
+            : mensagemFinal}
         </Aviso>
       ) : null}
       <SuaParte evento={e} comunidadeId={comunidadeId} />

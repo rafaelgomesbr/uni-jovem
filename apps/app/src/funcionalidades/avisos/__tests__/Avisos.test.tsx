@@ -32,7 +32,7 @@ jest.mock('@/ui/Toast', () => ({
   ...jest.requireActual('@/ui/Toast'),
   mostrarToast: jest.fn(),
 }))
-// O Desfazer é de verdade (10 s, `confirmarAgora`, `desfazerAgora`); o espião só lê o pedido.
+// O Desfazer é de verdade (5 s, `confirmarAgora`, `desfazerAgora`); o espião só lê o pedido.
 jest.mock('@/ui/ToastComDesfazer', () => {
   const real = jest.requireActual('@/ui/ToastComDesfazer')
   return { ...real, mostrarDesfazer: jest.fn(real.mostrarDesfazer) }
@@ -158,7 +158,7 @@ describe('lista de avisos', () => {
   })
 })
 
-describe('novo aviso (fluxo g): publicar espera 10 s com Desfazer', () => {
+describe('novo aviso (fluxo g): publicar espera 5 s com Desfazer', () => {
   async function preencher() {
     await fireEvent.changeText(await screen.findByLabelText('Título'), 'Ensaio extra')
     await fireEvent.changeText(screen.getByLabelText('Texto do aviso'), 'Sexta, às 19h.')
@@ -225,7 +225,7 @@ describe('novo aviso (fluxo g): publicar espera 10 s com Desfazer', () => {
     expect(router.back).not.toHaveBeenCalled()
   })
 
-  test('aos 10 segundos, sozinho, o envio sai (e antes disso, não)', async () => {
+  test('aos 5 segundos, sozinho, o envio sai (e antes disso, não)', async () => {
     jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] })
     const { servidor } = await renderizarTela(<TelaNovoAviso />, {
       rotas: { [`POST ${BASE}/avisos`]: () => ({ status: 200, corpo: { id: 'novo' } }) },
@@ -235,7 +235,7 @@ describe('novo aviso (fluxo g): publicar espera 10 s com Desfazer', () => {
       await screen.findByRole('button', { name: 'Publicar e avisar 2 pessoas' }),
     )
     await act(async () => {
-      jest.advanceTimersByTime(9000)
+      jest.advanceTimersByTime(4000)
     })
     expect(pedidosPara(servidor, 'POST', `${BASE}/avisos`)).toHaveLength(0)
     await act(async () => {

@@ -272,6 +272,16 @@ function acordesDeLinha(linha: string): { acorde: string; coluna: number; cru: b
 
 const PADRAO_DE_DIRETIVA = /^\s*\{\s*([a-z_]+)\s*(?::\s*(.*?))?\s*\}\s*$/i
 
+/**
+ * "Tom: A" sozinho numa linha: é como a cifra colada de um site declara o tom. É dado da cifra, não
+ * letra: a tela mostra o tom no cabeçalho (já transposto) e esta linha não pode ficar escrita
+ * contradizendo-o. Devolve o tom em forma padrão, ou nulo se a linha não for isso.
+ */
+function tomDeLinhaAvulsa(linha: string): string | null {
+  const m = /^\s*tom\s*:\s*([^\s]+)\s*$/i.exec(linha)
+  return m ? nomeDoTom(m[1]) : null
+}
+
 /** O formato de um texto de cifra, para saber se a transposição funciona. */
 export function detectarFormato(texto: string | null | undefined): FormatoDaCifra {
   const t = normalizarCifra(texto ?? '')
@@ -351,6 +361,12 @@ export function converterParaChordPro(texto: string): ResultadoDaConversao {
     const linha = linhas[i]!
     if (linha.trim() === '') {
       saida.push('')
+      continue
+    }
+    // "Tom: A" avulso vira a diretiva de tom: a transposição parte dele.
+    const tomAvulso = tomDeLinhaAvulsa(linha)
+    if (tomAvulso) {
+      saida.push(`{key: ${tomAvulso}}`)
       continue
     }
     // "Intro: G D Em C": rótulo e acordes na mesma linha.
@@ -449,7 +465,10 @@ export function metadadosDaCifra(texto: string | null | undefined): MetadadosDaC
   }
   for (const linha of normalizarCifra(texto ?? '').split('\n')) {
     const d = diretivaDaLinha(linha)
-    if (!d) continue
+    if (!d) {
+      meta.tom ??= tomDeLinhaAvulsa(linha)
+      continue
+    }
     const nome = nomeCompleto(d.nome)
     if (nome === 'title') meta.titulo = d.valor || null
     else if (nome === 'artist') meta.artista = d.valor || null
@@ -495,6 +514,8 @@ export function lerCifra(texto: string | null | undefined): LinhaDaCifra[] {
       }
       continue
     }
+    // "Tom: A" avulso: o tom aparece no cabeçalho, já transposto.
+    if (tomDeLinhaAvulsa(linha)) continue
     if (linha.trim() === '') {
       linhas.push({ tipo: 'vazia' })
       continue
@@ -552,6 +573,8 @@ export function transporCifra(
         }
         return linha
       }
+      const tomAvulso = tomDeLinhaAvulsa(linha)
+      if (tomAvulso) return `Tom: ${transporTom(tomAvulso, n) ?? tomAvulso}`
       return linha.replace(PADRAO_DE_ACORDE_ENTRE_COLCHETES, (todo, dentro: string) => {
         if (!ehAcorde(dentro)) return todo
         return `[${transporAcorde(dentro, n, acidente)}]`
@@ -575,12 +598,18 @@ export interface PedidoDeCifra {
 
 export interface CifraPronta {
   formato: FormatoDaCifra
-  /** A transposição só vale em ChordPro; em texto livre a cifra sai igual. */
+  /**
+   * Os acordes mudam com o tom e o capotraste? Vale para ChordPro e para a cifra colada com os
+   * acordes sobre a letra (convertida na hora, sem mexer no que está salvo); só o texto livre,
+   * sem acorde nenhum, fica de fora.
+   */
   transpoe: boolean
   /** Tom que soa (depois do tom do dia e do ajuste). Nulo se não houver tom nenhum. */
   tomQueSoa: string | null
   /** Tom das formas que se tocam (tom que soa menos o capotraste). */
   tomQueSeToca: string | null
+  /** O tom veio do primeiro acorde, porque nem a música nem a cifra dizem qual é. */
+  tomEstimado: boolean
   capotraste: number
   /** Semitons aplicados aos acordes escritos (inclui o capotraste). */
   semitons: number
@@ -589,10 +618,29 @@ export interface CifraPronta {
   linhas: LinhaDaCifra[]
 }
 
+/** O primeiro acorde da cifra em ChordPro, em forma de tom (`Am7` dá `Am`): o palpite quando falta o tom. */
+function tomPeloPrimeiroAcorde(chordpro: string): string | null {
+  for (const linha of chordpro.split('\n')) {
+    if (diretivaDaLinha(linha)) continue
+    for (const m of linha.matchAll(PADRAO_DE_ACORDE_ENTRE_COLCHETES)) {
+      const a = lerAcorde(m[1]!)
+      if (!a) continue
+      const menor = /^(m|min)(?!aj)/.test(a.qualidade)
+      return `${a.raiz}${menor ? 'm' : ''}`
+    }
+  }
+  return null
+}
+
 /**
  * A cifra no ponto de tocar: tom do dia, ajuste do músico e capotraste. A
- * distância do tom original ao tom do dia vem só das raízes (G para A = 2). Os
+ * distância do tom da cifra ao tom do dia vem só das raízes (G para A = 2). Os
  * acordes saem na grafia do tom que se toca (com capotraste, o das formas).
+ *
+ * O tom de partida é o que a PRÓPRIA cifra declara (`{key}` ou "Tom: A"), porque são os acordes
+ * dela que estão sendo movidos; depois o da música na biblioteca; por fim o primeiro acorde. Assim
+ * o rótulo "Tom X" sempre diz o tom dos acordes que estão na tela, mesmo que o cadastro da música
+ * discorde da cifra.
  */
 export function prepararCifra(
   cifra: string | null | undefined,
@@ -600,8 +648,13 @@ export function prepararCifra(
 ): CifraPronta {
   const original = normalizarCifra(cifra ?? '')
   const formato = detectarFormato(original)
-  const meta = metadadosDaCifra(original)
-  const tomOriginal = nomeDoTom(p.tomOriginal) ?? meta.tom
+  const transpoe = formato !== 'texto'
+  // A cifra colada vira ChordPro só para ler e transpor: o texto salvo não muda.
+  const base = formato === 'acordes_sobre_letra' ? converterParaChordPro(original).texto : original
+  const meta = metadadosDaCifra(base)
+  const declarado = meta.tom ?? nomeDoTom(p.tomOriginal)
+  const estimado = declarado ? null : transpoe ? tomPeloPrimeiroAcorde(base) : null
+  const tomOriginal = declarado ?? estimado
   const casa = casaDoCapotraste(p.capotraste ?? 0)
   const ajuste = Math.trunc(p.ajuste ?? 0)
   const doDia = nomeDoTom(p.tomDoDia) ?? tomOriginal
@@ -609,9 +662,8 @@ export function prepararCifra(
   const tomQueSoa = doDia ? transporTom(doDia, ajuste) : null
   const formas = tomQueSoa ? tomQueSeToca(tomQueSoa, casa) : null
   const semitons = modulo12(distanciaDoDia + ajuste - casa)
-  const transpoe = formato === 'chordpro'
   const texto = transpoe
-    ? transporCifra(original, semitons, {
+    ? transporCifra(base, semitons, {
         tomDeChegada: formas,
         tomOriginal,
       })
@@ -621,6 +673,7 @@ export function prepararCifra(
     transpoe,
     tomQueSoa,
     tomQueSeToca: formas,
+    tomEstimado: estimado !== null && tomQueSoa !== null,
     capotraste: casa,
     semitons,
     texto,

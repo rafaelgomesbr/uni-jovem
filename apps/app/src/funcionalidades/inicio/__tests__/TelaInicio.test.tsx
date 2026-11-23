@@ -33,7 +33,7 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: jest.fn(() => ({})),
   usePreventRemove: jest.fn(() => jest.fn()),
 }))
-// O toast com Desfazer: o teste lê o que ele pede e decide quando os 10 s acabam.
+// O toast com Desfazer: o teste lê o que ele pede e decide quando os 5 s acabam.
 jest.mock('@/ui/ToastComDesfazer', () => ({
   ...jest.requireActual('@/ui/ToastComDesfazer'),
   mostrarDesfazer: jest.fn(),
@@ -321,12 +321,12 @@ describe('Início do membro: o cartão do momento (3.1 do UX)', () => {
   })
 })
 
-describe('Aceitar e Não posso ir: sem "tem certeza?", com Desfazer de 10 s (5.2)', () => {
+describe('Aceitar e Não posso ir: sem "tem certeza?", com Desfazer de 5 s (5.2)', () => {
   const comPendente = () => momentoDeTeste({ suaParte: [parteDoMomento()] })
   const rotaConfirmar = { [`POST ${BASE}/atribuicoes/a1/confirmar`]: ok({ estado: 'confirmada' }) }
   const rotaRecusar = { [`POST ${BASE}/atribuicoes/a1/recusar`]: ok({ estado: 'recusada' }) }
 
-  test('Aceitar: o cartão já mostra "Confirmado"; nada sai até os 10 s; Desfazer volta a pendente', async () => {
+  test('Aceitar: o cartão já mostra "Confirmado"; nada sai até os 5 s; Desfazer volta a pendente', async () => {
     const { servidor } = await comoMembro(comPendente(), rotaConfirmar)
     const usuario = userEvent.setup()
     await usuario.press(await screen.findByRole('button', { name: /^Aceitar a convocação/ }))
@@ -341,7 +341,7 @@ describe('Aceitar e Não posso ir: sem "tem certeza?", com Desfazer de 10 s (5.2
     expect(pedidosPara(servidor, 'POST', `${BASE}/atribuicoes/a1/confirmar`)).toHaveLength(0)
   })
 
-  test('Aceitar: aos 10 s a resposta sai para a API (e só então a liderança é avisada)', async () => {
+  test('Aceitar: aos 5 s a resposta sai para a API (e só então a liderança é avisada)', async () => {
     const { servidor } = await comoMembro(comPendente(), rotaConfirmar)
     await userEvent
       .setup()
@@ -406,7 +406,7 @@ describe('Para responder: as convocações de outros encontros', () => {
     expect(screen.getAllByRole('button', { name: 'Não posso ir' }).length).toBeGreaterThan(0)
   })
 
-  test('Aceitar na linha: Desfazer de 10 s; a resposta só sai ao confirmar', async () => {
+  test('Aceitar na linha: Desfazer de 5 s; a resposta só sai ao confirmar', async () => {
     const { servidor } = await comoMembro(undefined, {
       [`GET ${BASE}/inicio`]: ok(comOutro()),
       [`POST ${BASE}/atribuicoes/a2/confirmar`]: ok({ estado: 'confirmada' }),
@@ -501,7 +501,7 @@ describe('Início do líder: o cartão do momento (3.2 do UX)', () => {
     expect(screen.queryByRole('button', { name: 'Ver o resumo' })).toBeNull()
   })
 
-  test('"Lembrar 2 pessoas": espera 10 s com Desfazer, chama a API e vira "Lembrete enviado"', async () => {
+  test('"Lembrar 2 pessoas": espera 5 s com Desfazer, chama a API e vira "Lembrete enviado"', async () => {
     const { servidor } = await comoLider(momentoDeTeste({ lider: lider() }), {
       [`POST ${BASE}/eventos/e1/lembrar-pendentes`]: ok({
         pendentes: 2,
@@ -613,7 +613,7 @@ describe('Início do líder: o cartão do momento (3.2 do UX)', () => {
     expect(screen.queryByRole('button', { name: /^Lembrar/ })).toBeNull()
   })
 
-  test('rascunho: "Ainda não publicado", "Publicar e avisar 11 pessoas" com Desfazer, e Editar', async () => {
+  test('rascunho: "Ainda não publicado", "Publicar e avisar 11 pessoas" publica na hora (sem Desfazer), e Editar', async () => {
     const { servidor } = await comoLider(
       momentoDeTeste({ evento: eventoDoMomento({ status: 'rascunho' }), lider: lider() }),
       { [`POST ${BASE}/eventos/e1/status`]: ok({ status: 'publicado' }) },
@@ -623,19 +623,15 @@ describe('Início do líder: o cartão do momento (3.2 do UX)', () => {
     expect(screen.getByRole('button', { name: 'Editar' })).toBeOnTheScreen()
 
     await userEvent.setup().press(screen.getByText('Publicar e avisar 11 pessoas'))
-    expect(pedidoDoDesfazer().texto).toBe('Publicando e avisando 11 pessoas.')
-    // Durante a espera o botão diz o que acontece e é o Desfazer; nunca "Publicado" antes de sair (D79).
-    expect(await screen.findByText(/^Publicando em \d+ s · Desfazer$/)).toBeOnTheScreen()
-    expect(screen.queryByText('Publicado')).toBeNull()
-    expect(pedidosPara(servidor, 'POST', `${BASE}/eventos/e1/status`)).toHaveLength(0)
-
-    await act(async () => pedidoDoDesfazer().aoConfirmar())
+    // Sem contagem: a chamada sai direto e nenhum pedido de Desfazer é aberto (D81).
     await waitFor(() =>
       expect(pedidosPara(servidor, 'POST', `${BASE}/eventos/e1/status`)).toHaveLength(1),
     )
     expect(servidor.pedidos.find((p) => p.url.endsWith('/eventos/e1/status'))!.corpo).toEqual({
       status: 'publicado',
     })
+    expect(screen.queryByText(/Desfazer/)).toBeNull()
+    expect(await screen.findByText('Publicado')).toBeOnTheScreen()
   })
 
   test('véspera: "AMANHÃ · 16:00", a pendência manda: "Lembrar 2 pessoas", com "Ver quem vai" como link', async () => {

@@ -363,7 +363,7 @@ function NovoEvento({
         aoDefinir={definirDias}
         hoje={hojeNoFuso(fuso)}
       />
-      <TextoAnunciado soMudancas variante="rotulo">
+      <TextoAnunciado soMudancas variante="corpo" peso="medio">
         {resumoDosDias(dias)}
       </TextoAnunciado>
       {erros.data ? (

@@ -211,7 +211,7 @@ describe('Cartões: tinta, plano e momento', () => {
     expect(screen.getByTestId('ponto-ao-vivo', COM_ESCONDIDOS)).toBeOnTheScreen()
     // O momento "agora" põe o sol na pose radiante.
     expect(escala(sol('sol-raio-0'))).toBe(POSES_DO_SOL.radiante.raios.escala)
-    expect(screen.getByText('Sábado Jovem')).toHaveStyle({ fontSize: 26, lineHeight: 30 })
+    expect(screen.getByText('Sábado Jovem')).toHaveStyle({ fontSize: 24, lineHeight: 28 })
   })
 
   test('momento: cada momento escolhe a pose do sol; `pose` vence `momento`; `semSol` tira o sol', async () => {

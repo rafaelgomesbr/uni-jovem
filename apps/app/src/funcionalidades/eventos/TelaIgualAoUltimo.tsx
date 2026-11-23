@@ -1,3 +1,4 @@
+import { useMutation } from '@tanstack/react-query'
 import { duracaoTotal } from '@uj/dominio'
 import { ESPACO } from '@uj/tokens'
 import { router, useLocalSearchParams } from 'expo-router'
@@ -6,6 +7,7 @@ import { View } from 'react-native'
 
 import { useSessao } from '@/estado/sessao'
 import { api } from '@/servicos/api'
+import { mensagemDoErro } from '@/servicos/erros'
 import type { RespostaDeCopiarEncontro } from '@/servicos/contratoV3'
 import { Acordeao } from '@/ui/Acordeao'
 import { Aviso } from '@/ui/Aviso'
@@ -26,7 +28,6 @@ import { Tela } from '@/ui/Tela'
 import { Texto } from '@/ui/Texto'
 import { TextoAnunciado } from '@/ui/TextoAnunciado'
 import { mostrarToast } from '@/ui/Toast'
-import { desfazerAgora, mostrarDesfazer, useRestanteDoDesfazer } from '@/ui/ToastComDesfazer'
 import { confirmar } from '@/utilidades/confirmar'
 import {
   dataDoInstante,
@@ -84,8 +85,9 @@ interface Escolhas {
  * data padrão é o próximo dia da semana do encontro anterior a partir de hoje; se já existe encontro
  * nesse dia, a tela avisa e publicar pergunta "Criar outro mesmo assim?". O título acompanha o dia
  * ("Sábado" copiado para um domingo vira "Domingo"; um título escrito pela pessoa nunca muda).
- * Publicar tem Desfazer: o botão diz "Publicando em 9 s" e, no fim, "Publicado. 9 pessoas foram
- * avisadas." (D74). Sem encontro anterior, a tela oferece o Encontro padrão ou o Em branco.
+ * Publicar é na hora (D81): o botão diz "Publicando..." enquanto viaja e, no fim, "Publicado. 9
+ * pessoas foram avisadas.". Sem encontro anterior, a tela oferece um encontro em branco ou a partir
+ * de um modelo: o roteiro do dia é a pessoa que monta.
  */
 export function TelaIgualAoUltimo() {
   const { comunidadeAtiva } = useSessao()
@@ -125,8 +127,6 @@ function Conferencia({
   const [rascunho, setRascunho] = useState<RespostaDeCopiarEncontro | null>(null)
   const [sugerida, setSugerida] = useState<string | null>(null)
   const [outraData, setOutraData] = useState(false)
-  const [publicando, setPublicando] = useState(false)
-  const restante = useRestanteDoDesfazer()
   const fusoDaComunidade = useFusoDaComunidade()
   const [convocar, setConvocar] = useState<{
     aberta: boolean
@@ -140,7 +140,7 @@ function Conferencia({
 
   // Quem sai da tela sem "Salvar rascunho" nem "Publicar" não quis o encontro: o rascunho que a
   // abertura criou sairia solto na Agenda ("Rascunhos (8)" nas capturas de 22/11/2026). O que
-  // foi salvo ou está na espera de 10 s da publicação fica.
+  // foi salvo ou está sendo publicado fica.
   const manter = useRef(false)
   const rascunhoAtual = useRef<string | null>(null)
   const comunidade = useRef(comunidadeId)
@@ -151,7 +151,7 @@ function Conferencia({
     invalidarAoSair.current = invalidar
   })
 
-  // A tela pode ser deixada antes da contagem: depois disso, nada de navegar por ela.
+  // A tela pode ser deixada com a publicação a caminho: depois disso, nada de navegar por ela.
   useEffect(() => {
     montada.current = true
     return () => {
@@ -268,9 +268,24 @@ function Conferencia({
     irParaOEncontro()
   }
 
+  const publicarMutacao = useMutation({
+    mutationFn: async (id: string) => {
+      await api.post(`${naComunidade(comunidadeId)}/eventos/${id}/status`, {
+        status: 'publicado',
+      })
+      void esquecerProvisorio(id)
+      await invalidar(id)
+    },
+    onSuccess: () => {
+      mostrarToast({ texto: textoDePublicado(pessoas) })
+      irParaOEncontro(pessoas)
+    },
+  })
+  const publicando = publicarMutacao.isPending
+
   async function publicar() {
     if (!rascunho) return
-    // Já existe encontro nesse dia: a pergunta vem ANTES de a contagem começar.
+    // Já existe encontro nesse dia: a pergunta vem ANTES de publicar.
     if (noMesmoDia.length > 0) {
       const ok = await confirmar({
         titulo: 'Já existe um encontro neste dia',
@@ -279,33 +294,10 @@ function Conferencia({
       })
       if (!ok) return
     }
-    const id = rascunho.id
-    const n = pessoas
-    setPublicando(true)
-    // Durante a contagem a publicação é de quem pediu: sair da tela não pode apagar o rascunho.
+    // Publicando, o rascunho é de quem pediu: sair da tela não pode apagá-lo. Se a publicação
+    // falhar, ele continua salvo e a pessoa tenta de novo.
     manter.current = true
-    mostrarDesfazer({
-      texto: n > 0 ? `Publicando e avisando ${quantasPessoas(n)}.` : 'Publicando o encontro.',
-      textoDaFalha:
-        'Não deu para publicar. Nada foi enviado nem ninguém foi avisado. O rascunho continua salvo. Toque em Tentar de novo.',
-      aoDesfazer: () => {
-        manter.current = false
-        setPublicando(false)
-      },
-      aoFalhar: () => setPublicando(false),
-      // Sai ao fim da contagem, ao sair da tela ou do app, e de novo se a rede falhar (D74).
-      aoConfirmar: async () => {
-        setPublicando(true)
-        await api.post(`${naComunidade(comunidadeId)}/eventos/${id}/status`, {
-          status: 'publicado',
-        })
-        void esquecerProvisorio(id)
-        await invalidar(id)
-        mostrarToast({ texto: textoDePublicado(n) })
-        setPublicando(false)
-        irParaOEncontro(n)
-      },
-    })
+    publicarMutacao.mutate(rascunho.id)
   }
 
   const ocupada = copiar.isPending
@@ -333,7 +325,7 @@ function Conferencia({
     )
   }
   if (!origemEfetiva) {
-    // Primeira vez: nada para copiar. O Encontro padrão traz o roteiro de sempre.
+    // Primeira vez: nada para copiar. O roteiro é a pessoa que monta (D81): em branco ou por um modelo.
     return (
       <Tela pilha titulo="Marcar o próximo encontro">
         <View style={{ alignItems: 'center' }}>
@@ -342,14 +334,9 @@ function Conferencia({
         <EstadoVazio
           icone="agenda"
           titulo="Ainda não há um encontro para copiar."
-          descricao="Depois do primeiro encontro, o app copia o roteiro e a equipe para você. Por enquanto, comece pelo Encontro padrão: o roteiro de sempre já vem pronto."
+          descricao="Depois do primeiro encontro, o app copia o roteiro e a equipe para você. Por enquanto, crie um encontro e monte o roteiro do dia do seu jeito."
           acao={{
-            titulo: 'Usar o Encontro padrão',
-            aoPressionar: () =>
-              router.replace({ pathname: '/evento/novo', params: { modelo: 'sabado_padrao' } }),
-          }}
-          acaoSecundaria={{
-            titulo: 'Começar em branco',
+            titulo: 'Criar um encontro',
             aoPressionar: () => router.replace('/evento/novo'),
           }}
         />
@@ -379,21 +366,15 @@ function Conferencia({
   const resumo = rascunho.resumo
   const hora = formatarHora(rascunho.inicio, rascunho.fuso)
   const titulo = tituloDaConferencia(detalhe, resumo.origem.titulo, dataAtual)
-  // Estado único e honesto: durante a contagem o botão é o Desfazer e o cabeçalho diz que ainda não saiu.
-  const rotuloDoPublicar = publicando
-    ? restante !== null
-      ? `Publicando em ${restante} s · Desfazer`
-      : 'Publicando...'
-    : 'Publicar'
-  const etiquetaDoCabecalho = publicando
-    ? restante !== null
-      ? `Publicando em ${restante} s`
-      : 'Publicando...'
-    : 'Rascunho'
+  // Estado único e honesto: enquanto a resposta não chega, o cabeçalho diz que ainda não saiu.
+  const etiquetaDoCabecalho = publicando ? 'Publicando...' : 'Rascunho'
   // O roteiro da conferência acompanha o que a pessoa muda ali (adicionar, tirar, mudar a duração).
   const nEtapas = detalhe?.etapas.length ?? resumo.etapas
   const minutos = detalhe ? duracaoTotal(detalhe.etapas) : resumo.duracaoTotalMin
-  const tituloDoRoteiro = `Roteiro: ${nEtapas} ${nEtapas === 1 ? 'etapa' : 'etapas'}, ${formatarDuracao(minutos)}`
+  const tituloDoRoteiro =
+    nEtapas === 0
+      ? 'Roteiro: vazio, você monta'
+      : `Roteiro: ${nEtapas} ${nEtapas === 1 ? 'etapa' : 'etapas'}, ${formatarDuracao(minutos)}`
 
   return (
     <Tela
@@ -411,11 +392,11 @@ function Conferencia({
             />
           )}
           <Botao
-            titulo={rotuloDoPublicar}
+            titulo={publicando ? 'Publicando...' : 'Publicar'}
             tamanho="grande"
-            {...(publicando ? { icone: 'relogio' as const } : {})}
-            desabilitado={ocupada || (publicando && restante === null)}
-            aoPressionar={publicando ? desfazerAgora : () => void publicar()}
+            carregando={publicando}
+            desabilitado={ocupada || publicando}
+            aoPressionar={() => void publicar()}
           />
         </BarraDeAcao>
       }
@@ -427,6 +408,13 @@ function Conferencia({
           aoTentarDeNovo={() => refazer({})}
         />
       ) : null}
+      {publicarMutacao.error ? (
+        <AvisoDeFalha
+          erro={publicarMutacao.error}
+          titulo="Não deu para publicar"
+          mensagem={`${mensagemDoErro(publicarMutacao.error)} O rascunho continua salvo.`}
+        />
+      ) : null}
 
       <CartaoDoMomento
         momento="longe"
@@ -434,7 +422,7 @@ function Conferencia({
         titulo={titulo}
         meta={`${dataCurtaDoEncontro(rascunho.inicio, rascunho.fuso)} · ${hora}${detalhe?.local ? ` · ${detalhe.local.nome}` : ''}`}
       >
-        <Texto variante="legenda" cor="textoSuave" style={{ marginTop: ESPACO.e8 }}>
+        <Texto variante="corpo" peso="medio" style={{ marginTop: ESPACO.e8 }}>
           {publicando ? 'Ninguém foi avisado ainda.' : fraseDoRascunho(pessoas)}
         </Texto>
       </CartaoDoMomento>
@@ -502,11 +490,7 @@ function Conferencia({
           </View>
         </CartaoDeVidro>
       ) : null}
-      {ocupada ? (
-        <TextoAnunciado variante="legenda" cor="textoSuave">
-          Atualizando a cópia...
-        </TextoAnunciado>
-      ) : null}
+      {ocupada ? <TextoAnunciado variante="apoio">Atualizando a cópia...</TextoAnunciado> : null}
 
       <CartaoDeVidro lista>
         <Acordeao
@@ -515,12 +499,11 @@ function Conferencia({
           rotuloAberto="Roteiro. Aberto, toque para recolher."
           cabecalho={() => <CabecalhoDeAcordeao icone="etapas" titulo={tituloDoRoteiro} />}
         >
-          {detalhe && detalhe.etapas.length > 0 ? (
+          {detalhe ? (
+            // Sem etapas (o último não tinha), o roteiro mostra "Começar do zero" e "Usar um modelo".
             <RoteiroDoEncontro evento={detalhe} comunidadeId={comunidadeId} />
           ) : (
-            <TextoDoAcordeao>
-              {detalhe ? 'O último encontro não tinha etapas.' : 'Carregando as etapas...'}
-            </TextoDoAcordeao>
+            <TextoDoAcordeao>Carregando as etapas...</TextoDoAcordeao>
           )}
         </Acordeao>
       </CartaoDeVidro>
@@ -627,9 +610,7 @@ function TextoDoAcordeao({ children }: { children: string | string[] }) {
   if (!texto) return null
   return (
     <View style={{ paddingHorizontal: RECUO_DA_LISTA.texto, paddingBottom: ESPACO.e12 }}>
-      <Texto variante="legenda" cor="textoSuave">
-        {texto}
-      </Texto>
+      <Texto variante="apoio">{texto}</Texto>
     </View>
   )
 }

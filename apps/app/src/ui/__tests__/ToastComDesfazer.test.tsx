@@ -1,5 +1,5 @@
 /**
- * D65: o toast com Desfazer. O ato aparece feito, o envio só sai ao fim dos 10 s, "Desfazer"
+ * D65: o toast com Desfazer. O ato aparece feito, o envio só sai ao fim dos 5 s, "Desfazer"
  * cancela, e nada se envia duas vezes. A contagem é anunciada uma vez e o foco não é roubado.
  */
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
@@ -50,17 +50,17 @@ afterEach(async () => {
 
 const passar = (ms: number) => act(() => jest.advanceTimersByTimeAsync(ms))
 
-describe('toast com Desfazer: a contagem de 10 s', () => {
-  test('o envio só sai ao fim dos 10 s, uma vez, e o toast some', async () => {
+describe('toast com Desfazer: a contagem de 5 s', () => {
+  test('o envio só sai ao fim dos 5 s, uma vez, e o toast some', async () => {
     const aoConfirmar = jest.fn()
     await render(<HospedeiroDeToast />)
     await act(async () => {
       mostrarDesfazer({ texto: 'Publicando e avisando 11 pessoas.', aoConfirmar })
     })
     expect(screen.getByText('Publicando e avisando 11 pessoas.')).toBeOnTheScreen()
-    expect(screen.getByText('10 s')).toBeOnTheScreen()
+    expect(screen.getByText('5 s')).toBeOnTheScreen()
 
-    await passar(9_000)
+    await passar(4_000)
     expect(aoConfirmar).not.toHaveBeenCalled()
     expect(screen.getByText('1 s')).toBeOnTheScreen()
 
@@ -79,7 +79,7 @@ describe('toast com Desfazer: a contagem de 10 s', () => {
     await act(async () => {
       mostrarDesfazer({ texto: 'Você avisou que não pode ir.', aoConfirmar: jest.fn() })
     })
-    for (const esperado of ['9 s', '8 s', '7 s']) {
+    for (const esperado of ['4 s', '3 s', '2 s']) {
       await passar(1_000)
       expect(screen.getByText(esperado)).toBeOnTheScreen()
     }
@@ -92,7 +92,7 @@ describe('toast com Desfazer: a contagem de 10 s', () => {
     await act(async () => {
       mostrarDesfazer({ texto: 'Presença de Ana registrada.', aoConfirmar, aoDesfazer })
     })
-    await passar(4_000)
+    await passar(2_000)
     await fireEvent.press(screen.getByRole('button', { name: 'Desfazer' }))
     expect(aoDesfazer).toHaveBeenCalledTimes(1)
     expect(aoConfirmar).not.toHaveBeenCalled()
@@ -127,14 +127,14 @@ describe('toast com Desfazer: a contagem de 10 s', () => {
     await act(async () => {
       mostrarDesfazer({ texto: 'Primeiro.', aoConfirmar: primeiro })
     })
-    await passar(3_000)
+    await passar(2_000)
     await act(async () => {
       mostrarDesfazer({ texto: 'Segundo.', aoConfirmar: segundo })
     })
     expect(primeiro).toHaveBeenCalledTimes(1)
     expect(segundo).not.toHaveBeenCalled()
-    expect(screen.getByText('10 s')).toBeOnTheScreen()
-    await passar(10_000)
+    expect(screen.getByText('5 s')).toBeOnTheScreen()
+    await passar(5_000)
     expect(segundo).toHaveBeenCalledTimes(1)
     expect(primeiro).toHaveBeenCalledTimes(1)
   })
@@ -170,13 +170,13 @@ describe('toast com Desfazer: a contagem de 10 s', () => {
 })
 
 describe('toast com Desfazer: acessibilidade e movimento', () => {
-  test('anuncia uma vez "Desfazer disponível por 10 segundos"; é região de status; o botão tem 44', async () => {
+  test('anuncia uma vez "Desfazer disponível por 5 segundos"; é região de status; o botão tem 44', async () => {
     await render(<HospedeiroDeToast />)
     await act(async () => {
       mostrarDesfazer({ texto: 'Convocado.', aoConfirmar: jest.fn() })
     })
     expect(anunciar).toHaveBeenCalledTimes(1)
-    expect(anunciar).toHaveBeenCalledWith(`Convocado. ${DESFAZER.anuncio(10)}`)
+    expect(anunciar).toHaveBeenCalledWith(`Convocado. ${DESFAZER.anuncio(5)}`)
     expect(screen.getByTestId('toast-com-desfazer')).toHaveProp('accessibilityLiveRegion', 'polite')
     const botao = screen.getByRole('button', { name: 'Desfazer' })
     const estilo = StyleSheet.flatten(botao.props.style as never) as Record<string, number>
@@ -200,9 +200,9 @@ describe('toast com Desfazer: acessibilidade e movimento', () => {
       mostrarDesfazer({ texto: 'Convocado de novo.', aoConfirmar: jest.fn() })
     })
     expect(screen.queryByTestId('toast-barra')).toBeNull()
-    expect(screen.getByText('10 s')).toBeOnTheScreen()
+    expect(screen.getByText('5 s')).toBeOnTheScreen()
     await passar(2_000)
-    expect(screen.getByText('8 s')).toBeOnTheScreen()
+    expect(screen.getByText('3 s')).toBeOnTheScreen()
   })
 })
 
@@ -217,38 +217,38 @@ describe('toast com Desfazer: tempo estendido com leitor de tela', () => {
     jest.restoreAllMocks()
   })
 
-  test('o tempo dobra com leitor de tela: 20 s em vez de 10 (e o dobro de qualquer tempo pedido)', () => {
-    expect(segundosDoDesfazer(10, false)).toBe(10)
-    expect(segundosDoDesfazer(10, true)).toBe(20)
+  test('o tempo dobra com leitor de tela: 10 s em vez de 5 (e o dobro de qualquer tempo pedido)', () => {
+    expect(segundosDoDesfazer(5, false)).toBe(5)
+    expect(segundosDoDesfazer(5, true)).toBe(10)
     expect(segundosDoDesfazer(6, true)).toBe(12)
   })
 
-  test('com leitor ligado a contagem começa em 20 s, o anúncio diz 20 e o envio só sai aos 20 s', async () => {
+  test('com leitor ligado a contagem começa em 10 s, o anúncio diz 10 e o envio só sai aos 10 s', async () => {
     await leitor(true)
     const aoConfirmar = jest.fn()
     await render(<HospedeiroDeToast />)
     await act(async () => {
       mostrarDesfazer({ texto: 'Convocado.', aoConfirmar })
     })
-    expect(screen.getByText('20 s')).toBeOnTheScreen()
-    expect(anunciar).toHaveBeenCalledWith(`Convocado. ${DESFAZER.anuncio(20)}`)
-
-    await passar(10_000)
-    expect(aoConfirmar).not.toHaveBeenCalled()
     expect(screen.getByText('10 s')).toBeOnTheScreen()
-    await passar(10_000)
+    expect(anunciar).toHaveBeenCalledWith(`Convocado. ${DESFAZER.anuncio(10)}`)
+
+    await passar(5_000)
+    expect(aoConfirmar).not.toHaveBeenCalled()
+    expect(screen.getByText('5 s')).toBeOnTheScreen()
+    await passar(5_000)
     expect(aoConfirmar).toHaveBeenCalledTimes(1)
   })
 
-  test('sem leitor de tela o tempo segue de 10 s', async () => {
+  test('sem leitor de tela o tempo segue de 5 s', async () => {
     await leitor(false)
     const aoConfirmar = jest.fn()
     await render(<HospedeiroDeToast />)
     await act(async () => {
       mostrarDesfazer({ texto: 'Convocado.', aoConfirmar })
     })
-    expect(screen.getByText('10 s')).toBeOnTheScreen()
-    await passar(10_000)
+    expect(screen.getByText('5 s')).toBeOnTheScreen()
+    await passar(5_000)
     expect(aoConfirmar).toHaveBeenCalledTimes(1)
   })
 
@@ -260,9 +260,9 @@ describe('toast com Desfazer: tempo estendido com leitor de tela', () => {
     await act(async () => {
       mostrarDesfazer({ texto: 'Convocado.', aoConfirmar })
     })
-    // A resposta do sistema chegou logo depois do início: 20 s no total.
-    expect(screen.getByText('20 s')).toBeOnTheScreen()
-    await passar(19_000)
+    // A resposta do sistema chegou logo depois do início: 10 s no total.
+    expect(screen.getByText('10 s')).toBeOnTheScreen()
+    await passar(9_000)
     expect(aoConfirmar).not.toHaveBeenCalled()
     await passar(1_000)
     expect(aoConfirmar).toHaveBeenCalledTimes(1)

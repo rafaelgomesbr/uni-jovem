@@ -9,8 +9,9 @@ import { usePode } from '../comunidade/permissoes'
 import { useAnterioresParaCopiar } from './consultas'
 
 /**
- * Folha "Novo encontro" (D69, seção 3.3): "Igual ao último encontro" (recomendado, leva à
- * conferência), "Encontro padrão", "A partir de um modelo" e "Em branco". Sem encontro realizado
+ * Folha "Novo encontro" (D69, seção 3.3, D81): "Igual ao último encontro" (recomendado, leva à
+ * conferência), "A partir de um modelo" e "Em branco". Nenhum roteiro é imposto: o encontro em
+ * branco nasce sem etapas e a pessoa as monta (do zero ou por um modelo) na tela dele. Sem encontro realizado
  * para copiar, a primeira opção continua à vista, desabilitada com o motivo escrito: a pessoa
  * sabe por que não pode, em vez de achar que o app não tem o recurso. Com a data de um dia do
  * calendário (`data`), as demais opções já nascem nela.
@@ -49,21 +50,10 @@ export function FolhaNovaProgramacao({
           navega: true,
           aoPressionar: () => router.push('/evento/igual-ao-ultimo'),
         },
-        {
-          titulo: 'Encontro padrão',
-          icone: 'modelo',
-          descricao: 'As etapas de sempre, todas editáveis',
-          navega: true,
-          aoPressionar: () =>
-            router.push({
-              pathname: '/evento/novo',
-              params: { modelo: 'sabado_padrao', ...comData },
-            }),
-        },
         pode('modelo', 'ler') && {
           titulo: 'A partir de um modelo',
           icone: 'duplicar',
-          descricao: 'Os modelos da comunidade e os do app',
+          descricao: 'Escolha um formato pronto para o roteiro',
           navega: true,
           aoPressionar: () =>
             router.push({ pathname: '/evento/novo', params: { modelo: 'escolher', ...comData } }),
@@ -71,7 +61,7 @@ export function FolhaNovaProgramacao({
         {
           titulo: 'Em branco',
           icone: 'adicionar',
-          descricao: 'Você monta o roteiro depois',
+          descricao: 'Sem etapas: você monta o roteiro do dia',
           navega: true,
           aoPressionar: () =>
             router.push(data ? { pathname: '/evento/novo', params: { data } } : '/evento/novo'),

@@ -13,6 +13,7 @@ import { mostrarToast } from '@/ui/Toast'
 
 import { LinksDaMusica } from '../conteudos/LinksDaMusica'
 import { useMudarItemDoRepertorio } from './consultas'
+import { BotoesDoTom } from './ControlesDaCifra'
 import { descricaoDoItem } from './rotulosDoRepertorio'
 
 interface Props {
@@ -31,8 +32,8 @@ interface Props {
 
 /**
  * A folha de UMA música do repertório (D80, auditoria de UX 43): tudo o que antes ficava atrás do
- * "Mais" e dos botões Tom − e Tom + da linha. De cima para baixo: o tom do dia (com Tom − e Tom +,
- * o campo e "Salvar"), os links do Drive e do YouTube, "Abrir a cifra" e "Tirar do repertório"
+ * "Mais" e dos botões de tom da linha. De cima para baixo: o tom do dia (com Descer tom e Subir
+ * tom, o campo e "Salvar"), os links do Drive e do YouTube, "Abrir a cifra" e "Tirar do repertório"
  * (a música continua na biblioteca; dá para desfazer).
  */
 export function FolhaDaMusica({
@@ -48,9 +49,7 @@ export function FolhaDaMusica({
     <FolhaNaTela aberta={item !== null} titulo={item?.titulo ?? 'Música'} aoFechar={aoFechar}>
       {item ? (
         <>
-          <Texto variante="meta" cor="textoSuave">
-            {descricaoDoItem(item)}
-          </Texto>
+          <Texto variante="apoio">{descricaoDoItem(item)}</Texto>
           <CampoDoTom
             key={item.id}
             item={item}
@@ -89,9 +88,7 @@ export function FolhaDaMusica({
                 depoisDeFechar(() => aoTirar(item))
               }}
             />
-            <Texto variante="legenda" cor="textoSuave">
-              {`A música continua na biblioteca. ${fraseDoDesfazer}`}
-            </Texto>
+            <Texto variante="apoio">{`A música continua na biblioteca. ${fraseDoDesfazer}`}</Texto>
           </View>
         </>
       ) : null}
@@ -99,7 +96,7 @@ export function FolhaDaMusica({
   )
 }
 
-/** O tom do dia por escrito: o nome do tom, com Tom − e Tom + para andar a partir do atual. */
+/** O tom do dia por escrito, com Descer tom e Subir tom para andar a partir do atual. */
 function CampoDoTom({
   item,
   aoFechar,
@@ -154,33 +151,22 @@ function CampoDoTom({
           ? `O tom original é ${item.tomOriginal}. O tom do dia vale só neste encontro.`
           : 'Esta música não tem tom original cadastrado. O tom do dia vale só neste encontro.'}
       </Texto>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
+      <BotoesDoTom
+        desabilitado={!atual && !item.tomOriginal}
+        aoDescer={() => andar(-1)}
+        aoSubir={() => andar(1)}
+      />
+      {item.tomOriginal ? (
         <Botao
-          titulo="Tom −"
-          variante="secundario"
-          rotuloAcessivel="Descer meio tom"
-          desabilitado={!atual && !item.tomOriginal}
-          aoPressionar={() => andar(-1)}
+          titulo="Voltar ao tom original"
+          variante="terciario"
+          alinhado
+          aoPressionar={() => {
+            setTexto(item.tomOriginal ?? '')
+            setErro(null)
+          }}
         />
-        <Botao
-          titulo="Tom +"
-          variante="secundario"
-          rotuloAcessivel="Subir meio tom"
-          desabilitado={!atual && !item.tomOriginal}
-          aoPressionar={() => andar(1)}
-        />
-        {item.tomOriginal ? (
-          <Botao
-            titulo="Tom original"
-            variante="secundario"
-            rotuloAcessivel="Voltar ao tom original"
-            aoPressionar={() => {
-              setTexto(item.tomOriginal ?? '')
-              setErro(null)
-            }}
-          />
-        ) : null}
-      </View>
+      ) : null}
       <Campo
         rotulo="Tom do dia"
         opcional

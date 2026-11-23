@@ -82,6 +82,7 @@ const CASOS: Record<string, Record<string, unknown> | undefined> = {
     inicio: '2026-12-01T10:00:00-03:00',
   },
   'POST /api/v1/c/:comunidadeId/eventos/:eventoId/etapas': { titulo: 'Etapa', duracaoMin: 5 },
+  'POST /api/v1/c/:comunidadeId/eventos/:eventoId/etapas/modelo': { modelo: 'sabado_padrao' },
   'PATCH /api/v1/c/:comunidadeId/eventos/:eventoId/etapas/:etapaId': { titulo: 'Tomada' },
   'DELETE /api/v1/c/:comunidadeId/eventos/:eventoId/etapas/:etapaId': undefined,
   'PUT /api/v1/c/:comunidadeId/eventos/:eventoId/etapas/ordem': {

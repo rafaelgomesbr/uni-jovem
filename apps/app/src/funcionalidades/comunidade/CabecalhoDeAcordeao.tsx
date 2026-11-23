@@ -21,6 +21,11 @@ export function CabecalhoDeAcordeao({
   extra?: ReactNode
 }) {
   const { cores, solido } = useTema()
+  // "Banda e equipe: 9 pessoas": o nome em 17/600 e a contagem em apoio (15/400, suave) na mesma
+  // linha, para o número não pesar tanto quanto o nome (D83). O texto inteiro segue o mesmo.
+  const separador = titulo.indexOf(': ')
+  const nome = separador > 0 ? titulo.slice(0, separador + 1) : titulo
+  const detalhe = separador > 0 ? titulo.slice(separador + 2) : ''
   return (
     <View
       style={{
@@ -43,7 +48,8 @@ export function CabecalhoDeAcordeao({
         <Icone nome={icone} cor={cores.destaque} tamanho={18} />
       </View>
       <Texto variante="tituloItem" style={{ flex: 1 }}>
-        {titulo}
+        {nome}
+        {detalhe ? <Texto variante="apoio">{` ${detalhe}`}</Texto> : null}
       </Texto>
       {extra}
     </View>

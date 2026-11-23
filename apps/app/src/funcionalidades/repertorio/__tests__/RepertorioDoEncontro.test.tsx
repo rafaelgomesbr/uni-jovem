@@ -164,8 +164,8 @@ describe('repertório do encontro no visual A (D71)', () => {
       expect(screen.getAllByText('Descer')).toHaveLength(2)
       expect(screen.queryByText('Mais')).toBeNull()
       expect(screen.queryByRole('button', { name: /^Mais ações/ })).toBeNull()
-      expect(screen.queryByText('Tom −')).toBeNull()
-      expect(screen.queryByText('Tom +')).toBeNull()
+      expect(screen.queryByText('Descer tom')).toBeNull()
+      expect(screen.queryByText('Subir tom')).toBeNull()
     })
 
     test('tocar na linha abre a folha; Tom + anda meio tom a partir do que vale hoje, com a versão vista', async () => {
@@ -177,7 +177,7 @@ describe('repertório do encontro no visual A (D71)', () => {
       })
       const usuario = await abrirFolhaDe(/^Música 2 de 2: Aleluia/)
       expect(await screen.findByText(/O tom original é D/)).toBeOnTheScreen()
-      await usuario.press(screen.getByRole('button', { name: 'Subir meio tom' }))
+      await usuario.press(screen.getByRole('button', { name: 'Subir tom' }))
       expect(screen.getByDisplayValue('Eb')).toBeOnTheScreen()
       await usuario.press(screen.getByRole('button', { name: 'Salvar tom do dia' }))
       await waitFor(() =>
@@ -197,7 +197,7 @@ describe('repertório do encontro no visual A (D71)', () => {
         }),
       })
       const usuario = await abrirFolhaDe(/^Música 1 de 1: Grande é o Senhor/)
-      await usuario.press(await screen.findByRole('button', { name: 'Descer meio tom' }))
+      await usuario.press(await screen.findByRole('button', { name: 'Descer tom' }))
       await usuario.press(screen.getByRole('button', { name: 'Salvar tom do dia' }))
       await waitFor(() =>
         expect(
@@ -209,8 +209,8 @@ describe('repertório do encontro no visual A (D71)', () => {
     test('sem tom cadastrado: Tom − e + ficam desligados e a folha diz o que fazer', async () => {
       await montar('organizador', [{ ...ITEM_2, tomOriginal: null }])
       await abrirFolhaDe(/^Música 1 de 1: Aleluia/)
-      expect(await screen.findByRole('button', { name: 'Subir meio tom' })).toBeDisabled()
-      expect(screen.getByRole('button', { name: 'Descer meio tom' })).toBeDisabled()
+      expect(await screen.findByRole('button', { name: 'Subir tom' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Descer tom' })).toBeDisabled()
       expect(screen.getByText(/Esta música não tem tom original cadastrado/)).toBeOnTheScreen()
     })
 

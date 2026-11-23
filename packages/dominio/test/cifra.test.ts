@@ -505,10 +505,22 @@ describe('preparar cifra para tocar', () => {
     expect(p.tomQueSoa).toBe('A')
   })
 
-  it('sem tom nenhum, o ajuste ainda transpõe os acordes', () => {
+  it('sem tom nenhum, o primeiro acorde diz o tom (provável) e o ajuste transpõe', () => {
     const p = prepararCifra('[C]a [G]b', { ajuste: 2 })
-    expect(p.tomQueSoa).toBeNull()
+    expect(p.tomEstimado).toBe(true)
+    expect(p.tomQueSoa).toBe('D')
     expect(p.texto).toBe('[D]a [A]b')
+  })
+
+  it('o tom declarado pela música ou pela cifra nunca é estimado', () => {
+    expect(prepararCifra('[C]a', { tomOriginal: 'C' }).tomEstimado).toBe(false)
+    expect(prepararCifra('{key: C}\n[C]a').tomEstimado).toBe(false)
+  })
+
+  it('estimativa pelo primeiro acorde de uma cifra em tom menor', () => {
+    const p = prepararCifra('[Am7]a [G]b [F]c', { ajuste: 3 })
+    expect(p.tomQueSoa).toBe('Cm')
+    expect(p.texto).toBe('[Cm7]a [Bb]b [Ab]c')
   })
 
   it('cifra vazia ou nula', () => {
@@ -520,5 +532,90 @@ describe('preparar cifra para tocar', () => {
     const p = prepararCifra(CIFRA, { tomOriginal: 'G', tomDoDia: '???' })
     expect(p.tomQueSoa).toBe('G')
     expect(p.semitons).toBe(0)
+  })
+})
+
+// D82: o tom que a tela mostra e os acordes que a tela mostra andam sempre juntos.
+
+const CIFRA_COLADA = [
+  'Tom: A',
+  '',
+  'A         E',
+  'Luz que desce do alto',
+  'F#m       D',
+  'Chega em cada coração',
+].join('\n')
+
+describe('cifra colada com os acordes sobre a letra (D82)', () => {
+  it('a linha "Tom: A" avulsa vale como o tom da cifra', () => {
+    expect(metadadosDaCifra(CIFRA_COLADA).tom).toBe('A')
+    expect(metadadosDaCifra('Tom: F#m\n[F#m]a').tom).toBe('F#m')
+    expect(metadadosDaCifra('Tom: ???\n[C]a').tom).toBeNull()
+  })
+
+  it('a linha "Tom: A" não aparece como letra', () => {
+    const linhas = lerCifra('Tom: A\n[A]Luz')
+    expect(linhas).toEqual([{ tipo: 'texto', trechos: [{ acorde: 'A', letra: 'Luz' }] }])
+  })
+
+  it('transpõe mesmo sem ter sido convertida: o texto salvo não muda', () => {
+    const p = prepararCifra(CIFRA_COLADA, { tomOriginal: 'C', tomDoDia: 'Ab' })
+    expect(p.formato).toBe('acordes_sobre_letra')
+    expect(p.transpoe).toBe(true)
+    expect(p.tomQueSoa).toBe('Ab')
+    expect(p.semitons).toBe(11)
+    expect(p.texto).toContain('[Ab]Luz que de[Eb]sce do alto')
+    expect(p.texto).toContain('[Fm]Chega em c[Db]ada coração')
+    expect(CIFRA_COLADA).toContain('Tom: A')
+  })
+
+  it('o tom declarado na cifra vence o cadastro da música (os acordes estão nele)', () => {
+    // A música diz C, a cifra diz A: o tom do dia A♭ está um semitom abaixo dos acordes escritos.
+    const sem = prepararCifra(CIFRA_COLADA, { tomOriginal: 'C' })
+    expect(sem.tomQueSoa).toBe('A')
+    expect(sem.texto).toContain('[A]Luz')
+  })
+
+  it('"Tom: X" avulso em ChordPro sobe junto com os acordes', () => {
+    expect(transporCifra('Tom: G\n[G]a [D]b', 2)).toBe('Tom: A\n[A]a [E]b')
+  })
+
+  it('a conversão leva o "Tom: A" para a diretiva key', () => {
+    expect(converterParaChordPro(CIFRA_COLADA).texto.split('\n')[0]).toBe('{key: A}')
+  })
+})
+
+describe('transposição musicalmente correta (D82)', () => {
+  const BASE = '{key: G}\n[G]a [D/F#]b [Em7]c [Cmaj7]d [Dsus4]e [D]f [G9]g'
+
+  it.each([
+    [1, 'Ab', '{key: Ab}\n[Ab]a [Eb/G]b [Fm7]c [Dbmaj7]d [Ebsus4]e [Eb]f [Ab9]g'],
+    [2, 'A', '{key: A}\n[A]a [E/G#]b [F#m7]c [Dmaj7]d [Esus4]e [E]f [A9]g'],
+    [-2, 'F', '{key: F}\n[F]a [C/E]b [Dm7]c [Bbmaj7]d [Csus4]e [C]f [F9]g'],
+    [-5, 'D', '{key: D}\n[D]a [A/C#]b [Bm7]c [Gmaj7]d [Asus4]e [A]f [D9]g'],
+  ])('de G %i semitons: tom %s, bemol ou sustenido pela armadura', (n, tom, esperado) => {
+    expect(transporCifra(BASE, n)).toBe(esperado)
+    const p = prepararCifra(BASE, { ajuste: n })
+    expect(p.tomQueSoa).toBe(tom)
+    expect(p.texto).toBe(esperado)
+  })
+
+  it('o baixo e a qualidade acompanham a raiz, e a letra não é tocada', () => {
+    const r = transporCifra('{key: G}\n[G]Sobre a rocha, [D/F#]firme [Em7]estou', 2)
+    expect(r).toBe('{key: A}\n[A]Sobre a rocha, [E/G#]firme [F#m7]estou')
+  })
+
+  it('com capotraste: soa em A na 2ª casa, toca-se em G (formas G, D, Em, C)', () => {
+    const p = prepararCifra('{key: A}\n[A]a [E]b [F#m]c [D]d', { capotraste: 2 })
+    expect(p.tomQueSoa).toBe('A')
+    expect(p.tomQueSeToca).toBe('G')
+    expect(p.texto).toBe('{key: G}\n[G]a [D]b [Em]c [C]d')
+  })
+
+  it('subir o tom com capotraste mantém a casa e muda as formas', () => {
+    const p = prepararCifra('{key: A}\n[A]a [E]b', { capotraste: 2, ajuste: 2 })
+    expect(p.tomQueSoa).toBe('B')
+    expect(p.tomQueSeToca).toBe('A')
+    expect(p.texto).toBe('{key: A}\n[A]a [E]b')
   })
 })

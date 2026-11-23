@@ -79,23 +79,23 @@ export function UsoSemInternet({ eventoId }: { eventoId: string }) {
               ? TEXTO_PRONTO_SEM_INTERNET
               : `Quase pronto: ${faltam === 1 ? 'falta 1 PDF' : `faltam ${faltam} PDFs`}`}
           </Texto>
-          <Texto variante="meta" cor="textoSuave">
+          <Texto variante="apoio">
             {`Baixado em ${quandoNoAparelho(guardado.baixadoEm)}. Vale até ${diaEMesNoAparelho(offline.validoAte ?? guardado.validoAte)}.`}
           </Texto>
           {pronto && guardado.pdfs > 0 ? (
-            <Texto variante="meta" cor="textoSuave">
+            <Texto variante="apoio">
               {guardado.pdfs === 1
                 ? 'Inclui 1 PDF, que também abre sem internet.'
                 : `Inclui ${guardado.pdfs} PDFs, que também abrem sem internet.`}
             </Texto>
           ) : null}
           {!pronto ? (
-            <Texto variante="meta" cor="textoSuave">
+            <Texto variante="apoio">
               As cifras em texto já abrem sem internet, mas o PDF ainda não está neste aparelho.
               Conecte-se e toque em "Baixar o que falta".
             </Texto>
           ) : null}
-          <Texto variante="legenda" cor="textoSuave">
+          <Texto variante="apoio">
             Fica guardado cifrado neste aparelho e sai quando você sai da comunidade.
           </Texto>
         </View>

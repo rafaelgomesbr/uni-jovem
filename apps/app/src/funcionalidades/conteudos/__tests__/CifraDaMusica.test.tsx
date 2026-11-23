@@ -216,7 +216,7 @@ describe('cifra da música: formulário e aviso de direitos autorais (D61)', () 
       },
     })
     expect(await screen.findByLabelText('Sobre a rocha. Acordes: G, D')).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Subir meio tom' })).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Subir tom' })).toBeOnTheScreen()
     expect(screen.getByText('72 bpm')).toBeOnTheScreen()
     expect(screen.getByText('4:05')).toBeOnTheScreen()
   })

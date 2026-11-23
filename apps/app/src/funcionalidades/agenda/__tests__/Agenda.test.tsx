@@ -1,6 +1,6 @@
 /**
  * D69 e D79: a Agenda v3. Lista por dia, a parte de cada um na linha, filtro "Só o que é meu",
- * resposta direto na linha com Desfazer de 10 s, "Pedem ajuda", Calendário em folha com "Dias em
+ * resposta direto na linha com Desfazer de 5 s, "Pedem ajuda", Calendário em folha com "Dias em
  * que posso ajudar", "Novo encontro" para quem cria e os estados (vazio, erro, sem internet).
  */
 import { onlineManager } from '@tanstack/react-query'
@@ -238,7 +238,7 @@ describe('Agenda', () => {
   describe('responder direto na linha (D69, sem "tem certeza?")', () => {
     const PENDENTE = escala({ estado: 'pendente' })
 
-    test('pendente: "Aceitar" e "Não posso ir" na linha; aceitar aparece feito e só envia aos 10 s', async () => {
+    test('pendente: "Aceitar" e "Não posso ir" na linha; aceitar aparece feito e só envia aos 5 s', async () => {
       const usuario = userEvent.setup()
       const { servidor } = await renderizarTela(<TelaAgenda />, {
         papel: 'membro',
@@ -260,7 +260,7 @@ describe('Agenda', () => {
       expect(haDesfazerPendente()).toBe(true)
       expect(pedidosPara(servidor, 'POST', `${BASE}/atribuicoes/a1/confirmar`)).toHaveLength(0)
 
-      // Ao fim dos 10 s (aqui, adiantado), a resposta sai.
+      // Ao fim dos 5 s (aqui, adiantado), a resposta sai.
       await act(async () => confirmarAgora())
       await waitFor(() =>
         expect(pedidosPara(servidor, 'POST', `${BASE}/atribuicoes/a1/confirmar`)).toHaveLength(1),
@@ -363,7 +363,7 @@ describe('Agenda', () => {
       expect(await screen.findByRole('header', { name: 'Pedem ajuda (1)' })).toBeOnTheScreen()
       expect(screen.getByText('Motivo: Viagem')).toBeOnTheScreen()
       await usuario.press(screen.getByRole('button', { name: /^Assumir Projeção/ }))
-      // A linha some na hora; a API só é chamada aos 10 s.
+      // A linha some na hora; a API só é chamada aos 5 s.
       await waitFor(() => expect(screen.queryByRole('header', { name: /Pedem ajuda/ })).toBeNull())
       expect(pedidosPara(servidor, 'POST', `${BASE}/substituicoes/s1/assumir`)).toHaveLength(0)
       await act(async () => confirmarAgora())
@@ -492,7 +492,8 @@ describe('Agenda', () => {
       const igual = await screen.findByRole('button', { name: /^Igual ao último encontro/ })
       expect(igual).toBeEnabled()
       expect(screen.getByText('Recomendado')).toBeOnTheScreen()
-      expect(screen.getByRole('button', { name: /^Encontro padrão/ })).toBeOnTheScreen()
+      // Nenhum roteiro é imposto (D81): não há mais "Encontro padrão" na folha.
+      expect(screen.queryByRole('button', { name: /^Encontro padrão/ })).toBeNull()
       expect(screen.getByRole('button', { name: /^Em branco/ })).toBeOnTheScreen()
       await usuario.press(igual)
       await waitFor(() => expect(router.push).toHaveBeenCalledWith('/evento/igual-ao-ultimo'))

@@ -12,6 +12,7 @@ import {
 } from '@uj/dominio'
 import { ErroHttp, NAO_ENCONTRADO, SERIE_ENCERRADA, traduzirErroDoBanco, validar } from '../http.ts'
 import { auditar, exigir, idDoCaminho, naComunidade } from './contexto.ts'
+import { chaveDeModelo } from './eventos.ts'
 
 /**
  * Séries recorrentes (F8). Escopos de edição, sempre explícitos:
@@ -208,7 +209,7 @@ export function registrarRotasDeSeries(app: FastifyInstance, api: pg.Pool): void
         visibilidade: z.enum(['interna', 'publica']).optional(),
         capacidade: z.number().int().min(1).max(100000).nullish(),
         informacoesUteis: z.string().trim().max(5000).nullish(),
-        modelo: z.union([z.literal('sabado_padrao'), z.uuid()]).optional(),
+        modelo: chaveDeModelo.optional(),
         publicar: z.boolean().default(false),
       }),
       pedido.body,

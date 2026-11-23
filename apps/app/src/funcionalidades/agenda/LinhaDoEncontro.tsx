@@ -6,7 +6,7 @@ import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { Chip } from '@/ui/Chip'
 import { DeslizarParaResponder } from '@/ui/DeslizarParaResponder'
 import { Icone } from '@/ui/Icone'
-import { LARGURA_DA_HORA } from '@/ui/LinhaDeLista'
+import { ColunaDeHora } from '@/ui/LinhaDeLista'
 import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
 import { falarQuando, formatarHora } from '@/utilidades/datas'
@@ -76,9 +76,7 @@ export function LinhaDoEncontro({
         extra={
           <View style={{ gap: ESPACO.e8, alignItems: 'flex-start' }}>
             <Chip situacao="aguardando" texto="Aguardando sua resposta" />
-            <Texto variante="rotulo" cor="textoSuave">
-              {`Você: ${nomeDaParte(pendente)}`}
-            </Texto>
+            <Texto variante="apoio">{`Você: ${nomeDaParte(pendente)}`}</Texto>
             {aviso ? <AvisoDeHorario texto={aviso} /> : null}
           </View>
         }
@@ -108,17 +106,10 @@ export function LinhaDoEncontro({
 function ColunaDaHora({ evento }: { evento: ResumoDoEvento }) {
   const fim = new Date(Date.parse(evento.inicio) + evento.duracaoMin * 60_000).toISOString()
   return (
-    <View
-      style={{ minWidth: LARGURA_DA_HORA, alignItems: 'flex-start', gap: ESPACO.e4 }}
-      accessible={false}
-    >
-      <Texto variante="tituloItem" accessibilityRole="text" tabular>
-        {formatarHora(evento.inicio, evento.fuso)}
-      </Texto>
-      <Texto variante="meta" cor="textoSuave" tabular>
-        {formatarHora(fim, evento.fuso)}
-      </Texto>
-    </View>
+    <ColunaDeHora
+      inicio={formatarHora(evento.inicio, evento.fuso)}
+      fim={formatarHora(fim, evento.fuso)}
+    />
   )
 }
 
@@ -183,11 +174,7 @@ function LinhaSimples({
         <ColunaDaHora evento={evento} />
         <View style={{ flex: 1, gap: ESPACO.e4 }}>
           <Texto variante="tituloItem">{evento.titulo}</Texto>
-          {evento.localNome ? (
-            <Texto variante="meta" cor="textoSuave">
-              {evento.localNome}
-            </Texto>
-          ) : null}
+          {evento.localNome ? <Texto variante="apoio">{evento.localNome}</Texto> : null}
           {voce || inscrito || situacao ? (
             <View
               style={{
@@ -199,13 +186,9 @@ function LinhaSimples({
               }}
             >
               {voce ? (
-                <Texto variante="rotulo" cor="textoSuave">
-                  {voce}
-                </Texto>
+                <Texto variante="apoio">{voce}</Texto>
               ) : inscrito ? (
-                <Texto variante="rotulo" cor="textoSuave">
-                  Inscrito
-                </Texto>
+                <Texto variante="apoio">Inscrito</Texto>
               ) : null}
               {confirmada ? <Chip situacao="aceitou" /> : null}
               {!voce && inscrito ? <Chip situacao="aceitou" texto="Inscrição feita" /> : null}

@@ -530,8 +530,8 @@ function ListasECartoes() {
         <EstadoVazio
           icone="agenda"
           titulo="Nenhum encontro ainda"
-          descricao="Comece pelo Sábado padrão: as 7 etapas já vêm prontas e você ajusta depois."
-          acao={{ titulo: 'Novo Sábado padrão', aoPressionar: nada }}
+          descricao="Marque o encontro e monte o roteiro do dia do seu jeito."
+          acao={{ titulo: 'Novo encontro', aoPressionar: nada }}
         />
       </Grupo>
       <Grupo titulo="Avisos e toast">

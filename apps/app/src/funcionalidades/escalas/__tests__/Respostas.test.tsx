@@ -1,6 +1,6 @@
 /**
  * D69: responder à convocação sem "tem certeza?". O ato aparece feito na hora (armazenamento de
- * respostas em espera), o envio só sai ao fim dos 10 s, Desfazer cancela, e a falha volta com
+ * respostas em espera), o envio só sai ao fim dos 5 s, Desfazer cancela, e a falha volta com
  * "Tentar de novo". Mais a tela "Preciso de alguém no meu lugar".
  */
 import { act, screen, userEvent, waitFor } from '@testing-library/react-native'

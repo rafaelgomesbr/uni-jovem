@@ -70,9 +70,7 @@ export function LinhaDaMusica({ item, posicao, total, ocupado, aoMover, aoAbrir 
         </Texto>
         <View style={{ flex: 1, gap: ESPACO.e4 }}>
           <Texto variante="tituloItem">{item.titulo}</Texto>
-          <Texto variante="meta" cor="textoSuave">
-            {descricao}
-          </Texto>
+          <Texto variante="apoio">{descricao}</Texto>
           {item.nota ? <Texto variante="meta">{item.nota}</Texto> : null}
           {item.temPdf ? (
             <View style={{ flexDirection: 'row', marginTop: ESPACO.e4 }}>

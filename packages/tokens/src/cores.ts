@@ -37,6 +37,13 @@ export interface Paleta {
   textoSuave: string
   /** Sobrancelha, link, aba ativa, botão terciário. */
   destaque: string
+  /**
+   * Acorde na cifra (D82): outra cor que a da letra, âmbar no escuro e marrom-âmbar no claro.
+   * Sempre junto de peso forte e de linha própria acima da sílaba: a cor nunca é o único sinal.
+   */
+  acorde: string
+  /** Acorde com "Aumentar contraste": mais claro no escuro, mais escuro no claro. */
+  acordeContraste: string
   /** Botão primário, check, interruptor ligado. */
   primaria: string
   primariaPressionada: string
@@ -131,6 +138,8 @@ export const ESCURO: Paleta = {
   texto: '#F5F3FF',
   textoSuave: '#C9C4EC',
   destaque: '#FFB199',
+  acorde: '#FFD166',
+  acordeContraste: '#FFE08A',
   primaria: '#FF8A65',
   primariaPressionada: '#F0764F',
   primariaTopo: '#FF9A78',
@@ -195,6 +204,8 @@ export const CLARO: Paleta = {
   texto: '#1B1838',
   textoSuave: '#4B4670',
   destaque: '#8A2E12',
+  acorde: '#7A4300',
+  acordeContraste: '#5A3000',
   primaria: '#C2491F',
   primariaPressionada: '#A93D18',
   primariaTopo: '#C64B20',

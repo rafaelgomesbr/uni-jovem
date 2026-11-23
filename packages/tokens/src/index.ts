@@ -83,7 +83,7 @@ export const ALTURA = {
   pilula: 48,
   /** Pílula de filtro (tonal, D64): 48 visíveis (D75), sem depender de folga de toque. */
   filtro: 48,
-  /** Chip de estado (D75): 16/20 de texto mais 4 de padding em cima e embaixo. Cresce com a fonte. */
+  /** Chip de estado (D83): 14/18 de texto mais 4 de padding em cima e embaixo. Cresce com a fonte. */
   chip: 28,
   /**
    * Botão (D64): `grande` em formulário, barra de ação e entrada; `medio` dentro de
@@ -238,16 +238,55 @@ function papel(
   }
 }
 
-/** Papéis tipográficos (seção 2.4). Nenhum tamanho fora desta tabela. */
+/**
+ * Teto de escala dos títulos grandes (D83). Um título de 28 a 30 pt a 200% passaria de 56 pt e
+ * quebraria em três linhas; a 1,5 ele chega a 42 a 45 pt, ainda maior que o corpo no teto dele.
+ * O texto que se lê (corpo, apoio, item, botão, chip) segue crescendo até 2 ou sem teto.
+ */
+const TETO_DOS_TITULOS = 1.5
+
+/**
+ * Papéis tipográficos (seção 2.4). Nenhum tamanho fora desta tabela.
+ *
+ * Hierarquia (D83): cinco níveis que a vista separa de relance, por tamanho E peso E cor.
+ * - **título** (`display` nas raízes de aba, `tituloTela` na pilha): Bricolage 800, 30 e 28;
+ * - **seção** (`secao`): Inter 600, 20: o nome de um bloco ("Hoje: 3 encontros", "Avisos");
+ * - **corpo** (`tituloItem` 17 em 600 é a linha primária; `corpo` e `lista` 16 em 400);
+ * - **apoio** (`apoio`): Inter 400, 15, `textoSuave`: a linha secundária e o metadado;
+ * - **rótulo** (`sobrancelha`): Inter 600, 14, caixa-alta com espaço entre letras.
+ * Os demais (`tituloCartao`, `tituloMomento`, `numero`, `contador`...) são variações de contexto.
+ */
 export const TIPO = {
-  /** Saudação do Início; título das 5 raízes de aba. */
-  display: papel('titulo', '800', 34, 38, { espacamento: -0.5, teto: 2, nivel: 1 }),
+  /** Saudação do Início; título das 5 raízes de aba. Título de tela: 30 (D83, era 34). */
+  display: papel('titulo', '800', 30, 34, {
+    espacamento: -0.4,
+    teto: TETO_DOS_TITULOS,
+    nivel: 1,
+  }),
   /** Título das telas de pilha e das folhas grandes. */
-  tituloTela: papel('titulo', '800', 28, 32, { espacamento: -0.3, teto: 2, nivel: 1 }),
-  /** Título do cartão de destaque, mês da agenda, nome no Perfil, título de diálogo. */
-  tituloCartao: papel('titulo', '800', 24, 28, { espacamento: -0.2, teto: 2, nivel: 2 }),
-  /** Título do cartão do momento (D65): um degrau acima do `tituloCartao`. */
-  tituloMomento: papel('titulo', '800', 26, 30, { espacamento: -0.2, teto: 2, nivel: 2 }),
+  tituloTela: papel('titulo', '800', 28, 32, {
+    espacamento: -0.3,
+    teto: TETO_DOS_TITULOS,
+    nivel: 1,
+  }),
+  /** Título do cartão de destaque, mês da agenda, nome no Perfil, título de diálogo (22, era 24). */
+  tituloCartao: papel('titulo', '800', 22, 26, {
+    espacamento: -0.2,
+    teto: TETO_DOS_TITULOS,
+    nivel: 2,
+  }),
+  /** Título do cartão do momento (D65): o destaque do Início, 24 (D83, era 26). */
+  tituloMomento: papel('titulo', '800', 24, 28, {
+    espacamento: -0.2,
+    teto: TETO_DOS_TITULOS,
+    nivel: 2,
+  }),
+  /**
+   * Título de seção (D83): o nome de um bloco da tela ("Hoje: 3 encontros", "Avisos", "Banda e
+   * equipe"). Inter 600 em 20, em frase normal (não caixa-alta): o peso 800 da Bricolage fica só
+   * para título de tela e de cartão, para a tela não virar "tudo em negrito".
+   */
+  secao: papel('texto', '600', 20, 26, { espacamento: -0.2, teto: 1.6, nivel: 2 }),
   /** Números de relatório. */
   numero: papel('titulo', '800', 28, 32, { teto: 2, tabular: true }),
   /** Contador grande do check-in ("9 de 12", D65). */
@@ -258,8 +297,12 @@ export const TIPO = {
   cronometro: papel('titulo', '800', 64, 68, { espacamento: -1, teto: 1.4, tabular: true }),
   /** Versículo, pedido de oração, descrição de evento, corpo de aviso. */
   leitura: papel('texto', '400', 17, 26),
-  /** Título de linha, nome de pessoa, título de estado vazio e de aviso. */
-  tituloItem: papel('texto', '600', 16, 22),
+  /**
+   * Linha primária (D83): título de linha, nome de pessoa, título de estado vazio e de aviso. 17 em
+   * 600 (era 16): um degrau acima do corpo e do apoio, para a linha de cima de toda lista se
+   * destacar da de baixo sem precisar de cor.
+   */
+  tituloItem: papel('texto', '600', 17, 22),
   /** Texto de interface, parágrafo, descrição de estado vazio (16/24 na direção A, D65). */
   corpo: papel('texto', '400', 16, 24),
   /**
@@ -280,30 +323,43 @@ export const TIPO = {
    */
   rotulo: papel('texto', '600', 16, 22),
   /**
-   * Data, hora, local e a descrição de uma linha de lista: o que informa. 16 (D75), como o corpo;
-   * a diferença para o `corpo` é só a altura de linha mais justa.
+   * Texto curto que a pessoa precisa LER e que não é o corpo: erro de campo, motivo de botão
+   * parado, rótulo da pílula de filtro, toast. 16 (D75), como o corpo; a diferença para o `corpo` é
+   * só a altura de linha mais justa. Para o metadado secundário de uma linha ou cartão use `apoio`.
    */
   meta: papel('texto', '400', 16, 22),
+  /**
+   * Apoio (D83): a linha secundária de uma lista ou cartão (data, local, "15 min · Com Ana"), em
+   * `textoSuave`. 15 em 400, abaixo do piso de 16 da D75, porque é metadado que acompanha uma linha
+   * primária de 17 em 600 e NUNCA é a única fonte de uma informação essencial: o que a pessoa
+   * precisa ler para agir (erro, motivo, aviso, botão) fica em 16 ou mais. O contraste de
+   * `textoSuave` é medido em todos os fundos nos dois temas (`pares.ts`, mínimo 4,5:1), e a escala
+   * do sistema cresce o apoio até 2 (30 pt).
+   */
+  apoio: papel('texto', '400', 15, 20, { teto: 2 }),
   /**
    * Ajuda, contador, referência, status de sincronização. 16 (D75): a referência do versículo, a
    * ajuda de campo e o motivo de um botão desabilitado informam, e não há "texto miúdo" aceitável.
    */
   legenda: papel('texto', '400', 16, 22),
   /**
-   * Etiqueta de seção no cartão e acima de grupos ("EM 5 DIAS"). 16 (D75), com o espaço entre letras
-   * reduzido para as maiúsculas não alargarem demais; teto de 2 como o resto do texto que informa.
+   * Rótulo (D83): etiqueta de seção no cartão e acima de grupos ("EM 5 DIAS", "SEU RESUMO"). Caixa-alta
+   * com espaço entre letras de 0,7: a maiúscula de 14 pt mede cerca de 10 pt de altura, mais que a
+   * minúscula do corpo de 16 (cerca de 9), então a leitura não piora (a D75 pedia 16 e a caixa-alta
+   * de 16 competia com o título). Teto de 2.
    */
-  sobrancelha: papel('texto', '600', 16, 20, {
-    espacamento: 0.6,
+  sobrancelha: papel('texto', '600', 14, 18, {
+    espacamento: 0.7,
     maiusculas: true,
     teto: 2,
     nivel: 3,
   }),
   /**
-   * Chip de estado: 16 (D75). Cresce com a fonte do sistema até 2 e quebra de linha em vez de
-   * cortar; a altura mínima do chip é `ALTURA.chip`.
+   * Chip de estado: 14 em 600 (D83, era 16). A palavra vem dentro de uma etiqueta com fundo, ícone
+   * e borda no "Aumentar contraste", então 14 lê bem; cresce com a fonte do sistema até 2 e quebra
+   * de linha em vez de cortar; a altura mínima do chip é `ALTURA.chip`.
    */
-  chip: papel('texto', '600', 16, 20, { teto: 2 }),
+  chip: papel('texto', '600', 14, 18, { teto: 2 }),
   /**
    * Rótulos da barra de abas: 600 na ativa, 500 nas outras. Único papel abaixo de 16, por exceção
    * declarada (D75): quatro palavras como "Comunidade" têm de caber lado a lado em 360 pt, e o

@@ -144,7 +144,7 @@ describe('ao vivo no visual A (D71)', () => {
       ).toBeOnTheScreen()
     })
 
-    test('"Encerrar o ao vivo" mostra o resultado na hora e só envia depois dos 10 s', async () => {
+    test('"Encerrar o ao vivo" mostra o resultado na hora e só envia depois dos 5 s', async () => {
       const ultima = retratoDeTeste({
         versao: 5,
         etapaAtualId: ETAPAS[2],
@@ -171,7 +171,7 @@ describe('ao vivo no visual A (D71)', () => {
       expect(screen.queryByRole('button', { name: 'Encerrar o ao vivo' })).toBeNull()
       expect(pedidosPara(servidor, 'POST', CAMINHO)).toHaveLength(0)
 
-      // Aos 10 s (ou ao sair da tela), o comando sai.
+      // Aos 5 s (ou ao sair da tela), o comando sai.
       await act(async () => confirmarAgora())
       await waitFor(() =>
         expect(pedidosPara(servidor, 'POST', CAMINHO)[0]?.corpo).toEqual({

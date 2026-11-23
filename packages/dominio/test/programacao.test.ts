@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   calcularHorarios,
   duracaoTotal,
+  ehModeloEmbutido,
   MODELO_SABADO_PADRAO,
+  MODELOS_EMBUTIDOS,
   podeMudarStatus,
 } from '../src/index.ts'
 
@@ -18,6 +20,21 @@ describe('programação', () => {
       'Encerramento',
     ])
     expect(duracaoTotal(MODELO_SABADO_PADRAO.etapas)).toBe(60)
+  })
+
+  it('os modelos do app são poucos, de chave única, com etapas e até uma hora (D81)', () => {
+    expect(MODELOS_EMBUTIDOS.map((m) => m.chave)).toEqual([
+      'sabado_padrao',
+      'reuniao_curta',
+      'so_louvor',
+    ])
+    expect(new Set(MODELOS_EMBUTIDOS.map((m) => m.nome)).size).toBe(MODELOS_EMBUTIDOS.length)
+    for (const m of MODELOS_EMBUTIDOS) {
+      expect(m.etapas.length).toBeGreaterThan(0)
+      expect(duracaoTotal(m.etapas)).toBeLessThanOrEqual(60)
+    }
+    expect(ehModeloEmbutido('so_louvor')).toBe(true)
+    expect(ehModeloEmbutido('inexistente')).toBe(false)
   })
 
   it('horários em sequência a partir do início', () => {

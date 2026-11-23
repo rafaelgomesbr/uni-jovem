@@ -133,7 +133,7 @@ export function ParaResponder({ itens, fuso, semInternet, aoAceitar, aoRecusar }
   if (visiveis.length === 0) return null
 
   return (
-    <Secao titulo={`Para responder (${aindaPrecisam.length})`}>
+    <Secao titulo={`Para responder (${aindaPrecisam.length})`} estilo="titulo">
       <View style={{ gap: ESPACO.e12 }}>
         {visiveis.map((item) => (
           <LinhaQueEncolhe

@@ -34,8 +34,8 @@ export interface PedidoDeDesfazer {
   /** A pessoa tocou em "Desfazer": volte a tela ao estado anterior. `aoConfirmar` não roda. */
   aoDesfazer?: () => void
   /**
-   * Quanto tempo a pessoa tem (10 s por padrão: WCAG 2.2.1 e o catálogo de interação 5.2). Com
-   * leitor de tela ligado o tempo dobra (10 vira 20), como no toast comum: ele precisa ler antes.
+   * Quanto tempo a pessoa tem (5 s por padrão: WCAG 2.2.1 e o catálogo de interação 5.2). Com
+   * leitor de tela ligado o tempo dobra (5 vira 10), como no toast comum: ele precisa ler antes.
    * Todo texto que cita o tempo usa `segundosDaEsperaAgora` ou `useSegundosDoDesfazer`, nunca um
    * número escrito à mão.
    */
@@ -210,13 +210,13 @@ function definirLeitorDeTela(ligado: boolean) {
     }
     avisar()
   } else if (mudou) {
-    // Os textos que citam "10 segundos" passam a dizer o tempo de verdade.
+    // Os textos que citam "5 segundos" passam a dizer o tempo de verdade.
     avisar()
   }
 }
 
 /**
- * Quantos segundos a pessoa tem de verdade AGORA: o tempo pedido (10 por padrão), dobrado com
+ * Quantos segundos a pessoa tem de verdade AGORA: o tempo pedido (5 por padrão), dobrado com
  * leitor de tela. É o número que a faixa conta; todo texto de folha, botão e dica usa este mesmo
  * (antes a folha dizia 10 s e a faixa contava 20 s).
  */
@@ -233,7 +233,7 @@ export function useSegundosDoDesfazer(base: number = DESFAZER.segundos): number 
   )
 }
 
-/** "Você tem 10 segundos para desfazer." (ou 20, com leitor de tela). */
+/** "Você tem 5 segundos para desfazer." (ou 10, com leitor de tela). */
 export function frasePraDesfazer(segundos: number): string {
   return `Você tem ${segundos} segundos para desfazer.`
 }
@@ -253,7 +253,7 @@ export function conhecerOLeitorDeTela(): void {
 }
 
 /**
- * Mostra o toast com Desfazer e a contagem regressiva (10 s, 20 com leitor de tela). O ato já aparece feito na
+ * Mostra o toast com Desfazer e a contagem regressiva (5 s, 10 com leitor de tela). O ato já aparece feito na
  * tela; o envio (`aoConfirmar`) só sai ao fim. Um segundo `mostrarDesfazer` com o primeiro
  * ainda em contagem CONFIRMA o primeiro (nunca se perde um envio) e começa o novo.
  */
@@ -359,9 +359,9 @@ export function useDesfazerPendente(): Pendente | null {
 /**
  * O toast: cápsula de raio 20 em `toastFundo` (sempre escuro, texto claro), com o texto, a
  * contagem em número ("10 s"), o botão "Desfazer" de 44 por 44 no mínimo em `acao` e a barra
- * fina de 3 pt no rodapé que encolhe por 10 s, linear. O número é o equivalente da barra: com
+ * fina de 3 pt no rodapé que encolhe por 5 s, linear. O número é o equivalente da barra: com
  * Reduzir movimento a barra some e o número continua. É uma região `status` anunciada uma
- * vez ("Desfazer disponível por 10 segundos"); o foco nunca é roubado.
+ * vez ("Desfazer disponível por 5 segundos"); o foco nunca é roubado.
  */
 export function CaixaDoDesfazer({ pendente: p }: { pendente: Pendente }) {
   const { cores, elevacao } = useTema()

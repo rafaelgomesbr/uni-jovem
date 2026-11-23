@@ -12,7 +12,6 @@ import { type AcaoDoMenu, MenuDeAcoes } from '@/ui/FolhaNaTela'
 import type { NomeDoIcone } from '@/ui/Icone'
 import { useTravaDeEnvio } from '@/ui/navegacao'
 import { mostrarToast } from '@/ui/Toast'
-import { desfazerAgora, mostrarDesfazer, useRestanteDoDesfazer } from '@/ui/ToastComDesfazer'
 import { confirmar } from '@/utilidades/confirmar'
 
 import { usePode } from '../comunidade/permissoes'
@@ -57,9 +56,9 @@ export function textoDePublicado(avisadas: number): string {
 /**
  * Ações sobre o encontro (D69, 3.4): um primário que depende da hora ("Publicar e avisar 11
  * pessoas" no rascunho, "Lembrar os 2", "Marcar quem chegou", "Conduzir ao vivo", "Marcar o próximo
- * encontro") e o menu "Mais" em grupos. Publicar não pergunta "tem certeza?": mostra o Desfazer de
- * 10 s (o número real vem de `useSegundosDoDesfazer`) e só então avisa as pessoas. Cada ação só aparece se o papel permite (matriz de
- * `@uj/dominio`) e se a transição de situação é válida. A API confere de novo.
+ * encontro") e o menu "Mais" em grupos. Publicar não pergunta "tem certeza?" e não espera: publica
+ * na hora e avisa as pessoas (D81); quem quiser voltar atrás usa "Cancelar ou adiar". Cada ação só
+ * aparece se o papel permite (matriz de `@uj/dominio`) e se a transição de situação é válida. A API confere de novo.
  */
 export function useAcoesDoEvento({
   evento,
@@ -75,16 +74,28 @@ export function useAcoesDoEvento({
   const guardado = usePacoteDoEvento(evento.id).data ?? null
   const travaDoModelo = useTravaDeEnvio()
   const [menuAberto, setMenuAberto] = useState(false)
-  const [publicando, setPublicando] = useState(false)
   // Depois de publicar: a frase que diz o que aconteceu, na própria tela, até a pessoa sair.
   const [mensagemFinal, setMensagemFinal] = useState<string | null>(null)
-  const restante = useRestanteDoDesfazer()
   const base = `${naComunidade(comunidadeId)}/eventos/${evento.id}`
   const acoes = acoesDeStatus(evento.status)
   const params = { eventoId: evento.id }
   const fase = faseDoEncontro(evento)
   const avisaria = pessoasDistintas(evento.atribuicoes)
 
+  // Publicar é na hora (D81): sem contagem, o botão diz "Publicando..." enquanto a resposta viaja.
+  // O cabeçalho só vira "Publicado" quando o servidor confirmou e a tela recarregou.
+  const publicarMutacao = useMutation({
+    mutationFn: async () => {
+      await api.post(`${base}/status`, { status: 'publicado' })
+      await invalidar(evento.id)
+    },
+    onSuccess: () => {
+      const texto = textoDePublicado(avisaria)
+      setMensagemFinal(texto)
+      mostrarToast({ texto })
+    },
+  })
+  const publicando = publicarMutacao.isPending
   const encerrarMutacao = useMutation({
     mutationFn: () => api.post(`${base}/status`, { status: 'encerrado' }),
     onSuccess: async () => {
@@ -133,21 +144,6 @@ export function useAcoesDoEvento({
   const registraPresenca = pode('presenca', 'registrar') && podeIrAoVivo(evento.status)
   const noPeriodoDoDia = fase === 'checkin' || fase === 'acontecendo'
 
-  /**
-   * Publica de verdade e avisa as pessoas. Roda ao fim da contagem do Desfazer, ao sair da tela ou do
-   * app (D74), e de novo se a rede falhar. O cabeçalho só vira "Publicado" quando o servidor confirmou
-   * e a tela recarregou: até lá ele diz "Publicando".
-   */
-  async function enviarPublicacao() {
-    setPublicando(true)
-    await api.post(`${base}/status`, { status: 'publicado' })
-    await invalidar(evento.id)
-    const texto = textoDePublicado(avisaria)
-    setMensagemFinal(texto)
-    mostrarToast({ texto })
-    setPublicando(false)
-  }
-
   async function publicar() {
     setMensagemFinal(null)
     // Erro de ano: publicar uma data que já passou avisa gente à toa. Esta é a única pergunta que resta.
@@ -160,18 +156,7 @@ export function useAcoesDoEvento({
       })
       if (!ok) return
     }
-    setPublicando(true)
-    mostrarDesfazer({
-      texto:
-        avisaria > 0
-          ? `Publicando e avisando ${quantasPessoas(avisaria)}.`
-          : 'Publicando o encontro.',
-      aoDesfazer: () => setPublicando(false),
-      aoFalhar: () => setPublicando(false),
-      textoDaFalha:
-        'Não deu para publicar. Nada foi enviado nem ninguém foi avisado. Toque em Tentar de novo.',
-      aoConfirmar: enviarPublicacao,
-    })
+    publicarMutacao.mutate()
   }
 
   async function encerrar() {
@@ -222,19 +207,15 @@ export function useAcoesDoEvento({
     if (podePublicar) {
       primaria = {
         titulo: publicando
-          ? restante !== null
-            ? `Publicando em ${restante} s · Desfazer`
-            : 'Publicando...'
+          ? 'Publicando...'
           : evento.status === 'adiado'
             ? 'Publicar de novo'
             : avisaria > 0
               ? `Publicar e avisar ${quantasPessoas(avisaria)}`
               : 'Publicar',
-        ...(publicando ? { icone: 'relogio' as const } : {}),
-        // Durante a contagem o botão é o Desfazer; depois que saiu, só espera a resposta.
-        aoPressionar: publicando ? desfazerAgora : () => void publicar(),
-        carregando: false,
-        desabilitado: publicando && restante === null,
+        aoPressionar: () => void publicar(),
+        carregando: publicando,
+        desabilitado: publicando,
       }
     } else if (evento.status === 'publicado') {
       if (fase === 'terminou') {
@@ -431,14 +412,12 @@ export function useAcoesDoEvento({
      */
     itens: itens.filter((i): i is AcaoDoMenu => !!i),
     publicando,
-    /** "Publicando em 9 s": o que o cabeçalho diz enquanto a publicação espera ou viaja. */
-    textoPublicando: publicando
-      ? restante !== null
-        ? `Publicando em ${restante} s`
-        : 'Publicando...'
-      : null,
+    /** "Publicando...": o que o cabeçalho diz enquanto a publicação viaja. */
+    textoPublicando: publicando ? 'Publicando...' : null,
     /** "Publicado. 9 pessoas foram avisadas.": fica na tela depois de publicar. */
     mensagemFinal,
+    /** Publicar não passou: a tela diz isso com o título próprio, e o botão volta para tentar de novo. */
+    erroAoPublicar: publicarMutacao.error,
     erro:
       encerrarMutacao.error ??
       excluir.error ??

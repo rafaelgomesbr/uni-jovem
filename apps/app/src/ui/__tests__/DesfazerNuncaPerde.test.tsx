@@ -203,7 +203,8 @@ describe('a ação pendente nunca se perde (D74)', () => {
     })
     await act(async () => confirmarAgora())
     await act(async () => {
-      mostrarDesfazer({ texto: 'Segundo.', aoConfirmar: outro })
+      // Contagem mais longa que as esperas das tentativas do primeiro (2 s + 6 s).
+      mostrarDesfazer({ texto: 'Segundo.', segundos: 20, aoConfirmar: outro })
     })
     await passar(esperasTodas)
     // O segundo segue na contagem dele, intacto.
@@ -239,15 +240,15 @@ describe('o número de segundos é um só', () => {
         <HospedeiroDeToast />
       </>,
     )
-    expect(segundosDaEsperaAgora()).toBe(10)
-    expect(screen.getByText('Você tem 10 segundos para desfazer.')).toBeOnTheScreen()
+    expect(segundosDaEsperaAgora()).toBe(5)
+    expect(screen.getByText('Você tem 5 segundos para desfazer.')).toBeOnTheScreen()
     await act(async () => {
       mostrarDesfazer({ texto: 'Convocado.', aoConfirmar: jest.fn() })
     })
-    expect(screen.getByText('10 s')).toBeOnTheScreen()
+    expect(screen.getByText('5 s')).toBeOnTheScreen()
   })
 
-  test('com leitor de tela: a folha, a faixa e o anúncio dizem 20, e mudam juntos ao ligar', async () => {
+  test('com leitor de tela: a folha, a faixa e o anúncio dizem 10, e mudam juntos ao ligar', async () => {
     await leitor(false)
     await render(
       <>
@@ -255,14 +256,14 @@ describe('o número de segundos é um só', () => {
         <HospedeiroDeToast />
       </>,
     )
-    expect(screen.getByText('Você tem 10 segundos para desfazer.')).toBeOnTheScreen()
+    expect(screen.getByText('Você tem 5 segundos para desfazer.')).toBeOnTheScreen()
     await leitor(true)
-    expect(segundosDaEsperaAgora()).toBe(20)
-    expect(screen.getByText('Você tem 20 segundos para desfazer.')).toBeOnTheScreen()
+    expect(segundosDaEsperaAgora()).toBe(10)
+    expect(screen.getByText('Você tem 10 segundos para desfazer.')).toBeOnTheScreen()
     await act(async () => {
       mostrarDesfazer({ texto: 'Convocado.', aoConfirmar: jest.fn() })
     })
-    expect(screen.getByText('20 s')).toBeOnTheScreen()
-    expect(anunciar).toHaveBeenCalledWith(`Convocado. ${DESFAZER.anuncio(20)}`)
+    expect(screen.getByText('10 s')).toBeOnTheScreen()
+    expect(anunciar).toHaveBeenCalledWith(`Convocado. ${DESFAZER.anuncio(10)}`)
   })
 })

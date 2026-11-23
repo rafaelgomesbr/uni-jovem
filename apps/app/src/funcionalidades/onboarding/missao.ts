@@ -64,7 +64,7 @@ const MONTAR: Etapa = {
   id: 'montar',
   titulo: 'Montar o encontro',
   texto:
-    'Na Agenda, toque em Novo encontro e comece pelo Sábado padrão; depois ajuste o roteiro. Para reordenar as etapas, use os botões subir e descer.',
+    'Na Agenda, toque em Novo encontro. O roteiro começa vazio: você monta etapa por etapa ou usa um modelo, e ajusta depois. Para reordenar as etapas, use os botões subir e descer.',
   demo: 'evento',
 }
 

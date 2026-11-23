@@ -17,7 +17,7 @@ import { CartaoDeVidro } from '@/ui/CartaoDeVidro'
 import { EstadoVazio } from '@/ui/EstadoVazio'
 import { AvisoDeFalha } from '@/ui/Falha'
 import { FolhaNaTela } from '@/ui/FolhaNaTela'
-import { LARGURA_DA_HORA, Lista, RECUO_DA_LISTA } from '@/ui/LinhaDeLista'
+import { ColunaDeHora, Lista, RECUO_DA_LISTA } from '@/ui/LinhaDeLista'
 import { Texto } from '@/ui/Texto'
 import { useTema } from '@/ui/tema'
 import { mostrarToast } from '@/ui/Toast'
@@ -31,6 +31,7 @@ import { useConvocadosEmEspera, useRemovidasEmEspera } from './convocadosOtimist
 import { montarQuemVai, type PessoaNaLista } from './listaDeQuemVai'
 import { LinhaDaPessoaNaEquipe } from './QuemVai'
 import { reordenarEtapas } from './regras'
+import { useUsarModelo } from './UsarModelo'
 
 interface Props {
   evento: DetalheDoEvento
@@ -43,7 +44,8 @@ interface Props {
  * Roteiro (D78): cada etapa é um ACORDEÃO na própria aba, sem abrir outra tela. Fechada, mostra a
  * hora, o nome e "15 min · Com Ana, Bruno". Aberta, mostra a descrição e quem cuida; quem organiza
  * edita ali mesmo (nome, duração e descrição, "Salvar etapa"), sobe e desce a etapa, chama e tira
- * gente e tem o botão de texto "Remover etapa". No fim, o total e "Adicionar etapa".
+ * gente e tem o botão de texto "Remover etapa". No fim, o total e "Adicionar etapa". O encontro
+ * novo nasce sem etapas (D81): o estado vazio oferece "Começar do zero" e "Usar um modelo".
  */
 export function SecaoEtapas({ evento, comunidadeId, aoVerVisaoGeral }: Props) {
   const pode = usePode()
@@ -51,13 +53,17 @@ export function SecaoEtapas({ evento, comunidadeId, aoVerVisaoGeral }: Props) {
   const [adicionando, setAdicionando] = useState(false)
   const base = `${naComunidade(comunidadeId)}/eventos/${evento.id}`
   const invalidar = useInvalidarEventos(comunidadeId)
+  const modelo = useUsarModelo(evento, comunidadeId)
   const folha = gerenciar ? (
-    <NovaEtapa
-      aberta={adicionando}
-      aoFechar={() => setAdicionando(false)}
-      base={base}
-      aoCriar={() => invalidar(evento.id)}
-    />
+    <>
+      <NovaEtapa
+        aberta={adicionando}
+        aoFechar={() => setAdicionando(false)}
+        base={base}
+        aoCriar={() => invalidar(evento.id)}
+      />
+      {modelo.folha}
+    </>
   ) : null
 
   if (evento.etapas.length === 0) {
@@ -65,16 +71,16 @@ export function SecaoEtapas({ evento, comunidadeId, aoVerVisaoGeral }: Props) {
       <>
         <EstadoVazio
           icone="etapas"
-          titulo="O roteiro ainda não foi montado."
+          titulo={gerenciar ? 'Monte o roteiro do dia' : 'O roteiro ainda não foi montado.'}
           descricao={
             gerenciar
-              ? 'Monte o roteiro com as etapas do encontro, cada uma com a sua duração.'
+              ? 'O roteiro é seu: comece do zero, etapa por etapa, ou parta de um modelo e ajuste.'
               : 'Quando a organização montar, ele aparece aqui.'
           }
           acao={
             gerenciar
               ? {
-                  titulo: 'Adicionar etapa',
+                  titulo: 'Começar do zero',
                   icone: 'adicionar',
                   aoPressionar: () => setAdicionando(true),
                 }
@@ -84,6 +90,15 @@ export function SecaoEtapas({ evento, comunidadeId, aoVerVisaoGeral }: Props) {
                   aoPressionar: aoVerVisaoGeral,
                 }
           }
+          {...(gerenciar
+            ? {
+                acaoSecundaria: {
+                  titulo: 'Usar um modelo',
+                  icone: 'modelo' as const,
+                  aoPressionar: modelo.abrir,
+                },
+              }
+            : {})}
         />
         {folha}
       </>
@@ -123,6 +138,7 @@ export function RoteiroDoEncontro({
   const invalidar = useInvalidarEventos(comunidadeId)
   const gerenciar = pode('etapa', 'gerenciar')
   const [adicionandoAqui, setAdicionandoAqui] = useState(false)
+  const modelo = useUsarModelo(evento, comunidadeId)
   const chave = CHAVES.evento(comunidadeId, evento.id)
   const base = `${naComunidade(comunidadeId)}/eventos/${evento.id}`
 
@@ -156,6 +172,46 @@ export function RoteiroDoEncontro({
   const passou = evento.etapas.length > 0 && total > evento.duracaoMin
   const adicionar = aoAdicionar ?? (() => setAdicionandoAqui(true))
 
+  if (evento.etapas.length === 0) {
+    // Roteiro vazio (D81): duas portas visíveis, sem presumir nenhum formato.
+    return (
+      <View style={{ paddingHorizontal: RECUO_DA_LISTA.texto, paddingVertical: ESPACO.e12 }}>
+        <Texto variante="corpo" cor="textoSuave">
+          {gerenciar
+            ? 'O roteiro do dia está vazio. Monte do seu jeito.'
+            : 'O roteiro ainda não foi montado.'}
+        </Texto>
+        {gerenciar ? (
+          <View
+            style={{
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              gap: ESPACO.e12,
+              marginTop: ESPACO.e12,
+            }}
+          >
+            <Botao titulo="Começar do zero" icone="adicionar" aoPressionar={adicionar} />
+            <Botao
+              titulo="Usar um modelo"
+              icone="modelo"
+              variante="secundario"
+              aoPressionar={modelo.abrir}
+            />
+          </View>
+        ) : null}
+        {gerenciar ? modelo.folha : null}
+        {gerenciar && !aoAdicionar ? (
+          <NovaEtapa
+            aberta={adicionandoAqui}
+            aoFechar={() => setAdicionandoAqui(false)}
+            base={base}
+            aoCriar={() => invalidar(evento.id)}
+          />
+        ) : null}
+      </View>
+    )
+  }
+
   return (
     <View>
       {reordenar.error ? <AvisoDeFalha erro={reordenar.error} titulo="A ordem não mudou" /> : null}
@@ -173,7 +229,7 @@ export function RoteiroDoEncontro({
         </View>
       ))}
       <View style={{ paddingHorizontal: RECUO_DA_LISTA.texto, paddingVertical: ESPACO.e12 }}>
-        <Texto variante="meta" cor="textoSuave" tabular>
+        <Texto variante="apoio" tabular>
           {`Total ${formatarDuracao(total)} de ${formatarDuracao(evento.duracaoMin)} previstos`}
         </Texto>
         {gerenciar ? (
@@ -251,16 +307,11 @@ function EtapaEmAcordeao({
       rotuloAberto={`${etapa.titulo}. Aberta, toque para recolher.`}
       cabecalho={() => (
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: ESPACO.e12 }}>
-          <View style={{ minWidth: LARGURA_DA_HORA }}>
-            <Texto variante="lista" tabular>
-              {hora}
-            </Texto>
-          </View>
-          <View style={{ flex: 1 }}>
+          {/* Horário em coluna fixa e tabular; linha primária 17/600 e secundária 15/400 suave (D83). */}
+          <ColunaDeHora inicio={hora} />
+          <View style={{ flex: 1, gap: ESPACO.e4 }}>
             <Texto variante="tituloItem">{etapa.titulo}</Texto>
-            <Texto variante="meta" cor="textoSuave">
-              {resumo}
-            </Texto>
+            <Texto variante="apoio">{resumo}</Texto>
           </View>
         </View>
       )}
@@ -433,7 +484,7 @@ function CorpoDaEtapa({
         <Texto variante="corpo">{etapa.descricao}</Texto>
       ) : null}
 
-      <Texto variante="rotulo" cor="textoSuave">
+      <Texto variante="sobrancelha" cor="textoSuave">
         Quem cuida
       </Texto>
       {pessoas.length ? (

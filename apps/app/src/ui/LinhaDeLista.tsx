@@ -11,8 +11,43 @@ import { Texto } from './Texto'
 import { useTema } from './tema'
 import { soNaWeb } from './web'
 
-/** Coluna de hora (M): largura mínima de 44, que cresce com a fonte. */
-export const LARGURA_DA_HORA = 44
+/**
+ * Coluna de hora (D83): largura mínima de 48 (múltiplo da grade), que cresce com a fonte. "19:05" em
+ * 15 pt tabular mede cerca de 41: a coluna fixa mantém o título de todas as linhas no mesmo x.
+ */
+export const LARGURA_DA_HORA = 48
+
+/**
+ * A coluna do horário à esquerda de uma linha (D83): o começo em `apoio` 500 na cor do texto, o fim
+ * (quando há) em `apoio` suave embaixo, os dois à esquerda, em algarismos de largura fixa e numa
+ * coluna de `LARGURA_DA_HORA`, para o título de toda linha começar no mesmo x. A linha de caixa do
+ * começo tem a altura da linha primária (22), então os dois textos ficam na mesma base: o horário não
+ * compete com o título (que é 17 em 600) e os horários de linhas seguidas se leem como uma coluna.
+ */
+export function ColunaDeHora({ inicio, fim }: { inicio: string; fim?: string }) {
+  return (
+    <View
+      accessible={false}
+      style={{ minWidth: LARGURA_DA_HORA, alignItems: 'flex-start', gap: ESPACO.e4 }}
+    >
+      <Texto
+        variante="apoio"
+        cor="texto"
+        peso="medio"
+        tabular
+        accessibilityRole="text"
+        style={{ lineHeight: TIPO.tituloItem.altura }}
+      >
+        {inicio}
+      </Texto>
+      {fim ? (
+        <Texto variante="apoio" tabular accessibilityRole="text">
+          {fim}
+        </Texto>
+      ) : null}
+    </View>
+  )
+}
 
 /**
  * Recuo do separador até o texto da linha de baixo (quadro 01c): 18 de
@@ -24,7 +59,7 @@ export const RECUO_DA_LISTA = {
   ladrilho: RITMO.recuoDoCartao + ALTURA.ladrilho + 12,
   /** Avatar de 40. */
   avatar: RITMO.recuoDoCartao + TAMANHO_DO_AVATAR.linha + 12,
-  /** Bloco de data ou coluna de hora, de 44. */
+  /** Bloco de data ou coluna de hora, de 48. */
   data: RITMO.recuoDoCartao + LARGURA_DA_HORA + 12,
   hora: RITMO.recuoDoCartao + LARGURA_DA_HORA + 12,
   /** Rádio ou caixa de marcar, de 24. */
@@ -62,19 +97,19 @@ export interface DataDaLinha {
 
 export interface PropsDaLinhaDeLista {
   titulo: string
-  /** Até 2 linhas, em `legenda` suave. */
+  /** Até 2 linhas, em `apoio` (15, `textoSuave`). */
   descricao?: string
   /** À esquerda: ladrilho de 32 com ícone de 18. */
   icone?: NomeDoIcone
   /** À esquerda: avatar de 40 (pessoa). */
   avatar?: { nome: string; dados?: DadosDoAvatar | null; cor?: string }
-  /** À esquerda: bloco de data de 44 de largura (evento). */
+  /** À esquerda: bloco de data de 48 de largura (evento). */
   data?: DataDaLinha
-  /** À esquerda: a hora em coluna de 44 (`lista` 600, `tabular-nums`), alinhada ao título ("16:05"). */
+  /** À esquerda: a hora em coluna fixa de 48 (`apoio` 500, `tabular-nums`), alinhada ao título ("16:05"). */
   hora?: string
   /** À esquerda, qualquer outro elemento (legado). */
   inicio?: ReactNode
-  /** À direita: valor ("07:00"), em `corpo` suave, `tabular-nums`. */
+  /** À direita: valor ("07:00"), em `apoio`, `tabular-nums`. */
   valor?: string
   /** À direita: chip ou outro elemento curto. */
   extra?: ReactNode
@@ -171,20 +206,10 @@ export function LinhaDeLista({
       </Texto>
     </View>
   ) : hora ? (
-    <Texto
-      variante="lista"
-      peso="forte"
-      tabular
-      accessibilityRole="text"
-      style={{
-        minWidth: LARGURA_DA_HORA,
-        alignSelf: 'flex-start',
-        // A hora alinha com a primeira linha do título (16/22), não com o centro da linha.
-        lineHeight: TIPO.tituloItem.altura,
-      }}
-    >
-      {hora}
-    </Texto>
+    // Alinhada à primeira linha do título, não ao centro da linha toda.
+    <View style={{ alignSelf: 'flex-start' }}>
+      <ColunaDeHora inicio={hora} />
+    </View>
   ) : icone ? (
     <View
       style={{
@@ -233,19 +258,19 @@ export function LinhaDeLista({
         />
       ) : null}
       {esquerda}
-      <View style={{ flex: 1, gap: 2 }}>
+      <View style={{ flex: 1, gap: ESPACO.e4 }}>
+        {/* Linha primária 17/600 e secundária 15/400 suave (D83): dois níveis que a vista separa. */}
         <Texto variante="tituloItem" cor={corDoTitulo}>
           {titulo}
         </Texto>
         {descricao ? (
-          // Data, hora, local ou o que a linha abre: informação útil, em 15 (U-09).
-          <Texto variante="meta" cor="textoSuave" numberOfLines={limiteDaDescricao}>
+          <Texto variante="apoio" cor="textoSuave" numberOfLines={limiteDaDescricao}>
             {descricao}
           </Texto>
         ) : null}
       </View>
       {valor ? (
-        <Texto variante="corpo" cor="textoSuave" tabular>
+        <Texto variante="apoio" cor="textoSuave" tabular>
           {valor}
         </Texto>
       ) : null}

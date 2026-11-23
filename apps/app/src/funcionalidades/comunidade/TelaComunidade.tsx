@@ -182,10 +182,10 @@ function Mural({ comunidade }: { comunidade: ComunidadeDoVinculo }) {
   )
 }
 
-/** Título de seção do mural (16 em 600, como o protótipo): a sobrancelha é só dos cartões. */
+/** Título de seção do mural (`secao`, 20 em 600, D83): a sobrancelha é só dos cartões. */
 function TituloDaSecao({ children }: { children: string }) {
   return (
-    <Texto variante="tituloItem" accessibilityRole="header" nivel={2}>
+    <Texto variante="secao" accessibilityRole="header">
       {children}
     </Texto>
   )

@@ -4,6 +4,7 @@ import { z } from 'zod'
 import {
   calcularHorarios,
   dataValida,
+  ehModeloEmbutido,
   instanteNoFuso,
   MAXIMO_DE_ENCONTROS_EM_LOTE,
   MODELOS_EMBUTIDOS,
@@ -46,6 +47,12 @@ const etapaNova = z.object({
   duracaoMin: z.number().int().min(1).max(600),
   descricao: texto(2000).nullish(),
 })
+
+/** A chave de um modelo do app (ex.: `sabado_padrao`) ou o id de um modelo da comunidade. */
+export const chaveDeModelo = z.union([
+  z.string().refine(ehModeloEmbutido, 'Modelo desconhecido.'),
+  uuid,
+])
 
 const itemDeChecklist = z.object({
   tipo: z.enum(['preparacao', 'encerramento']),
@@ -540,7 +547,7 @@ export function registrarRotasDeEventos(app: FastifyInstance, api: pg.Pool): voi
       z.object({
         ...campoEvento,
         duracaoMin: campoEvento.duracaoMin.optional(),
-        modelo: z.union([z.literal('sabado_padrao'), uuid]).optional(),
+        modelo: chaveDeModelo.optional(),
       }),
       pedido.body,
     )
@@ -581,7 +588,7 @@ export function registrarRotasDeEventos(app: FastifyInstance, api: pg.Pool): voi
         capacidade: campoEvento.capacidade,
         informacoesUteis: campoEvento.informacoesUteis,
         visibilidade: campoEvento.visibilidade,
-        modelo: z.union([z.literal('sabado_padrao'), uuid]).optional(),
+        modelo: chaveDeModelo.optional(),
         publicar: z.boolean().default(false),
         dias: z
           .array(
@@ -960,6 +967,56 @@ export function registrarRotasDeEventos(app: FastifyInstance, api: pg.Pool): voi
         [pedido.comunidade!.id, eventoId, e.titulo, e.duracaoMin, e.descricao ?? null],
       )
       return rows[0]
+    })
+  })
+
+  /**
+   * "Usar um modelo" (D81): o roteiro nasce vazio e a pessoa escolhe partir de um modelo do app ou
+   * da comunidade. Só vale com o roteiro vazio (dois toques não dobram as etapas: o segundo é 409).
+   * O checklist do modelo só entra se o encontro ainda não tem o dele. A duração do encontro não muda.
+   */
+  app.post(`${ev}/etapas/modelo`, naCom, async (pedido) => {
+    exigir(pedido, 'etapa', 'gerenciar')
+    const eventoId = idDoCaminho(pedido, 'eventoId')
+    const { modelo: chave } = validar(z.object({ modelo: chaveDeModelo }), pedido.body)
+    return tx(api, pedido, async (c) => {
+      const comunidadeId = pedido.comunidade!.id
+      await exigirEvento(c, comunidadeId, eventoId)
+      const modelo = await lerModelo(c, comunidadeId, chave)
+      const existentes = (
+        await c.query<{ n: number }>(
+          'select count(*)::int as n from uj.etapas where evento_id = $1 and comunidade_id = $2',
+          [eventoId, comunidadeId],
+        )
+      ).rows[0]!.n
+      if (existentes > 0) {
+        throw new ErroHttp('roteiro_ja_montado', 409, 'Este encontro já tem etapas no roteiro.')
+      }
+      await marcarEditado(c, comunidadeId, eventoId)
+      for (const [i, etapa] of modelo.etapas.entries()) {
+        await c.query(
+          `insert into uj.etapas (comunidade_id, evento_id, ordem, titulo, duracao_min, descricao)
+           values ($1, $2, $3, $4, $5, $6)`,
+          [comunidadeId, eventoId, i, etapa.titulo, etapa.duracaoMin, etapa.descricao ?? null],
+        )
+      }
+      const temChecklist =
+        (
+          await c.query(
+            'select 1 from uj.checklist_itens where evento_id = $1 and comunidade_id = $2 limit 1',
+            [eventoId, comunidadeId],
+          )
+        ).rowCount ?? 0
+      if (!temChecklist) {
+        for (const [i, item] of modelo.checklist.entries()) {
+          await c.query(
+            `insert into uj.checklist_itens (comunidade_id, evento_id, tipo, texto, ordem)
+             values ($1, $2, $3, $4, $5)`,
+            [comunidadeId, eventoId, item.tipo, item.texto, i],
+          )
+        }
+      }
+      return { etapas: modelo.etapas.length }
     })
   })
 

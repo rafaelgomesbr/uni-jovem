@@ -64,7 +64,7 @@ describe('conteúdos (3.7.3)', () => {
         [`GET ${BASE}/conteudos/musicas/${MUSICA.id}`]: () => ({ status: 200, corpo: MUSICA }),
       },
     })
-    expect(await screen.findByText('G D Em C')).toBeOnTheScreen()
+    expect(await screen.findByLabelText('Só acordes. Acordes: G, D, Em, C')).toBeOnTheScreen()
     expect(screen.getByText('Bruno Lima')).toBeOnTheScreen()
     expect(
       screen.getByRole('link', { name: 'Abrir o link antigo: https://exemplo.com/cifra' }),

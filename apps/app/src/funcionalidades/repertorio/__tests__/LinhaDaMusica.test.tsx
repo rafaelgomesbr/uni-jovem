@@ -55,7 +55,7 @@ describe('linha de música do repertório (auditoria de UX, 43)', () => {
     expect(screen.getByText('Subir')).toBeOnTheScreen()
     expect(screen.getByText('Descer')).toBeOnTheScreen()
     expect(screen.queryByText('Mais')).toBeNull()
-    expect(screen.queryByText('Tom −')).toBeNull()
+    expect(screen.queryByText('Descer tom')).toBeNull()
   })
 
   test('Subir e Descer têm texto, ícone, 48 de altura no mínimo e a mesma largura', async () => {

@@ -300,9 +300,7 @@ function Encontro({
           <Texto variante="sobrancelha" nivel={2}>
             {`Depois: ${evento.titulo}`}
           </Texto>
-          <Texto variante="meta" cor="textoSuave">
-            {quando}
-          </Texto>
+          <Texto variante="apoio">{quando}</Texto>
           {chips}
           {parte ? respostas : null}
         </View>

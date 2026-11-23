@@ -15,6 +15,12 @@ export type PesoDoTexto = 'regular' | 'medio' | 'forte'
 
 const PESO = { regular: '400', medio: '500', forte: '600' } as const
 
+/** A cor de um papel quando quem chama não escolhe (D83): o apoio é sempre mais suave que o corpo. */
+const COR_PADRAO: Readonly<Partial<Record<VarianteDeTexto, keyof Paleta>>> = {
+  sobrancelha: 'destaque',
+  apoio: 'textoSuave',
+}
+
 export interface PropsDoTexto extends TextProps {
   variante?: VarianteDeTexto
   cor?: keyof Paleta
@@ -22,7 +28,7 @@ export interface PropsDoTexto extends TextProps {
   centralizado?: boolean
   /** Algarismos de largura fixa (horas em coluna, contagens, totais). */
   tabular?: boolean
-  /** Nível do cabeçalho; o padrão vem do papel (display e tituloTela 1, tituloCartao 2, sobrancelha 3). */
+  /** Nível do cabeçalho; o padrão vem do papel (display e tituloTela 1, secao e tituloCartao 2, sobrancelha 3). */
   nivel?: 1 | 2 | 3 | 4
   ref?: Ref<NoDeTexto>
 }
@@ -41,7 +47,8 @@ export function estiloDoPapel(variante: VarianteDeTexto, peso?: PesoDoTexto): Te
 }
 
 /**
- * Texto com os papéis da seção 2.4. Respeita o tamanho de fonte do sistema
+ * Texto com os papéis da seção 2.4 e da hierarquia da D83 (título, seção, corpo, apoio, rótulo;
+ * ver `TIPO` em `@uj/tokens`). Respeita o tamanho de fonte do sistema
  * (nunca desliga `allowFontScaling`); o teto de escala vem do papel. Títulos
  * e sobrancelhas são anunciados como cabeçalho, com o nível do papel.
  */
@@ -67,8 +74,8 @@ export function Texto({
       {...(funcao === 'header' ? soNaWeb({ 'aria-level': nivelFinal ?? 3 }) : {})}
       maxFontSizeMultiplier={maxFontSizeMultiplier ?? papel.teto ?? undefined}
       style={[
-        // A sobrancelha é coral por padrão (mockup); o resto, a cor do texto.
-        { color: cores[cor ?? (variante === 'sobrancelha' ? 'destaque' : 'texto')] },
+        // Cor do papel (`COR_PADRAO`: sobrancelha coral, apoio suave); o resto, a cor do texto.
+        { color: cores[cor ?? COR_PADRAO[variante] ?? 'texto'] },
         estiloDoPapel(variante, peso),
         tabular ? { fontVariant: ['tabular-nums'] } : null,
         centralizado ? { textAlign: 'center' } : null,

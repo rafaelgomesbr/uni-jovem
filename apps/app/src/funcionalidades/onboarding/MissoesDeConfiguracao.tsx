@@ -59,7 +59,7 @@ export function MissoesDeConfiguracao() {
       descricao: proximo
         ? `${proximo.titulo}: confira etapas, equipe e o que falta.`
         : organiza
-          ? 'Monte o próximo encontro a partir do Sábado padrão.'
+          ? 'Marque o próximo encontro e monte o roteiro do seu jeito.'
           : 'Veja na agenda quando é o próximo encontro.',
       feita: feitas.includes('evento'),
       ir: () => {
@@ -69,7 +69,7 @@ export function MissoesDeConfiguracao() {
         if (proximo) {
           router.push({ pathname: '/evento/[eventoId]', params: { eventoId: proximo.id } })
         } else if (organiza) {
-          router.push({ pathname: '/evento/novo', params: { modelo: 'sabado_padrao' } })
+          router.push('/evento/novo')
         } else {
           router.push('/agenda')
         }

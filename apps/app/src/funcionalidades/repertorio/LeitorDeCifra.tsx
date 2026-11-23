@@ -1,14 +1,25 @@
-import { CAPOTRASTE_MAXIMO, prepararCifra, simbolosDeAcidente } from '@uj/dominio'
+import { CAPOTRASTE_MAXIMO, metadadosDaCifra, prepararCifra } from '@uj/dominio'
 import { ESPACO, RAIO, TEMAS } from '@uj/tokens'
-import type { ReactNode } from 'react'
 import { View } from 'react-native'
 
 import { Aviso } from '@/ui/Aviso'
 import { Botao } from '@/ui/Botao'
+import { Cartao } from '@/ui/Cartao'
 import { Texto } from '@/ui/Texto'
+import { TextoAnunciado } from '@/ui/TextoAnunciado'
 import { ProvedorDeTemaForcado } from '@/ui/tema'
 
+import { BotoesDaCasa, BotoesDaLetra, BotoesDoTom } from './ControlesDaCifra'
 import { CifraNaTela } from './CifraNaTela'
+import {
+  FRASE_DO_PASSO_DO_TOM,
+  fraseDeComoTocar,
+  fraseDoAjustePessoal,
+  fraseDoCapotraste,
+  tituloDeVoltarAoTom,
+  tituloDoTom,
+  tomDivergente,
+} from './rotulosDaCifra'
 import { useAjustesDaCifra, type AjustesDaCifra } from './useAjustesDaCifra'
 
 interface Props {
@@ -30,21 +41,21 @@ const AVISO_DE_TEXTO_LIVRE =
   'Esta cifra está em texto livre, então o tom e o capotraste não mudam os acordes. Quem organiza pode converter a cifra na edição da música.'
 
 /**
- * Leitor de cifra (D61, visual A em D71): o tom que soa e o capotraste no alto, os botões de tom
- * (meio tom por vez), capotraste e tamanho da letra com alvo de 48, e a cifra num painel escuro
- * de alto contraste, com a letra grande e os acordes em negrito sobre a sílaba. Os ajustes valem
- * só neste aparelho e nesta leitura: nunca mudam o tom do dia nem a música.
+ * Leitor de cifra (D61, visual A em D71, controles e cor dos acordes em D82). De cima para baixo:
+ * o tom que soa em letra grande (e o capotraste, em palavras), "Descer tom" e "Subir tom",
+ * "Voltar ao tom do dia" quando a pessoa mexeu, o capotraste, o tamanho da letra e a cifra num
+ * painel escuro de alto contraste, com os acordes em outra cor e em negrito sobre a sílaba. Tudo o
+ * que se muda aparece na hora, no tom escrito e nos acordes. Os ajustes valem só neste aparelho e
+ * nesta leitura: nunca mudam o tom do dia nem a música.
  */
 export function LeitorDeCifra({ cifra, tomOriginal, tomDoDia, tamanhoInicial, ajustes }: Props) {
   const interno = useAjustesDaCifra(tamanhoInicial === undefined ? {} : { tamanhoInicial })
   const a = ajustes ?? interno
 
-  const pronta = prepararCifra(cifra, {
-    tomOriginal,
-    tomDoDia: tomDoDia ?? null,
-    ajuste: a.ajuste,
-    capotraste: a.capotraste,
-  })
+  const pedido = { tomOriginal, tomDoDia: tomDoDia ?? null, capotraste: a.capotraste }
+  const pronta = prepararCifra(cifra, { ...pedido, ajuste: a.ajuste })
+  // O tom para onde "Voltar" leva: o mesmo cálculo, sem o ajuste pessoal.
+  const semAjuste = prepararCifra(cifra, { ...pedido, ajuste: 0 })
 
   if (!cifra || !cifra.trim()) {
     return (
@@ -54,111 +65,82 @@ export function LeitorDeCifra({ cifra, tomOriginal, tomDoDia, tamanhoInicial, aj
     )
   }
 
-  const soa = pronta.tomQueSoa ? simbolosDeAcidente(pronta.tomQueSoa) : null
-  const toca = pronta.tomQueSeToca ? simbolosDeAcidente(pronta.tomQueSeToca) : null
-  const comCapo = a.capotraste > 0 && toca !== null
-  const resumoDoTom = soa
-    ? comCapo
-      ? `Soa em ${soa}. Toque em ${toca} com o capotraste na ${a.capotraste}ª casa.`
-      : `Tom ${soa}.`
-    : 'Tom não informado.'
+  const titulo = tituloDoTom(pronta)
+  const comoTocar = fraseDeComoTocar(pronta, a.capotraste)
+  const divergencia = tomDivergente(tomOriginal, metadadosDaCifra(cifra).tom)
+  const temTomDoDia = !!tomDoDia
+  const resumoDoCapotraste = [fraseDoCapotraste(a.capotraste), comoTocar].filter(Boolean).join('. ')
 
   return (
     <View style={{ gap: ESPACO.e16 }}>
-      <View accessible accessibilityLabel={resumoDoTom} style={{ gap: ESPACO.e4 }}>
-        <Texto variante="tituloItem">
-          {soa ? `Tom ${soa}` : 'Sem tom informado'}
-          {comCapo ? `  ·  Capotraste ${a.capotraste}` : ''}
-        </Texto>
-        {comCapo ? (
-          <Texto variante="meta" cor="textoSuave">
-            {`Toca-se em ${toca} (capotraste na ${a.capotraste}ª casa)`}
-          </Texto>
-        ) : null}
-      </View>
-
       {pronta.transpoe ? null : (
         <Aviso tipo="info" titulo="Sem transposição">
           {AVISO_DE_TEXTO_LIVRE}
         </Aviso>
       )}
 
-      {/* Quatro controles na mesma linha, como no protótipo; quebram quando a fonte cresce. */}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
-        <Controle>
-          <Botao
-            titulo="Tom −"
-            variante="secundario"
-            tamanho="medio"
-            rotuloAcessivel="Descer meio tom"
-            desabilitado={!pronta.transpoe}
-            aoPressionar={a.descerMeioTom}
-          />
-        </Controle>
-        <Controle>
-          <Botao
-            titulo="Tom +"
-            variante="secundario"
-            tamanho="medio"
-            rotuloAcessivel="Subir meio tom"
-            desabilitado={!pronta.transpoe}
-            aoPressionar={a.subirMeioTom}
-          />
-        </Controle>
-        <Controle>
-          <Botao
-            titulo="A−"
-            variante="secundario"
-            tamanho="medio"
-            rotuloAcessivel="Diminuir a letra"
-            desabilitado={a.leitura.noMinimo}
-            aoPressionar={a.leitura.menor}
-          />
-        </Controle>
-        <Controle>
-          <Botao
-            titulo="A+"
-            variante="secundario"
-            tamanho="medio"
-            rotuloAcessivel="Aumentar a letra"
-            desabilitado={a.leitura.noMaximo}
-            aoPressionar={a.leitura.maior}
-          />
-        </Controle>
-      </View>
+      {divergencia ? (
+        <Aviso tipo="info" titulo={`A cifra está escrita em ${divergencia.daCifra}`}>
+          {`O cadastro da música diz ${divergencia.cadastrado}. A tela segue o tom da cifra. Quem organiza pode acertar o tom na Biblioteca.`}
+        </Aviso>
+      ) : null}
 
-      <View
-        style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: ESPACO.e8 }}
-      >
-        <Texto variante="meta" cor="textoSuave" style={{ marginRight: ESPACO.e4 }}>
-          {`Capotraste: ${a.capotraste === 0 ? 'sem' : `casa ${a.capotraste}`}`}
+      <Cartao sobrancelha="Tom" opaco intervalo={ESPACO.e12}>
+        <TextoAnunciado soMudancas variante="tituloCartao">
+          {titulo}
+        </TextoAnunciado>
+
+        <BotoesDoTom
+          desabilitado={!pronta.transpoe}
+          aoDescer={a.descerMeioTom}
+          aoSubir={a.subirMeioTom}
+        />
+        <Texto variante="legenda" cor="textoSuave">
+          {FRASE_DO_PASSO_DO_TOM}
         </Texto>
-        <Botao
-          titulo="Capo −"
-          variante="secundario"
-          tamanho="medio"
-          rotuloAcessivel="Capotraste uma casa abaixo"
-          desabilitado={!pronta.transpoe || a.capotraste === 0}
-          aoPressionar={a.capoAbaixo}
-        />
-        <Botao
-          titulo="Capo +"
-          variante="secundario"
-          tamanho="medio"
-          rotuloAcessivel="Capotraste uma casa acima"
-          desabilitado={!pronta.transpoe || a.capotraste >= CAPOTRASTE_MAXIMO}
-          aoPressionar={a.capoAcima}
-        />
+
         {a.ajuste !== 0 ? (
-          <Botao
-            titulo="Tom do dia"
-            variante="secundario"
-            tamanho="medio"
-            rotuloAcessivel="Voltar ao tom do dia"
-            aoPressionar={a.voltarAoTomDoDia}
-          />
+          <>
+            <Texto variante="legenda" cor="textoSuave">
+              {fraseDoAjustePessoal(temTomDoDia, semAjuste.tomQueSoa)}
+            </Texto>
+            <Botao
+              titulo={tituloDeVoltarAoTom(temTomDoDia, semAjuste.tomQueSoa)}
+              variante="terciario"
+              alinhado
+              aoPressionar={a.voltarAoTomDoDia}
+            />
+          </>
         ) : null}
-      </View>
+      </Cartao>
+
+      <Cartao sobrancelha="Capotraste" opaco intervalo={ESPACO.e12}>
+        <View accessible accessibilityLabel={resumoDoCapotraste} style={{ gap: ESPACO.e4 }}>
+          <Texto variante="tituloItem">{fraseDoCapotraste(a.capotraste)}</Texto>
+          {comoTocar ? (
+            <Texto variante="meta" cor="textoSuave">
+              {comoTocar}
+            </Texto>
+          ) : null}
+        </View>
+
+        <BotoesDaCasa
+          desabilitado={!pronta.transpoe}
+          noMinimo={a.capotraste === 0}
+          noMaximo={a.capotraste >= CAPOTRASTE_MAXIMO}
+          aoDescer={a.capoAbaixo}
+          aoSubir={a.capoAcima}
+        />
+      </Cartao>
+
+      <Cartao sobrancelha="Tamanho da letra" opaco>
+        <BotoesDaLetra
+          noMinimo={a.leitura.noMinimo}
+          noMaximo={a.leitura.noMaximo}
+          aoMenor={a.leitura.menor}
+          aoMaior={a.leitura.maior}
+        />
+      </Cartao>
 
       {/* Painel de leitura: sempre escuro e de alto contraste, qualquer que seja o tema do sistema. */}
       <ProvedorDeTemaForcado nome="escuro">
@@ -183,17 +165,6 @@ export function LeitorDeCifra({ cifra, tomOriginal, tomDoDia, tamanhoInicial, aj
           )}
         </View>
       </ProvedorDeTemaForcado>
-      <Texto variante="legenda" cor="textoSuave" accessibilityRole="text">
-        {`Letra: ${a.leitura.tamanho}`}
-      </Texto>
     </View>
   )
-}
-
-/** Largura mínima de cada controle: abaixo disso, a fileira quebra em duas. */
-const LARGURA_MINIMA_DO_CONTROLE = ESPACO.e32 + ESPACO.e40
-
-/** Cada botão da fileira de quatro divide a linha; abaixo de 72 de largura, quebra. */
-function Controle({ children }: { children: ReactNode }) {
-  return <View style={{ flexGrow: 1, flexBasis: LARGURA_MINIMA_DO_CONTROLE }}>{children}</View>
 }

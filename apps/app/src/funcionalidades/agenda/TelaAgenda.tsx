@@ -409,7 +409,8 @@ function DiaDaAgenda({
 }) {
   return (
     <View testID={`dia-${grupo.dia}`} style={{ gap: ESPACO.e8 }}>
-      <Texto variante="tituloItem" nivel={2} accessibilityRole="header">
+      {/* Título de seção (D83): o dia é o assunto do bloco, um degrau acima da linha de cada encontro. */}
+      <Texto variante="secao" accessibilityRole="header">
         {cabecalhoDoDia(grupo.dia, hoje, grupo.itens.length)}
       </Texto>
       <View style={{ gap: ESPACO.e12 }}>{grupo.itens.map((e) => linha(e, grupo.itens))}</View>

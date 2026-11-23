@@ -122,7 +122,7 @@ describe('banda do encontro no Quem vai (D61, D74)', () => {
     const usuario = userEvent.setup()
     await usuario.press(await screen.findByRole('radio', { name: 'Quem vai' }))
     await usuario.press(await screen.findByRole('button', { name: 'Avisar a banda' }))
-    // D71: avisar gente não pede "tem certeza?": o Desfazer de 10 s segura o envio e só então sai.
+    // D71: avisar gente não pede "tem certeza?": o Desfazer de 5 s segura o envio e só então sai.
     expect(pedidosPara(servidor, 'POST', `${CAMINHO}/repertorio/avisar`)).toHaveLength(0)
     await act(async () => confirmarAgora())
     await waitFor(() =>

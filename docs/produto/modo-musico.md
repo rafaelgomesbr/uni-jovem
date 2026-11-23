@@ -212,7 +212,7 @@ Acesso: cartão no Início e na aba Escalas; só aparece para quem tem convocaç
 Acesso: Música ou Meu repertório, botão Modo palco. Não mostra a barra de abas (como o Ao vivo hoje).
 
 - **Aparece:** tela escura de alto contraste, título e tom (e capotraste) em cima, cifra grande com acordes **em negrito e posição acima da letra** (não só em cor), seções (verso, refrão) com rótulo em texto.
-- **Botões:** **Anterior** e **Próxima** música (botões grandes, também por toque nas laterais, nunca só gesto); **A−** e **A+** (tamanho da letra, lembrado por pessoa); **Tom −** e **Tom +** e Capotraste (só para o meu aparelho, sem mexer no tom do dia); **Sair**.
+- **Botões:** **Anterior** e **Próxima** música (botões grandes, também por toque nas laterais, nunca só gesto); **Letra menor** e **Letra maior** (tamanho da letra, lembrado por pessoa); **Descer tom** e **Subir tom** e Capotraste (**Descer casa** e **Subir casa**; D82) (só para o meu aparelho, sem mexer no tom do dia); **Sair**.
 - **Comportamento:** mantém a tela acesa, respeita Reduzir movimento, funciona sem internet, mostra "Posição 2 de 4" para não se perder. Rolagem automática é Luxo e fica fora da fatia inicial.
 
 ## 7. Modelo de dados proposto
@@ -424,7 +424,7 @@ Pedido do dono: "faz o repertório aceitar PDF também". Músicos e líderes tê
 - **Quem organiza**, na Biblioteca (música nova ou em edição): "Anexar PDF". O aviso de direitos autorais e a caixa do aceite são **os mesmos da cifra em texto** (sem texto legal novo): ao tocar em "Anexar PDF" sem o aceite, o app mostra o aviso e a caixa e diz o que falta; com o aceite, abre a escolha do arquivo. Depois: "PDF anexado (nome, tamanho)", "Trocar o PDF" e "Remover o PDF" (confirmação clara, porque remover apaga o arquivo do servidor). Na música nova o PDF escolhido espera o "Salvar".
 - **Mensagens em palavras:** arquivo acima de 10 MB ("Este PDF tem 14 MB e o limite é de 10 MB..."), arquivo que não é PDF, sem internet, e a mensagem da API quando ela recusa.
 - **Todos**, no repertório do encontro, no Meu repertório e na Biblioteca: o selo **"PDF" em texto** na linha da música (sem PDF e sem cifra, continua "Sem cifra"), e o cartão **"PDF da música"** com o botão **"Abrir PDF"**, que abre no visualizador do sistema (Quick Look no iPhone, aplicativo de PDF no Android, aba nova na web). Música com cifra em texto e PDF mostra as duas opções.
-- **O PDF não transpõe tom.** Em música só com PDF, "Tom −" e "Tom +" ficam desabilitados e a tela escreve o motivo ("O PDF não muda de tom: ele abre do jeito que foi anexado. Para transpor, peça à organização a cifra em texto."). O tom do dia aparece em texto.
+- **O PDF não transpõe tom.** Em música só com PDF, "Descer tom" e "Subir tom" ficam desabilitados e a tela escreve o motivo ("O PDF não muda de tom: ele abre do jeito que foi anexado. Para transpor, peça à organização a cifra em texto."). O tom do dia aparece em texto.
 - **Modo palco com PDF:** botão grande "Abrir PDF" (tela cheia, sem barra) e a tela acesa que o palco já mantém. No Android o PDF abre em outro aplicativo, então a tela acesa depende dele.
 - **Sem internet (quem toca):** "Deixar pronto sem internet" baixa o PDF junto, só se a versão mudou, e guarda na mesma partição cifrada. **"Pronto para tocar sem internet" só aparece com todos os PDFs baixados**; antes disso o cartão diz "Quase pronto: falta 1 PDF" e oferece "Baixar o que falta". O PDF abre sem rede e sai junto com a cópia (sair da comunidade ou da conta, 403 ou 404, 36 h depois do início do encontro).
 

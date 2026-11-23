@@ -168,7 +168,7 @@ describe('Modo palco', () => {
     })
   })
 
-  test('A+ e A− mudam a letra e o tamanho fica lembrado para a próxima vez', async () => {
+  test('Letra maior e Letra menor mudam a letra e o tamanho fica lembrado para a próxima vez', async () => {
     parametros({ palco: '1' })
     await renderizarTela(<TelaCifraDoRepertorio />, { papel: 'membro', rotas: rotas() })
     const usuario = userEvent.setup()
@@ -178,20 +178,20 @@ describe('Modo palco', () => {
       return Object.assign({}, ...estilo).fontSize as number
     }
 
-    await screen.findByRole('button', { name: 'Aumentar a letra' })
+    await screen.findByRole('button', { name: 'Letra maior' })
     const inicial = tamanho()
-    await usuario.press(screen.getByRole('button', { name: 'Aumentar a letra' }))
+    await usuario.press(screen.getByRole('button', { name: 'Letra maior' }))
     expect(tamanho()).toBeGreaterThan(inicial)
     await waitFor(async () =>
       expect(await lerPreferenciaLocal<number>('uj.palco.tamanho')).toBe(32),
     )
 
-    await usuario.press(screen.getByRole('button', { name: 'Diminuir a letra' }))
-    await usuario.press(screen.getByRole('button', { name: 'Diminuir a letra' }))
+    await usuario.press(screen.getByRole('button', { name: 'Letra menor' }))
+    await usuario.press(screen.getByRole('button', { name: 'Letra menor' }))
     expect(tamanho()).toBeLessThan(inicial)
   })
 
-  test('Tom − e Tom + mexem só neste aparelho: o tom do dia da música não muda', async () => {
+  test('Descer tom e Subir tom mexem só neste aparelho: o tom do dia da música não muda', async () => {
     parametros({ palco: '1' })
     const { servidor } = await renderizarTela(<TelaCifraDoRepertorio />, {
       papel: 'membro',
@@ -199,9 +199,9 @@ describe('Modo palco', () => {
     })
     const usuario = userEvent.setup()
 
-    await usuario.press(await screen.findByRole('button', { name: 'Subir meio tom' }))
+    await usuario.press(await screen.findByRole('button', { name: 'Subir tom' }))
     expect(screen.getByText('Tom B♭')).toBeOnTheScreen()
-    await usuario.press(screen.getByRole('button', { name: 'Descer meio tom' }))
+    await usuario.press(screen.getByRole('button', { name: 'Descer tom' }))
     expect(screen.getByText('Tom A')).toBeOnTheScreen()
     expect(servidor.pedidos.filter((q) => q.metodo !== 'GET')).toHaveLength(0)
   })

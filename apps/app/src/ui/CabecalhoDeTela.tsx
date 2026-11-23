@@ -49,10 +49,10 @@ export function voltar() {
 
 /**
  * Cabeçalho de tela próprio (seção 2.12.16), no lugar do cabeçalho nativo:
- * - raiz: linha de 44 (pílula e status), 20, `display` 34/38;
+ * - raiz: linha de 44 (pílula e status), 20, `display` 30/34 (D83, era 34/38);
  * - pilha: linha de 44 com o voltar circular (rótulo "Voltar"; "Fechar" no
  *   modal) e ações, 12, `tituloTela` 28/32 e subtítulo 4 abaixo;
- * - folha: título `tituloCartao` à esquerda e o fechar à direita.
+ * - folha: título `tituloCartao` (22/26) à esquerda e o fechar à direita.
  */
 export function CabecalhoDeTela({
   tipo,

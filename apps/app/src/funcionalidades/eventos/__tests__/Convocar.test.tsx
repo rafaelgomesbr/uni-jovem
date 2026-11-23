@@ -185,7 +185,7 @@ describe('resumo do Quem vai e "Lembrar os N"', () => {
     expect(screen.queryByRole('radio', { name: 'Convocados' })).toBeNull()
   })
 
-  test('"Lembrar os 2": vira "Enviando em 10 s" com Desfazer e só então chama a API', async () => {
+  test('"Lembrar os 2": vira "Enviando em 5 s" com Desfazer e só então chama a API', async () => {
     const usuario = userEvent.setup()
     const { servidor } = await montar(DOIS_PENDENTES, {
       [`POST ${CAMINHO}/lembrar-pendentes`]: () => ({
@@ -198,8 +198,8 @@ describe('resumo do Quem vai e "Lembrar os N"', () => {
       await screen.findByText('Lembrando 2 pessoas que ainda não responderam.'),
     ).toBeOnTheScreen()
     // O número do botão é o que a faixa conta: nenhum "10" escrito à mão.
-    expect(screen.getByRole('button', { name: 'Enviando em 10 s' })).toBeDisabled()
-    expect(screen.getByText('10 s')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Enviando em 5 s' })).toBeDisabled()
+    expect(screen.getByText('5 s')).toBeOnTheScreen()
     expect(pedidosPara(servidor, 'POST', `${CAMINHO}/lembrar-pendentes`)).toHaveLength(0)
     await act(async () => confirmarAgora())
     await waitFor(() =>
@@ -486,7 +486,7 @@ describe('a folha "Convocar" em lote', () => {
     // O texto diz o que acontece e a quem, com o número de segundos que a faixa vai contar.
     expect(
       await screen.findByText(
-        'Elas serão avisadas depois da contagem. Você tem 10 segundos para desfazer.',
+        'Elas serão avisadas depois da contagem. Você tem 5 segundos para desfazer.',
       ),
     ).toBeOnTheScreen()
     await usuario.press(

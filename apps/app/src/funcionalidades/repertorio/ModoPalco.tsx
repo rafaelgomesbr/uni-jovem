@@ -1,4 +1,4 @@
-import { prepararCifra, simbolosDeAcidente } from '@uj/dominio'
+import { prepararCifra } from '@uj/dominio'
 import { BORDA, ESPACO } from '@uj/tokens'
 import { useKeepAwake } from 'expo-keep-awake'
 import { useRef, type ComponentRef } from 'react'
@@ -21,6 +21,13 @@ import { ProvedorDeTemaForcado, useTema } from '@/ui/tema'
 
 import { PdfNoPalco, type PdfDoPalco } from '../pdf/PdfNoPalco'
 import { CifraNaTela } from './CifraNaTela'
+import { BotoesDaLetra, BotoesDoTom } from './ControlesDaCifra'
+import {
+  fraseDeComoTocar,
+  fraseDoCapotraste,
+  tituloDeVoltarAoTom,
+  tituloDoTom,
+} from './rotulosDaCifra'
 import { proximoPontoDeRolagem } from './rolagem'
 import { MOTIVO_PDF_NAO_TRANSPOE } from './TomDoPdf'
 import type { AjustesDaCifra } from './useAjustesDaCifra'
@@ -40,9 +47,6 @@ interface Props {
   /** PDF anexado à música (D76): o palco oferece "Abrir PDF" em tela cheia, ao lado da cifra em texto. */
   pdf?: PdfDoPalco | null
 }
-
-/** Largura mínima de cada botão da fileira de controles: abaixo disso, a fileira quebra. */
-const LARGURA_MINIMA_DO_CONTROLE = ESPACO.e32 + ESPACO.e40
 
 /** Tela acesa enquanto o palco está aberto: some sozinha ao sair (usa o que já está instalado). */
 function ManterTelaAcesa() {
@@ -92,13 +96,23 @@ function Palco({
     ajuste: a.ajuste,
     capotraste: a.capotraste,
   })
-  const soa = pronta.tomQueSoa ? simbolosDeAcidente(pronta.tomQueSoa) : null
-  const toca = pronta.tomQueSeToca ? simbolosDeAcidente(pronta.tomQueSeToca) : null
+  // O tom para onde "Voltar" leva: o mesmo cálculo, sem o ajuste pessoal.
+  const semAjuste = prepararCifra(cifra, {
+    tomOriginal,
+    tomDoDia,
+    ajuste: 0,
+    capotraste: a.capotraste,
+  })
   // Só PDF, sem cifra em texto: não há o que transpor nem o que aumentar (o motivo vai escrito).
   const soPdf = pdf !== null && (!cifra || !cifra.trim())
-  const comCapo = a.capotraste > 0 && toca !== null
-  const sobreOTom = soa
-    ? `Tom ${soa}${comCapo ? ` · Capotraste ${a.capotraste} (toque em ${toca})` : ''}`
+  const sobreOTom = pronta.tomQueSoa
+    ? [
+        tituloDoTom(pronta),
+        a.capotraste > 0 ? fraseDoCapotraste(a.capotraste) : null,
+        fraseDeComoTocar(pronta, a.capotraste),
+      ]
+        .filter(Boolean)
+        .join('. ')
     : null
 
   // A mão está no instrumento e o foco do leitor de tela fica no botão tocado: quem troca de música
@@ -249,45 +263,27 @@ function Palco({
             {MOTIVO_PDF_NAO_TRANSPOE}
           </Texto>
         ) : null}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO.e8 }}>
-          {[
-            {
-              titulo: 'Tom −',
-              rotulo: 'Descer meio tom',
-              aoPressionar: a.descerMeioTom,
-              desabilitado: !pronta.transpoe,
-            },
-            {
-              titulo: 'Tom +',
-              rotulo: 'Subir meio tom',
-              aoPressionar: a.subirMeioTom,
-              desabilitado: !pronta.transpoe,
-            },
-            {
-              titulo: 'A−',
-              rotulo: 'Diminuir a letra',
-              aoPressionar: a.palco.menor,
-              desabilitado: a.palco.noMinimo || soPdf,
-            },
-            {
-              titulo: 'A+',
-              rotulo: 'Aumentar a letra',
-              aoPressionar: a.palco.maior,
-              desabilitado: a.palco.noMaximo || soPdf,
-            },
-          ].map((c) => (
-            <View key={c.titulo} style={{ flexGrow: 1, flexBasis: LARGURA_MINIMA_DO_CONTROLE }}>
-              <Botao
-                titulo={c.titulo}
-                variante="secundario"
-                tamanho="medio"
-                rotuloAcessivel={c.rotulo}
-                desabilitado={c.desabilitado}
-                aoPressionar={c.aoPressionar}
-              />
-            </View>
-          ))}
-        </View>
+        {a.ajuste !== 0 ? (
+          <Botao
+            titulo={tituloDeVoltarAoTom(!!tomDoDia, semAjuste.tomQueSoa)}
+            variante="terciario"
+            tamanho="medio"
+            larguraTotal
+            aoPressionar={a.voltarAoTomDoDia}
+          />
+        ) : null}
+        <BotoesDoTom
+          desabilitado={!pronta.transpoe}
+          aoDescer={a.descerMeioTom}
+          aoSubir={a.subirMeioTom}
+        />
+        <BotoesDaLetra
+          desabilitado={soPdf}
+          noMinimo={a.palco.noMinimo}
+          noMaximo={a.palco.noMaximo}
+          aoMenor={a.palco.menor}
+          aoMaior={a.palco.maior}
+        />
       </View>
     </View>
   )

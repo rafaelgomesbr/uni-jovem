@@ -10,7 +10,7 @@ import { chamadasV3, type MomentoDoInicio, type ParteDoMomento } from '@/servico
 import { Botao, ParDeBotoes } from '@/ui/Botao'
 import { CartaoDoMomento } from '@/ui/CartaoDoMomento'
 import { Texto } from '@/ui/Texto'
-import { desfazerAgora, mostrarDesfazer, useDesfazerPendente } from '@/ui/ToastComDesfazer'
+import { mostrarDesfazer, useDesfazerPendente } from '@/ui/ToastComDesfazer'
 import { mostrarToast } from '@/ui/Toast'
 import { formatarHora } from '@/utilidades/datas'
 
@@ -78,7 +78,7 @@ function confirmados(n: number): string {
  * UMA linha do que importa (o estado), o botão principal e UM botão secundário de verdade. O
  * alerta que o botão principal já diz ("Montar o repertório") não vira frase; o que sobra vira um
  * selo pequeno. Os botões mais caros da semana moram aqui: "Lembrar os N" (chama a API e espera
- * 10 s com Desfazer, porque avisa pessoas) e "Publicar e avisar N pessoas" (idem). Sem internet,
+ * a janela do Desfazer, porque avisa pessoas) e "Publicar e avisar N pessoas" (na hora, D81). Sem internet,
  * o que avisa gente fica desabilitado com o motivo escrito.
  */
 export function CartaoDoLider({
@@ -131,6 +131,7 @@ export function CartaoDoLider({
       }),
     onSuccess: async () => {
       setPublicacao('feito')
+      aoEncanto('publicou', 'Seu primeiro encontro está no ar.')
       const n = lider?.avisariaAoPublicar ?? 0
       mostrarToast({
         texto:
@@ -172,14 +173,9 @@ export function CartaoDoLider({
 
   function pedirPublicacao() {
     if (!evento) return
-    const n = lider?.avisariaAoPublicar ?? 0
+    // Publicar é na hora (D81): sem contagem. "espera" é só a resposta viajando.
     setPublicacao('espera')
-    aoEncanto('publicou', 'Seu primeiro encontro está no ar.')
-    mostrarDesfazer({
-      texto: n > 0 ? `Publicando e avisando ${pessoas(n)}.` : 'Publicando o encontro.',
-      aoDesfazer: () => setPublicacao('nao'),
-      aoConfirmar: () => publicar.mutate(),
-    })
+    publicar.mutate()
   }
 
   // ------------------------------------------------------------------ o que o botão faz
@@ -219,7 +215,7 @@ export function CartaoDoLider({
           return (
             <Botao
               key={acao}
-              titulo={`Enviando em ${esperaDoToast?.restante ?? 10} s`}
+              titulo={`Enviando em ${esperaDoToast?.restante ?? 5} s`}
               variante={variante}
               icone="relogio"
               desabilitado
@@ -255,16 +251,16 @@ export function CartaoDoLider({
       }
       case 'publicar': {
         const n = lider?.avisariaAoPublicar ?? 0
-        // Durante a espera o botão diz o que acontece e É o Desfazer, igual ao Encontro (auditoria de
-        // 22/11/2026, achado 14): nunca "Publicado" antes de sair.
+        // Enquanto a resposta viaja o botão diz o que acontece: nunca "Publicado" antes de sair.
         if (publicacao === 'espera') {
           return (
             <Botao
               key={acao}
-              titulo={`Publicando em ${esperaDoToast?.restante ?? 10} s · Desfazer`}
+              titulo="Publicando..."
               variante={variante}
-              icone="relogio"
-              aoPressionar={desfazerAgora}
+              carregando
+              desabilitado
+              aoPressionar={() => undefined}
             />
           )
         }
@@ -360,20 +356,25 @@ export function CartaoDoLider({
   let titulo: string
   let meta: string
   let corpo: ReactNode = null
+  // "Nenhum encontro marcado." é uma frase de estado, não o nome de um encontro: título de seção (D83).
+  let tituloComoFrase = false
 
   if (!evento && terminou && momento.recemTerminado) {
     const r = momento.recemTerminado
     titulo = r.titulo
     meta = dataEHoraDoCartao(r.inicio, r.fuso)
     corpo = (
-      <Texto variante="rotulo">{`O encontro terminou.${
-        r.presentes !== null
-          ? ` ${r.presentes} ${r.presentes === 1 ? 'presente' : 'presentes'}.`
-          : ''
-      }`}</Texto>
+      <Texto variante="corpo" peso="medio">
+        {`O encontro terminou.${
+          r.presentes !== null
+            ? ` ${r.presentes} ${r.presentes === 1 ? 'presente' : 'presentes'}.`
+            : ''
+        }`}
+      </Texto>
     )
   } else if (!evento) {
     titulo = 'Nenhum encontro marcado.'
+    tituloComoFrase = true
     meta = 'Marque o próximo para a comunidade ver e responder.'
   } else {
     titulo = evento.titulo
@@ -411,7 +412,11 @@ export function CartaoDoLider({
     corpo =
       linhaDoEstado || selo ? (
         <View style={{ gap: ESPACO.e8, alignItems: 'flex-start' }}>
-          {linhaDoEstado ? <Texto variante="rotulo">{linhaDoEstado}</Texto> : null}
+          {linhaDoEstado ? (
+            <Texto variante="corpo" peso="medio">
+              {linhaDoEstado}
+            </Texto>
+          ) : null}
           {selo ? <SeloDoCartao texto={selo} /> : null}
         </View>
       ) : null
@@ -427,6 +432,7 @@ export function CartaoDoLider({
       aoVivo={dia === 'agora'}
       chip={<ChipsDoTopo posicao={posicao} versaoSalva={versaoSalva} />}
       titulo={titulo}
+      tituloComoFrase={tituloComoFrase}
       meta={meta}
       {...(evento ? { aoPressionar: destinos.abrirEncontro, dica: 'Abre o encontro.' } : {})}
       rotuloAcessivel={[etiqueta, posicao ? textoDaPosicao(posicao) : null, titulo, meta]

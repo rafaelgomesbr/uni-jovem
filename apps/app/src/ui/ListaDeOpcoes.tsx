@@ -136,15 +136,11 @@ function LinhaDeOpcao<T extends string>({
         />
       ) : null}
       <Radio marcado={marcada} desabilitado={!!opcao.desabilitada} />
-      <View style={{ flex: 1, gap: 2 }}>
+      <View style={{ flex: 1, gap: ESPACO.e4 }}>
         <Texto variante="tituloItem" style={{ color: corDoTexto }}>
           {opcao.rotulo}
         </Texto>
-        {opcao.descricao ? (
-          <Texto variante="legenda" cor="textoSuave">
-            {opcao.descricao}
-          </Texto>
-        ) : null}
+        {opcao.descricao ? <Texto variante="apoio">{opcao.descricao}</Texto> : null}
       </View>
     </Pressable>
   )
